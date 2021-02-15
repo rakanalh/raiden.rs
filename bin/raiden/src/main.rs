@@ -4,13 +4,18 @@ extern crate slog_term;
 extern crate tokio;
 extern crate web3;
 
-use raiden::accounts::keystore;
-//use raiden::api::http;
-use raiden::cli;
-use raiden::service;
-use raiden::traits::{ToHTTPEndpoint, ToSocketEndpoint};
 use slog::Drain;
 use std::path::Path;
+
+mod accounts;
+mod cli;
+mod event_handler;
+mod raiden_service;
+mod traits;
+use traits::{
+    ToHTTPEndpoint,
+    ToSocketEndpoint,
+};
 
 #[tokio::main]
 async fn main() {
@@ -41,7 +46,7 @@ async fn main() {
     }
 
     let keystore_path = Path::new(matches.value_of("keystore-path").unwrap());
-    let keys = keystore::list_keys(keystore_path).unwrap();
+    let keys = accounts::list_keys(keystore_path).unwrap();
 
     let selected_key_filename = cli::prompt_key(&keys);
     let our_address = keys[&selected_key_filename].clone();
@@ -57,7 +62,8 @@ async fn main() {
     let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
     let web3 = web3::Web3::new(http);
 
-    let service = service::RaidenService::new(web3, chain_id, our_address, config.private_key.clone(), log.clone());
+    let service =
+        raiden_service::RaidenService::new(web3, chain_id, our_address, config.private_key.clone(), log.clone());
 
     service.initialize().await;
     service.start(config).await;

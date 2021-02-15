@@ -1,8 +1,16 @@
-use crate::enums::ChainID;
 use crate::errors::ChannelError;
-use serde::{Deserialize, Serialize};
+use crate::state_machine::types::ChainID;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use std::collections::HashMap;
-use web3::types::{Address, H256, U256, U64};
+use web3::types::{
+    Address,
+    H256,
+    U256,
+    U64,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CanonicalIdentifier {

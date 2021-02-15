@@ -1443,20 +1443,34 @@ checksum = "def50a86306165861203e7f84ecffbbdfdea79f0e51039b33de1e952358c47ac"
 name = "raiden"
 version = "0.1.0"
 dependencies = [
- "clap",
  "derive_more",
  "ethabi",
  "ethsign",
  "futures",
- "rpassword",
  "rusqlite",
  "serde",
+ "serde_json",
+ "slog",
+ "tokio 0.2.24",
+ "ulid",
+ "web3",
+]
+
+[[package]]
+name = "raiden-full-node"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "ethsign",
+ "futures",
+ "raiden",
+ "rpassword",
+ "rusqlite",
  "serde_json",
  "slog",
  "slog-async",
  "slog-term",
  "tokio 0.2.24",
- "ulid",
  "url",
  "web3",
 ]

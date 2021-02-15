@@ -2,24 +2,45 @@
 name = "raiden"
 version = "0.1.0"
 authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden Network implementation in Rust"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
 edition = "2018"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+default-members = [".", "bin/raiden"]
+members = [
+    ".",
+    "bin/raiden",
+]
 
 [dependencies]
-clap = "2.33.3"
-ethsign = "0.7.3"
 ethabi = "13.0.0"
+ethsign = "0.7.3"
 derive_more = "0.99.11"
 futures = "0.3.12"
-rpassword = "5.0.0"
 rusqlite = "0.24.2"
 serde = "1.0.119"
 serde_json = "1.0.59"
 slog = "2.7.0"
-slog-async = "2.6.0"
-slog-term = "2.6.0"
-tokio = { version = "0.2", features = ["full"] }
+tokio = "0.2"
 web3 = "0.15.0"
 ulid = "0.4.1"
-url = "2.2.0"
+
+[profile.dev]
+opt-level = 2
+panic = "abort"
+[profile.dev.package."*"]
+opt-level = 3
+
+# The `test` profile mimics the `dev` profile to avoid recompilations.
+[profile.test]
+opt-level = 2
+[profile.test.package."*"]
+opt-level = 3
+
+[profile.release]
+panic = "abort"
+lto = true

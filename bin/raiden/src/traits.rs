@@ -1,4 +1,7 @@
-use url::{ParseError, Url};
+use url::{
+    ParseError,
+    Url,
+};
 
 pub trait ToHTTPEndpoint {
     fn to_http(&self) -> Result<String, ParseError>;

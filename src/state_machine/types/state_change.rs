@@ -1,7 +1,27 @@
-use crate::enums::ChainID;
-use crate::transfer::state::{ChannelState, TokenNetworkRegistryState, TokenNetworkState};
-use serde::{Deserialize, Serialize};
-use web3::types::{Address, H256, U64};
+use crate::state_machine::state::{
+    ChannelState,
+    TokenNetworkRegistryState,
+    TokenNetworkState,
+};
+use crate::state_machine::types::ChainID;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use web3::types::{
+    Address,
+    H256,
+    U64,
+};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum StateChange {
+    Block(Block),
+    ActionInitChain(ActionInitChain),
+    ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
+    ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated),
+    ContractReceiveChannelOpened(ContractReceiveChannelOpened),
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {

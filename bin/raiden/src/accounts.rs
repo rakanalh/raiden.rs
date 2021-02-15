@@ -1,7 +1,15 @@
-use ethsign::{KeyFile, Protected, SecretKey};
+use ethsign::{
+    KeyFile,
+    Protected,
+    SecretKey,
+};
 use serde_json;
 use std::collections::HashMap;
-use std::fs::{self, DirEntry, File};
+use std::fs::{
+    self,
+    DirEntry,
+    File,
+};
 use std::io;
 use std::path::Path;
 use web3::types::Address;

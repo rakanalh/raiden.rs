@@ -1,7 +1,19 @@
-use crate::transfer::state::TokenNetworkState;
-use crate::transfer::state_change::ContractReceiveTokenNetworkCreated;
-use serde::{Deserialize, Serialize};
-use web3::types::{Address, H256, U64};
+use crate::state_machine::state::TokenNetworkState;
+use crate::state_machine::types::ContractReceiveTokenNetworkCreated;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use web3::types::{
+    Address,
+    H256,
+    U64,
+};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum Event {
+    TokenNetworkCreated(TokenNetworkCreated),
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TokenNetworkCreated {

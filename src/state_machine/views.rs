@@ -1,8 +1,15 @@
-use crate::transfer::state::{ChainState, TokenNetworkRegistryState, TokenNetworkState};
-use web3::types::{Address, U64};
+use crate::state_machine::state::{
+    ChainState,
+    TokenNetworkRegistryState,
+    TokenNetworkState,
+};
+use web3::types::{
+    Address,
+    U64,
+};
 
 pub fn block_number(chain_state: &ChainState) -> U64 {
-	chain_state.block_number
+    chain_state.block_number
 }
 
 pub fn get_token_network<'a>(

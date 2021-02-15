@@ -1,0 +1,29 @@
+[package]
+name = "raiden-full-node"
+version = "0.0.1"
+authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden executable"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
+edition = "2018"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+
+[[bin]]
+name = "raiden"
+path = "src/main.rs"
+
+[dependencies]
+clap = "2.33.3"
+ethsign = "0.7.3"
+futures = "0.3.12"
+raiden = { path = "../.." }
+rpassword = "5.0.0"
+rusqlite = "0.24.2"
+serde_json = "1.0.59"
+slog = "2.7.0"
+slog-async = "2.6.0"
+slog-term = "2.6.0"
+tokio = { version = "0.2", features=["full"] }
+url = "2.2.0"
+web3 = "0.15.0"

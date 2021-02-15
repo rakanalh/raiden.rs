@@ -1,13 +1,20 @@
-use clap::{App, Arg, SubCommand};
+use clap::{
+    App,
+    Arg,
+    SubCommand,
+};
 use ethsign::SecretKey;
 use rpassword;
 use slog::Logger;
 use std::collections::HashMap;
-use std::io::{stdin, stdout, Write};
+use std::io::{
+    stdin,
+    stdout,
+    Write,
+};
 use std::path::Path;
 use web3::types::Address;
-
-use crate::accounts::keystore;
+use crate::accounts;
 
 #[derive(Clone)]
 pub struct Config<'a> {
@@ -72,9 +79,7 @@ pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
         }
         print!("Selected key: ");
         let _ = stdout().flush();
-        stdin()
-            .read_line(&mut s)
-            .expect("Did not enter a correct string");
+        stdin().read_line(&mut s).expect("Did not enter a correct string");
         let selected_value: Result<u32, _> = s.trim().parse();
         if let Ok(chosen_index) = selected_value {
             if (chosen_index as usize) >= keys.len() {
@@ -88,7 +93,7 @@ pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
 pub fn prompt_password(key_filename: String, log: Logger) -> SecretKey {
     loop {
         let pass = rpassword::read_password_from_tty(Some("Password: ")).unwrap();
-        let unlock = keystore::use_key(&key_filename, pass.to_string());
+        let unlock = accounts::use_key(&key_filename, pass.to_string());
         info!(log, "Key unlocked");
         if let Some(secret_key) = unlock {
             return secret_key;

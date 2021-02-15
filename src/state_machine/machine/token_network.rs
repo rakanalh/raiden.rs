@@ -1,7 +1,10 @@
-use crate::enums::{Event, StateChange};
 use crate::errors::StateTransitionError;
-use crate::transfer::state::TokenNetworkState;
-use crate::transfer::state_change;
+use crate::state_machine::state::TokenNetworkState;
+use crate::state_machine::types::state_change;
+use crate::state_machine::types::{
+    Event,
+    StateChange,
+};
 
 pub struct TokenNetworkTransition {
     pub new_state: TokenNetworkState,

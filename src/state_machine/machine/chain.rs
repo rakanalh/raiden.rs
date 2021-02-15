@@ -1,9 +1,24 @@
-use crate::enums::{Event, StateChange};
-use crate::errors::StateTransitionError;
-use crate::transfer::{
-    event,
-    state::{ChainState, TokenNetworkRegistryState, TokenNetworkState},
-    state_change, token_network, views,
+use crate::state_machine::{
+    machine::token_network,
+    types::{
+        ActionInitChain,
+        Block,
+        ContractReceiveChannelOpened,
+        ContractReceiveTokenNetworkCreated,
+        ContractReceiveTokenNetworkRegistry,
+        Event,
+        StateChange,
+        TokenNetworkCreated,
+    },
+    views,
+};
+use crate::{
+    errors::StateTransitionError,
+    state_machine::state::{
+        ChainState,
+        TokenNetworkRegistryState,
+        TokenNetworkState,
+    },
 };
 
 pub struct ChainTransition {
@@ -11,9 +26,7 @@ pub struct ChainTransition {
     pub events: Vec<Event>,
 }
 
-fn handle_action_init_chain(
-    state_change: state_change::ActionInitChain,
-) -> Result<ChainTransition, StateTransitionError> {
+fn handle_action_init_chain(state_change: ActionInitChain) -> Result<ChainTransition, StateTransitionError> {
     Ok(ChainTransition {
         new_state: ChainState::new(
             state_change.chain_id,
@@ -24,10 +37,7 @@ fn handle_action_init_chain(
     })
 }
 
-fn handle_new_block(
-    mut chain_state: ChainState,
-    state_change: state_change::Block,
-) -> Result<ChainTransition, StateTransitionError> {
+fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Result<ChainTransition, StateTransitionError> {
     chain_state.block_number = state_change.block_number;
     Ok(ChainTransition {
         new_state: chain_state,
@@ -37,7 +47,7 @@ fn handle_new_block(
 
 fn handle_contract_receive_token_network_registry(
     mut chain_state: ChainState,
-    state_change: state_change::ContractReceiveTokenNetworkRegistry,
+    state_change: ContractReceiveTokenNetworkRegistry,
 ) -> Result<ChainTransition, StateTransitionError> {
     chain_state.identifiers_to_tokennetworkregistries.insert(
         state_change.token_network_registry.address,
@@ -51,7 +61,7 @@ fn handle_contract_receive_token_network_registry(
 
 fn handle_contract_receive_token_network_created(
     mut chain_state: ChainState,
-    state_change: state_change::ContractReceiveTokenNetworkCreated,
+    state_change: ContractReceiveTokenNetworkCreated,
 ) -> Result<ChainTransition, StateTransitionError> {
     let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
     let mut token_network_registry = token_network_registries.get_mut(&state_change.token_network_registry_address);
@@ -75,7 +85,7 @@ fn handle_contract_receive_token_network_created(
     );
     drop(token_network_registries);
 
-    let token_network_created: event::TokenNetworkCreated = state_change.into();
+    let token_network_created: TokenNetworkCreated = state_change.into();
 
     Ok(ChainTransition {
         new_state: chain_state,
@@ -85,7 +95,7 @@ fn handle_contract_receive_token_network_created(
 
 fn handle_token_network_state_change(
     mut chain_state: ChainState,
-    state_change: state_change::ContractReceiveChannelOpened,
+    state_change: ContractReceiveChannelOpened,
 ) -> Result<ChainTransition, StateTransitionError> {
     let token_network_state = views::get_token_network(
         &chain_state,

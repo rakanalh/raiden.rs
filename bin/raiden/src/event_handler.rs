@@ -1,5 +1,5 @@
-use crate::enums::Event;
-use crate::service::RaidenService;
+use crate::raiden_service::RaidenService;
+use raiden::state_machine::types::Event;
 
 pub struct EventHandler {}
 
@@ -8,11 +8,10 @@ impl EventHandler {
         match event {
             Event::TokenNetworkCreated(event) => {
                 let token_network_address = event.token_network.address;
-				let _ = raiden.contracts_registry.add_token_network(
-                    token_network_address.into(),
-                    event.block_number.into(),
-                );
-				true
+                let _ = raiden
+                    .contracts_registry
+                    .add_token_network(token_network_address.into(), event.block_number.into());
+                true
             }
         }
     }
