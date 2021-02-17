@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 use ethsign::SecretKey;
-use raiden::state_machine::types::ChainID;
+use raiden::{state_machine::types::ChainID, state_manager::StateManager};
 use slog::{Drain, Logger};
 use std::path::{Path, PathBuf};
 use web3::types::Address;
@@ -11,6 +11,7 @@ type Result<T> = std::result::Result<T, String>;
 #[derive(Clone)]
 pub struct Config {
 	pub chain_id: ChainID,
+	pub datadir: PathBuf,
     pub keystore_path: PathBuf,
     pub eth_http_rpc_endpoint: String,
     pub eth_socket_rpc_endpoint: String,
@@ -18,6 +19,7 @@ pub struct Config {
 
 impl Config {
 	pub fn new(args: ArgMatches) -> Result<Self> {
+		// TODO: No unwrap
 		let chain_name = args.value_of("chain-id").unwrap();
 		let chain_id = chain_name.parse().unwrap();
 
@@ -34,9 +36,11 @@ impl Config {
 		}
 
 		let keystore_path = Path::new(args.value_of("keystore-path").unwrap());
+		let datadir = Path::new(args.value_of("datadir").unwrap());
 
 		Ok(Self {
 			chain_id,
+			datadir: datadir.to_path_buf(),
 			keystore_path: keystore_path.to_path_buf(),
 			eth_http_rpc_endpoint: http_endpoint.unwrap(),
 			eth_socket_rpc_endpoint: socket_endpoint.unwrap(),

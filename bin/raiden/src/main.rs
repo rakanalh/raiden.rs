@@ -8,7 +8,7 @@ use clap::{App, Arg, SubCommand};
 use cli::{Config, RaidenApp};
 use ethsign::SecretKey;
 use web3::types::Address;
-use std::{path::PathBuf, process};
+use std::{fs, path::PathBuf, process};
 
 mod accounts;
 mod cli;
@@ -51,6 +51,13 @@ async fn main() {
                 .required(true)
                 .takes_value(true),
         )
+		.arg(
+            Arg::with_name("data-dir")
+                .long("datadir")
+				.default_value("~/.raiden")
+                .takes_value(true)
+                .help("Directory for storing raiden data."),
+        )
         .arg(
             Arg::with_name("verbosity")
                 .short("v")
@@ -68,13 +75,15 @@ async fn main() {
 		},
 	};
 
-	let (node_address, secret_key) = match prompt_key(configs.clone().keystore_path) {
-		Ok(result) => result,
+	let datadir = match setup_data_directory(configs.datadir) {
+		Ok(datadir) => datadir,
 		Err(e) => {
-			eprintln!("Error: {}", e);
+			eprintln!("Error initializing data directory: {}", e);
 			process::exit(1);
 		}
 	};
+
+	let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
 
 	let raiden_app = RaidenApp::new(configs, node_address, secret_key);
     if let Some(_) = matches.subcommand_matches("run") {
@@ -82,6 +91,19 @@ async fn main() {
         //let server = http::server(log.clone());
         // let _ = eloop.run(server);
     }
+}
+
+fn setup_data_directory(path: PathBuf) -> Result<PathBuf, &'static str> {
+	if !path.is_dir() {
+		return Err("Datadir has to be a directory");
+	}
+
+	if !path.exists() {
+		fs::create_dir(path).map_err(|e| {
+			format!("Could not create directory: {:?} because {}", path, e).as_str()
+		})?;
+	}
+	Ok(path.to_path_buf())
 }
 
 fn prompt_key(keystore_path: PathBuf) -> (Address, SecretKey) {
