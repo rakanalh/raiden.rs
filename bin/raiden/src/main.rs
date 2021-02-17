@@ -85,7 +85,14 @@ async fn main() {
 
 	let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
 
-	let raiden_app = RaidenApp::new(configs, node_address, secret_key);
+	let raiden_app = match RaidenApp::new(configs, node_address, secret_key) {
+		Ok(app) => app,
+		Err(e) => {
+			eprintln!("Error initializing app: {}", e);
+			process::exit(1);
+		},
+	};
+
     if let Some(_) = matches.subcommand_matches("run") {
 		raiden_app.run().await;
         //let server = http::server(log.clone());

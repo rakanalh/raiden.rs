@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use parking_lot::RwLock;
 use ulid::Ulid;
 use web3::types::{
     Address,
@@ -32,20 +31,20 @@ use crate::{
 pub type Result<T> = std::result::Result<T, errors::StateTransitionError>;
 
 pub struct StateManager {
-    pub storage: Arc<RwLock<Storage>>,
+    pub storage: Arc<Storage>,
     pub current_state: Option<ChainState>,
 }
 
 impl StateManager {
-    pub fn new(dbconn: rusqlite::Connection) -> StateManager {
+    pub fn new(storage: Arc<Storage>) -> StateManager {
         StateManager {
-            storage: Arc::new(RwLock::new(Storage::new(dbconn))),
+            storage,
             current_state: None,
         }
     }
 
     pub fn setup(&self) -> std::result::Result<(), errors::RaidenError> {
-        self.storage.write().setup_database().map_err(|e| e.into())
+        self.storage.setup_database().map_err(|e| e.into())
     }
 
     pub fn restore_or_init_state(
@@ -55,7 +54,7 @@ impl StateManager {
         token_network_registry_address: Address,
         token_network_registry_deploy_block_number: U64,
     ) -> std::result::Result<(), errors::RaidenError> {
-        let snapshot = self.storage.read().get_snapshot_before_state_change(Ulid::from(u128::MAX));
+        let snapshot = self.storage.get_snapshot_before_state_change(Ulid::from(u128::MAX));
 
         let last_state_change_id = match snapshot {
             Ok(snapshot) => {
@@ -80,7 +79,6 @@ impl StateManager {
 
         let state_changes_records = self
             .storage
-			.read()
             .get_state_changes_in_range(last_state_change_id, Ulid::from(u128::MAX).into())?;
         for state_change_record in state_changes_records {
             let state_change = serde_json::from_str(&state_change_record.data)
@@ -119,7 +117,7 @@ impl StateManager {
         ))
         .map_err(|e| RaidenError { msg: format!("{}", e) })?;
 
-        let state_changes_records = self.storage.read().state_changes()?;
+        let state_changes_records = self.storage.state_changes()?;
         for state_change_record in state_changes_records {
             let state_change = serde_json::from_str(&state_change_record.data)
                 .map_err(|e| errors::RaidenError { msg: format!("{}", e) })?;
@@ -143,7 +141,7 @@ impl StateManager {
     }
 
     pub fn transition(&mut self, state_change: StateChange) -> Result<Vec<Event>> {
-        let state_change_id = match self.storage.write().store_state_change(state_change.clone()) {
+        let state_change_id = match self.storage.store_state_change(state_change.clone()) {
             Ok(id) => Ok(id),
             Err(e) => Err(errors::StateTransitionError {
                 msg: format!("Could not store state change: {}", e),
@@ -153,7 +151,7 @@ impl StateManager {
         let events = self.dispatch(state_change.clone())?;
 
         if !events.is_empty() {
-            match self.storage.write().store_events(state_change_id, events.clone()) {
+            match self.storage.store_events(state_change_id, events.clone()) {
                 Ok(id) => Ok(id),
                 Err(e) => Err(errors::StateTransitionError {
                     msg: format!("Could not store state change: {}", e),

@@ -17,6 +17,7 @@ path = "src/main.rs"
 clap = "2.33.3"
 ethsign = "0.7.3"
 futures = "0.3.12"
+parking_lot = "0.11.1"
 raiden = { path = "../.." }
 rpassword = "5.0.0"
 rusqlite = "0.24.2"
