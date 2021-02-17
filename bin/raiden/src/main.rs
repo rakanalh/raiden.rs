@@ -4,72 +4,91 @@ extern crate slog_term;
 extern crate tokio;
 extern crate web3;
 
-use slog::Drain;
-use std::path::Path;
+use clap::{App, Arg, SubCommand};
+use cli::{Config, RaidenApp};
+use ethsign::SecretKey;
+use web3::types::Address;
+use std::{path::PathBuf, process};
 
 mod accounts;
 mod cli;
 mod event_handler;
 mod raiden_service;
+// mod sync_service;
 mod traits;
-use traits::{
-    ToHTTPEndpoint,
-    ToSocketEndpoint,
-};
 
 #[tokio::main]
 async fn main() {
-    let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::FullFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
+    let cli = App::new("Raiden unofficial rust client")
+        .arg(
+            Arg::with_name("chain-id")
+                .short("c")
+                .long("chain-id")
+                .possible_values(&["ropsten", "kovan", "goerli", "rinkeby", "mainnet"])
+                .default_value("mainnet")
+                .required(true)
+                .takes_value(true)
+                .help("Specify the blockchain to run Raiden with"),
+        )
+        .arg(
+            Arg::with_name("eth-rpc-endpoint")
+                .long("eth-rpc-endpoint")
+                .required(true)
+                .takes_value(true)
+                .help("Specify the RPC endpoint to interact with"),
+        )
+        .arg(
+            Arg::with_name("eth-rpc-socket-endpoint")
+                .long("eth-rpc-socket-endpoint")
+                .required(true)
+                .takes_value(true)
+                .help("Specify the RPC endpoint to interact with"),
+        )
+        .arg(
+            Arg::with_name("keystore-path")
+                .short("k")
+                .long("keystore-path")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("verbosity")
+                .short("v")
+                .multiple(true)
+                .help("Sets the level of verbosity"),
+        )
+        .subcommand(SubCommand::with_name("run").about("Run the raiden client"));
 
-    let log = slog::Logger::root(drain, o!());
+    let matches = cli.get_matches();
+	let configs = match Config::new(matches.clone()) {
+		Ok(configs) => configs,
+		Err(e) => {
+			eprintln!("Error: {}", e);
+			process::exit(1);
+		},
+	};
 
-    let cli_app = cli::get_cli_app();
-    let matches = cli_app.get_matches();
+	let (node_address, secret_key) = match prompt_key(configs.clone().keystore_path) {
+		Ok(result) => result,
+		Err(e) => {
+			eprintln!("Error: {}", e);
+			process::exit(1);
+		}
+	};
 
-    let chain_name = matches.value_of("chain-id").unwrap();
-    let chain_id = chain_name.parse().unwrap();
-
-    let eth_rpc_http_endpoint = matches.value_of("eth-rpc-endpoint").unwrap();
-    let eth_rpc_socket_endpoint = matches.value_of("eth-rpc-socket-endpoint").unwrap();
-    let http_endpoint = eth_rpc_http_endpoint.to_http();
-    if let Err(e) = http_endpoint {
-        crit!(log, "Invalid RPC endpoint: {}", e);
-        return;
-    }
-
-    let socket_endpoint = eth_rpc_socket_endpoint.to_socket();
-    if let Err(e) = socket_endpoint {
-        crit!(log, "Invalid RPC endpoint: {}", e);
-        return;
-    }
-
-    let keystore_path = Path::new(matches.value_of("keystore-path").unwrap());
-    let keys = accounts::list_keys(keystore_path).unwrap();
-
-    let selected_key_filename = cli::prompt_key(&keys);
-    let our_address = keys[&selected_key_filename].clone();
-    let private_key = cli::prompt_password(selected_key_filename, log.clone());
-
-    let config = cli::Config {
-        keystore_path,
-        private_key,
-        eth_http_rpc_endpoint: http_endpoint.unwrap(),
-        eth_socket_rpc_endpoint: socket_endpoint.unwrap(),
-    };
-
-    let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
-    let web3 = web3::Web3::new(http);
-
-    let service =
-        raiden_service::RaidenService::new(web3, chain_id, our_address, config.private_key.clone(), log.clone());
-
-    service.initialize().await;
-    service.start(config).await;
-
+	let raiden_app = RaidenApp::new(configs, node_address, secret_key);
     if let Some(_) = matches.subcommand_matches("run") {
+		raiden_app.run().await;
         //let server = http::server(log.clone());
         // let _ = eloop.run(server);
     }
+}
+
+fn prompt_key(keystore_path: PathBuf) -> (Address, SecretKey) {
+	let keys = accounts::list_keys(keystore_path.as_path()).unwrap();
+	let selected_key_filename = crate::cli::prompt_key(&keys);
+	let our_address = keys[&selected_key_filename].clone();
+	let secret_key = crate::cli::prompt_password(selected_key_filename);
+
+	(our_address, secret_key)
 }
