@@ -1447,6 +1447,7 @@ dependencies = [
  "ethabi",
  "ethsign",
  "futures",
+ "parking_lot",
  "rusqlite",
  "serde",
  "serde_json",

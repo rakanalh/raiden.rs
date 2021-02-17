@@ -1,6 +1,7 @@
 use clap::ArgMatches;
 use ethsign::SecretKey;
 use raiden::{state_machine::types::ChainID, state_manager::StateManager};
+use rusqlite::Connection;
 use slog::{Drain, Logger};
 use std::path::{Path, PathBuf};
 use web3::types::Address;
@@ -75,6 +76,20 @@ impl RaidenApp {
 		let http = web3::transports::Http::new(&self.config.eth_http_rpc_endpoint).unwrap();
 		let web3 = web3::Web3::new(http);
 		let latest_block_number = web3.eth().block_number().await.unwrap();
+
+        let conn = match Connection::open(self.config.datadir.join("raiden.db")) {
+            Ok(conn) => conn,
+            Err(e) => {
+                crit!(self.logger, "Could not connect to database: {}", e);
+                std::process::exit(1)
+            }
+        };
+
+        let state_manager = StateManager::new(conn);
+        if let Err(e) = state_manager.setup() {
+            crit!(self.logger, "Could not setup database: {}", e);
+            std::process::exit(1)
+        }
 
 		let service =
 			raiden_service::RaidenService::new(web3, self.config.chain_id.clone(), self.node_address, self.private_key.clone(), self.logger.clone());

@@ -4,13 +4,7 @@ use rusqlite::{
     params,
     NO_PARAMS,
 };
-use std::{
-    convert::TryInto,
-    sync::{
-        Arc,
-        Mutex,
-    },
-};
+use std::convert::TryInto;
 use ulid::Ulid;
 
 use self::types::StateChangeID;
@@ -32,8 +26,6 @@ pub type Result<T> = std::result::Result<T, StorageError>;
 
 #[derive(Display, Debug)]
 pub enum StorageError {
-    #[display(fmt = "Storage lock poisoned")]
-    CannotLock,
     #[display(fmt = "Field unknown {}", _0)]
     FieldUnknown(rusqlite::Error),
     #[display(fmt = "Cannot serialize for storage")]
@@ -67,16 +59,15 @@ pub struct SnapshotRecord {
 }
 
 pub struct Storage {
-    conn: Arc<Mutex<Connection>>,
+    conn: Connection,
 }
 
 impl Storage {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
+    pub fn new(conn: Connection) -> Self {
         Self { conn }
     }
 
     pub fn setup_database(&self) -> Result<()> {
-        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
         let setup_db_sql = format!(
             "
 			PRAGMA foreign_keys=off;
@@ -91,15 +82,13 @@ impl Storage {
             sqlite::DB_CREATE_STATE_EVENTS,
             sqlite::DB_CREATE_RUNS,
         );
-        conn.execute_batch(&setup_db_sql).map_err(StorageError::Sql)?;
+        self.conn.execute_batch(&setup_db_sql).map_err(StorageError::Sql)?;
 
         Ok(())
     }
 
     pub fn state_changes(&self) -> Result<Vec<StateChangeRecord>> {
-        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
-
-        let mut stmt = conn
+        let mut stmt = self.conn
             .prepare("SELECT identifier, data FROM state_changes")
             .map_err(|e| StorageError::Sql(e))?;
 
@@ -122,9 +111,8 @@ impl Storage {
         let serialized_state_change =
             serde_json::to_string(&state_change).map_err(|_| StorageError::SerializationError)?;
         let sql = format!("INSERT INTO state_changes(identifier, data) VALUES(?1, ?2)");
-        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
         let ulid = Ulid::new();
-        conn.execute(&sql, params![&ulid.to_string(), serialized_state_change])
+        self.conn.execute(&sql, params![&ulid.to_string(), serialized_state_change])
             .map_err(|e| StorageError::Sql(e))?;
         Ok(ulid)
     }
@@ -132,8 +120,7 @@ impl Storage {
     pub fn store_events(&self, state_change_id: Ulid, events: Vec<Event>) -> Result<()> {
         let serialized_events = serde_json::to_string(&events).map_err(|_| StorageError::SerializationError)?;
         let sql = format!("INSERT INTO state_events(identifier, source_statechange_id, data) VALUES(?1, ?2, ?3)");
-        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
-        conn.execute(
+        self.conn.execute(
             &sql,
             params![
                 &Ulid::new().to_string(),
@@ -146,8 +133,6 @@ impl Storage {
     }
 
     pub fn get_snapshot_before_state_change(&self, state_change_id: Ulid) -> Result<SnapshotRecord> {
-        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
-
         let sql = format!(
             "SELECT identifier, statechange_qty, statechange_id, data
 			FROM state_snapshot
@@ -155,7 +140,7 @@ impl Storage {
 			ORDER BY identifier DESC
 			LIMIT 1"
         );
-        let mut stmt = conn.prepare(&sql).map_err(|e| StorageError::Sql(e))?;
+        let mut stmt = self.conn.prepare(&sql).map_err(|e| StorageError::Sql(e))?;
         let mut rows = stmt
             .query(params![state_change_id.to_string()])
             .map_err(StorageError::Sql)?;
@@ -179,9 +164,7 @@ impl Storage {
         start_state_change: StateChangeID,
         end_state_change: StateChangeID,
     ) -> Result<Vec<StateChangeRecord>> {
-        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
-
-        let mut stmt = conn
+        let mut stmt = self.conn
             .prepare(
                 "SELECT identifier, data FROM state_changes
 			WHERE identifier BETWEEEN ?1 AND ?2",
