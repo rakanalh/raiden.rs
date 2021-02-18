@@ -88,7 +88,8 @@ impl Storage {
     }
 
     pub fn state_changes(&self) -> Result<Vec<StateChangeRecord>> {
-        let mut stmt = self.conn
+        let mut stmt = self
+            .conn
             .prepare("SELECT identifier, data FROM state_changes")
             .map_err(|e| StorageError::Sql(e))?;
 
@@ -112,7 +113,8 @@ impl Storage {
             serde_json::to_string(&state_change).map_err(|_| StorageError::SerializationError)?;
         let sql = format!("INSERT INTO state_changes(identifier, data) VALUES(?1, ?2)");
         let ulid = Ulid::new();
-        self.conn.execute(&sql, params![&ulid.to_string(), serialized_state_change])
+        self.conn
+            .execute(&sql, params![&ulid.to_string(), serialized_state_change])
             .map_err(|e| StorageError::Sql(e))?;
         Ok(ulid)
     }
@@ -120,15 +122,16 @@ impl Storage {
     pub fn store_events(&self, state_change_id: Ulid, events: Vec<Event>) -> Result<()> {
         let serialized_events = serde_json::to_string(&events).map_err(|_| StorageError::SerializationError)?;
         let sql = format!("INSERT INTO state_events(identifier, source_statechange_id, data) VALUES(?1, ?2, ?3)");
-        self.conn.execute(
-            &sql,
-            params![
-                &Ulid::new().to_string(),
-                &state_change_id.to_string(),
-                serialized_events
-            ],
-        )
-        .map_err(|e| StorageError::Sql(e))?;
+        self.conn
+            .execute(
+                &sql,
+                params![
+                    &Ulid::new().to_string(),
+                    &state_change_id.to_string(),
+                    serialized_events
+                ],
+            )
+            .map_err(|e| StorageError::Sql(e))?;
         Ok(())
     }
 
@@ -164,7 +167,8 @@ impl Storage {
         start_state_change: StateChangeID,
         end_state_change: StateChangeID,
     ) -> Result<Vec<StateChangeRecord>> {
-        let mut stmt = self.conn
+        let mut stmt = self
+            .conn
             .prepare(
                 "SELECT identifier, data FROM state_changes
 			WHERE identifier BETWEEEN ?1 AND ?2",

@@ -4,11 +4,21 @@ extern crate slog_term;
 extern crate tokio;
 extern crate web3;
 
-use clap::{App, Arg};
-use cli::{Config, RaidenApp};
+use clap::{
+    App,
+    Arg,
+};
+use cli::{
+    Config,
+    RaidenApp,
+};
 use ethsign::SecretKey;
+use std::{
+    fs,
+    path::PathBuf,
+    process,
+};
 use web3::types::Address;
-use std::{fs, path::PathBuf, process};
 
 mod accounts;
 mod cli;
@@ -50,10 +60,10 @@ async fn main() {
                 .required(true)
                 .takes_value(true),
         )
-		.arg(
+        .arg(
             Arg::with_name("datadir")
                 .long("datadir")
-				.default_value("~/.raiden")
+                .default_value("~/.raiden")
                 .takes_value(true)
                 .help("Directory for storing raiden data."),
         )
@@ -65,58 +75,56 @@ async fn main() {
         );
 
     let matches = cli.get_matches();
-	let configs = match Config::new(matches.clone()) {
-		Ok(configs) => configs,
-		Err(e) => {
-			eprintln!("Error: {}", e);
-			process::exit(1);
-		},
-	};
+    let configs = match Config::new(matches.clone()) {
+        Ok(configs) => configs,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
+    };
 
-	match setup_data_directory(configs.clone().datadir) {
-		Err(e) => {
-			eprintln!("Error initializing data directory: {}", e);
-			process::exit(1);
-		},
-		_ => {},
-	};
+    match setup_data_directory(configs.clone().datadir) {
+        Err(e) => {
+            eprintln!("Error initializing data directory: {}", e);
+            process::exit(1);
+        }
+        _ => {}
+    };
 
-	let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
+    let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
 
-	let raiden_app = match RaidenApp::new(configs, node_address, secret_key) {
-		Ok(app) => app,
-		Err(e) => {
-			eprintln!("Error initializing app: {}", e);
-			process::exit(1);
-		},
-	};
+    let raiden_app = match RaidenApp::new(configs, node_address, secret_key) {
+        Ok(app) => app,
+        Err(e) => {
+            eprintln!("Error initializing app: {}", e);
+            process::exit(1);
+        }
+    };
 
-	raiden_app.run().await;
-	//let server = http::server(log.clone());
-	// let _ = eloop.run(server);
+    raiden_app.run().await;
+    //let server = http::server(log.clone());
+    // let _ = eloop.run(server);
 }
 
 fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
-	if !path.is_dir() {
-		return Err("Datadir has to be a directory".to_owned());
-	}
+    if !path.is_dir() {
+        return Err("Datadir has to be a directory".to_owned());
+    }
 
-	if !path.exists() {
-		match fs::create_dir(path.clone()) {
-			Err(e) => {
-				return Err(format!("Could not create directory: {:?} because {}", path.clone(), e))
-			},
-			_ => {},
-		}
-	}
-	Ok(path.to_path_buf())
+    if !path.exists() {
+        match fs::create_dir(path.clone()) {
+            Err(e) => return Err(format!("Could not create directory: {:?} because {}", path.clone(), e)),
+            _ => {}
+        }
+    }
+    Ok(path.to_path_buf())
 }
 
 fn prompt_key(keystore_path: PathBuf) -> (Address, SecretKey) {
-	let keys = accounts::list_keys(keystore_path.as_path()).unwrap();
-	let selected_key_filename = crate::cli::prompt_key(&keys);
-	let our_address = keys[&selected_key_filename].clone();
-	let secret_key = crate::cli::prompt_password(selected_key_filename);
+    let keys = accounts::list_keys(keystore_path.as_path()).unwrap();
+    let selected_key_filename = crate::cli::prompt_key(&keys);
+    let our_address = keys[&selected_key_filename].clone();
+    let secret_key = crate::cli::prompt_password(selected_key_filename);
 
-	(our_address, secret_key)
+    (our_address, secret_key)
 }

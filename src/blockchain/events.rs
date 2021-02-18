@@ -23,7 +23,10 @@ use web3::types::{
     U64,
 };
 
-use super::contracts::{Contract, ContractIdentifier};
+use super::contracts::{
+    Contract,
+    ContractIdentifier,
+};
 
 #[derive(Clone, Debug)]
 pub struct Event {
