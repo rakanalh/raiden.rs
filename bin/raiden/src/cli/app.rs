@@ -1,12 +1,13 @@
 use clap::ArgMatches;
 use ethsign::SecretKey;
+use futures::{StreamExt, executor, future, stream::FuturesUnordered};
 use parking_lot::RwLock;
 use raiden::{blockchain::contracts::{self, ContractRegistry}, state_machine::types::ChainID, state_manager::StateManager, storage::Storage};
 use rusqlite::Connection;
 use slog::{Drain, Logger};
 use std::{path::{Path, PathBuf}, sync::Arc};
 use web3::types::Address;
-use crate::{raiden_service, traits::{ToHTTPEndpoint, ToSocketEndpoint}};
+use crate::{event_handler::EventHandler, services::{SyncService, TransitionService}, traits::{ToHTTPEndpoint, ToSocketEndpoint}};
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -38,11 +39,11 @@ impl Config {
 		}
 
 		let keystore_path = Path::new(args.value_of("keystore-path").unwrap());
-		let datadir = Path::new(args.value_of("datadir").unwrap());
+		let datadir = expanduser::expanduser(args.value_of("datadir").unwrap()).unwrap();
 
 		Ok(Self {
 			chain_id,
-			datadir: datadir.to_path_buf(),
+			datadir,
 			keystore_path: keystore_path.to_path_buf(),
 			eth_http_rpc_endpoint: http_endpoint.unwrap(),
 			eth_socket_rpc_endpoint: socket_endpoint.unwrap(),
@@ -54,7 +55,7 @@ pub struct RaidenApp {
 	config: Config,
 	node_address: Address,
 	private_key: SecretKey,
-	contracts_registry: ContractRegistry,
+	contracts_registry: Arc<RwLock<ContractRegistry>>,
 	storage: Arc<Storage>,
 	state_manager: Arc<RwLock<StateManager>>,
 	logger: Logger,
@@ -82,7 +83,7 @@ impl RaidenApp {
         };
 		let storage = Arc::new(Storage::new(conn));
 
-        let state_manager = StateManager::new(storage);
+        let mut state_manager = StateManager::new(storage.clone());
         if let Err(e) = state_manager.setup() {
             return Err(format!("Could not setup database: {}", e));
         }
@@ -107,7 +108,7 @@ impl RaidenApp {
 			config,
 			node_address,
 			private_key,
-			contracts_registry,
+			contracts_registry: Arc::new(RwLock::new(contracts_registry)),
 			storage,
 			state_manager: Arc::new(RwLock::new(state_manager)),
 			logger,
@@ -119,10 +120,42 @@ impl RaidenApp {
 		let web3 = web3::Web3::new(http);
 		let latest_block_number = web3.eth().block_number().await.unwrap();
 
-		let service =
-			raiden_service::RaidenService::new(web3, self.config.chain_id.clone(), self.node_address, self.private_key.clone(), self.logger.clone());
+		let event_handler = EventHandler::new(self.state_manager.clone(), self.contracts_registry.clone());
+		let (transition_service, transition_sender) = TransitionService::new(self.state_manager.clone(), event_handler);
 
-		service.initialize(latest_block_number).await;
-		service.start(self.config.clone()).await;
+		let mut services = FuturesUnordered::new();
+		services.push(transition_service.start());
+
+		let token_network_registry = self.contracts_registry.read().token_network_registry();
+		let sync_start_block_number = match &self.state_manager.read().current_state {
+			Some(chain) => chain.block_number,
+			None => token_network_registry.deploy_block_number,
+		};
+		let mut sync_service = SyncService::new(
+			web3.clone(),
+			self.state_manager.clone(),
+			self.contracts_registry.clone(),
+			transition_sender.clone()
+		);
+
+		executor::block_on(async move {
+			loop {
+				println!("Next");
+				let sync_fut = sync_service.sync(sync_start_block_number, latest_block_number);
+				futures::pin_mut!(sync_fut);
+				match future::select(sync_fut, services.next()).await {
+					future::Either::Left(((), _)) => {}
+					future::Either::Right((Some(()), _)) => {}
+					future::Either::Right((None, _)) => {
+						break
+					}
+				}
+			}
+		});
+		// let service =
+		// 	raiden_service::RaidenService::new(web3, self.config.chain_id.clone(), self.node_address, self.private_key.clone(), self.logger.clone());
+
+		// service.initialize(latest_block_number).await;
+		// service.start(self.config.clone()).await;
 	}
 }

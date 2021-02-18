@@ -19,15 +19,8 @@ use raiden::{
         StateManager,
     },
 };
-use rusqlite::Connection;
 use slog::Logger;
-use std::{
-    process,
-    sync::{
-        Arc,
-        Mutex,
-    },
-};
+use std::sync::Arc;
 use tokio::{
     select,
     sync::RwLock,
@@ -40,7 +33,7 @@ use web3::{
     },
 };
 
-use crate::{cli, event_handler::EventHandler};
+use crate::cli;
 
 pub struct RaidenService {
     pub chain_id: ChainID,
@@ -62,20 +55,8 @@ impl RaidenService {
         secret_key: SecretKey,
         log: Logger,
     ) -> RaidenService {
-        let conn = match Connection::open("raiden.db") {
-            Ok(conn) => Arc::new(Mutex::new(conn)),
-            Err(e) => {
-                crit!(log, "Could not connect to database: {}", e);
-                process::exit(1)
-            }
-        };
 
-        let state_manager = StateManager::new(Arc::clone(&conn));
 
-        if let Err(e) = state_manager.setup() {
-            crit!(log, "Could not setup database: {}", e);
-            process::exit(1)
-        }
         let contracts_registry = contracts::ContractRegistry::new(chain_id.clone()).unwrap();
 
         let (transition_tx, transition_rx) = mpsc::unbounded::<StateChange>();
@@ -93,7 +74,7 @@ impl RaidenService {
         }
     }
 
-    pub async fn initialize(&self) {
+    pub async fn initialize(&self, _latest_block_number: U64) {
         let mut state_manager = self.state_manager.write().await;
         let token_network_registry = self.contracts_registry.token_network_registry();
 
@@ -112,7 +93,7 @@ impl RaidenService {
         };
     }
 
-    pub async fn start(mut self, config: cli::Config<'_>) {
+    pub async fn start(mut self, config: cli::Config) {
         debug!(
             self.log,
             "Chain State {:?}",
@@ -123,6 +104,7 @@ impl RaidenService {
             .create_blocks_monitor(config.eth_socket_rpc_endpoint)
             .await
             .unwrap();
+
         loop {
             select! {
                 state_change = self.transition_rx.next().fuse() => {
@@ -177,15 +159,5 @@ impl RaidenService {
     }
 
     pub async fn transition(&mut self, state_change: StateChange) -> Result<bool> {
-        let transition_result = self.state_manager.write().await.transition(state_change);
-        match transition_result {
-            Ok(events) => {
-                for event in events {
-                    if EventHandler::handle_event(self, event).await {}
-                }
-                Ok(true)
-            }
-            Err(e) => Err(e),
-        }
     }
 }

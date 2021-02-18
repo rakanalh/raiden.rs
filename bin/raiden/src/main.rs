@@ -4,7 +4,7 @@ extern crate slog_term;
 extern crate tokio;
 extern crate web3;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
 use cli::{Config, RaidenApp};
 use ethsign::SecretKey;
 use web3::types::Address;
@@ -13,8 +13,7 @@ use std::{fs, path::PathBuf, process};
 mod accounts;
 mod cli;
 mod event_handler;
-mod raiden_service;
-// mod sync_service;
+mod services;
 mod traits;
 
 #[tokio::main]
@@ -52,7 +51,7 @@ async fn main() {
                 .takes_value(true),
         )
 		.arg(
-            Arg::with_name("data-dir")
+            Arg::with_name("datadir")
                 .long("datadir")
 				.default_value("~/.raiden")
                 .takes_value(true)
@@ -63,8 +62,7 @@ async fn main() {
                 .short("v")
                 .multiple(true)
                 .help("Sets the level of verbosity"),
-        )
-        .subcommand(SubCommand::with_name("run").about("Run the raiden client"));
+        );
 
     let matches = cli.get_matches();
 	let configs = match Config::new(matches.clone()) {
@@ -75,12 +73,12 @@ async fn main() {
 		},
 	};
 
-	let datadir = match setup_data_directory(configs.datadir) {
-		Ok(datadir) => datadir,
+	match setup_data_directory(configs.clone().datadir) {
 		Err(e) => {
 			eprintln!("Error initializing data directory: {}", e);
 			process::exit(1);
-		}
+		},
+		_ => {},
 	};
 
 	let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
@@ -93,22 +91,23 @@ async fn main() {
 		},
 	};
 
-    if let Some(_) = matches.subcommand_matches("run") {
-		raiden_app.run().await;
-        //let server = http::server(log.clone());
-        // let _ = eloop.run(server);
-    }
+	raiden_app.run().await;
+	//let server = http::server(log.clone());
+	// let _ = eloop.run(server);
 }
 
-fn setup_data_directory(path: PathBuf) -> Result<PathBuf, &'static str> {
+fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 	if !path.is_dir() {
-		return Err("Datadir has to be a directory");
+		return Err("Datadir has to be a directory".to_owned());
 	}
 
 	if !path.exists() {
-		fs::create_dir(path).map_err(|e| {
-			format!("Could not create directory: {:?} because {}", path, e).as_str()
-		})?;
+		match fs::create_dir(path.clone()) {
+			Err(e) => {
+				return Err(format!("Could not create directory: {:?} because {}", path.clone(), e))
+			},
+			_ => {},
+		}
 	}
 	Ok(path.to_path_buf())
 }
