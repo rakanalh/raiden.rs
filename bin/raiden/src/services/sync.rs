@@ -6,11 +6,13 @@ use web3::{Web3, transports::Http, types::U64};
 
 use raiden::{blockchain::{contracts::{Contract, ContractIdentifier, ContractRegistry}, events::Event}, state_machine::types::StateChange, state_manager::StateManager};
 
+use super::TransitionService;
+
 pub struct SyncService {
 	web3: Web3<Http>,
 	state_manager: Arc<RwLock<StateManager>>,
 	contracts_registry: Arc<RwLock<ContractRegistry>>,
-	transition: mpsc::Sender<StateChange>,
+	transition_service: Arc<TransitionService>,
 }
 
 impl SyncService {
@@ -18,13 +20,13 @@ impl SyncService {
 		web3: Web3<Http>,
 		state_manager: Arc<RwLock<StateManager>>,
 		contracts_registry: Arc<RwLock<ContractRegistry>>,
-		transition: mpsc::Sender<StateChange>,
+		transition_service: Arc<TransitionService>,
 	) -> Self {
 		Self {
 			web3,
 			state_manager,
 			contracts_registry,
-			transition,
+			transition_service,
 		}
 	}
 
@@ -65,19 +67,19 @@ impl SyncService {
 		to_block: U64
 	) {
         let filter = contract.filters(from_block, to_block);
+		let contracts= &self.contracts_registry.read().contracts.clone();
         match self.web3.eth().logs((filter).clone()).await {
             Ok(logs) => {
                 for log in logs {
                     let current_state = self.state_manager.read().current_state.clone();
-                    let contracts_registry = &self.contracts_registry.read();
                     // TODO: Event::to_state_change doesn't make sense
                     // TODO: Make trait ToStateChange and implement on Log
-                    let state_change = Event::to_state_change(&current_state, contracts_registry, &log);
-					drop(contracts_registry);
+                    let state_change = Event::to_state_change(&current_state, contracts, &log);
                     if let Some(state_change) = state_change {
-                        if let Err(_e) = self.transition.send(state_change).await {
-                            // error!(self.log, "State transition failed: {}", e);
-                        }
+						self.transition_service.transition(state_change).await
+                        // if let Err(_e) = self.transition_service.transition(state_change).await {
+                        //     // error!(self.log, "State transition failed: {}", e);
+                        // }
                     }
                 }
             }

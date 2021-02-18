@@ -121,10 +121,10 @@ impl RaidenApp {
 		let latest_block_number = web3.eth().block_number().await.unwrap();
 
 		let event_handler = EventHandler::new(self.state_manager.clone(), self.contracts_registry.clone());
-		let (transition_service, transition_sender) = TransitionService::new(self.state_manager.clone(), event_handler);
+		let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), event_handler));
 
-		let mut services = FuturesUnordered::new();
-		services.push(transition_service.start());
+		// let mut services = FuturesUnordered::new();
+		// services.push(transition_service.start());
 
 		let token_network_registry = self.contracts_registry.read().token_network_registry();
 		let sync_start_block_number = match &self.state_manager.read().current_state {
@@ -135,27 +135,10 @@ impl RaidenApp {
 			web3.clone(),
 			self.state_manager.clone(),
 			self.contracts_registry.clone(),
-			transition_sender.clone()
+			transition_service.clone()
 		);
+		sync_service.sync(sync_start_block_number, latest_block_number).await;
 
-		executor::block_on(async move {
-			loop {
-				println!("Next");
-				let sync_fut = sync_service.sync(sync_start_block_number, latest_block_number);
-				futures::pin_mut!(sync_fut);
-				match future::select(sync_fut, services.next()).await {
-					future::Either::Left(((), _)) => {}
-					future::Either::Right((Some(()), _)) => {}
-					future::Either::Right((None, _)) => {
-						break
-					}
-				}
-			}
-		});
-		// let service =
-		// 	raiden_service::RaidenService::new(web3, self.config.chain_id.clone(), self.node_address, self.private_key.clone(), self.logger.clone());
-
-		// service.initialize(latest_block_number).await;
-		// service.start(self.config.clone()).await;
+		// TODO: Now start the block monitor and HTTP service
 	}
 }

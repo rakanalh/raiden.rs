@@ -21,7 +21,7 @@ const DEPLOYMENT_RINKEBY: &str = include_str!("data/deployment_rinkeby.json");
 const DEPLOYMENT_KOVAN: &str = include_str!("data/deployment_kovan.json");
 const DEPLOYMENT_GOERLI: &str = include_str!("data/deployment_goerli.json");
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub enum ContractIdentifier {
     SecretRegistry = 1,
     TokenNetworkRegistry = 2,

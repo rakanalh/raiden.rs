@@ -1,4 +1,5 @@
-use crate::blockchain::contracts::ContractRegistry;
+use std::collections::HashMap;
+
 use crate::constants;
 use crate::state_machine::state::{
     CanonicalIdentifier,
@@ -22,6 +23,8 @@ use web3::types::{
     U64,
 };
 
+use super::contracts::{Contract, ContractIdentifier};
+
 #[derive(Clone, Debug)]
 pub struct Event {
     pub name: String,
@@ -32,8 +35,8 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn from_log(contract_registry: &ContractRegistry, log: &Log) -> Option<Event> {
-        for contracts in contract_registry.contracts.values() {
+    pub fn from_log(contracts: &HashMap<ContractIdentifier, Vec<Contract>>, log: &Log) -> Option<Event> {
+        for contracts in contracts.values() {
             let events = contracts.iter().flat_map(|contract| contract.events());
             for event in events {
                 if !log.topics.is_empty() && event.signature() == log.topics[0] {
@@ -74,10 +77,10 @@ impl Event {
 
     pub fn to_state_change(
         chain_state: &Option<ChainState>,
-        contract_registry: &ContractRegistry,
+        contracts: &HashMap<ContractIdentifier, Vec<Contract>>,
         log: &Log,
     ) -> Option<StateChange> {
-        let event = Event::from_log(contract_registry, log)?;
+        let event = Event::from_log(contracts, log)?;
         let chain_state = chain_state.as_ref().unwrap();
 
         match event.name.as_ref() {
