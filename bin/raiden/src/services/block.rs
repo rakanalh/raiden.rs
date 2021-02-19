@@ -1,36 +1,53 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use raiden::state_machine::types::{
-    Block,
-    ChainID,
-    StateChange,
+use parking_lot::RwLock;
+use raiden::{
+    state_machine::types::{
+        Block,
+        ChainID,
+        StateChange,
+    },
+    state_manager::StateManager,
 };
 use web3::{
     transports::WebSocket,
     Web3,
 };
 
-use super::TransitionService;
+use super::{
+    SyncService,
+    TransitionService,
+};
 
 pub struct BlockMonitorService {
     chain_id: ChainID,
     web3: Web3<WebSocket>,
+    state_manager: Arc<RwLock<StateManager>>,
     transition_service: Arc<TransitionService>,
+    sync_service: SyncService,
 }
 
 impl BlockMonitorService {
-    pub fn new(socket: WebSocket, chain_id: ChainID, transition_service: Arc<TransitionService>) -> Result<Self, ()> {
+    pub fn new(
+        socket: WebSocket,
+        chain_id: ChainID,
+        state_manager: Arc<RwLock<StateManager>>,
+        transition_service: Arc<TransitionService>,
+        sync_service: SyncService,
+    ) -> Result<Self, ()> {
         let web3 = web3::Web3::new(socket);
 
         Ok(Self {
             chain_id,
             web3,
+            state_manager,
             transition_service,
+            sync_service,
         })
     }
 
-    pub async fn start(self) {
+    pub async fn start(mut self) {
         let mut block_stream = match self.web3.eth_subscribe().subscribe_new_heads().await {
             Ok(stream) => stream,
             Err(_) => {
@@ -39,12 +56,17 @@ impl BlockMonitorService {
             }
         };
         while let Some(subscription) = block_stream.next().await {
-            if let Ok(subscription) = subscription {
-                if let Some(block_number) = subscription.number {
+            if let Ok(header) = subscription {
+                if let Some(block_number) = header.number {
+                    let current_block_number = match &self.state_manager.read().current_state {
+                        Some(current_state) => current_state.block_number,
+                        None => return,
+                    };
                     let block_state_change = Block::new(self.chain_id.clone(), block_number.into());
                     self.transition_service
                         .transition(StateChange::Block(block_state_change))
                         .await;
+                    self.sync_service.sync(current_block_number, block_number).await;
                 }
             }
         }

@@ -162,12 +162,6 @@ impl RaidenApp {
         let event_handler = EventHandler::new(self.state_manager.clone(), self.contracts_registry.clone());
         let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), event_handler));
 
-        let block_monitor = match BlockMonitorService::new(ws, self.config.chain_id.clone(), transition_service.clone())
-        {
-            Ok(bm) => bm,
-            Err(_) => return,
-        };
-
         let token_network_registry = self.contracts_registry.read().token_network_registry();
         let sync_start_block_number = match &self.state_manager.read().current_state {
             Some(chain) => chain.block_number,
@@ -181,6 +175,16 @@ impl RaidenApp {
         );
         sync_service.sync(sync_start_block_number, latest_block_number).await;
 
+        let block_monitor = match BlockMonitorService::new(
+            ws,
+            self.config.chain_id.clone(),
+            self.state_manager.clone(),
+            transition_service.clone(),
+            sync_service,
+        ) {
+            Ok(bm) => bm,
+            Err(_) => return,
+        };
         // TODO: Now start the HTTP service
         let mut services = FuturesUnordered::new();
         services.push(block_monitor.start());
