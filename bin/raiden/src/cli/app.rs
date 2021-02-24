@@ -12,10 +12,6 @@ use crate::{
 };
 use clap::ArgMatches;
 use ethsign::SecretKey;
-use futures::{
-    stream::FuturesUnordered,
-    StreamExt,
-};
 use parking_lot::RwLock;
 use raiden::{
     blockchain::contracts::{
@@ -180,11 +176,10 @@ impl RaidenApp {
             Ok(bm) => bm,
             Err(_) => return,
         };
-        // TODO: Now start the HTTP service
-        let mut services = FuturesUnordered::new();
-        services.push(block_monitor.start());
-        loop {
-            services.next().await;
-        }
+
+		futures::join!(
+			block_monitor.start(),
+			crate::http::start_server(self.state_manager.clone())
+		);
     }
 }

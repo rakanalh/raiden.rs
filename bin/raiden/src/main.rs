@@ -23,6 +23,7 @@ use web3::types::Address;
 mod accounts;
 mod cli;
 mod event_handler;
+mod http;
 mod services;
 mod traits;
 
