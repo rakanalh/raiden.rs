@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use crate::constants;
 use crate::state_machine::state::{
     CanonicalIdentifier,
-    ChainState,
     ChannelState,
     TokenNetworkState,
     TransactionExecutionStatus,
@@ -28,13 +27,28 @@ use super::contracts::{
     ContractIdentifier,
 };
 
+pub trait ToStateChange {
+	fn to_state_change(&self, our_address: Address) -> Option<StateChange>;
+}
+
 #[derive(Clone, Debug)]
 pub struct Event {
     pub name: String,
+	pub address: Address,
     pub block_number: U64,
     pub block_hash: H256,
     pub transaction_hash: H256,
     pub data: Vec<ethabi::Token>,
+}
+
+impl ToStateChange for Event {
+    fn to_state_change(&self, our_address: Address) -> Option<StateChange> {
+        match self.name.as_ref() {
+            "TokenNetworkCreated" => self.create_token_network_created_state_change(),
+            "ChannelOpened" => self.create_channel_opened_state_change(our_address),
+            _ => None,
+        }
+    }
 }
 
 impl Event {
@@ -67,6 +81,7 @@ impl Event {
 
                     return Some(Event {
                         name: event.name.clone(),
+						address: log.address,
                         block_number: log.block_number.unwrap(),
                         block_hash: log.block_hash.unwrap(),
                         transaction_hash: log.transaction_hash.unwrap(),
@@ -78,22 +93,7 @@ impl Event {
         None
     }
 
-    pub fn to_state_change(
-        chain_state: &Option<ChainState>,
-        contracts: &HashMap<ContractIdentifier, Vec<Contract>>,
-        log: &Log,
-    ) -> Option<StateChange> {
-        let event = Event::from_log(contracts, log)?;
-        let chain_state = chain_state.as_ref().unwrap();
-
-        match event.name.as_ref() {
-            "TokenNetworkCreated" => event.create_token_network_created_state_change(log),
-            "ChannelOpened" => event.create_channel_opened_state_change(&chain_state, log),
-            _ => None,
-        }
-    }
-
-    fn create_token_network_created_state_change(&self, log: &Log) -> Option<StateChange> {
+    fn create_token_network_created_state_change(&self) -> Option<StateChange> {
         let token_address = match self.data[0] {
             Token::Address(address) => address,
             _ => Address::zero(),
@@ -103,7 +103,7 @@ impl Event {
             _ => Address::zero(),
         };
         let token_network = TokenNetworkState::new(token_network_address, token_address);
-        let token_network_registry_address = log.address;
+        let token_network_registry_address = self.address;
         Some(StateChange::ContractReceiveTokenNetworkCreated(
             ContractReceiveTokenNetworkCreated {
                 transaction_hash: Some(self.transaction_hash),
@@ -115,7 +115,7 @@ impl Event {
         ))
     }
 
-    fn create_channel_opened_state_change(&self, chain_state: &ChainState, log: &Log) -> Option<StateChange> {
+    fn create_channel_opened_state_change(&self, our_address: Address) -> Option<StateChange> {
         let channel_identifier = match self.data[0] {
             Token::Uint(identifier) => identifier,
             _ => U256::zero(),
@@ -134,7 +134,7 @@ impl Event {
         };
 
         let partner_address: Address;
-        let our_address = chain_state.our_address;
+        let our_address = our_address;
         if participant1 == our_address {
             partner_address = participant2;
         } else {
@@ -147,7 +147,7 @@ impl Event {
         // }
 
         let chain_identifier = 1;
-        let token_network_address = log.address;
+        let token_network_address = self.address;
         let token_address = Address::zero();
         let token_network_registry_address = Address::zero();
         let reveal_timeout = U256::from(constants::DEFAULT_REVEAL_TIMEOUT);
