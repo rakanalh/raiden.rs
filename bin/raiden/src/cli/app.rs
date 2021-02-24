@@ -172,6 +172,7 @@ impl RaidenApp {
             self.state_manager.clone(),
             self.contracts_registry.clone(),
             transition_service.clone(),
+			self.logger.clone(),
         );
         sync_service.sync(sync_start_block_number, latest_block_number).await;
 

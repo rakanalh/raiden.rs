@@ -1,6 +1,10 @@
-use std::sync::Arc;
+use std::{
+    cmp,
+    sync::Arc,
+};
 
 use parking_lot::RwLock;
+use slog::Logger;
 use web3::{
     transports::Http,
     types::U64,
@@ -9,23 +13,74 @@ use web3::{
 
 use raiden::{
     blockchain::{
-        contracts::{
-            Contract,
-            ContractIdentifier,
-            ContractRegistry,
+        contracts::ContractRegistry,
+        events::{
+            Event,
+            ToStateChange,
         },
-        events::Event,
     },
     state_manager::StateManager,
 };
 
 use super::TransitionService;
 
+struct BlockBatchSizeConfig {
+    min: u64,
+    warn_threshold: u64,
+    initial: u32,
+    max: u64,
+}
+
+struct BlockBatchSizeAdjuster {
+    config: BlockBatchSizeConfig,
+    scale_current: f64,
+    base: f64,
+    step_size: f64,
+}
+
+impl BlockBatchSizeAdjuster {
+    fn new(config: BlockBatchSizeConfig, base: f64, step_size: f64) -> Self {
+        let initial: f64 = config.initial.into();
+        let scale_current = initial.log(base);
+        Self {
+            config,
+            base,
+            step_size,
+            scale_current,
+        }
+    }
+
+    fn increase(&mut self) {
+        let prev_batch_size = self.batch_size();
+        if prev_batch_size >= self.config.max {
+            return;
+        }
+        self.scale_current += self.step_size;
+    }
+
+    fn decrease(&mut self) {
+        let prev_batch_size = self.batch_size();
+        if prev_batch_size <= self.config.min {
+            return;
+        }
+        self.scale_current -= self.step_size;
+    }
+
+    fn batch_size(&self) -> u64 {
+        cmp::max(
+            self.config.min,
+            cmp::min(self.config.max, self.base.powf(self.scale_current) as u64),
+        )
+    }
+}
+
 pub struct SyncService {
     web3: Web3<Http>,
     state_manager: Arc<RwLock<StateManager>>,
     contracts_registry: Arc<RwLock<ContractRegistry>>,
     transition_service: Arc<TransitionService>,
+    block_batch_size_adjuster: BlockBatchSizeAdjuster,
+    logger: Logger,
 }
 
 impl SyncService {
@@ -34,53 +89,66 @@ impl SyncService {
         state_manager: Arc<RwLock<StateManager>>,
         contracts_registry: Arc<RwLock<ContractRegistry>>,
         transition_service: Arc<TransitionService>,
+        logger: Logger,
     ) -> Self {
+        let block_batch_size_adjuster = BlockBatchSizeAdjuster::new(
+            BlockBatchSizeConfig {
+                min: 5,
+                max: 100000,
+                initial: 1000,
+                warn_threshold: 50,
+            },
+            2.0, // base
+            1.0, //step size
+        );
+
         Self {
             web3,
             state_manager,
             contracts_registry,
             transition_service,
+            block_batch_size_adjuster,
+            logger,
         }
     }
 
     pub async fn sync(&mut self, start_block_number: U64, end_block_number: U64) {
-        let token_network_registry = self.contracts_registry.read().token_network_registry();
-        self.poll_contract_filters(&token_network_registry, start_block_number, end_block_number)
-            .await;
-
-        let token_networks = self
-            .contracts_registry
-            .read()
-            .contracts
-            .get(&ContractIdentifier::TokenNetwork)
-            .unwrap_or(&vec![])
-            .clone();
-
-        for token_network in token_networks {
-            self.poll_contract_filters(&token_network, start_block_number, end_block_number)
-                .await;
-        }
+        self.poll_contract_filters(start_block_number, end_block_number).await;
     }
 
-    pub async fn poll_contract_filters(&mut self, contract: &Contract, from_block: U64, to_block: U64) {
-        let filter = contract.filters(from_block, to_block);
-        let contracts = &self.contracts_registry.read().contracts.clone();
-        match self.web3.eth().logs((filter).clone()).await {
-            Ok(logs) => {
-                for log in logs {
-                    let current_state = self.state_manager.read().current_state.clone();
-                    // TODO: Event::to_state_change doesn't make sense
-                    // TODO: Make trait ToStateChange and implement on Log
-                    let state_change = Event::to_state_change(&current_state, contracts, &log);
-                    if let Some(state_change) = state_change {
-                        self.transition_service.transition(state_change).await
-                        // if let Err(_e) = self.transition_service.transition(state_change).await {
-                        //     // error!(self.log, "State transition failed: {}", e);
-                        // }
+    pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
+        let mut from_block = start_block_number;
+
+        let current_state = self.state_manager.read().current_state.as_ref().unwrap().clone();
+        let our_address = current_state.our_address.clone();
+
+        while from_block < end_block_number {
+            let to_block = cmp::min(
+                from_block + self.block_batch_size_adjuster.batch_size(),
+                end_block_number,
+            );
+
+            let filter = self.contracts_registry.read().filters(from_block, to_block);
+            match self.web3.eth().logs((filter).clone()).await {
+                Ok(logs) => {
+                    for log in logs {
+                        let state_change = Event::from_log(&self.contracts_registry.read().contracts, &log)
+                            .map(|e| e.to_state_change(our_address.clone()))
+                            .flatten();
+                        match state_change {
+                            Some(state_change) => self.transition_service.transition(state_change).await,
+                            None => {
+                                error!(self.logger, "Error converting log to state change: {:?}", log);
+                            }
+                        }
                     }
+                    from_block = to_block + 1;
+                    self.block_batch_size_adjuster.increase();
+                }
+                Err(_) => {
+                    self.block_batch_size_adjuster.decrease();
                 }
             }
-            Err(_e) => {} //error!(self.log, "Error fetching logs {}", e),
         }
     }
 }
