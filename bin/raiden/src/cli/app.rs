@@ -112,9 +112,9 @@ impl RaidenApp {
             }
         };
         let storage = Arc::new(Storage::new(conn));
-        storage.setup_database().map_err(|e| {
-			format!("Failed to setup storage {}", e)
-		})?;
+        storage
+            .setup_database()
+            .map_err(|e| format!("Failed to setup storage {}", e))?;
 
         let token_network_registry = contracts_registry.token_network_registry();
 
