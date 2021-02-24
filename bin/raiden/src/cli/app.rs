@@ -114,8 +114,8 @@ impl RaidenApp {
         let storage = Arc::new(Storage::new(conn));
         let token_network_registry = contracts_registry.token_network_registry();
 
-        let mut state_manager = match StateManager::restore_or_init_state(
-			storage.clone(),
+        let state_manager = match StateManager::restore_or_init_state(
+            storage.clone(),
             config.chain_id.clone(),
             node_address.clone(),
             token_network_registry.address,
@@ -123,7 +123,7 @@ impl RaidenApp {
         ) {
             Ok(state_manager) => state_manager,
             Err(e) => {
-				return Err(format!("Failed to initialize state {}", e));
+                return Err(format!("Failed to initialize state {}", e));
             }
         };
         if let Err(e) = state_manager.setup() {
@@ -154,7 +154,6 @@ impl RaidenApp {
         let event_handler = EventHandler::new(self.state_manager.clone(), self.contracts_registry.clone());
         let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), event_handler));
 
-        let token_network_registry = self.contracts_registry.read().token_network_registry();
         let sync_start_block_number = self.state_manager.read().current_state.block_number;
 
         let mut sync_service = SyncService::new(
@@ -162,7 +161,7 @@ impl RaidenApp {
             self.state_manager.clone(),
             self.contracts_registry.clone(),
             transition_service.clone(),
-			self.logger.clone(),
+            self.logger.clone(),
         );
         sync_service.sync(sync_start_block_number, latest_block_number).await;
 
@@ -177,9 +176,9 @@ impl RaidenApp {
             Err(_) => return,
         };
 
-		futures::join!(
-			block_monitor.start(),
-			crate::http::start_server(self.state_manager.clone())
-		);
+        futures::join!(
+            block_monitor.start(),
+            crate::http::start_server(self.state_manager.clone())
+        );
     }
 }

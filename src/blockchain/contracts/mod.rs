@@ -7,7 +7,13 @@ use serde_json::{
     Map,
     Value,
 };
-use web3::types::{Address, Filter, FilterBuilder, H256, U64};
+use web3::types::{
+    Address,
+    Filter,
+    FilterBuilder,
+    H256,
+    U64,
+};
 
 pub const CONTRACTS: &str = include_str!("data/contracts.json");
 const DEPLOYMENT_MAINNET: &str = include_str!("data/deployment_mainnet.json");
@@ -41,10 +47,10 @@ impl Contract {
         })
     }
 
-	pub fn topics(&self) -> Vec<H256> {
+    pub fn topics(&self) -> Vec<H256> {
         let events = self.inner.events();
         events.map(|e| e.signature()).collect()
-	}
+    }
 
     pub fn filters(&self, from_block: U64, to_block: U64) -> Filter {
         let events = self.inner.events();
@@ -88,14 +94,14 @@ impl ContractRegistry {
     }
 
     pub fn filters(&self, from_block: U64, to_block: U64) -> Filter {
-		let token_network_registry = self.token_network_registry();
-		let mut topics = token_network_registry.topics();
-		let mut addresses = vec![token_network_registry.address];
+        let token_network_registry = self.token_network_registry();
+        let mut topics = token_network_registry.topics();
+        let mut addresses = vec![token_network_registry.address];
 
-		for token_network in self.contracts.get(&ContractIdentifier::TokenNetwork).unwrap_or(&vec![]) {
-			topics.extend(token_network.topics());
-			addresses.push(token_network.address);
-		}
+        for token_network in self.contracts.get(&ContractIdentifier::TokenNetwork).unwrap_or(&vec![]) {
+            topics.extend(token_network.topics());
+            addresses.push(token_network.address);
+        }
         FilterBuilder::default()
             .address(addresses)
             .topics(Some(topics), None, None, None)

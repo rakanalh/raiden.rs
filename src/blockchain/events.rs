@@ -28,13 +28,13 @@ use super::contracts::{
 };
 
 pub trait ToStateChange {
-	fn to_state_change(&self, our_address: Address) -> Option<StateChange>;
+    fn to_state_change(&self, our_address: Address) -> Option<StateChange>;
 }
 
 #[derive(Clone, Debug)]
 pub struct Event {
     pub name: String,
-	pub address: Address,
+    pub address: Address,
     pub block_number: U64,
     pub block_hash: H256,
     pub transaction_hash: H256,
@@ -81,7 +81,7 @@ impl Event {
 
                     return Some(Event {
                         name: event.name.clone(),
-						address: log.address,
+                        address: log.address,
                         block_number: log.block_number.unwrap(),
                         block_hash: log.block_hash.unwrap(),
                         transaction_hash: log.transaction_hash.unwrap(),

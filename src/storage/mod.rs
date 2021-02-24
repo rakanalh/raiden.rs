@@ -97,10 +97,7 @@ impl Storage {
     }
 
     pub fn state_changes(&self) -> Result<Vec<StateChangeRecord>> {
-		let conn = self
-            .conn
-            .lock()
-            .map_err(|_| StorageError::CannotLock)?;
+        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
         let mut stmt = conn
             .prepare("SELECT identifier, data FROM state_changes")
             .map_err(|e| StorageError::Sql(e))?;
@@ -159,13 +156,8 @@ impl Storage {
 			ORDER BY identifier DESC
 			LIMIT 1"
         );
-		let conn = self
-            .conn
-            .lock()
-            .map_err(|_| StorageError::CannotLock)?;
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| StorageError::Sql(e))?;
+        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| StorageError::Sql(e))?;
         let mut rows = stmt
             .query(params![state_change_id.to_string()])
             .map_err(StorageError::Sql)?;
@@ -189,10 +181,7 @@ impl Storage {
         start_state_change: StateChangeID,
         end_state_change: StateChangeID,
     ) -> Result<Vec<StateChangeRecord>> {
-		let conn = self
-            .conn
-            .lock()
-            .map_err(|_| StorageError::CannotLock)?;
+        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
         let mut stmt = conn
             .prepare(
                 "SELECT identifier, data FROM state_changes
