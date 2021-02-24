@@ -57,17 +57,28 @@ impl BlockMonitorService {
         };
         while let Some(subscription) = block_stream.next().await {
             if let Ok(header) = subscription {
-                if let Some(block_number) = header.number {
-                    let current_block_number = match &self.state_manager.read().current_state {
-                        Some(current_state) => current_state.block_number,
-                        None => return,
-                    };
-                    let block_state_change = Block::new(self.chain_id.clone(), block_number.into());
-                    self.transition_service
-                        .transition(StateChange::Block(block_state_change))
-                        .await;
-                    self.sync_service.sync(current_block_number, block_number).await;
-                }
+				let block_number = match header.number {
+					Some(block_number) => block_number,
+					None => continue,
+				};
+				let block_hash = match header.hash {
+					Some(hash) => hash,
+					None => continue,
+				};
+				let current_block_number = match &self.state_manager.read().current_state {
+					Some(current_state) => current_state.block_number,
+					None => return,
+				};
+				let gas_limit = header.gas_limit;
+				let block_state_change = Block::new(
+					block_number.into(),
+					block_hash,
+					header.gas_limit,
+				);
+				self.transition_service
+					.transition(StateChange::Block(block_state_change))
+					.await;
+				self.sync_service.sync(current_block_number, block_number).await;
             }
         }
     }

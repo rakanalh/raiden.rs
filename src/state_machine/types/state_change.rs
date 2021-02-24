@@ -11,6 +11,7 @@ use serde::{
 use web3::types::{
     Address,
     H256,
+    U256,
     U64,
 };
 
@@ -25,13 +26,18 @@ pub enum StateChange {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {
-    pub chain_id: ChainID,
     pub block_number: U64,
+    pub block_hash: H256,
+    pub gas_limit: U256,
 }
 
 impl Block {
-    pub fn new(chain_id: ChainID, block_number: U64) -> Block {
-        Block { chain_id, block_number }
+    pub fn new(block_number: U64, block_hash: H256, gas_limit: U256) -> Block {
+        Block {
+            block_number,
+            block_hash,
+            gas_limit,
+        }
     }
 }
 
