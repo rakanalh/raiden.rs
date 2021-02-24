@@ -112,6 +112,10 @@ impl RaidenApp {
             }
         };
         let storage = Arc::new(Storage::new(conn));
+        storage.setup_database().map_err(|e| {
+			format!("Failed to setup storage {}", e)
+		})?;
+
         let token_network_registry = contracts_registry.token_network_registry();
 
         let state_manager = match StateManager::restore_or_init_state(
@@ -126,9 +130,6 @@ impl RaidenApp {
                 return Err(format!("Failed to initialize state {}", e));
             }
         };
-        if let Err(e) = state_manager.setup() {
-            return Err(format!("Could not setup database: {}", e));
-        }
 
         Ok(Self {
             config,

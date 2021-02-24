@@ -36,10 +36,6 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    pub fn setup(&self) -> std::result::Result<(), errors::RaidenError> {
-        self.storage.setup_database().map_err(|e| e.into())
-    }
-
     pub fn restore_or_init_state(
         storage: Arc<Storage>,
         chain_id: ChainID,
