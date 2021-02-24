@@ -65,10 +65,7 @@ impl BlockMonitorService {
 					Some(hash) => hash,
 					None => continue,
 				};
-				let current_block_number = match &self.state_manager.read().current_state {
-					Some(current_state) => current_state.block_number,
-					None => return,
-				};
+				let current_block_number = self.state_manager.read().current_state.block_number;
 				let gas_limit = header.gas_limit;
 				let block_state_change = Block::new(
 					block_number.into(),

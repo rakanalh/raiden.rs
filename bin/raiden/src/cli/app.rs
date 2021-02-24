@@ -116,27 +116,23 @@ impl RaidenApp {
             }
         };
         let storage = Arc::new(Storage::new(conn));
-
-        let mut state_manager = StateManager::new(storage.clone());
-        if let Err(e) = state_manager.setup() {
-            return Err(format!("Could not setup database: {}", e));
-        }
-
         let token_network_registry = contracts_registry.token_network_registry();
 
-        match state_manager.restore_or_init_state(
+        let mut state_manager = match StateManager::restore_or_init_state(
+			storage.clone(),
             config.chain_id.clone(),
             node_address.clone(),
             token_network_registry.address,
             token_network_registry.deploy_block_number,
         ) {
-            Ok(_) => {
-                debug!(logger, "Restored state");
-            }
-            Err(_) => {
-                debug!(logger, "Initialized node",);
+            Ok(state_manager) => state_manager,
+            Err(e) => {
+				return Err(format!("Failed to initialize state {}", e));
             }
         };
+        if let Err(e) = state_manager.setup() {
+            return Err(format!("Could not setup database: {}", e));
+        }
 
         Ok(Self {
             config,
@@ -163,10 +159,8 @@ impl RaidenApp {
         let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), event_handler));
 
         let token_network_registry = self.contracts_registry.read().token_network_registry();
-        let sync_start_block_number = match &self.state_manager.read().current_state {
-            Some(chain) => chain.block_number,
-            None => token_network_registry.deploy_block_number,
-        };
+        let sync_start_block_number = self.state_manager.read().current_state.block_number;
+
         let mut sync_service = SyncService::new(
             web3.clone(),
             self.state_manager.clone(),

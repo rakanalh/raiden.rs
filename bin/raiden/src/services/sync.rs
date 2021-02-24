@@ -119,7 +119,7 @@ impl SyncService {
     pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
         let mut from_block = start_block_number;
 
-        let current_state = self.state_manager.read().current_state.as_ref().unwrap().clone();
+        let current_state = self.state_manager.read().current_state.clone();
         let our_address = current_state.our_address.clone();
 
         while from_block < end_block_number {

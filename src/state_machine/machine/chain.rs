@@ -135,20 +135,20 @@ fn handle_token_network_state_change(
 }
 
 pub fn state_transition(
-    chain_state: Option<ChainState>,
+    chain_state: ChainState,
     state_change: StateChange,
 ) -> Result<ChainTransition, StateTransitionError> {
     let result: Result<ChainTransition, StateTransitionError> = match state_change {
         StateChange::ActionInitChain(state_change) => handle_action_init_chain(state_change),
-        StateChange::Block(state_change) => handle_new_block(chain_state.unwrap(), state_change),
+        StateChange::Block(state_change) => handle_new_block(chain_state, state_change),
         StateChange::ContractReceiveTokenNetworkRegistry(state_change) => {
-            handle_contract_receive_token_network_registry(chain_state.unwrap(), state_change)
+            handle_contract_receive_token_network_registry(chain_state, state_change)
         }
         StateChange::ContractReceiveTokenNetworkCreated(state_change) => {
-            handle_contract_receive_token_network_created(chain_state.unwrap(), state_change)
+            handle_contract_receive_token_network_created(chain_state, state_change)
         }
         StateChange::ContractReceiveChannelOpened(state_change) => {
-            handle_token_network_state_change(chain_state.unwrap(), state_change)
+            handle_token_network_state_change(chain_state, state_change)
         }
     };
     result
