@@ -4,7 +4,10 @@ use rusqlite::{
     params,
     NO_PARAMS,
 };
-use std::convert::TryInto;
+use std::{
+    convert::TryInto,
+    sync::Mutex,
+};
 use ulid::Ulid;
 
 use self::types::StateChangeID;
@@ -26,6 +29,8 @@ pub type Result<T> = std::result::Result<T, StorageError>;
 
 #[derive(Display, Debug)]
 pub enum StorageError {
+    #[display(fmt = "Storage lock poisoned")]
+    CannotLock,
     #[display(fmt = "Field unknown {}", _0)]
     FieldUnknown(rusqlite::Error),
     #[display(fmt = "Cannot serialize for storage")]
@@ -59,12 +64,12 @@ pub struct SnapshotRecord {
 }
 
 pub struct Storage {
-    conn: Connection,
+    conn: Mutex<Connection>,
 }
 
 impl Storage {
     pub fn new(conn: Connection) -> Self {
-        Self { conn }
+        Self { conn: Mutex::new(conn) }
     }
 
     pub fn setup_database(&self) -> Result<()> {
@@ -82,14 +87,21 @@ impl Storage {
             sqlite::DB_CREATE_STATE_EVENTS,
             sqlite::DB_CREATE_RUNS,
         );
-        self.conn.execute_batch(&setup_db_sql).map_err(StorageError::Sql)?;
+        self.conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?
+            .execute_batch(&setup_db_sql)
+            .map_err(StorageError::Sql)?;
 
         Ok(())
     }
 
     pub fn state_changes(&self) -> Result<Vec<StateChangeRecord>> {
-        let mut stmt = self
+		let conn = self
             .conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?;
+        let mut stmt = conn
             .prepare("SELECT identifier, data FROM state_changes")
             .map_err(|e| StorageError::Sql(e))?;
 
@@ -114,6 +126,8 @@ impl Storage {
         let sql = format!("INSERT INTO state_changes(identifier, data) VALUES(?1, ?2)");
         let ulid = Ulid::new();
         self.conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?
             .execute(&sql, params![&ulid.to_string(), serialized_state_change])
             .map_err(|e| StorageError::Sql(e))?;
         Ok(ulid)
@@ -123,6 +137,8 @@ impl Storage {
         let serialized_events = serde_json::to_string(&events).map_err(|_| StorageError::SerializationError)?;
         let sql = format!("INSERT INTO state_events(identifier, source_statechange_id, data) VALUES(?1, ?2, ?3)");
         self.conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?
             .execute(
                 &sql,
                 params![
@@ -143,7 +159,13 @@ impl Storage {
 			ORDER BY identifier DESC
 			LIMIT 1"
         );
-        let mut stmt = self.conn.prepare(&sql).map_err(|e| StorageError::Sql(e))?;
+		let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?;
+        let mut stmt = conn
+            .prepare(&sql)
+            .map_err(|e| StorageError::Sql(e))?;
         let mut rows = stmt
             .query(params![state_change_id.to_string()])
             .map_err(StorageError::Sql)?;
@@ -167,8 +189,11 @@ impl Storage {
         start_state_change: StateChangeID,
         end_state_change: StateChangeID,
     ) -> Result<Vec<StateChangeRecord>> {
-        let mut stmt = self
+		let conn = self
             .conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?;
+        let mut stmt = conn
             .prepare(
                 "SELECT identifier, data FROM state_changes
 			WHERE identifier BETWEEEN ?1 AND ?2",
