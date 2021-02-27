@@ -172,7 +172,7 @@ impl RaidenApp {
             self.state_manager.clone(),
             transition_service.clone(),
             sync_service,
-			self.logger.clone(),
+            self.logger.clone(),
         ) {
             Ok(bm) => bm,
             Err(_) => return,
@@ -180,7 +180,12 @@ impl RaidenApp {
 
         futures::join!(
             block_monitor.start(),
-            crate::http::HttpServer::new(self.state_manager.clone(), self.logger.clone()).start()
+            crate::http::HttpServer::new(
+                self.state_manager.clone(),
+                self.contracts_registry.clone(),
+                self.logger.clone()
+            )
+            .start()
         );
     }
 }

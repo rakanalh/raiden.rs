@@ -1,13 +1,17 @@
 use hyper::{
     server::conn::AddrIncoming,
     Body,
+    Error,
     Request,
     Response,
     Server,
     StatusCode,
 };
 use parking_lot::RwLock;
-use raiden::state_manager::StateManager;
+use raiden::{
+    blockchain::contracts::ContractRegistry,
+    state_manager::StateManager,
+};
 use routerify::{
     ext::RequestExt,
     Middleware,
@@ -17,7 +21,6 @@ use routerify::{
 };
 use slog::Logger;
 use std::{
-    convert::Infallible,
     net::SocketAddr,
     sync::Arc,
 };
@@ -25,12 +28,16 @@ use std::{
 use super::endpoints;
 
 pub struct HttpServer {
-    inner: Server<AddrIncoming, RouterService<Body, Infallible>>,
+    inner: Server<AddrIncoming, RouterService<Body, Error>>,
 }
 
 impl HttpServer {
-    pub fn new(state_manager: Arc<RwLock<StateManager>>, logger: Logger) -> Self {
-        let router = router(state_manager, logger.clone());
+    pub fn new(
+        state_manager: Arc<RwLock<StateManager>>,
+        contracts_registry: Arc<RwLock<ContractRegistry>>,
+        logger: Logger,
+    ) -> Self {
+        let router = router(state_manager, contracts_registry, logger.clone());
 
         // Create a Service from the router above to handle incoming requests.
         let service = RouterService::new(router).unwrap();
@@ -52,7 +59,7 @@ impl HttpServer {
     }
 }
 
-async fn log_request(req: Request<Body>) -> Result<Request<Body>, Infallible> {
+async fn log_request(req: Request<Body>) -> Result<Request<Body>, Error> {
     let logger = req.data::<Logger>().unwrap().clone();
     debug!(logger, "{} {}", req.method(), req.uri().path());
     Ok(req)
@@ -66,14 +73,21 @@ async fn error_handler(err: routerify::Error, _: RequestInfo) -> Response<Body> 
         .unwrap()
 }
 
-fn router(state_manager: Arc<RwLock<StateManager>>, logger: Logger) -> Router<Body, Infallible> {
+fn router(
+    state_manager: Arc<RwLock<StateManager>>,
+    contracts_registry: Arc<RwLock<ContractRegistry>>,
+    logger: Logger,
+) -> Router<Body, Error> {
     Router::builder()
         // Specify the state data which will be available to every route handlers,
         // error handler and middlewares.
         .middleware(Middleware::pre(log_request))
         .data(state_manager)
+        .data(contracts_registry)
         .data(logger)
         .get("/api/v1/address", endpoints::address)
+        .get("/api/v1/channels", endpoints::channels)
+        .put("/api/v1/channels", endpoints::create_channel)
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()

@@ -8,6 +8,8 @@ use web3::types::{
     U64,
 };
 
+use super::state::ChannelState;
+
 pub fn block_number(chain_state: &ChainState) -> U64 {
     chain_state.block_number
 }
@@ -41,4 +43,16 @@ pub fn get_token_network_registry_by_token_network_address(
         }
     }
     None
+}
+
+pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
+    let mut channels = vec![];
+
+    for token_network_registry in chain_state.identifiers_to_tokennetworkregistries.values() {
+        for token_network in token_network_registry.tokennetworkaddresses_to_tokennetworks.values() {
+            channels.extend(token_network.channelidentifiers_to_channels.values().cloned());
+        }
+    }
+
+	channels
 }
