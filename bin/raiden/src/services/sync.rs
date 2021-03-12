@@ -13,11 +13,12 @@ use web3::{
 
 use raiden::{
     blockchain::{
-        contracts::ContractRegistry,
+        contracts::ContractsManager,
         events::{
             Event,
             ToStateChange,
         },
+        filters::filters_from_chain_state,
     },
     state_manager::StateManager,
 };
@@ -77,7 +78,7 @@ impl BlockBatchSizeAdjuster {
 pub struct SyncService {
     web3: Web3<Http>,
     state_manager: Arc<RwLock<StateManager>>,
-    contracts_registry: Arc<RwLock<ContractRegistry>>,
+    contracts_manager: Arc<ContractsManager>,
     transition_service: Arc<TransitionService>,
     block_batch_size_adjuster: BlockBatchSizeAdjuster,
     logger: Logger,
@@ -87,7 +88,7 @@ impl SyncService {
     pub fn new(
         web3: Web3<Http>,
         state_manager: Arc<RwLock<StateManager>>,
-        contracts_registry: Arc<RwLock<ContractRegistry>>,
+        contracts_manager: Arc<ContractsManager>,
         transition_service: Arc<TransitionService>,
         logger: Logger,
     ) -> Self {
@@ -105,7 +106,7 @@ impl SyncService {
         Self {
             web3,
             state_manager,
-            contracts_registry,
+            contracts_manager,
             transition_service,
             block_batch_size_adjuster,
             logger,
@@ -119,7 +120,7 @@ impl SyncService {
     pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
         let mut from_block = start_block_number;
 
-        let current_state = self.state_manager.read().current_state.clone();
+        let current_state = &self.state_manager.read().current_state;
         let our_address = current_state.our_address.clone();
 
         while from_block < end_block_number {
@@ -128,11 +129,11 @@ impl SyncService {
                 end_block_number,
             );
 
-            let filter = self.contracts_registry.read().filters(from_block, to_block);
+            let filter = filters_from_chain_state(self.contracts_manager.clone(), current_state.clone(), from_block, to_block);
             match self.web3.eth().logs((filter).clone()).await {
                 Ok(logs) => {
                     for log in logs {
-                        let state_change = Event::from_log(&self.contracts_registry.read().contracts, &log)
+                        let state_change = Event::from_log(self.contracts_manager.clone(), &log)
                             .map(|e| e.to_state_change(our_address.clone()))
                             .flatten();
                         match state_change {

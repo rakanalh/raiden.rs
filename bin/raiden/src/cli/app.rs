@@ -16,7 +16,7 @@ use parking_lot::RwLock;
 use raiden::{
     blockchain::contracts::{
         self,
-        ContractRegistry,
+        ContractsManager,
     },
     state_machine::types::ChainID,
     state_manager::StateManager,
@@ -35,8 +35,12 @@ use std::{
     sync::Arc,
 };
 use web3::{
-    transports::WebSocket,
+    transports::{
+        Http,
+        WebSocket,
+    },
     types::Address,
+    Web3,
 };
 
 type Result<T> = std::result::Result<T, String>;
@@ -83,9 +87,10 @@ impl Config {
 
 pub struct RaidenApp {
     config: Config,
+    web3: Web3<Http>,
     node_address: Address,
     private_key: SecretKey,
-    contracts_registry: Arc<RwLock<ContractRegistry>>,
+    contracts_manager: Arc<ContractsManager>,
     storage: Arc<Storage>,
     state_manager: Arc<RwLock<StateManager>>,
     logger: Logger,
@@ -99,10 +104,13 @@ impl RaidenApp {
 
         let logger = slog::Logger::root(drain, o!());
 
-        let contracts_registry = match contracts::ContractRegistry::new(config.chain_id.clone()) {
-            Ok(contracts_registry) => contracts_registry,
+        let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
+        let web3 = web3::Web3::new(http);
+
+        let contracts_manager = match contracts::ContractsManager::new(config.chain_id.clone()) {
+            Ok(contracts_manager) => contracts_manager,
             Err(e) => {
-                return Err(format!("Error creating contracts registry: {}", e));
+                return Err(format!("Error creating contracts manager: {}", e));
             }
         };
         let conn = match Connection::open(config.datadir.join("raiden.db")) {
@@ -116,14 +124,23 @@ impl RaidenApp {
             .setup_database()
             .map_err(|e| format!("Failed to setup storage {}", e))?;
 
-        let token_network_registry = contracts_registry.token_network_registry();
+        let token_network_registry_deployed_contract =
+            match contracts_manager.get_deployed(contracts::ContractIdentifier::TokenNetworkRegistry) {
+                Ok(contract) => contract,
+                Err(e) => {
+                    return Err(format!(
+                        "Could not find token network registry deployment info: {:?}",
+                        e
+                    ))
+                }
+            };
 
         let state_manager = match StateManager::restore_or_init_state(
             storage.clone(),
             config.chain_id.clone(),
             node_address.clone(),
-            token_network_registry.address,
-            token_network_registry.deploy_block_number,
+            token_network_registry_deployed_contract.address,
+            token_network_registry_deployed_contract.block,
         ) {
             Ok(state_manager) => state_manager,
             Err(e) => {
@@ -133,9 +150,10 @@ impl RaidenApp {
 
         Ok(Self {
             config,
+            web3,
             node_address,
             private_key,
-            contracts_registry: Arc::new(RwLock::new(contracts_registry)),
+            contracts_manager: Arc::new(contracts_manager),
             storage,
             state_manager: Arc::new(RwLock::new(state_manager)),
             logger,
@@ -143,24 +161,22 @@ impl RaidenApp {
     }
 
     pub async fn run(&self) {
-        let http = web3::transports::Http::new(&self.config.eth_http_rpc_endpoint).unwrap();
-        let web3 = web3::Web3::new(http);
-        let latest_block_number = web3.eth().block_number().await.unwrap();
+        let latest_block_number = self.web3.eth().block_number().await.unwrap();
 
         let ws = match WebSocket::new(&self.config.eth_socket_rpc_endpoint).await {
             Ok(ws) => ws,
             Err(_) => return,
         };
 
-        let event_handler = EventHandler::new(self.state_manager.clone(), self.contracts_registry.clone());
+        let event_handler = EventHandler::new(self.state_manager.clone());
         let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), event_handler));
 
         let sync_start_block_number = self.state_manager.read().current_state.block_number;
 
         let mut sync_service = SyncService::new(
-            web3.clone(),
+            self.web3.clone(),
             self.state_manager.clone(),
-            self.contracts_registry.clone(),
+            self.contracts_manager.clone(),
             transition_service.clone(),
             self.logger.clone(),
         );
@@ -182,7 +198,7 @@ impl RaidenApp {
             block_monitor.start(),
             crate::http::HttpServer::new(
                 self.state_manager.clone(),
-                self.contracts_registry.clone(),
+                self.contracts_manager.clone(),
                 self.logger.clone()
             )
             .start()

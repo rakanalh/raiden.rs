@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::constants;
 use crate::state_machine::state::{
@@ -14,18 +14,17 @@ use crate::state_machine::types::{
     ContractReceiveTokenNetworkCreated,
 };
 use ethabi::Token;
-use web3::types::{
-    Address,
-    Log,
-    H256,
-    U256,
-    U64,
+use web3::{
+    types::{
+        Address,
+        Log,
+        H256,
+        U256,
+        U64,
+    },
 };
 
-use super::contracts::{
-    Contract,
-    ContractIdentifier,
-};
+use super::contracts::ContractsManager;
 
 pub trait ToStateChange {
     fn to_state_change(&self, our_address: Address) -> Option<StateChange>;
@@ -52,42 +51,40 @@ impl ToStateChange for Event {
 }
 
 impl Event {
-    pub fn from_log(contracts: &HashMap<ContractIdentifier, Vec<Contract>>, log: &Log) -> Option<Event> {
-        for contracts in contracts.values() {
-            let events = contracts.iter().flat_map(|contract| contract.events());
-            for event in events {
-                if !log.topics.is_empty() && event.signature() == log.topics[0] {
-                    let non_indexed_inputs: Vec<ethabi::ParamType> = event
-                        .inputs
-                        .iter()
-                        .filter(|input| !input.indexed)
-                        .map(|input| input.kind.clone())
-                        .collect();
-                    let mut data: Vec<ethabi::Token> = vec![];
+    pub fn from_log(contracts_manager: Arc<ContractsManager>, log: &Log) -> Option<Event> {
+        let events = contracts_manager.events(None);
+        for event in events {
+            if !log.topics.is_empty() && event.signature() == log.topics[0] {
+                let non_indexed_inputs: Vec<ethabi::ParamType> = event
+                    .inputs
+                    .iter()
+                    .filter(|input| !input.indexed)
+                    .map(|input| input.kind.clone())
+                    .collect();
+                let mut data: Vec<ethabi::Token> = vec![];
 
-                    if log.topics.len() >= 2 {
-                        let indexed_inputs: Vec<&ethabi::EventParam> =
-                            event.inputs.iter().filter(|input| input.indexed).collect();
-                        for topic in &log.topics[1..] {
-                            if let Ok(decoded_value) = ethabi::decode(&[indexed_inputs[0].kind.clone()], &topic.0) {
-                                data.push(decoded_value[0].clone());
-                            }
+                if log.topics.len() >= 2 {
+                    let indexed_inputs: Vec<&ethabi::EventParam> =
+                        event.inputs.iter().filter(|input| input.indexed).collect();
+                    for topic in &log.topics[1..] {
+                        if let Ok(decoded_value) = ethabi::decode(&[indexed_inputs[0].kind.clone()], &topic.0) {
+                            data.push(decoded_value[0].clone());
                         }
                     }
-
-                    if !log.data.0.is_empty() {
-                        data.extend(ethabi::decode(&non_indexed_inputs, &log.data.0).unwrap());
-                    }
-
-                    return Some(Event {
-                        name: event.name.clone(),
-                        address: log.address,
-                        block_number: log.block_number.unwrap(),
-                        block_hash: log.block_hash.unwrap(),
-                        transaction_hash: log.transaction_hash.unwrap(),
-                        data,
-                    });
                 }
+
+                if !log.data.0.is_empty() {
+                    data.extend(ethabi::decode(&non_indexed_inputs, &log.data.0).unwrap());
+                }
+
+                return Some(Event {
+                    name: event.name.clone(),
+                    address: log.address,
+                    block_number: log.block_number.unwrap(),
+                    block_hash: log.block_hash.unwrap(),
+                    transaction_hash: log.transaction_hash.unwrap(),
+                    data,
+                });
             }
         }
         None
