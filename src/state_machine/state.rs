@@ -17,7 +17,7 @@ use web3::types::{
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CanonicalIdentifier {
-    pub chain_identifier: u64,
+    pub chain_identifier: ChainID,
     pub token_network_address: Address,
     pub channel_identifier: U256,
 }
@@ -78,8 +78,8 @@ pub struct TokenNetworkState {
     pub address: Address,
     pub token_address: Address,
     pub network_graph: TokenNetworkGraphState,
-    pub channelidentifiers_to_channels: HashMap<u64, ChannelState>,
-    pub partneraddresses_to_channelidentifiers: HashMap<Address, Vec<u64>>,
+    pub channelidentifiers_to_channels: HashMap<U256, ChannelState>,
+    pub partneraddresses_to_channelidentifiers: HashMap<Address, Vec<U256>>,
 }
 
 impl TokenNetworkState {

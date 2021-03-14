@@ -59,6 +59,18 @@ pub fn get_token_network_registry_by_token_network_address(
     None
 }
 
+pub fn get_token_network_by_address(
+    chain_state: &ChainState,
+    token_network_address: Address,
+) -> Option<&TokenNetworkState> {
+    let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
+	token_network_registries
+		.values()
+		.map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
+		.flatten()
+		.find(|tn| tn.address == token_network_address)
+}
+
 pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
     let mut channels = vec![];
 

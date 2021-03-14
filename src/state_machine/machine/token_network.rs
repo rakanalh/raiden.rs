@@ -16,7 +16,7 @@ fn handle_contract_receive_channel_opened(
     state_change: state_change::ContractReceiveChannelOpened,
 ) -> Result<TokenNetworkTransition, StateTransitionError> {
     token_network.channelidentifiers_to_channels.insert(
-        state_change.channel_state.canonical_identifier.chain_identifier,
+        state_change.channel_state.canonical_identifier.channel_identifier,
         state_change.channel_state,
     );
     Ok(TokenNetworkTransition {

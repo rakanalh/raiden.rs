@@ -14,12 +14,10 @@ use web3::{
 use raiden::{
     blockchain::{
         contracts::ContractsManager,
-        events::{
-            Event,
-            ToStateChange,
-        },
+        events::Event,
         filters::filters_from_chain_state,
     },
+    state_machine::types::StateChange,
     state_manager::StateManager,
 };
 
@@ -120,7 +118,7 @@ impl SyncService {
     pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
         let mut from_block = start_block_number;
 
-		// Clone here to prevent holding the lock
+        // Clone here to prevent holding the lock
         let current_state = &self.state_manager.read().current_state.clone();
         let our_address = current_state.our_address.clone();
 
@@ -142,8 +140,9 @@ impl SyncService {
             match self.web3.eth().logs((filter).clone()).await {
                 Ok(logs) => {
                     for log in logs {
+                        let current_state = &self.state_manager.read().current_state.clone();
                         let state_change = Event::from_log(self.contracts_manager.clone(), &log)
-                            .map(|e| e.to_state_change(our_address.clone()))
+                            .map(|e| StateChange::from_blockchain_event(current_state, e))
                             .flatten();
                         match state_change {
                             Some(state_change) => self.transition_service.transition(state_change).await,
