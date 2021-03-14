@@ -65,7 +65,7 @@ impl<T: Transport> TokenProxy<T> {
         let lock = self.lock.write();
 
         let transaction_hash = match gas_estimate {
-            Ok(gas_estimate) => {
+            Ok(_gas_estimate) => {
                 match self
                     .contract
                     .call("approve", (allowed_address, allowance), self.from, Options::default())
