@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use crate::state_machine::state::{
     ChainState,
     TokenNetworkRegistryState,
@@ -9,7 +11,14 @@ use web3::types::{
     U64,
 };
 
-use super::state::ChannelState;
+use super::{
+    state::{
+        ChannelEndState,
+        ChannelState,
+        TransactionResult,
+    },
+    types::ChannelStatus,
+};
 
 pub fn block_number(chain_state: &ChainState) -> U64 {
     chain_state.block_number
@@ -59,5 +68,58 @@ pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
         }
     }
 
-	channels
+    channels
+}
+
+pub fn get_channel_status(channel_state: &ChannelState) -> ChannelStatus {
+    let mut result = ChannelStatus::Opened;
+    if let Some(settle_transaction) = &channel_state.settle_transaction {
+        let finished_successfully = match &settle_transaction.result {
+            Some(r) => *r == TransactionResult::Success,
+            None => false,
+        };
+        let running = settle_transaction.finished_block_number.is_none();
+
+        if finished_successfully {
+            result = ChannelStatus::Settled;
+        } else if running {
+            result = ChannelStatus::Settling;
+        } else {
+            result = ChannelStatus::Unusable;
+        }
+    } else if let Some(close_transaction) = &channel_state.close_transaction {
+        let finished_successfully = match &close_transaction.result {
+            Some(r) => *r == TransactionResult::Success,
+            None => false,
+        };
+        let running = close_transaction.finished_block_number.is_none();
+
+        if finished_successfully {
+            result = ChannelStatus::Closed;
+        } else if running {
+            result = ChannelStatus::Closing;
+        } else {
+            result = ChannelStatus::Unusable;
+        }
+    }
+
+    result
+}
+
+pub fn get_channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> u64 {
+    let mut sender_transferred_amount = 0;
+    let mut receiver_transferred_amount = 0;
+
+    if let Some(ref sender_balance_proof) = sender.balance_proof {
+        sender_transferred_amount = sender_balance_proof.transferred_amount;
+    }
+
+    if let Some(ref receiver_balance_proof) = receiver.balance_proof {
+        receiver_transferred_amount = receiver_balance_proof.transferred_amount;
+    }
+
+    sender.contract_balance
+        - max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw)
+        - sender_transferred_amount
+        + receiver_transferred_amount
 }

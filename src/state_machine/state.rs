@@ -4,7 +4,10 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use std::collections::HashMap;
+use std::{
+    cmp::max,
+    collections::HashMap,
+};
 use web3::types::{
     Address,
     H256,
@@ -23,15 +26,17 @@ pub struct CanonicalIdentifier {
 pub struct ChainState {
     pub chain_id: ChainID,
     pub block_number: U64,
+    pub block_hash: H256,
     pub our_address: Address,
     pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
 }
 
 impl ChainState {
-    pub fn new(chain_id: ChainID, block_number: U64, our_address: Address) -> ChainState {
+    pub fn new(chain_id: ChainID, block_number: U64, block_hash: H256, our_address: Address) -> ChainState {
         ChainState {
             chain_id,
             block_number,
+            block_hash,
             our_address,
             identifiers_to_tokennetworkregistries: HashMap::new(),
         }
@@ -105,8 +110,8 @@ pub struct ChannelState {
     pub token_network_registry_address: Address,
     pub reveal_timeout: U256,
     pub settle_timeout: U256,
-    pub our_state: OurEndState,
-    pub partner_state: PartnerEndState,
+    pub our_state: ChannelEndState,
+    pub partner_state: ChannelEndState,
     pub open_transaction: TransactionExecutionStatus,
     pub close_transaction: Option<TransactionExecutionStatus>,
     pub settle_transaction: Option<TransactionExecutionStatus>,
@@ -130,8 +135,8 @@ impl ChannelState {
             });
         }
 
-        let our_state = OurEndState::new(our_address);
-        let partner_state = PartnerEndState::new(partner_address);
+        let our_state = ChannelEndState::new(our_address);
+        let partner_state = ChannelEndState::new(partner_address);
 
         Ok(ChannelState {
             canonical_identifier,
@@ -150,24 +155,24 @@ impl ChannelState {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct OurEndState {
-    address: Address,
-    contract_balance: u64,
-    onchain_total_withdraw: u64,
-    withdraws_pending: HashMap<u64, PendingWithdrawState>,
-    withdraws_expired: Vec<ExpiredWithdrawState>,
-    secrethashes_to_lockedlocks: HashMap<H256, HashTimeLockState>,
-    secrethashes_to_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
-    secrethashes_to_onchain_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
-    balance_proof: Option<BalanceProofUnsignedState>,
-    pending_locks: PendingLocksState,
-    onchain_locksroot: H256,
-    nonce: u64,
+pub struct ChannelEndState {
+    pub address: Address,
+    pub contract_balance: u64,
+    pub onchain_total_withdraw: u64,
+    pub withdraws_pending: HashMap<u64, PendingWithdrawState>,
+    pub withdraws_expired: Vec<ExpiredWithdrawState>,
+    pub secrethashes_to_lockedlocks: HashMap<H256, HashTimeLockState>,
+    pub secrethashes_to_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
+    pub secrethashes_to_onchain_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
+    pub balance_proof: Option<BalanceProofUnsignedState>,
+    pub pending_locks: PendingLocksState,
+    pub onchain_locksroot: H256,
+    pub nonce: u64,
 }
 
-impl OurEndState {
-    pub fn new(address: Address) -> OurEndState {
-        OurEndState {
+impl ChannelEndState {
+    pub fn new(address: Address) -> Self {
+        Self {
             address,
             contract_balance: 0,
             onchain_total_withdraw: 0,
@@ -182,51 +187,27 @@ impl OurEndState {
             nonce: 0,
         }
     }
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PartnerEndState {
-    address: Address,
-    contract_balance: u64,
-    onchain_total_withdraw: u64,
-    withdraws_pending: HashMap<u16, PendingWithdrawState>,
-    withdraws_expired: Vec<ExpiredWithdrawState>,
-    secrethashes_to_lockedlocks: HashMap<H256, HashTimeLockState>,
-    secrethashes_to_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
-    secrethashes_to_onchain_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
-    balance_proof: Option<BalanceProofSignedState>,
-    pending_locks: PendingLocksState,
-    onchain_locksroot: H256,
-    nonce: u64,
-}
+    pub fn offchain_total_withdraw(&self) -> u64 {
+        self.withdraws_pending
+            .values()
+            .map(|w| w.total_withdraw)
+            .fold(0, |a, b| max(a, b))
+    }
 
-impl PartnerEndState {
-    pub fn new(address: Address) -> PartnerEndState {
-        PartnerEndState {
-            address,
-            contract_balance: 0,
-            onchain_total_withdraw: 0,
-            withdraws_pending: HashMap::new(),
-            withdraws_expired: vec![],
-            secrethashes_to_lockedlocks: HashMap::new(),
-            secrethashes_to_unlockedlocks: HashMap::new(),
-            secrethashes_to_onchain_unlockedlocks: HashMap::new(),
-            balance_proof: None,
-            pending_locks: PendingLocksState::new(),
-            onchain_locksroot: H256::zero(),
-            nonce: 0,
-        }
+    pub fn total_withdraw(&self) -> u64 {
+        max(self.offchain_total_withdraw(), self.onchain_total_withdraw)
     }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct BalanceProofUnsignedState {
-    nonce: u64,
-    transferred_amount: u64,
-    locked_amount: u64,
-    locksroot: H256,
-    canonical_identifier: CanonicalIdentifier,
-    balance_hash: H256,
+    pub nonce: u64,
+    pub transferred_amount: u64,
+    pub locked_amount: u64,
+    pub locksroot: H256,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub balance_hash: H256,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -304,10 +285,10 @@ pub struct FeeScheduleState {
     penalty_func: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum TransactionResult {
-    SUCCESS,
-    FAILURE,
+    Success,
+    Failure,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
