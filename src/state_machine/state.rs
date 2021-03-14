@@ -131,7 +131,10 @@ impl ChannelState {
     ) -> Result<ChannelState, ChannelError> {
         if reveal_timeout >= settle_timeout {
             return Err(ChannelError {
-                msg: "reveal_timeout must be smaller than settle_timeout".to_string(),
+                msg: format!(
+                    "reveal_timeout({}) must be smaller than settle_timeout({})",
+                    reveal_timeout, settle_timeout,
+                ),
             });
         }
 
