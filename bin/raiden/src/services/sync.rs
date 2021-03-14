@@ -120,7 +120,8 @@ impl SyncService {
     pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
         let mut from_block = start_block_number;
 
-        let current_state = &self.state_manager.read().current_state;
+		// Clone here to prevent holding the lock
+        let current_state = &self.state_manager.read().current_state.clone();
         let our_address = current_state.our_address.clone();
 
         while from_block < end_block_number {
@@ -129,7 +130,15 @@ impl SyncService {
                 end_block_number,
             );
 
-            let filter = filters_from_chain_state(self.contracts_manager.clone(), current_state.clone(), from_block, to_block);
+            debug!(self.logger, "Querying from blocks {} to {}", from_block, to_block);
+
+            let filter = filters_from_chain_state(
+                self.contracts_manager.clone(),
+                current_state.clone(),
+                from_block,
+                to_block,
+            );
+
             match self.web3.eth().logs((filter).clone()).await {
                 Ok(logs) => {
                     for log in logs {
