@@ -45,6 +45,7 @@ impl Block {
 pub struct ActionInitChain {
     pub chain_id: ChainID,
     pub block_number: U64,
+    pub block_hash: H256,
     pub our_address: Address,
 }
 

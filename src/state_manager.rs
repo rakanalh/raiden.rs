@@ -92,7 +92,8 @@ impl StateManager {
 
         let chain_state = ChainState {
             chain_id: chain_id.clone(),
-            block_number: U64::from(1),
+            block_number: U64::from(0),
+			block_hash: H256::zero(),
             our_address,
             identifiers_to_tokennetworkregistries: HashMap::new(),
         };
@@ -101,6 +102,7 @@ impl StateManager {
             chain_id,
             our_address,
             block_number: U64::from(1),
+			block_hash: H256::zero(),
         }));
 
         let token_network_registry_state = TokenNetworkRegistryState::new(token_network_registry_address, vec![]);

@@ -5,6 +5,7 @@ use crate::state_machine::state::{
 };
 use web3::types::{
     Address,
+    H256,
     U64,
 };
 
@@ -12,6 +13,10 @@ use super::state::ChannelState;
 
 pub fn block_number(chain_state: &ChainState) -> U64 {
     chain_state.block_number
+}
+
+pub fn confirmed_block_hash(chain_state: &ChainState) -> H256 {
+    chain_state.block_hash
 }
 
 pub fn get_token_network<'a>(

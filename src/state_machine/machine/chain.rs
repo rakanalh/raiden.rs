@@ -31,6 +31,7 @@ fn handle_action_init_chain(state_change: ActionInitChain) -> Result<ChainTransi
         new_state: ChainState::new(
             state_change.chain_id,
             state_change.block_number,
+			state_change.block_hash,
             state_change.our_address,
         ),
         events: vec![],
@@ -39,6 +40,7 @@ fn handle_action_init_chain(state_change: ActionInitChain) -> Result<ChainTransi
 
 fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Result<ChainTransition, StateTransitionError> {
     chain_state.block_number = state_change.block_number;
+	chain_state.block_hash = state_change.block_hash;
     Ok(ChainTransition {
         new_state: chain_state,
         events: vec![],
