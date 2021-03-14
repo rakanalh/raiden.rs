@@ -1,5 +1,20 @@
 # raiden-rust
-The unofficial Raiden client implementation in Rust
+The **UNOFFICIAL** Raiden client implementation in Rust
+
+[![Raiden](https://user-images.githubusercontent.com/35398162/54018436-ee3f6300-4188-11e9-9b4e-0666c44cda53.png)](https://raiden.network/)
+
+<h4 align="center">
+  Fast, cheap, scalable token transfers for Ethereum
+</h4>
+
+#### Quicklinks
+
+- [Official client](https://github.com/raiden-network/raiden)
+- [Getting Started](https://github.com/raiden-network/raiden#getting-started)
+- [Repositories](https://github.com/raiden-network/raiden#repositories)
+
+The Raiden Network is an off-chain scaling solution, enabling near-instant, low-fee and scalable payments. It's complementary to the Ethereum Blockchain and works with any ERC20 compatible token. The Raiden project is work in progress. Its goal is to research state channel technology, define protocols and develop reference implementations.
+
 
 ## Building
 
@@ -21,7 +36,7 @@ For the time being, i am testing on `Goerli` network with Infura where the JSON 
   - [ ] Chain 
   - [ ] Token Network
   - [ ] Channel
-- [ ] Contract Proxies
+- [ ] Contract Proxies (WIP)
 - [ ] Networking
   - [ ] Matrix
   - [ ] WebRTC?
