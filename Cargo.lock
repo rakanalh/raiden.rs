@@ -1588,6 +1588,7 @@ dependencies = [
  "routerify",
  "rpassword",
  "rusqlite",
+ "serde",
  "serde_json",
  "slog",
  "slog-async",

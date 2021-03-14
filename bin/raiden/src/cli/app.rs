@@ -13,10 +13,14 @@ use crate::{
 use clap::ArgMatches;
 use parking_lot::RwLock;
 use raiden::{
-    blockchain::contracts::{
-        self,
-        ContractsManager,
+    api::Api,
+    blockchain::{
+        contracts::{
+            self,
+            ContractsManager,
+        },
         key::PrivateKey,
+        proxies::ProxyManager,
     },
     state_machine::types::ChainID,
     state_manager::StateManager,
@@ -91,7 +95,7 @@ pub struct RaidenApp {
     node_address: Address,
     private_key: PrivateKey,
     contracts_manager: Arc<ContractsManager>,
-    storage: Arc<Storage>,
+    proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
     logger: Logger,
 }
@@ -108,7 +112,7 @@ impl RaidenApp {
         let web3 = web3::Web3::new(http);
 
         let contracts_manager = match contracts::ContractsManager::new(config.chain_id.clone()) {
-            Ok(contracts_manager) => contracts_manager,
+            Ok(contracts_manager) => Arc::new(contracts_manager),
             Err(e) => {
                 return Err(format!("Error creating contracts manager: {}", e));
             }
@@ -136,7 +140,7 @@ impl RaidenApp {
             };
 
         let state_manager = match StateManager::restore_or_init_state(
-            storage.clone(),
+            storage,
             config.chain_id.clone(),
             node_address.clone(),
             token_network_registry_deployed_contract.address,
@@ -148,13 +152,15 @@ impl RaidenApp {
             }
         };
 
+        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key.clone());
+
         Ok(Self {
             config,
             web3,
             node_address,
             private_key,
-            contracts_manager: Arc::new(contracts_manager),
-            storage,
+            contracts_manager,
+            proxy_manager: Arc::new(proxy_manager),
             state_manager: Arc::new(RwLock::new(state_manager)),
             logger,
         })
@@ -194,11 +200,15 @@ impl RaidenApp {
             Err(_) => return,
         };
 
+        let api = Api::new(self.state_manager.clone(), self.proxy_manager.clone());
+
         futures::join!(
             block_monitor.start(),
             crate::http::HttpServer::new(
+                Arc::new(api),
                 self.state_manager.clone(),
                 self.contracts_manager.clone(),
+                self.proxy_manager.clone(),
                 self.logger.clone()
             )
             .start()

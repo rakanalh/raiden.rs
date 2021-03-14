@@ -9,52 +9,68 @@ use hyper::{
     StatusCode,
 };
 use raiden::state_machine::views;
-use url::form_urlencoded;
 
 use super::utils::{
-    contracts_registry,
+    api,
+    body_to_params,
     state_manager,
 };
-use crate::json_response;
+use crate::{
+    http::request::ChannelOpenParams,
+    http::response,
+    json_response,
+	error,
+    unwrap,
+};
 
 pub async fn address(req: Request<Body>) -> Result<Response<Body>, Error> {
     let state_manager = state_manager(&req);
     let our_address = state_manager.read().current_state.our_address;
 
-    let mut data = HashMap::new();
-    data.insert("our_address", our_address.to_string());
+    let response = response::AddressResponse { our_address };
 
-    json_response!(data)
+    json_response!(response)
 }
 
 pub async fn channels(req: Request<Body>) -> Result<Response<Body>, Error> {
     let state_manager = state_manager(&req);
 
-    let channels = views::get_channels(&state_manager.read().current_state);
+    let channels: Vec<response::ChannelResponse> = views::get_channels(&state_manager.read().current_state)
+        .iter()
+        .map(|c| c.clone().into())
+        .collect();
 
-    let res = match serde_json::to_string(&channels) {
-        Ok(json) => Response::builder()
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(json))
-            .unwrap(),
-        Err(_) => Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(Body::from("Internal Server Error"))
-            .unwrap(),
-    };
-
-    Ok(res)
+    json_response!(&channels)
 }
-    let res = match serde_json::to_string(&data) {
-        Ok(json) => Response::builder()
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(json))
-            .unwrap(),
-        Err(_) => Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(Body::from("Internal Server Error"))
-            .unwrap(),
-    };
 
-    Ok(res)
+pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error> {
+    let api = api(&req);
+    let state_manager = state_manager(&req);
+    let current_state = state_manager.read().current_state.clone();
+    let our_address = current_state.our_address;
+
+    let params: ChannelOpenParams = match body_to_params(req).await {
+		Ok(p) => p,
+		Err(super::error::Error::Http(e)) => return Err(e),
+		Err(super::error::Error::Serialization(e)) => {
+			error!(e);
+		},
+	};
+
+    let channel_identifier = unwrap!(
+        api.create_channel(
+            params.registry_address,
+            params.token_address,
+            params.partner_address,
+            params.settle_timeout,
+            params.reveal_timeout,
+            params.total_deposit,
+            None,
+        )
+        .await
+    );
+
+    let mut data = HashMap::new();
+    data.insert("channel_identifier".to_owned(),  channel_identifier);
+    json_response!(data)
 }

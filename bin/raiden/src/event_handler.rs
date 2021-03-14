@@ -12,9 +12,7 @@ pub struct EventHandler {
 
 impl EventHandler {
     pub fn new(state_manager: Arc<RwLock<StateManager>>) -> Self {
-        Self {
-            state_manager,
-        }
+        Self { state_manager }
     }
 
     pub async fn handle_event(&self, event: Event) {

@@ -9,7 +9,11 @@ use hyper::{
 };
 use parking_lot::RwLock;
 use raiden::{
-    blockchain::contracts::ContractRegistry,
+    api::Api,
+    blockchain::{
+        contracts::ContractsManager,
+        proxies::ProxyManager,
+    },
     state_manager::StateManager,
 };
 use routerify::{
@@ -33,11 +37,13 @@ pub struct HttpServer {
 
 impl HttpServer {
     pub fn new(
+        api: Arc<Api>,
         state_manager: Arc<RwLock<StateManager>>,
-        contracts_registry: Arc<RwLock<ContractRegistry>>,
+        contracts_manager: Arc<ContractsManager>,
+        proxy_manager: Arc<ProxyManager>,
         logger: Logger,
     ) -> Self {
-        let router = router(state_manager, contracts_registry, logger.clone());
+        let router = router(api, state_manager, contracts_manager, proxy_manager, logger.clone());
 
         // Create a Service from the router above to handle incoming requests.
         let service = RouterService::new(router).unwrap();
@@ -74,16 +80,20 @@ async fn error_handler(err: routerify::Error, _: RequestInfo) -> Response<Body> 
 }
 
 fn router(
+	api: Arc<Api>,
     state_manager: Arc<RwLock<StateManager>>,
-    contracts_registry: Arc<RwLock<ContractRegistry>>,
+    contracts_manager: Arc<ContractsManager>,
+    proxy_manager: Arc<ProxyManager>,
     logger: Logger,
 ) -> Router<Body, Error> {
     Router::builder()
         // Specify the state data which will be available to every route handlers,
         // error handler and middlewares.
         .middleware(Middleware::pre(log_request))
+        .data(api)
         .data(state_manager)
-        .data(contracts_registry)
+        .data(contracts_manager)
+        .data(proxy_manager)
         .data(logger)
         .get("/api/v1/address", endpoints::address)
         .get("/api/v1/channels", endpoints::channels)
