@@ -25,8 +25,12 @@ pub fn filters_from_chain_state(
     to_block: U64,
 ) -> Filter {
     let token_network_registries = chain_state.identifiers_to_tokennetworkregistries.values();
-    let token_networks = token_network_registries.clone().flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values());
-    let _channels = token_networks.clone().flat_map(|tn| tn.channelidentifiers_to_channels.values());
+    let token_networks = token_network_registries
+        .clone()
+        .flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values());
+    let _channels = token_networks
+        .clone()
+        .flat_map(|tn| tn.channelidentifiers_to_channels.values());
 
     let tnr_contract: ethabi::Contract = contracts_manager
         .get(ContractIdentifier::TokenNetworkRegistry)
