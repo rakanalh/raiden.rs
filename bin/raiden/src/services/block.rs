@@ -27,7 +27,7 @@ pub struct BlockMonitorService {
     state_manager: Arc<RwLock<StateManager>>,
     transition_service: Arc<TransitionService>,
     sync_service: SyncService,
-	logger: Logger,
+    logger: Logger,
 }
 
 impl BlockMonitorService {
@@ -37,7 +37,7 @@ impl BlockMonitorService {
         state_manager: Arc<RwLock<StateManager>>,
         transition_service: Arc<TransitionService>,
         sync_service: SyncService,
-		logger: Logger,
+        logger: Logger,
     ) -> Result<Self, ()> {
         let web3 = web3::Web3::new(socket);
 
@@ -47,7 +47,7 @@ impl BlockMonitorService {
             state_manager,
             transition_service,
             sync_service,
-			logger,
+            logger,
         })
     }
 
@@ -69,7 +69,7 @@ impl BlockMonitorService {
                     Some(hash) => hash,
                     None => continue,
                 };
-				debug!(self.logger, "Block {}", block_number);
+                debug!(self.logger, "Block {}", block_number);
                 let current_block_number = self.state_manager.read().current_state.block_number;
                 let block_state_change = Block::new(block_number.into(), block_hash, header.gas_limit);
                 self.transition_service
