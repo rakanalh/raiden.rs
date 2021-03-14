@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::constants;
 use crate::state_machine::state::{
@@ -14,14 +14,12 @@ use crate::state_machine::types::{
     ContractReceiveTokenNetworkCreated,
 };
 use ethabi::Token;
-use web3::{
-    types::{
-        Address,
-        Log,
-        H256,
-        U256,
-        U64,
-    },
+use web3::types::{
+    Address,
+    Log,
+    H256,
+    U256,
+    U64,
 };
 
 use super::contracts::ContractsManager;
@@ -37,7 +35,7 @@ pub struct Event {
     pub block_number: U64,
     pub block_hash: H256,
     pub transaction_hash: H256,
-    pub data: Vec<ethabi::Token>,
+    pub data: HashMap<String, ethabi::Token>,
 }
 
 impl ToStateChange for Event {
@@ -55,26 +53,38 @@ impl Event {
         let events = contracts_manager.events(None);
         for event in events {
             if !log.topics.is_empty() && event.signature() == log.topics[0] {
-                let non_indexed_inputs: Vec<ethabi::ParamType> = event
+                let non_indexed_inputs: Vec<(String, &ethabi::EventParam)> = event
                     .inputs
                     .iter()
                     .filter(|input| !input.indexed)
-                    .map(|input| input.kind.clone())
+                    .map(|input| (input.name.clone(), input))
                     .collect();
-                let mut data: Vec<ethabi::Token> = vec![];
+
+				let indexed_inputs: Vec<(String, &ethabi::EventParam)> = event
+					.inputs
+					.iter()
+					.filter(|input| input.indexed)
+					.map(|input| (input.name.clone(), input))
+					.collect();
+
+                let mut data: HashMap<String, ethabi::Token> = HashMap::new();
 
                 if log.topics.len() >= 2 {
-                    let indexed_inputs: Vec<&ethabi::EventParam> =
-                        event.inputs.iter().filter(|input| input.indexed).collect();
-                    for topic in &log.topics[1..] {
-                        if let Ok(decoded_value) = ethabi::decode(&[indexed_inputs[0].kind.clone()], &topic.0) {
-                            data.push(decoded_value[0].clone());
-                        }
-                    }
+					let mut indexed_inputs = indexed_inputs.into_iter();
+					for topic in &log.topics[1..] {
+						let (name, input) = indexed_inputs.next()?;
+						if let Ok(decoded_value) = ethabi::decode(&[input.kind.clone()], &topic.0) {
+							data.insert(name.clone(), decoded_value[0].clone());
+						}
+					}
                 }
 
                 if !log.data.0.is_empty() {
-                    data.extend(ethabi::decode(&non_indexed_inputs, &log.data.0).unwrap());
+					for (name, input) in non_indexed_inputs {
+						if let Ok(decoded_value) = ethabi::decode(&[input.kind.clone()], &log.data.0) {
+							data.insert(name, decoded_value[0].clone());
+						}
+					}
                 }
 
                 return Some(Event {
@@ -91,12 +101,12 @@ impl Event {
     }
 
     fn create_token_network_created_state_change(&self) -> Option<StateChange> {
-        let token_address = match self.data[0] {
-            Token::Address(address) => address,
+        let token_address = match self.data.get("token_address")? {
+            Token::Address(address) => address.clone(),
             _ => Address::zero(),
         };
-        let token_network_address = match self.data[1] {
-            Token::Address(address) => address,
+        let token_network_address = match self.data.get("token_network_address")? {
+            Token::Address(address) => address.clone(),
             _ => Address::zero(),
         };
         let token_network = TokenNetworkState::new(token_network_address, token_address);
@@ -113,20 +123,20 @@ impl Event {
     }
 
     fn create_channel_opened_state_change(&self, our_address: Address) -> Option<StateChange> {
-        let channel_identifier = match self.data[0] {
-            Token::Uint(identifier) => identifier,
+        let channel_identifier = match self.data.get("channel_identifier")? {
+            Token::Uint(identifier) => identifier.clone(),
             _ => U256::zero(),
         };
-        let participant1 = match self.data[1] {
-            Token::Address(address) => address,
+        let participant1 = match self.data.get("participant1")? {
+            Token::Address(address) => address.clone(),
             _ => Address::zero(),
         };
-        let participant2 = match self.data[2] {
-            Token::Address(address) => address,
+        let participant2 = match self.data.get("participant2")? {
+            Token::Address(address) => address.clone(),
             _ => Address::zero(),
         };
-        let settle_timeout = match self.data[3] {
-            Token::Uint(timeout) => timeout,
+        let settle_timeout = match self.data.get("settle_timeout")? {
+            Token::Uint(timeout) => timeout.clone(),
             _ => U256::zero(),
         };
 
@@ -151,7 +161,7 @@ impl Event {
         let open_transaction = TransactionExecutionStatus {
             started_block_number: Some(U64::from(0)),
             finished_block_number: Some(self.block_number),
-            result: Some(TransactionResult::SUCCESS),
+            result: Some(TransactionResult::Success),
         };
         let channel_state = ChannelState::new(
             CanonicalIdentifier {
