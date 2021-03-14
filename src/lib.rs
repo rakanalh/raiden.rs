@@ -1,3 +1,4 @@
+pub mod api;
 pub mod blockchain;
 pub mod constants;
 pub mod errors;
