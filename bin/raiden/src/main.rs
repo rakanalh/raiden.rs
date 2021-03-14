@@ -12,7 +12,7 @@ use cli::{
     Config,
     RaidenApp,
 };
-use ethsign::SecretKey;
+use raiden::blockchain::key::PrivateKey;
 use std::{
     fs,
     path::PathBuf,
@@ -121,11 +121,11 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
     Ok(path.to_path_buf())
 }
 
-fn prompt_key(keystore_path: PathBuf) -> (Address, SecretKey) {
+fn prompt_key(keystore_path: PathBuf) -> (Address, PrivateKey) {
     let keys = accounts::list_keys(keystore_path.as_path()).unwrap();
     let selected_key_filename = crate::cli::prompt_key(&keys);
     let our_address = keys[&selected_key_filename].clone();
     let secret_key = crate::cli::prompt_password(selected_key_filename);
 
-    (our_address, secret_key)
+    (our_address, PrivateKey::new(secret_key))
 }

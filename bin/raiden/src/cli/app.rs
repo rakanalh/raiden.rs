@@ -11,12 +11,12 @@ use crate::{
     },
 };
 use clap::ArgMatches;
-use ethsign::SecretKey;
 use parking_lot::RwLock;
 use raiden::{
     blockchain::contracts::{
         self,
         ContractsManager,
+        key::PrivateKey,
     },
     state_machine::types::ChainID,
     state_manager::StateManager,
@@ -89,7 +89,7 @@ pub struct RaidenApp {
     config: Config,
     web3: Web3<Http>,
     node_address: Address,
-    private_key: SecretKey,
+    private_key: PrivateKey,
     contracts_manager: Arc<ContractsManager>,
     storage: Arc<Storage>,
     state_manager: Arc<RwLock<StateManager>>,
@@ -97,7 +97,7 @@ pub struct RaidenApp {
 }
 
 impl RaidenApp {
-    pub fn new(config: Config, node_address: Address, private_key: SecretKey) -> Result<Self> {
+    pub fn new(config: Config, node_address: Address, private_key: PrivateKey) -> Result<Self> {
         let decorator = slog_term::TermDecorator::new().build();
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let drain = slog_async::Async::new(drain).build().fuse();

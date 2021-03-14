@@ -5,7 +5,6 @@ mod types;
 pub use manager::*;
 pub use types::*;
 
-
 // #[derive(Clone)]
 // pub struct Contract {
 //     pub name: &'static str,
