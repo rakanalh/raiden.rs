@@ -1,7 +1,7 @@
 # raiden-rust
 The **UNOFFICIAL** Raiden client implementation in Rust
 
-[![Raiden](https://user-images.githubusercontent.com/35398162/54018436-ee3f6300-4188-11e9-9b4e-0666c44cda53.png)](https://raiden.network/)
+[![Raiden](https://raw.githubusercontent.com/rakanalh/raiden-rust/main/.github/images/raiden.png)](https://raiden.network/)
 
 <h4 align="center">
   Fast, cheap, scalable token transfers for Ethereum
