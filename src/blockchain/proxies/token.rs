@@ -4,7 +4,6 @@ use parking_lot::RwLock;
 use web3::{
     contract::{
         Contract,
-        Error,
         Options,
     },
     types::{
@@ -15,6 +14,10 @@ use web3::{
     },
     Transport,
 };
+
+use super::ProxyError;
+
+type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct TokenProxy<T: Transport> {
@@ -32,7 +35,7 @@ impl<T: Transport> TokenProxy<T> {
         }
     }
 
-    pub async fn allowance(&self, owner: Address, spender: Address, block: H256) -> Result<U256, Error> {
+    pub async fn allowance(&self, owner: Address, spender: Address, block: H256) -> Result<U256> {
         self.contract
             .query(
                 "allowance",
@@ -42,9 +45,10 @@ impl<T: Transport> TokenProxy<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map_err(Into::into)
     }
 
-    pub async fn balance_of(&self, address: Address, block: H256) -> Result<U256, Error> {
+    pub async fn balance_of(&self, address: Address, block: H256) -> Result<U256> {
         self.contract
             .query(
                 "balanceOf",
@@ -54,9 +58,10 @@ impl<T: Transport> TokenProxy<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map_err(Into::into)
     }
 
-    pub async fn approve(&self, allowed_address: Address, allowance: U256, block: H256) -> Result<H256, Error> {
+    pub async fn approve(&self, allowed_address: Address, allowance: U256, block: H256) -> Result<H256> {
         let gas_estimate = self
             .contract
             .estimate_gas("approve", (allowed_address, allowance), self.from, Options::default())
@@ -76,12 +81,12 @@ impl<T: Transport> TokenProxy<T> {
                         // check_transaction_failure
                         let balance = self.balance_of(self.from, block).await?;
                         if balance < allowance {}
-                        return Err(e);
+                        return Err(ProxyError::ChainError(e));
                     }
                 }
             }
             Err(e) => {
-                return Err(e);
+                return Err(ProxyError::ChainError(e));
             }
         };
 

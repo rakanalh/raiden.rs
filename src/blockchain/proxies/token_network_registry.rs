@@ -4,7 +4,6 @@ use parking_lot::RwLock;
 use web3::{
     contract::{
         Contract,
-        Error,
         Options,
     },
     types::{
@@ -15,6 +14,10 @@ use web3::{
     },
     Transport,
 };
+
+use super::ProxyError;
+
+type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct TokenNetworkRegistryProxy<T: Transport> {
@@ -32,7 +35,7 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
         }
     }
 
-    pub async fn get_token_network(&self, token_address: Address, block: H256) -> Result<Address, Error> {
+    pub async fn get_token_network(&self, token_address: Address, block: H256) -> Result<Address> {
         self.contract
             .query(
                 "token_to_token_networks",
@@ -42,9 +45,10 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map_err(Into::into)
     }
 
-    pub async fn settlement_timeout_min(&self, block: H256) -> Result<U256, Error> {
+    pub async fn settlement_timeout_min(&self, block: H256) -> Result<U256> {
         self.contract
             .query(
                 "settlement_timeout_min",
@@ -54,9 +58,10 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map_err(Into::into)
     }
 
-    pub async fn settlement_timeout_max(&self, block: H256) -> Result<U256, Error> {
+    pub async fn settlement_timeout_max(&self, block: H256) -> Result<U256> {
         self.contract
             .query(
                 "settlement_timeout_max",
@@ -66,5 +71,6 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map_err(Into::into)
     }
 }

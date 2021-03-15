@@ -8,8 +8,11 @@ use web3::types::{
 
 use crate::{
     blockchain::{
-        errors::ContractError,
-        proxies::ProxyManager,
+        errors::ContractDefError,
+        proxies::{
+            ProxyError,
+            ProxyManager,
+        },
     },
     constants,
     state_machine::views,
@@ -17,15 +20,22 @@ use crate::{
 };
 
 #[derive(Error, Debug)]
+pub enum ContractError {}
+
+#[derive(Error, Debug)]
 pub enum ApiError {
+    #[error("Contract definition error: `{0}`")]
+    ContractSpec(ContractDefError),
     #[error("Contract error: `{0}`")]
-    ContractError(web3::contract::Error),
+    Contract(web3::contract::Error),
     #[error("Proxy error: `{0}`")]
-    ProxyError(ContractError),
+    Proxy(ProxyError),
+    #[error("Web3 error: `{0}`")]
+    Web3(web3::Error),
     #[error("On-chain error: `{0}`")]
-    OnChainError(String),
+    OnChainCall(String),
     #[error("Invalid parameter: `{0}`")]
-    ParamError(String),
+    Param(String),
 }
 
 pub struct Api {
@@ -44,11 +54,11 @@ impl Api {
     fn check_invalid_channel_timeouts(&self, settle_timeout: U256, reveal_timeout: U256) -> Result<(), ApiError> {
         if reveal_timeout < U256::from(constants::MIN_REVEAL_TIMEOUT) {
             if reveal_timeout <= U256::from(0) {
-                return Err(ApiError::ParamError(
+                return Err(ApiError::Param(
                     "reveal_timeout should be larger than zero.".to_owned(),
                 ));
             } else {
-                return Err(ApiError::ParamError(format!(
+                return Err(ApiError::Param(format!(
                     "reveal_timeout is lower than the required minimum value of {}",
                     constants::MIN_REVEAL_TIMEOUT,
                 )));
@@ -56,7 +66,7 @@ impl Api {
         }
 
         if settle_timeout < reveal_timeout * 2 {
-            return Err(ApiError::ParamError(
+            return Err(ApiError::Param(
                 "`settle_timeout` can not be smaller than double the `reveal_timeout`.\n\n
                 The setting `reveal_timeout` determines the maximum number of
                 blocks it should take a transaction to be mined when the
@@ -91,12 +101,12 @@ impl Api {
         let balance = token_proxy
             .balance_of(our_address, views::confirmed_block_hash(&current_state))
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
 
         match total_deposit {
             Some(total_deposit) => {
                 if total_deposit > balance {
-                    return Err(ApiError::ParamError(format!(
+                    return Err(ApiError::Param(format!(
                         "Not enough balance to deposit. {} Available={} Needed {}",
                         token_address, balance, total_deposit
                     )));
@@ -115,26 +125,26 @@ impl Api {
         let registry = self
             .proxy_manager
             .token_network_registry(registry_address, our_address)
-            .map_err(ApiError::ProxyError)?;
+            .map_err(ApiError::ContractSpec)?;
 
         let settlement_timeout_min = registry
             .settlement_timeout_min(confirmed_block_identifier)
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
         let settlement_timeout_max = registry
             .settlement_timeout_max(confirmed_block_identifier)
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
 
         if settle_timeout < settlement_timeout_min {
-            return Err(ApiError::ParamError(format!(
+            return Err(ApiError::Param(format!(
                 "Settlement timeout should be at least {}",
                 settlement_timeout_min,
             )));
         }
 
         if settle_timeout > settlement_timeout_max {
-            return Err(ApiError::ParamError(format!(
+            return Err(ApiError::Param(format!(
                 "Settlement timeout exceeds max of {}",
                 settlement_timeout_max,
             )));
@@ -143,10 +153,10 @@ impl Api {
         let token_network_address = registry
             .get_token_network(token_address, confirmed_block_identifier)
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
 
         if token_network_address.is_zero() {
-            return Err(ApiError::ParamError(format!(
+            return Err(ApiError::Param(format!(
                 "Token network for token {} does not exist",
                 token_address,
             )));
@@ -155,15 +165,15 @@ impl Api {
         let token_network = self
             .proxy_manager
             .token_network(token_network_address, our_address)
-            .map_err(ApiError::ProxyError)?;
+            .map_err(ApiError::ContractSpec)?;
 
         let safety_deprecation_switch = token_network
             .safety_deprecation_switch(confirmed_block_identifier)
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
 
         if safety_deprecation_switch {
-            return Err(ApiError::OnChainError(
+            return Err(ApiError::OnChainCall(
                 "This token_network has been deprecated. New channels cannot be
                 open for this network, usage of the newly deployed token
                 network contract is highly encouraged."
@@ -174,10 +184,10 @@ impl Api {
         let duplicated_channel = token_network
             .get_channel_identifier(token_network_address, partner_address, confirmed_block_identifier)
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
 
         if duplicated_channel.is_some() {
-            return Err(ApiError::OnChainError(format!(
+            return Err(ApiError::OnChainCall(format!(
                 "A channel with {} for token
                 {} already exists.
                 (At blockhash: {})",
@@ -199,7 +209,7 @@ impl Api {
         let channel_details = token_network
             .new_channel(partner_address, settle_timeout, confirmed_block_identifier)
             .await
-            .map_err(ApiError::ContractError)?;
+            .map_err(ApiError::Proxy)?;
 
         Ok(channel_details)
         // except DuplicatedChannelError:
