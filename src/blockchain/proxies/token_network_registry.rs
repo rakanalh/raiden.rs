@@ -32,7 +32,7 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
         }
     }
 
-	pub async fn get_token_network(&self, token_address: Address, block: H256) -> Result<Address, Error> {
+    pub async fn get_token_network(&self, token_address: Address, block: H256) -> Result<Address, Error> {
         self.contract
             .query(
                 "token_to_token_networks",
@@ -42,7 +42,7 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
-	}
+    }
 
     pub async fn settlement_timeout_min(&self, block: H256) -> Result<U256, Error> {
         self.contract

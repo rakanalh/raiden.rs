@@ -28,7 +28,7 @@ use super::{
 
 pub struct ProxyManager {
     web3: Web3<Http>,
-	private_key: PrivateKey,
+    private_key: PrivateKey,
     contracts_manager: Arc<ContractsManager>,
     tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
     token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
@@ -39,7 +39,7 @@ impl ProxyManager {
     pub fn new(web3: Web3<Http>, contracts_manager: Arc<ContractsManager>, private_key: PrivateKey) -> Self {
         Self {
             web3,
-			private_key,
+            private_key,
             contracts_manager,
             tokens: RwLock::new(HashMap::new()),
             token_networks: RwLock::new(HashMap::new()),
@@ -102,7 +102,8 @@ impl ProxyManager {
                 token_network_contract.abi.as_slice(),
             )
             .map_err(ContractError::ABI)?;
-            let proxy = TokenNetworkProxy::new(self.web3.clone(), token_network_web3_contract, self.private_key.clone());
+            let proxy =
+                TokenNetworkProxy::new(self.web3.clone(), token_network_web3_contract, self.private_key.clone());
             let mut token_networks = self.token_networks.write();
             token_networks.insert(token_network_address, proxy);
         }

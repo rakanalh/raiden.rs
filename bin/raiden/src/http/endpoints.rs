@@ -16,10 +16,10 @@ use super::utils::{
     state_manager,
 };
 use crate::{
+    error,
     http::request::ChannelOpenParams,
     http::response,
     json_response,
-	error,
     unwrap,
 };
 
@@ -50,12 +50,12 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
     let our_address = current_state.our_address;
 
     let params: ChannelOpenParams = match body_to_params(req).await {
-		Ok(p) => p,
-		Err(super::error::Error::Http(e)) => return Err(e),
-		Err(super::error::Error::Serialization(e)) => {
-			error!(e);
-		},
-	};
+        Ok(p) => p,
+        Err(super::error::Error::Http(e)) => return Err(e),
+        Err(super::error::Error::Serialization(e)) => {
+            error!(e);
+        }
+    };
 
     let channel_identifier = unwrap!(
         api.create_channel(
@@ -71,6 +71,6 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
     );
 
     let mut data = HashMap::new();
-    data.insert("channel_identifier".to_owned(),  channel_identifier);
+    data.insert("channel_identifier".to_owned(), channel_identifier);
     json_response!(data)
 }

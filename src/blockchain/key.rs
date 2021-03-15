@@ -16,11 +16,9 @@ pub struct PrivateKey {
 }
 
 impl PrivateKey {
-	pub fn new(inner: SecretKey) -> Self {
-		Self {
-			inner,
-		}
-	}
+    pub fn new(inner: SecretKey) -> Self {
+        Self { inner }
+    }
 }
 
 impl Key for PrivateKey {
@@ -30,12 +28,12 @@ impl Key for PrivateKey {
             .sign(message)
             .map_err(|_| signing::SigningError::InvalidMessage)?;
 
-		let standard_v = signature.v as u64;
-		let v = if let Some(chain_id) = chain_id {
-			standard_v + 35 + chain_id * 2
-		} else {
-			standard_v + 27
-		};
+        let standard_v = signature.v as u64;
+        let v = if let Some(chain_id) = chain_id {
+            standard_v + 35 + chain_id * 2
+        } else {
+            standard_v + 27
+        };
         Ok(signing::Signature {
             r: H256::from(signature.r),
             s: H256::from(signature.s),

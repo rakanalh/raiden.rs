@@ -1,11 +1,23 @@
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use web3::{Transport, Web3, contract::{
+use web3::{
+    contract::{
         Contract,
         Error,
         Options,
-    }, signing::Key, types::{Address, BlockId, BlockNumber, H256, U256}};
+    },
+    signing::Key,
+    types::{
+        Address,
+        BlockId,
+        BlockNumber,
+        H256,
+        U256,
+    },
+    Transport,
+    Web3,
+};
 
 use crate::blockchain::key::PrivateKey;
 
@@ -76,8 +88,12 @@ impl<T: Transport> TokenNetworkProxy<T> {
     }
 
     pub async fn new_channel(&self, partner: Address, settle_timeout: U256, block: H256) -> Result<U256, Error> {
-		let our_address = self.private_key.address();
-		let nonce = self.web3.eth().transaction_count(our_address, Some(BlockNumber::Pending)).await?;
+        let our_address = self.private_key.address();
+        let nonce = self
+            .web3
+            .eth()
+            .transaction_count(our_address, Some(BlockNumber::Pending))
+            .await?;
         let gas_price = self.web3.eth().gas_price().await?;
         let gas_estimate = self
             .contract
@@ -86,7 +102,7 @@ impl<T: Transport> TokenNetworkProxy<T> {
                 (our_address, partner, settle_timeout),
                 our_address,
                 Options::with(|opt| {
-					opt.value = Some(U256::from(0));
+                    opt.value = Some(U256::from(0));
                     opt.nonce = Some(nonce);
                     opt.gas_price = Some(gas_price);
                 }),
@@ -99,7 +115,7 @@ impl<T: Transport> TokenNetworkProxy<T> {
                 "openChannel",
                 (our_address, partner, settle_timeout),
                 Options::with(|opt| {
-					opt.value = Some(U256::from(0));
+                    opt.value = Some(U256::from(0));
                     opt.gas = Some(gas_estimate);
                     opt.nonce = Some(nonce);
                     opt.gas_price = Some(gas_price);

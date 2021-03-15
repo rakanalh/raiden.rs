@@ -1,7 +1,7 @@
 pub mod server;
 
-mod error;
 mod endpoints;
+mod error;
 #[macro_use]
 mod macros;
 mod request;

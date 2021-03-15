@@ -18,13 +18,13 @@ use crate::{
 
 #[derive(Error, Debug)]
 pub enum ApiError {
-	#[error("Contract error: `{0}`")]
+    #[error("Contract error: `{0}`")]
     ContractError(web3::contract::Error),
-	#[error("Proxy error: `{0}`")]
+    #[error("Proxy error: `{0}`")]
     ProxyError(ContractError),
-	#[error("On-chain error: `{0}`")]
+    #[error("On-chain error: `{0}`")]
     OnChainError(String),
-	#[error("Invalid parameter: `{0}`")]
+    #[error("Invalid parameter: `{0}`")]
     ParamError(String),
 }
 

@@ -126,10 +126,10 @@ impl ContractsManager {
 
         let address = match self
             .deployment
-			.get(&contract_identifier.to_string())
-			.unwrap()
-			.as_object()
-			.unwrap()
+            .get(&contract_identifier.to_string())
+            .unwrap()
+            .as_object()
+            .unwrap()
             .get("address")
             .unwrap()
             .as_str()
@@ -143,10 +143,10 @@ impl ContractsManager {
 
         let block_number = self
             .deployment
-			.get(&contract_identifier.to_string())
-			.unwrap()
-			.as_object()
-			.unwrap()
+            .get(&contract_identifier.to_string())
+            .unwrap()
+            .as_object()
+            .unwrap()
             .get("block_number")
             .map(|v| v.as_u64().unwrap())
             .unwrap();

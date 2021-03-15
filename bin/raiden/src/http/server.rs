@@ -80,7 +80,7 @@ async fn error_handler(err: routerify::Error, _: RequestInfo) -> Response<Body> 
 }
 
 fn router(
-	api: Arc<Api>,
+    api: Arc<Api>,
     state_manager: Arc<RwLock<StateManager>>,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,

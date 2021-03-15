@@ -1,9 +1,16 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+};
 
-use web3::types::{Address, H256, Log, U64};
+use web3::types::{
+    Address,
+    Log,
+    H256,
+    U64,
+};
 
 use super::contracts::ContractsManager;
-
 
 #[derive(Clone, Debug)]
 pub struct Event {
@@ -27,31 +34,31 @@ impl Event {
                     .map(|input| (input.name.clone(), input))
                     .collect();
 
-				let indexed_inputs: Vec<(String, &ethabi::EventParam)> = event
-					.inputs
-					.iter()
-					.filter(|input| input.indexed)
-					.map(|input| (input.name.clone(), input))
-					.collect();
+                let indexed_inputs: Vec<(String, &ethabi::EventParam)> = event
+                    .inputs
+                    .iter()
+                    .filter(|input| input.indexed)
+                    .map(|input| (input.name.clone(), input))
+                    .collect();
 
                 let mut data: HashMap<String, ethabi::Token> = HashMap::new();
 
                 if log.topics.len() >= 2 {
-					let mut indexed_inputs = indexed_inputs.into_iter();
-					for topic in &log.topics[1..] {
-						let (name, input) = indexed_inputs.next()?;
-						if let Ok(decoded_value) = ethabi::decode(&[input.kind.clone()], &topic.0) {
-							data.insert(name.clone(), decoded_value[0].clone());
-						}
-					}
+                    let mut indexed_inputs = indexed_inputs.into_iter();
+                    for topic in &log.topics[1..] {
+                        let (name, input) = indexed_inputs.next()?;
+                        if let Ok(decoded_value) = ethabi::decode(&[input.kind.clone()], &topic.0) {
+                            data.insert(name.clone(), decoded_value[0].clone());
+                        }
+                    }
                 }
 
                 if !log.data.0.is_empty() {
-					for (name, input) in non_indexed_inputs {
-						if let Ok(decoded_value) = ethabi::decode(&[input.kind.clone()], &log.data.0) {
-							data.insert(name, decoded_value[0].clone());
-						}
-					}
+                    for (name, input) in non_indexed_inputs {
+                        if let Ok(decoded_value) = ethabi::decode(&[input.kind.clone()], &log.data.0) {
+                            data.insert(name, decoded_value[0].clone());
+                        }
+                    }
                 }
 
                 return Some(Event {
