@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use clap::ArgMatches;
+use futures::executor;
 use parking_lot::RwLock;
 use raiden::{
     api::Api,
@@ -39,6 +40,7 @@ use std::{
     sync::Arc,
 };
 use web3::{
+    signing::Key,
     transports::{
         Http,
         WebSocket,
@@ -152,7 +154,13 @@ impl RaidenApp {
             }
         };
 
-        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key.clone());
+        let nonce = match executor::block_on(web3.eth().transaction_count(private_key.address(), None)) {
+            Ok(nonce) => nonce,
+            Err(e) => return Err(format!("Failed to fetch nonce: {}", e)),
+        };
+
+        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key.clone(), nonce)
+            .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
 
         Ok(Self {
             config,

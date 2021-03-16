@@ -1,3 +1,4 @@
+mod common;
 mod error;
 mod manager;
 mod token;

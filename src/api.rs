@@ -54,9 +54,7 @@ impl Api {
     fn check_invalid_channel_timeouts(&self, settle_timeout: U256, reveal_timeout: U256) -> Result<(), ApiError> {
         if reveal_timeout < U256::from(constants::MIN_REVEAL_TIMEOUT) {
             if reveal_timeout <= U256::from(0) {
-                return Err(ApiError::Param(
-                    "reveal_timeout should be larger than zero.".to_owned(),
-                ));
+                return Err(ApiError::Param("reveal_timeout should be larger than zero.".to_owned()));
             } else {
                 return Err(ApiError::Param(format!(
                     "reveal_timeout is lower than the required minimum value of {}",
@@ -97,7 +95,12 @@ impl Api {
         let current_state = &self.state_manager.read().current_state.clone();
         let our_address = current_state.our_address;
 
-        let token_proxy = self.proxy_manager.token(token_address, our_address).unwrap();
+        let token_proxy = self
+            .proxy_manager
+            .token(token_address, our_address)
+            .await
+            .map_err(ApiError::ContractSpec)?;
+
         let balance = token_proxy
             .balance_of(our_address, views::confirmed_block_hash(&current_state))
             .await
@@ -125,6 +128,7 @@ impl Api {
         let registry = self
             .proxy_manager
             .token_network_registry(registry_address, our_address)
+            .await
             .map_err(ApiError::ContractSpec)?;
 
         let settlement_timeout_min = registry
@@ -164,7 +168,8 @@ impl Api {
 
         let token_network = self
             .proxy_manager
-            .token_network(token_network_address, our_address)
+            .token_network(token_address, token_network_address, our_address)
+			.await
             .map_err(ApiError::ContractSpec)?;
 
         let safety_deprecation_switch = token_network

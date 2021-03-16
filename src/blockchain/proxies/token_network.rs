@@ -26,7 +26,11 @@ use web3::{
 
 use crate::blockchain::key::PrivateKey;
 
-use super::ProxyError;
+use super::{
+    common::Nonce,
+    ProxyError,
+    TokenProxy,
+};
 
 type Result<T> = std::result::Result<T, ProxyError>;
 
@@ -34,15 +38,25 @@ type Result<T> = std::result::Result<T, ProxyError>;
 pub struct TokenNetworkProxy<T: Transport> {
     private_key: PrivateKey,
     web3: Web3<T>,
+    token_proxy: TokenProxy<T>,
+    nonce: Nonce,
     contract: Contract<T>,
     channel_operations_lock: Arc<RwLock<HashMap<Address, Mutex<bool>>>>,
 }
 
 impl<T: Transport> TokenNetworkProxy<T> {
-    pub fn new(web3: Web3<T>, contract: Contract<T>, private_key: PrivateKey) -> Self {
+    pub fn new(
+        web3: Web3<T>,
+        contract: Contract<T>,
+        token_proxy: TokenProxy<T>,
+        private_key: PrivateKey,
+        nonce: Nonce,
+    ) -> Self {
         Self {
             web3,
             private_key,
+            token_proxy,
+            nonce,
             contract,
             channel_operations_lock: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -117,14 +131,32 @@ impl<T: Transport> TokenNetworkProxy<T> {
                 .insert(partner, Mutex::new(true));
         }
         let channel_operations_lock = self.channel_operations_lock.read().await;
-        let partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
+        let _partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
 
-        let nonce = self
-            .web3
-            .eth()
-            .transaction_count(our_address, Some(BlockNumber::Pending))
-            .await
-            .map_err(ProxyError::Web3)?;
+        if let Ok(Some(channel_identifier)) = self.get_channel_identifier(our_address, partner, block).await {
+			return Err(ProxyError::BrokenPrecondition(format!(
+				"A channel with identifier: {} already exists with partner {}",
+				channel_identifier, partner
+			)));
+        }
+
+        let token_network_deposit_limit = self.token_network_deposit_limit(block).await?;
+        let token_network_balance = self.token_proxy.balance_of(self.contract.address(), block).await?;
+
+        if token_network_balance >= token_network_deposit_limit {
+            return Err(ProxyError::BrokenPrecondition(format!(
+                "Cannot open another channe, token network deposit limit reached",
+            )));
+        }
+
+        let safety_deprecation_switch = self.safety_deprecation_switch(block).await?;
+        if safety_deprecation_switch {
+            return Err(ProxyError::BrokenPrecondition(format!(
+                "This token network is deprecated",
+            )));
+        }
+
+        let nonce = self.nonce.next().await;
 
         let gas_price = self.web3.eth().gas_price().await?;
         let gas_estimate = self
@@ -185,6 +217,19 @@ impl<T: Transport> TokenNetworkProxy<T> {
         self.contract
             .query(
                 "settlement_timeout_max",
+                (),
+                None,
+                Options::default(),
+                Some(BlockId::Hash(block)),
+            )
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn token_network_deposit_limit(&self, block: H256) -> Result<U256> {
+        self.contract
+            .query(
+                "token_network_deposit_limit",
                 (),
                 None,
                 Options::default(),
