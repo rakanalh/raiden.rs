@@ -12,7 +12,6 @@ use web3::{
         Contract,
         Options,
     },
-    signing::Key,
     types::{
         Address,
         BlockId,
@@ -24,10 +23,10 @@ use web3::{
     Web3,
 };
 
-use crate::blockchain::key::PrivateKey;
+use crate::blockchain::contracts::GasMetadata;
 
 use super::{
-    common::Nonce,
+    common::Account,
     ProxyError,
     TokenProxy,
 };
@@ -36,10 +35,10 @@ type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct TokenNetworkProxy<T: Transport> {
-    private_key: PrivateKey,
+    account: Account<T>,
     web3: Web3<T>,
+    gas_metadata: Arc<GasMetadata>,
     token_proxy: TokenProxy<T>,
-    nonce: Nonce,
     contract: Contract<T>,
     channel_operations_lock: Arc<RwLock<HashMap<Address, Mutex<bool>>>>,
 }
@@ -47,16 +46,16 @@ pub struct TokenNetworkProxy<T: Transport> {
 impl<T: Transport> TokenNetworkProxy<T> {
     pub fn new(
         web3: Web3<T>,
+        account: Account<T>,
+        gas_metadata: Arc<GasMetadata>,
         contract: Contract<T>,
         token_proxy: TokenProxy<T>,
-        private_key: PrivateKey,
-        nonce: Nonce,
     ) -> Self {
         Self {
             web3,
-            private_key,
+            account,
+            gas_metadata,
             token_proxy,
-            nonce,
             contract,
             channel_operations_lock: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -113,7 +112,7 @@ impl<T: Transport> TokenNetworkProxy<T> {
     }
 
     pub async fn new_channel(&self, partner: Address, settle_timeout: U256, block: H256) -> Result<U256> {
-        let our_address = self.private_key.address();
+        let our_address = self.account.address();
         let timeout_min = self.settlement_timeout_min(block).await?;
         let timeout_max = self.settlement_timeout_max(block).await?;
 
@@ -134,10 +133,10 @@ impl<T: Transport> TokenNetworkProxy<T> {
         let _partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
 
         if let Ok(Some(channel_identifier)) = self.get_channel_identifier(our_address, partner, block).await {
-			return Err(ProxyError::BrokenPrecondition(format!(
-				"A channel with identifier: {} already exists with partner {}",
-				channel_identifier, partner
-			)));
+            return Err(ProxyError::BrokenPrecondition(format!(
+                "A channel with identifier: {} already exists with partner {}",
+                channel_identifier, partner
+            )));
         }
 
         let token_network_deposit_limit = self.token_network_deposit_limit(block).await?;
@@ -156,10 +155,11 @@ impl<T: Transport> TokenNetworkProxy<T> {
             )));
         }
 
-        let nonce = self.nonce.next().await;
+        let nonce = self.account.next_nonce().await;
 
         let gas_price = self.web3.eth().gas_price().await?;
-        let gas_estimate = self
+
+        match self
             .contract
             .estimate_gas(
                 "openChannel",
@@ -171,9 +171,8 @@ impl<T: Transport> TokenNetworkProxy<T> {
                     opt.gas_price = Some(gas_price);
                 }),
             )
-            .await;
-
-        match gas_estimate {
+            .await
+        {
             Ok(gas_estimate) => {
                 let receipt = self
                     .contract
@@ -187,7 +186,7 @@ impl<T: Transport> TokenNetworkProxy<T> {
                             opt.gas_price = Some(gas_price);
                         }),
                         1,
-                        self.private_key.clone(),
+                        self.account.private_key(),
                     )
                     .await?;
 
@@ -196,7 +195,56 @@ impl<T: Transport> TokenNetworkProxy<T> {
                     .await?
                     .unwrap())
             }
-            Err(_) => Err(ProxyError::BrokenPrecondition(format!("something something"))),
+            Err(_) => {
+                let failed_at = self
+                    .web3
+                    .eth()
+                    .block(BlockId::Number(BlockNumber::Latest))
+                    .await
+                    .ok()
+                    .flatten()
+                    .unwrap();
+                let failed_at_blocknumber = failed_at.number.unwrap();
+                let failed_at_blockhash = failed_at.hash.unwrap();
+
+                self.account.check_for_insufficient_eth(
+                    self.gas_metadata.get("TokenNetwork.openChannel").into(),
+                    failed_at_blocknumber,
+                ).await?;
+
+                if let Ok(Some(channel_identifier)) = self
+                    .get_channel_identifier(our_address, partner, failed_at_blockhash)
+                    .await
+                {
+                    return Err(ProxyError::Recoverable(format!(
+                        "A channel with identifier: {} already exists with partner {}",
+                        channel_identifier, partner
+                    )));
+                }
+
+                let token_network_deposit_limit = self.token_network_deposit_limit(failed_at_blockhash).await?;
+                let token_network_balance = self
+                    .token_proxy
+                    .balance_of(self.contract.address(), failed_at_blockhash)
+                    .await?;
+
+                if token_network_balance >= token_network_deposit_limit {
+                    return Err(ProxyError::Recoverable(format!(
+                        "Cannot open another channe, token network deposit limit reached",
+                    )));
+                }
+
+                let safety_deprecation_switch = self.safety_deprecation_switch(failed_at_blockhash).await?;
+                if safety_deprecation_switch {
+                    return Err(ProxyError::Recoverable(format!("This token network is deprecated",)));
+                }
+
+                Err(ProxyError::Recoverable(format!(
+                    "Creating a new channel failed. Gas estimation failed for
+					unknown reason. Reference block {} - {}",
+                    failed_at_blockhash, failed_at_blocknumber,
+                )))
+            }
         }
     }
 

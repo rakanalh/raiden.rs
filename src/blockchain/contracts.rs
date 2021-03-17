@@ -1,8 +1,10 @@
 mod consts;
+mod gas;
 mod manager;
 mod types;
 
 pub use manager::*;
+pub use gas::*;
 pub use types::*;
 
 // #[derive(Clone)]

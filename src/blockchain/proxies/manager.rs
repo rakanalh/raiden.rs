@@ -18,13 +18,14 @@ use crate::blockchain::{
     contracts::{
         ContractIdentifier,
         ContractsManager,
+		GasMetadata,
     },
     errors::ContractDefError,
     key::PrivateKey,
 };
 
 use super::{
-    common::Nonce,
+    common::Account,
     ProxyError,
     TokenNetworkProxy,
     TokenNetworkRegistryProxy,
@@ -33,8 +34,8 @@ use super::{
 
 pub struct ProxyManager {
     web3: Web3<Http>,
-    private_key: PrivateKey,
-    nonce: Nonce,
+    account: Account<Http>,
+    gas_metadata: Arc<GasMetadata>,
     contracts_manager: Arc<ContractsManager>,
     tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
     token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
@@ -48,12 +49,14 @@ impl ProxyManager {
         private_key: PrivateKey,
         nonce: U256,
     ) -> Result<Self, ProxyError> {
-        let nonce = Nonce::new(nonce);
+		let gas_metadata = Arc::new(GasMetadata::new());
+        let account = Account::new(web3.clone(), private_key, nonce);
+
         Ok(Self {
             web3,
-            private_key,
             contracts_manager,
-            nonce,
+            account,
+            gas_metadata,
             tokens: RwLock::new(HashMap::new()),
             token_networks: RwLock::new(HashMap::new()),
             token_network_registries: RwLock::new(HashMap::new()),
@@ -125,10 +128,10 @@ impl ProxyManager {
             .map_err(ContractDefError::ABI)?;
             let proxy = TokenNetworkProxy::new(
                 self.web3.clone(),
+                self.account.clone(),
+				self.gas_metadata.clone(),
                 token_network_web3_contract,
                 token_proxy,
-                self.private_key.clone(),
-				self.nonce.clone(),
             );
             let mut token_networks = self.token_networks.write().await;
             token_networks.insert(token_network_address, proxy);
