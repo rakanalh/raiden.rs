@@ -120,7 +120,7 @@ impl Api {
 
         let settle_timeout = settle_timeout.unwrap_or(U256::from(constants::DEFAULT_SETTLE_TIMEOUT));
         let reveal_timeout = reveal_timeout.unwrap_or(U256::from(constants::DEFAULT_REVEAL_TIMEOUT));
-        let retry_timeout = retry_timeout.unwrap_or(constants::DEFAULT_RETRY_TIMEOUT);
+        let _retry_timeout = retry_timeout.unwrap_or(constants::DEFAULT_RETRY_TIMEOUT);
 
         self.check_invalid_channel_timeouts(settle_timeout, reveal_timeout)?;
 

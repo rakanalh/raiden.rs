@@ -95,7 +95,6 @@ pub struct RaidenApp {
     config: Config,
     web3: Web3<Http>,
     node_address: Address,
-    private_key: PrivateKey,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
@@ -159,14 +158,13 @@ impl RaidenApp {
             Err(e) => return Err(format!("Failed to fetch nonce: {}", e)),
         };
 
-        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key.clone(), nonce)
+        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key, nonce)
             .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
 
         Ok(Self {
             config,
             web3,
             node_address,
-            private_key,
             contracts_manager,
             proxy_manager: Arc::new(proxy_manager),
             state_manager: Arc::new(RwLock::new(state_manager)),

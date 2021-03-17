@@ -96,7 +96,7 @@ impl StateChange {
         }
 
         let token_network_address = event.address;
-        let token_network_registry =
+        let _token_network_registry =
             views::get_token_network_registry_by_token_network_address(&chain_state, token_network_address)?;
         let token_network = views::get_token_network_by_address(&chain_state, token_network_address)?;
         let token_address = token_network.token_address;

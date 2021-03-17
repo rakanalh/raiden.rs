@@ -120,7 +120,7 @@ impl SyncService {
 
         // Clone here to prevent holding the lock
         let current_state = &self.state_manager.read().current_state.clone();
-        let our_address = current_state.our_address.clone();
+        let _our_address = current_state.our_address.clone();
 
         while from_block < end_block_number {
             let to_block = cmp::min(
