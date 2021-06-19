@@ -1593,6 +1593,7 @@ dependencies = [
  "slog",
  "slog-async",
  "slog-term",
+ "thiserror",
  "tokio 0.2.24",
  "url",
  "web3",
