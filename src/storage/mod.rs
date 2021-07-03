@@ -11,6 +11,7 @@ use std::{
 use ulid::Ulid;
 
 use self::types::StateChangeID;
+use crate::state_machine::state::ChainState;
 use crate::{
     errors::{
         RaidenError,
@@ -92,6 +93,30 @@ impl Storage {
             .map_err(|_| StorageError::CannotLock)?
             .execute_batch(&setup_db_sql)
             .map_err(StorageError::Sql)?;
+
+        Ok(())
+    }
+
+    pub fn store_snapshot(&self, state: ChainState, state_change_id: Option<Ulid>) -> Result<()> {
+        let serialized_state = serde_json::to_string(&state).map_err(|_| StorageError::SerializationError)?;
+        let sql = format!(
+            "
+            INSERT INTO state_snapshot(identifier, statechange_id, statechange_qty, data)
+            VALUES(?1, ?2, ?3, ?4)"
+        );
+        let ulid = Ulid::new();
+        let state_change_id = match state_change_id {
+            Some(sc) => sc,
+            None => Ulid::nil(),
+        };
+        self.conn
+            .lock()
+            .map_err(|_| StorageError::CannotLock)?
+            .execute(
+                &sql,
+                params![&ulid.to_string(), state_change_id.to_string(), 0, serialized_state,],
+            )
+            .map_err(|e| StorageError::Sql(e))?;
 
         Ok(())
     }
