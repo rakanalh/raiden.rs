@@ -112,6 +112,10 @@ impl SyncService {
     }
 
     pub async fn sync(&mut self, start_block_number: U64, end_block_number: U64) {
+        info!(
+            self.logger,
+            "Sync started: {} -> {}", start_block_number, end_block_number
+        );
         self.poll_contract_filters(start_block_number, end_block_number).await;
     }
 

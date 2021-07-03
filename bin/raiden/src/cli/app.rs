@@ -28,10 +28,7 @@ use raiden::{
     storage::Storage,
 };
 use rusqlite::Connection;
-use slog::{
-    Drain,
-    Logger,
-};
+use slog::Logger;
 use std::{
     path::{
         Path,
@@ -102,13 +99,7 @@ pub struct RaidenApp {
 }
 
 impl RaidenApp {
-    pub fn new(config: Config, node_address: Address, private_key: PrivateKey) -> Result<Self> {
-        let decorator = slog_term::TermDecorator::new().build();
-        let drain = slog_term::FullFormat::new(decorator).build().fuse();
-        let drain = slog_async::Async::new(drain).build().fuse();
-
-        let logger = slog::Logger::root(drain, o!());
-
+    pub fn new(config: Config, node_address: Address, private_key: PrivateKey, logger: Logger) -> Result<Self> {
         let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
         let web3 = web3::Web3::new(http);
 
@@ -140,6 +131,7 @@ impl RaidenApp {
                 }
             };
 
+        debug!(logger, "Restore state");
         let state_manager = match StateManager::restore_or_init_state(
             storage,
             config.chain_id.clone(),

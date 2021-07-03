@@ -13,6 +13,7 @@ use cli::{
     RaidenApp,
 };
 use raiden::blockchain::key::PrivateKey;
+use slog::Drain;
 use std::{
     fs,
     path::PathBuf,
@@ -75,6 +76,11 @@ async fn main() {
                 .help("Sets the level of verbosity"),
         );
 
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+    let logger = slog::Logger::root(drain, o!());
+
     let matches = cli.get_matches();
     let configs = match Config::new(matches.clone()) {
         Ok(configs) => configs,
@@ -94,7 +100,10 @@ async fn main() {
 
     let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
 
-    let raiden_app = match RaidenApp::new(configs, node_address, secret_key) {
+    info!(logger, "Welcome to Raiden");
+    info!(logger, "Initializing");
+
+    let raiden_app = match RaidenApp::new(configs, node_address, secret_key, logger.clone()) {
         Ok(app) => app,
         Err(e) => {
             eprintln!("Error initializing app: {}", e);
@@ -102,6 +111,7 @@ async fn main() {
         }
     };
 
+    info!(logger, "Raiden is starting");
     raiden_app.run().await;
     //let server = http::server(log.clone());
     // let _ = eloop.run(server);
