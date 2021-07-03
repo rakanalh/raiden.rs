@@ -141,16 +141,6 @@ pub struct Block {
     pub gas_limit: U256,
 }
 
-impl Block {
-    pub fn new(block_number: U64, block_hash: H256, gas_limit: U256) -> Block {
-        Block {
-            block_number,
-            block_hash,
-            gas_limit,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionInitChain {
     pub chain_id: ChainID,
@@ -167,22 +157,6 @@ pub struct ContractReceiveTokenNetworkRegistry {
     pub block_hash: H256,
 }
 
-impl ContractReceiveTokenNetworkRegistry {
-    pub fn new(
-        transaction_hash: H256,
-        token_network_registry: TokenNetworkRegistryState,
-        block_number: U64,
-        block_hash: H256,
-    ) -> Self {
-        ContractReceiveTokenNetworkRegistry {
-            transaction_hash: Some(transaction_hash),
-            token_network_registry,
-            block_number,
-            block_hash,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveTokenNetworkCreated {
     pub transaction_hash: Option<H256>,
@@ -190,24 +164,6 @@ pub struct ContractReceiveTokenNetworkCreated {
     pub token_network: TokenNetworkState,
     pub block_number: U64,
     pub block_hash: H256,
-}
-
-impl ContractReceiveTokenNetworkCreated {
-    pub fn new(
-        transaction_hash: H256,
-        token_network_registry_address: Address,
-        token_network: TokenNetworkState,
-        block_number: U64,
-        block_hash: H256,
-    ) -> Self {
-        ContractReceiveTokenNetworkCreated {
-            transaction_hash: Some(transaction_hash),
-            token_network_registry_address,
-            token_network,
-            block_number,
-            block_hash,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -218,13 +174,21 @@ pub struct ContractReceiveChannelOpened {
     pub channel_state: ChannelState,
 }
 
-impl ContractReceiveChannelOpened {
-    pub fn new(transaction_hash: H256, block_number: U64, block_hash: H256, channel_state: ChannelState) -> Self {
-        ContractReceiveChannelOpened {
-            transaction_hash: Some(transaction_hash),
-            block_number,
-            block_hash,
-            channel_state,
-        }
-    }
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveChannelClosed {
+    pub transaction_hash: Option<H256>,
+    pub block_number: U64,
+    pub block_hash: H256,
+    pub transaction_from: Address,
+    pub canonical_identifier: CanonicalIdentifier,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveChannelSettled {
+    pub transaction_hash: Option<H256>,
+    pub block_number: U64,
+    pub block_hash: H256,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub our_onchain_locksroot: Vec<u8>,
+    pub partner_onchain_locksroot: Vec<u8>,
 }
