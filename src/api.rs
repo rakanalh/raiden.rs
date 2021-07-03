@@ -169,7 +169,7 @@ impl Api {
         let token_network = self
             .proxy_manager
             .token_network(token_address, token_network_address, our_address)
-			.await
+            .await
             .map_err(ApiError::ContractSpec)?;
 
         let safety_deprecation_switch = token_network

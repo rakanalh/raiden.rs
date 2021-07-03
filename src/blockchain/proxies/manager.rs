@@ -18,7 +18,7 @@ use crate::blockchain::{
     contracts::{
         ContractIdentifier,
         ContractsManager,
-		GasMetadata,
+        GasMetadata,
     },
     errors::ContractDefError,
     key::PrivateKey,
@@ -49,7 +49,7 @@ impl ProxyManager {
         private_key: PrivateKey,
         nonce: U256,
     ) -> Result<Self, ProxyError> {
-		let gas_metadata = Arc::new(GasMetadata::new());
+        let gas_metadata = Arc::new(GasMetadata::new());
         let account = Account::new(web3.clone(), private_key, nonce);
 
         Ok(Self {
@@ -129,7 +129,7 @@ impl ProxyManager {
             let proxy = TokenNetworkProxy::new(
                 self.web3.clone(),
                 self.account.clone(),
-				self.gas_metadata.clone(),
+                self.gas_metadata.clone(),
                 token_network_web3_contract,
                 token_proxy,
             );

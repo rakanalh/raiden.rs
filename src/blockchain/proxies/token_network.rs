@@ -207,10 +207,12 @@ impl<T: Transport> TokenNetworkProxy<T> {
                 let failed_at_blocknumber = failed_at.number.unwrap();
                 let failed_at_blockhash = failed_at.hash.unwrap();
 
-                self.account.check_for_insufficient_eth(
-                    self.gas_metadata.get("TokenNetwork.openChannel").into(),
-                    failed_at_blocknumber,
-                ).await?;
+                self.account
+                    .check_for_insufficient_eth(
+                        self.gas_metadata.get("TokenNetwork.openChannel").into(),
+                        failed_at_blocknumber,
+                    )
+                    .await?;
 
                 if let Ok(Some(channel_identifier)) = self
                     .get_channel_identifier(our_address, partner, failed_at_blockhash)
