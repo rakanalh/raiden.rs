@@ -16,6 +16,7 @@ use web3::{
         Address,
         BlockId,
         BlockNumber,
+        Bytes,
         H256,
         U256,
     },
@@ -26,12 +27,26 @@ use web3::{
 use crate::blockchain::contracts::GasMetadata;
 
 use super::{
-    common::Account,
+    common::{
+        Account,
+        Nonce,
+    },
     ProxyError,
     TokenProxy,
 };
 
 type Result<T> = std::result::Result<T, ProxyError>;
+
+pub struct ParticipantDetails {
+    pub address: Address,
+    pub deposit: U256,
+    pub withdrawn: U256,
+    pub is_closer: bool,
+    pub balance_hash: Bytes,
+    pub nonce: Nonce,
+    pub locksroot: web3::types::Bytes,
+    pub locked_amount: U256,
+}
 
 #[derive(Clone)]
 pub struct TokenNetworkProxy<T: Transport> {
@@ -250,6 +265,22 @@ impl<T: Transport> TokenNetworkProxy<T> {
         }
     }
 
+    pub async fn details_participants(
+        &self,
+        channel_identifier: U256,
+        address: Address,
+        partner: Address,
+        block: H256,
+    ) -> Result<(ParticipantDetails, ParticipantDetails)> {
+        let our_data = self
+            .detail_participant(channel_identifier, address, partner, block)
+            .await?;
+        let partner_data = self
+            .detail_participant(channel_identifier, partner, address, block)
+            .await?;
+        Ok((our_data, partner_data))
+    }
+
     pub async fn settlement_timeout_min(&self, block: H256) -> Result<U256> {
         self.contract
             .query(
@@ -287,5 +318,35 @@ impl<T: Transport> TokenNetworkProxy<T> {
             )
             .await
             .map_err(Into::into)
+    }
+
+    async fn detail_participant(
+        &self,
+        channel_identifier: U256,
+        address: Address,
+        partner: Address,
+        block: H256,
+    ) -> Result<ParticipantDetails> {
+        let data: (U256, U256, bool, Bytes, U256, Bytes, U256) = self
+            .contract
+            .query(
+                "getChannelParticipantInfo",
+                (channel_identifier, partner, partner),
+                None,
+                Options::default(),
+                Some(BlockId::Hash(block)),
+            )
+            .await?;
+
+        Ok(ParticipantDetails {
+            address,
+            deposit: data.0,
+            withdrawn: data.1,
+            is_closer: data.2,
+            balance_hash: data.3,
+            nonce: Nonce::new(data.4),
+            locksroot: data.5,
+            locked_amount: data.6,
+        })
     }
 }

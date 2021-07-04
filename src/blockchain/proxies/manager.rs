@@ -14,17 +14,21 @@ use web3::{
     Web3,
 };
 
-use crate::blockchain::{
-    contracts::{
-        ContractIdentifier,
-        ContractsManager,
-        GasMetadata,
+use crate::{
+    blockchain::{
+        contracts::{
+            ContractIdentifier,
+            ContractsManager,
+            GasMetadata,
+        },
+        errors::ContractDefError,
+        key::PrivateKey,
     },
-    errors::ContractDefError,
-    key::PrivateKey,
+    state_machine::state::ChannelState,
 };
 
 use super::{
+    channel::ChannelProxy,
     common::Account,
     ProxyError,
     TokenNetworkProxy,
@@ -40,6 +44,7 @@ pub struct ProxyManager {
     tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
     token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
     token_network_registries: RwLock<HashMap<Address, TokenNetworkRegistryProxy<Http>>>,
+    channels: RwLock<HashMap<U256, ChannelProxy<Http>>>,
 }
 
 impl ProxyManager {
@@ -60,6 +65,7 @@ impl ProxyManager {
             tokens: RwLock::new(HashMap::new()),
             token_networks: RwLock::new(HashMap::new()),
             token_network_registries: RwLock::new(HashMap::new()),
+            channels: RwLock::new(HashMap::new()),
         })
     }
 
@@ -143,5 +149,25 @@ impl ProxyManager {
             .get(&token_network_address)
             .unwrap()
             .clone())
+    }
+
+    pub async fn payment_channel(
+        &self,
+        channel_state: &ChannelState,
+        account_address: Address,
+    ) -> Result<ChannelProxy<Http>, ContractDefError> {
+        let token_network_address = channel_state.canonical_identifier.token_network_address;
+        let token_address = channel_state.token_address;
+        let channel_identifier = channel_state.canonical_identifier.channel_identifier;
+
+        if !self.channels.read().await.contains_key(&channel_identifier) {
+            let token_network_proxy = self
+                .token_network(token_address, token_network_address, account_address)
+                .await?;
+            let proxy = ChannelProxy::new(token_network_proxy, account_address);
+            let mut channels = self.channels.write().await;
+            channels.insert(channel_identifier, proxy);
+        }
+        Ok(self.channels.read().await.get(&channel_identifier).unwrap().clone())
     }
 }
