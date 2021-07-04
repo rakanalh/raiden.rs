@@ -14,10 +14,11 @@ use web3::{
 use raiden::{
     blockchain::{
         contracts::ContractsManager,
+        decode::EventDecoder,
         events::Event,
         filters::filters_from_chain_state,
+        proxies::ProxyManager,
     },
-    state_machine::types::StateChange,
     state_manager::StateManager,
 };
 
@@ -77,6 +78,7 @@ pub struct SyncService {
     web3: Web3<Http>,
     state_manager: Arc<RwLock<StateManager>>,
     contracts_manager: Arc<ContractsManager>,
+    proxy_manager: Arc<ProxyManager>,
     transition_service: Arc<TransitionService>,
     block_batch_size_adjuster: BlockBatchSizeAdjuster,
     logger: Logger,
@@ -87,6 +89,7 @@ impl SyncService {
         web3: Web3<Http>,
         state_manager: Arc<RwLock<StateManager>>,
         contracts_manager: Arc<ContractsManager>,
+        proxy_manager: Arc<ProxyManager>,
         transition_service: Arc<TransitionService>,
         logger: Logger,
     ) -> Self {
@@ -105,6 +108,7 @@ impl SyncService {
             web3,
             state_manager,
             contracts_manager,
+            proxy_manager,
             transition_service,
             block_batch_size_adjuster,
             logger,
@@ -145,15 +149,21 @@ impl SyncService {
                 Ok(logs) => {
                     for log in logs {
                         let current_state = &self.state_manager.read().current_state.clone();
-                        let state_change = Event::from_log(self.contracts_manager.clone(), &log)
-                            .map(|e| StateChange::from_blockchain_event(current_state, e))
-                            .flatten();
-                        match state_change {
+
+                        let event = match Event::decode(self.contracts_manager.clone(), &log) {
+                            Some(event) => event,
+                            None => {
+                                error!(self.logger, "Could not find event that matches log: {:?}", log);
+                                continue;
+                            }
+                        };
+                        let decoder = EventDecoder::new(self.proxy_manager.clone());
+                        match decoder.as_state_change(event, current_state).await {
                             Some(state_change) => self.transition_service.transition(state_change).await,
                             None => {
-                                error!(self.logger, "Error converting log to state change: {:?}", log);
+                                error!(self.logger, "Error converting chain event to state change: {:?}", log);
                             }
-                        }
+                        };
                     }
                     from_block = to_block + 1;
                     self.block_batch_size_adjuster.increase();

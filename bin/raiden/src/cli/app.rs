@@ -181,6 +181,7 @@ impl RaidenApp {
             self.web3.clone(),
             self.state_manager.clone(),
             self.contracts_manager.clone(),
+            self.proxy_manager.clone(),
             transition_service.clone(),
             self.logger.clone(),
         );
