@@ -176,7 +176,8 @@ impl StateManager {
         if self.state_change_count % SNAPSHOT_STATE_CHANGE_COUNT == 0 {
             return;
         }
-        self.storage
+        let _ = self
+            .storage
             .store_snapshot(self.current_state.clone(), self.state_change_last_id);
     }
 }

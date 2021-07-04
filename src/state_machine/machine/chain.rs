@@ -152,6 +152,14 @@ pub fn state_transition(
         StateChange::ContractReceiveChannelOpened(state_change) => {
             handle_token_network_state_change(chain_state, state_change)
         }
+        StateChange::ContractReceiveChannelClosed(_state_change) => Ok(ChainTransition {
+            new_state: chain_state,
+            events: vec![],
+        }),
+        StateChange::ContractReceiveChannelSettled(_state_change) => Ok(ChainTransition {
+            new_state: chain_state,
+            events: vec![],
+        }),
     };
     result
 }
