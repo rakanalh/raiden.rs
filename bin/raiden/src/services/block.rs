@@ -71,7 +71,11 @@ impl BlockMonitorService {
                 };
                 debug!(self.logger, "Block {}", block_number);
                 let current_block_number = self.state_manager.read().current_state.block_number;
-                let block_state_change = Block::new(block_number.into(), block_hash, header.gas_limit);
+                let block_state_change = Block {
+                    block_number: block_number.into(),
+                    block_hash,
+                    gas_limit: header.gas_limit,
+                };
                 self.transition_service
                     .transition(StateChange::Block(block_state_change))
                     .await;
