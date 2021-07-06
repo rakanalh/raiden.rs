@@ -4,7 +4,7 @@ use serde::{
 };
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ChainID {
     Mainnet = 1,
     Ropsten = 3,

@@ -1,13 +1,19 @@
-use web3::types::{Address, H256, U64};
+use web3::types::{
+    Address,
+    H256,
+    U64,
+};
 
 use crate::state_machine::{
     machine::{
         channel,
         token_network,
     },
+    state::QueueIdentifier,
     types::{
         ActionInitChain,
         Block,
+        ContractReceiveChannelClosed,
         ContractReceiveTokenNetworkCreated,
         ContractReceiveTokenNetworkRegistry,
         Event,
@@ -24,6 +30,8 @@ use crate::{
     },
 };
 
+type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
+
 pub struct ChainTransition {
     pub new_state: ChainState,
     pub events: Vec<Event>,
@@ -34,7 +42,7 @@ fn subdispatch_to_all_channels(
     state_change: StateChange,
     block_number: U64,
     block_hash: H256,
-) -> Result<ChainTransition, StateTransitionError> {
+) -> TransitionResult {
     let mut events = vec![];
 
     for (_, token_network_registry) in chain_state.identifiers_to_tokennetworkregistries.iter_mut() {
@@ -59,7 +67,7 @@ fn subdispatch_to_payment_task(
     chain_state: ChainState,
     _state_change: StateChange,
     _secrethash: H256,
-) -> Result<ChainTransition, StateTransitionError> {
+) -> TransitionResult {
     // @TODO: Implement this
     Ok(ChainTransition {
         new_state: chain_state,
@@ -70,7 +78,7 @@ fn subdispatch_to_payment_task(
 fn subdispatch_to_all_lockedtransfers(
     mut chain_state: ChainState,
     state_change: StateChange,
-) -> Result<ChainTransition, StateTransitionError> {
+) -> TransitionResult {
     let mut events = vec![];
 
     let payment_mapping = chain_state.payment_mapping.clone();
@@ -86,7 +94,7 @@ fn subdispatch_to_all_lockedtransfers(
     })
 }
 
-fn handle_action_init_chain(state_change: ActionInitChain) -> Result<ChainTransition, StateTransitionError> {
+fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
     Ok(ChainTransition {
         new_state: ChainState::new(
             state_change.chain_id,
@@ -98,7 +106,7 @@ fn handle_action_init_chain(state_change: ActionInitChain) -> Result<ChainTransi
     })
 }
 
-fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Result<ChainTransition, StateTransitionError> {
+fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> TransitionResult {
     chain_state.block_number = state_change.block_number;
     chain_state.block_hash = state_change.block_hash;
 
@@ -127,7 +135,7 @@ fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Result<
 fn handle_contract_receive_token_network_registry(
     mut chain_state: ChainState,
     state_change: ContractReceiveTokenNetworkRegistry,
-) -> Result<ChainTransition, StateTransitionError> {
+) -> TransitionResult {
     chain_state
         .identifiers_to_tokennetworkregistries
         .entry(state_change.token_network_registry.address)
@@ -142,7 +150,7 @@ fn handle_contract_receive_token_network_registry(
 fn handle_contract_receive_token_network_created(
     mut chain_state: ChainState,
     state_change: ContractReceiveTokenNetworkCreated,
-) -> Result<ChainTransition, StateTransitionError> {
+) -> TransitionResult {
     let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
     let token_network_registry = match token_network_registries.get_mut(&state_change.token_network_registry_address) {
         Some(token_network_registry) => token_network_registry,
@@ -176,26 +184,17 @@ fn handle_token_network_state_change(
     mut chain_state: ChainState,
     token_network_address: Address,
     state_change: StateChange,
-) -> Result<ChainTransition, StateTransitionError> {
-    let token_network_state = match views::get_token_network(
-        &chain_state,
-        &token_network_address,
-    ) {
+) -> TransitionResult {
+    let token_network_state = match views::get_token_network(&chain_state, &token_network_address) {
         Some(token_network_state) => token_network_state,
         None => {
             return Err(StateTransitionError {
-                msg: format!(
-                    "Token network {} was not found",
-                    token_network_address,
-                ),
+                msg: format!("Token network {} was not found", token_network_address,),
             });
         }
     };
 
-    let transition = token_network::state_transition(
-        token_network_state.clone(),
-        state_change,
-    )?;
+    let transition = token_network::state_transition(token_network_state.clone(), state_change)?;
 
     let new_state: TokenNetworkState = transition.new_state;
     let registry_address = views::get_token_network_registry_by_token_network_address(&chain_state, new_state.address)
@@ -215,11 +214,32 @@ fn handle_token_network_state_change(
     })
 }
 
+fn handle_contract_receive_channel_closed(
+    mut chain_state: ChainState,
+    state_change: ContractReceiveChannelClosed,
+) -> TransitionResult {
+    let token_network_address = state_change.canonical_identifier.token_network_address;
+    if let Some(channel_state) =
+        views::get_channel_by_canonical_identifier(&chain_state, state_change.canonical_identifier.clone())
+    {
+        let queue_identifier = QueueIdentifier {
+            recipient: channel_state.partner_state.address,
+            canonical_identifier: state_change.canonical_identifier.clone(),
+        };
+        chain_state.queueids_to_queues.remove(&queue_identifier);
+    }
+    handle_token_network_state_change(
+        chain_state,
+        token_network_address,
+        StateChange::ContractReceiveChannelClosed(state_change),
+    )
+}
+
 pub fn state_transition(
     chain_state: ChainState,
     state_change: StateChange,
-) -> Result<ChainTransition, StateTransitionError> {
-    let result: Result<ChainTransition, StateTransitionError> = match state_change {
+) -> TransitionResult {
+    let result: TransitionResult = match state_change {
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
         StateChange::Block(inner) => handle_new_block(chain_state, inner),
         StateChange::ContractReceiveTokenNetworkRegistry(inner) => {
@@ -232,35 +252,31 @@ pub fn state_transition(
             let token_network_address = inner.channel_state.canonical_identifier.token_network_address;
             handle_token_network_state_change(chain_state, token_network_address, state_change)
         }
-        StateChange::ContractReceiveChannelClosed(_state_change) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
-        StateChange::ContractReceiveChannelSettled(_state_change) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
-        StateChange::ContractReceiveChannelDeposit(_) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
-        StateChange::ContractReceiveChannelWithdraw(_) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
-        StateChange::ContractReceiveChannelBatchUnlock(_) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
-        StateChange::ContractReceiveSecretReveal(_) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
+        StateChange::ContractReceiveChannelClosed(inner) => handle_contract_receive_channel_closed(chain_state, inner),
+        StateChange::ContractReceiveChannelSettled(ref inner) => {
+            let token_network_address = inner.canonical_identifier.token_network_address;
+            handle_token_network_state_change(chain_state, token_network_address, state_change)
+        }
+        StateChange::ContractReceiveChannelDeposit(ref inner) => {
+            let token_network_address = inner.canonical_identifier.token_network_address;
+            handle_token_network_state_change(chain_state, token_network_address, state_change)
+        }
+        StateChange::ContractReceiveChannelWithdraw(ref inner) => {
+            let token_network_address = inner.canonical_identifier.token_network_address;
+            handle_token_network_state_change(chain_state, token_network_address, state_change)
+        }
+        StateChange::ContractReceiveChannelBatchUnlock(ref inner) => {
+            let token_network_address = inner.canonical_identifier.token_network_address;
+            handle_token_network_state_change(chain_state, token_network_address, state_change)
+        }
+        StateChange::ContractReceiveUpdateTransfer(ref inner) => {
+            let token_network_address = inner.canonical_identifier.token_network_address;
+            handle_token_network_state_change(chain_state, token_network_address, state_change)
+        }
+        StateChange::ContractReceiveSecretReveal(ref inner) => {
+            subdispatch_to_payment_task(chain_state, state_change.clone(), inner.secrethash)
+        }
         StateChange::ContractReceiveRouteNew(_) => Ok(ChainTransition {
-            new_state: chain_state,
-            events: vec![],
-        }),
-        StateChange::ContractReceiveUpdateTransfer(_) => Ok(ChainTransition {
             new_state: chain_state,
             events: vec![],
         }),
