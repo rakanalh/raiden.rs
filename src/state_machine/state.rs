@@ -23,12 +23,31 @@ pub struct CanonicalIdentifier {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum TransferRole {
+    Initiator,
+    Mediator,
+    Target,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TransferTask {
+    pub role: TransferRole,
+    pub token_network_address: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PaymentMappingState {
+    pub secrethashes_to_task: HashMap<H256, TransferTask>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChainState {
     pub chain_id: ChainID,
     pub block_number: U64,
     pub block_hash: H256,
     pub our_address: Address,
     pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
+    pub payment_mapping: PaymentMappingState,
 }
 
 impl ChainState {
@@ -39,6 +58,9 @@ impl ChainState {
             block_hash,
             our_address,
             identifiers_to_tokennetworkregistries: HashMap::new(),
+            payment_mapping: PaymentMappingState {
+                secrethashes_to_task: HashMap::new(),
+            },
         }
     }
 }

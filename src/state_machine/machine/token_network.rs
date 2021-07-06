@@ -1,7 +1,7 @@
 use crate::errors::StateTransitionError;
 use crate::state_machine::state::TokenNetworkState;
-use crate::state_machine::types::state_change;
 use crate::state_machine::types::{
+    ContractReceiveChannelOpened,
     Event,
     StateChange,
 };
@@ -13,7 +13,7 @@ pub struct TokenNetworkTransition {
 
 fn handle_contract_receive_channel_opened(
     mut token_network: TokenNetworkState,
-    state_change: state_change::ContractReceiveChannelOpened,
+    state_change: ContractReceiveChannelOpened,
 ) -> Result<TokenNetworkTransition, StateTransitionError> {
     token_network.channelidentifiers_to_channels.insert(
         state_change.channel_state.canonical_identifier.channel_identifier,

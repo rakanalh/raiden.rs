@@ -19,6 +19,8 @@ use web3::types::{
     U64,
 };
 
+use super::MediationFeeConfig;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StateChange {
     Block(Block),
@@ -28,6 +30,12 @@ pub enum StateChange {
     ContractReceiveChannelOpened(ContractReceiveChannelOpened),
     ContractReceiveChannelClosed(ContractReceiveChannelClosed),
     ContractReceiveChannelSettled(ContractReceiveChannelSettled),
+    ContractReceiveChannelDeposit(ContractReceiveChannelDeposit),
+    ContractReceiveChannelWithdraw(ContractReceiveChannelWithdraw),
+    ContractReceiveChannelBatchUnlock(ContractReceiveChannelBatchUnlock),
+    ContractReceiveSecretReveal(ContractReceiveSecretReveal),
+    ContractReceiveRouteNew(ContractReceiveRouteNew),
+    ContractReceiveUpdateTransfer(ContractReceiveUpdateTransfer),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -87,4 +95,49 @@ pub struct ContractReceiveChannelSettled {
     pub canonical_identifier: CanonicalIdentifier,
     pub our_onchain_locksroot: Bytes,
     pub partner_onchain_locksroot: Bytes,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveChannelDeposit {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub deposit_transaction: Address,
+    pub fee_config: MediationFeeConfig,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveChannelWithdraw {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub participant: Address,
+    pub total_withdraw: u32,
+    pub fee_config: MediationFeeConfig,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveChannelBatchUnlock {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub receiver: Address,
+    pub sender: Address,
+    pub locksroot: H256,
+    pub unlocked_amount: u32,
+    pub returned_tokens: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveSecretReveal {
+    pub secret_registry_address: Address,
+    pub secrethash: H256,
+    pub secret: Bytes,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveRouteNew {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub participant1: Address,
+    pub participant2: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractReceiveUpdateTransfer {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub nonce: U256,
 }

@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::sync::Arc;
 use ulid::Ulid;
 use web3::types::{
     Address,
@@ -98,13 +95,7 @@ impl StateManager {
     ) -> std::result::Result<(ChainState, Vec<StateChange>), errors::RaidenError> {
         let mut state_changes = vec![];
 
-        let chain_state = ChainState {
-            chain_id: chain_id.clone(),
-            block_number: U64::from(0),
-            block_hash: H256::zero(),
-            our_address,
-            identifiers_to_tokennetworkregistries: HashMap::new(),
-        };
+        let chain_state = ChainState::new(chain_id.clone(), U64::from(0), H256::zero(), our_address);
 
         state_changes.push(StateChange::ActionInitChain(ActionInitChain {
             chain_id,
