@@ -100,7 +100,7 @@ pub fn state_transition(
     block_number: U64,
     block_hash: H256,
 ) -> TransitionResult {
-    let result: Result<TokenNetworkTransition, StateTransitionError> = match state_change {
+    match state_change {
         StateChange::ContractReceiveChannelOpened(inner) => {
             handle_contract_receive_channel_opened(token_network_state, inner)
         }
@@ -167,6 +167,5 @@ pub fn state_transition(
         _ => Err(StateTransitionError {
             msg: String::from("Could not transition token network"),
         }),
-    };
-    result
+    }
 }

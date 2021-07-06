@@ -242,7 +242,7 @@ fn handle_contract_receive_channel_closed(
 }
 
 pub fn state_transition(chain_state: ChainState, state_change: StateChange) -> TransitionResult {
-    let result: TransitionResult = match state_change {
+    match state_change {
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
         StateChange::Block(inner) => handle_new_block(chain_state, inner),
         StateChange::ContractReceiveTokenNetworkRegistry(inner) => {
@@ -324,6 +324,5 @@ pub fn state_transition(chain_state: ChainState, state_change: StateChange) -> T
             new_state: chain_state,
             events: vec![],
         }),
-    };
-    result
+    }
 }
