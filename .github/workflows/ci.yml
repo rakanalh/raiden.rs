@@ -4,9 +4,30 @@ on:
   pull_request:
 
 jobs:
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: nightly-2021-04-18
+          components: rustfmt
+          override: true
+          default: true
+      - name: Check Format
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: fmt
+          args: --all -- --check
+
   test:
     name: Build and test
     runs-on: ubuntu-latest
+    needs: fmt
     container:
       image: rust
     steps:
@@ -15,26 +36,9 @@ jobs:
     - name: Run tests, with all features
       run: cargo test --locked --workspace --all-features
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2.3.4
-      - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          components: rustfmt
-          override: true
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1.0.3
-        with:
-          command: fmt
-          args: --all -- --check
-
   # TODO: as explained in the official repo (https://github.com/actions-rs/clippy), this action uses unstable GH actions features, but has the huge advantage of not requiring `GITHUB_TOKEN` and working on PRs from forked repositories ; should eventually replace `actions-rs/clippy@master` with a specific version
   clippy:
+    needs: fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.3.4
@@ -46,11 +50,3 @@ jobs:
       - uses: actions-rs/clippy@master
         with:
           args: --all-features --all-targets
-
-  all-ci:
-    # This dummy job depends on all the mandatory checks. It succeeds if and only if CI is
-    # considered successful.
-    needs: [test, fmt, clippy]
-    runs-on: ubuntu-latest
-    steps:
-     - run: echo Success

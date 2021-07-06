@@ -47,7 +47,7 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
     let api = api(&req);
     let state_manager = state_manager(&req);
     let current_state = state_manager.read().current_state.clone();
-    let our_address = current_state.our_address;
+    let _our_address = current_state.our_address;
 
     let params: ChannelOpenParams = match body_to_params(req).await {
         Ok(p) => p,

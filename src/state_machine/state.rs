@@ -15,11 +15,37 @@ use web3::types::{
     U64,
 };
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+use super::types::SendMessageEvent;
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct CanonicalIdentifier {
     pub chain_identifier: ChainID,
     pub token_network_address: Address,
     pub channel_identifier: U256,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct QueueIdentifier {
+    pub recipient: Address,
+    pub canonical_identifier: CanonicalIdentifier,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum TransferRole {
+    Initiator,
+    Mediator,
+    Target,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TransferTask {
+    pub role: TransferRole,
+    pub token_network_address: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PaymentMappingState {
+    pub secrethashes_to_task: HashMap<H256, TransferTask>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -29,6 +55,8 @@ pub struct ChainState {
     pub block_hash: H256,
     pub our_address: Address,
     pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
+    pub queueids_to_queues: HashMap<QueueIdentifier, Vec<SendMessageEvent>>,
+    pub payment_mapping: PaymentMappingState,
 }
 
 impl ChainState {
@@ -38,7 +66,11 @@ impl ChainState {
             block_number,
             block_hash,
             our_address,
+            queueids_to_queues: HashMap::new(),
             identifiers_to_tokennetworkregistries: HashMap::new(),
+            payment_mapping: PaymentMappingState {
+                secrethashes_to_task: HashMap::new(),
+            },
         }
     }
 }

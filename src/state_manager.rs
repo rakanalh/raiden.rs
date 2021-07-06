@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::sync::Arc;
 use ulid::Ulid;
 use web3::types::{
     Address,
@@ -10,7 +7,8 @@ use web3::types::{
 };
 
 use crate::{
-    errors::{self,},
+    constants::SNAPSHOT_STATE_CHANGE_COUNT,
+    errors,
     state_machine::{
         machine::chain,
         state::{
@@ -33,6 +31,8 @@ pub type Result<T> = std::result::Result<T, errors::StateTransitionError>;
 pub struct StateManager {
     pub storage: Arc<Storage>,
     pub current_state: ChainState,
+    state_change_last_id: Option<Ulid>,
+    state_change_count: u16,
 }
 
 impl StateManager {
@@ -72,7 +72,12 @@ impl StateManager {
             )?,
         };
 
-        let mut state_manager = Self { storage, current_state };
+        let mut state_manager = Self {
+            storage,
+            current_state,
+            state_change_last_id: None,
+            state_change_count: 0,
+        };
 
         for state_change in state_changes {
             let _ = state_manager.dispatch(state_change);
@@ -90,13 +95,7 @@ impl StateManager {
     ) -> std::result::Result<(ChainState, Vec<StateChange>), errors::RaidenError> {
         let mut state_changes = vec![];
 
-        let chain_state = ChainState {
-            chain_id: chain_id.clone(),
-            block_number: U64::from(0),
-            block_hash: H256::zero(),
-            our_address,
-            identifiers_to_tokennetworkregistries: HashMap::new(),
-        };
+        let chain_state = ChainState::new(chain_id.clone(), U64::from(0), H256::zero(), our_address);
 
         state_changes.push(StateChange::ActionInitChain(ActionInitChain {
             chain_id,
@@ -106,12 +105,12 @@ impl StateManager {
         }));
 
         let token_network_registry_state = TokenNetworkRegistryState::new(token_network_registry_address, vec![]);
-        let new_network_registry_state_change = ContractReceiveTokenNetworkRegistry::new(
-            H256::zero(),
-            token_network_registry_state,
-            token_network_registry_deploy_block_number,
-            H256::zero(),
-        );
+        let new_network_registry_state_change = ContractReceiveTokenNetworkRegistry {
+            transaction_hash: Some(H256::zero()),
+            token_network_registry: token_network_registry_state,
+            block_number: token_network_registry_deploy_block_number,
+            block_hash: H256::zero(),
+        };
         state_changes.push(StateChange::ContractReceiveTokenNetworkRegistry(
             new_network_registry_state_change,
         ));
@@ -130,6 +129,8 @@ impl StateManager {
         match chain::state_transition(current_state, state_change) {
             Ok(transition_result) => {
                 self.current_state = transition_result.new_state;
+                self.state_change_count += 1;
+                self.maybe_snapshot();
                 Ok(transition_result.events)
             }
             Err(e) => Err(errors::StateTransitionError {
@@ -139,6 +140,8 @@ impl StateManager {
     }
 
     pub fn transition(&mut self, state_change: StateChange) -> Result<Vec<Event>> {
+        let events = self.dispatch(state_change.clone())?;
+
         let state_change_id = match self.storage.store_state_change(state_change.clone()) {
             Ok(id) => Ok(id),
             Err(e) => Err(errors::StateTransitionError {
@@ -146,7 +149,7 @@ impl StateManager {
             }),
         }?;
 
-        let events = self.dispatch(state_change.clone())?;
+        self.state_change_last_id = Some(state_change_id);
 
         if !events.is_empty() {
             match self.storage.store_events(state_change_id, events.clone()) {
@@ -158,5 +161,14 @@ impl StateManager {
         }
 
         Ok(events)
+    }
+
+    fn maybe_snapshot(&mut self) {
+        if self.state_change_count % SNAPSHOT_STATE_CHANGE_COUNT == 0 {
+            return;
+        }
+        let _ = self
+            .storage
+            .store_snapshot(self.current_state.clone(), self.state_change_last_id);
     }
 }

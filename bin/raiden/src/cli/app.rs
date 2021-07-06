@@ -28,10 +28,7 @@ use raiden::{
     storage::Storage,
 };
 use rusqlite::Connection;
-use slog::{
-    Drain,
-    Logger,
-};
+use slog::Logger;
 use std::{
     path::{
         Path,
@@ -95,7 +92,6 @@ pub struct RaidenApp {
     config: Config,
     web3: Web3<Http>,
     node_address: Address,
-    private_key: PrivateKey,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
@@ -103,13 +99,7 @@ pub struct RaidenApp {
 }
 
 impl RaidenApp {
-    pub fn new(config: Config, node_address: Address, private_key: PrivateKey) -> Result<Self> {
-        let decorator = slog_term::TermDecorator::new().build();
-        let drain = slog_term::FullFormat::new(decorator).build().fuse();
-        let drain = slog_async::Async::new(drain).build().fuse();
-
-        let logger = slog::Logger::root(drain, o!());
-
+    pub fn new(config: Config, node_address: Address, private_key: PrivateKey, logger: Logger) -> Result<Self> {
         let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
         let web3 = web3::Web3::new(http);
 
@@ -141,6 +131,7 @@ impl RaidenApp {
                 }
             };
 
+        debug!(logger, "Restore state");
         let state_manager = match StateManager::restore_or_init_state(
             storage,
             config.chain_id.clone(),
@@ -159,14 +150,13 @@ impl RaidenApp {
             Err(e) => return Err(format!("Failed to fetch nonce: {}", e)),
         };
 
-        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key.clone(), nonce)
+        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key, nonce)
             .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
 
         Ok(Self {
             config,
             web3,
             node_address,
-            private_key,
             contracts_manager,
             proxy_manager: Arc::new(proxy_manager),
             state_manager: Arc::new(RwLock::new(state_manager)),
@@ -191,6 +181,7 @@ impl RaidenApp {
             self.web3.clone(),
             self.state_manager.clone(),
             self.contracts_manager.clone(),
+            self.proxy_manager.clone(),
             transition_service.clone(),
             self.logger.clone(),
         );

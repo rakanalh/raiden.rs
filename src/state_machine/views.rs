@@ -13,6 +13,7 @@ use web3::types::{
 
 use super::{
     state::{
+        CanonicalIdentifier,
         ChannelEndState,
         ChannelState,
         TransactionResult,
@@ -81,6 +82,19 @@ pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
     }
 
     channels
+}
+
+pub fn get_channel_by_canonical_identifier(
+    chain_state: &ChainState,
+    canonical_identifier: CanonicalIdentifier,
+) -> Option<&ChannelState> {
+    let token_network = get_token_network_by_address(chain_state, canonical_identifier.token_network_address);
+    if let Some(token_network) = token_network {
+        return token_network
+            .channelidentifiers_to_channels
+            .get(&canonical_identifier.channel_identifier);
+    }
+    None
 }
 
 pub fn get_channel_status(channel_state: &ChannelState) -> ChannelStatus {

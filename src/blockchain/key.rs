@@ -3,6 +3,7 @@ use web3::{
     signing::{
         self,
         Key,
+        Signature,
     },
     types::{
         Address,
@@ -44,4 +45,16 @@ impl Key for PrivateKey {
     fn address(&self) -> web3::types::Address {
         Address::from(self.inner.public().address())
     }
+}
+
+pub fn signature_to_bytes(s: &Signature) -> Vec<u8> {
+    let vb = s.v.to_be_bytes();
+    let rb = s.r.to_fixed_bytes();
+    let sb = s.s.to_fixed_bytes();
+
+    let mut b = vec![];
+    b.extend(&vb);
+    b.extend(&rb);
+    b.extend(&sb);
+    b
 }

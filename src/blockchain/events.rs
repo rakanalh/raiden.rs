@@ -23,7 +23,7 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn from_log(contracts_manager: Arc<ContractsManager>, log: &Log) -> Option<Event> {
+    pub fn decode(contracts_manager: Arc<ContractsManager>, log: &Log) -> Option<Event> {
         let events = contracts_manager.events(None);
         for event in events {
             if !log.topics.is_empty() && event.signature() == log.topics[0] {
