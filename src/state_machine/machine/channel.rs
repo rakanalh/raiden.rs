@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct ChannelTransition {
-    pub new_state: ChannelState,
+    pub new_state: Option<ChannelState>,
     pub events: Vec<Event>,
 }
 
@@ -26,7 +26,7 @@ pub fn state_transition(
     _block_hash: H256,
 ) -> Result<ChannelTransition, StateTransitionError> {
     Ok(ChannelTransition {
-        new_state: channel_state,
+        new_state: Some(channel_state),
         events: vec![],
     })
 }

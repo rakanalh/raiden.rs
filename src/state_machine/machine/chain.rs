@@ -51,7 +51,9 @@ fn subdispatch_to_all_channels(
                 let result =
                     channel::state_transition(channel_state.clone(), state_change.clone(), block_number, block_hash)?;
 
-                *channel_state = result.new_state;
+                if let Some(new_state) = result.new_state {
+                    *channel_state = new_state;
+                }
                 events.extend(result.events);
             }
         }
@@ -75,10 +77,7 @@ fn subdispatch_to_payment_task(
     })
 }
 
-fn subdispatch_to_all_lockedtransfers(
-    mut chain_state: ChainState,
-    state_change: StateChange,
-) -> TransitionResult {
+fn subdispatch_to_all_lockedtransfers(mut chain_state: ChainState, state_change: StateChange) -> TransitionResult {
     let mut events = vec![];
 
     let payment_mapping = chain_state.payment_mapping.clone();
@@ -184,6 +183,8 @@ fn handle_token_network_state_change(
     mut chain_state: ChainState,
     token_network_address: Address,
     state_change: StateChange,
+    block_number: U64,
+    block_hash: H256,
 ) -> TransitionResult {
     let token_network_state = match views::get_token_network(&chain_state, &token_network_address) {
         Some(token_network_state) => token_network_state,
@@ -194,7 +195,8 @@ fn handle_token_network_state_change(
         }
     };
 
-    let transition = token_network::state_transition(token_network_state.clone(), state_change)?;
+    let transition =
+        token_network::state_transition(token_network_state.clone(), state_change, block_number, block_hash)?;
 
     let new_state: TokenNetworkState = transition.new_state;
     let registry_address = views::get_token_network_registry_by_token_network_address(&chain_state, new_state.address)
@@ -217,6 +219,8 @@ fn handle_token_network_state_change(
 fn handle_contract_receive_channel_closed(
     mut chain_state: ChainState,
     state_change: ContractReceiveChannelClosed,
+    block_number: U64,
+    block_hash: H256,
 ) -> TransitionResult {
     let token_network_address = state_change.canonical_identifier.token_network_address;
     if let Some(channel_state) =
@@ -232,13 +236,12 @@ fn handle_contract_receive_channel_closed(
         chain_state,
         token_network_address,
         StateChange::ContractReceiveChannelClosed(state_change),
+        block_number,
+        block_hash,
     )
 }
 
-pub fn state_transition(
-    chain_state: ChainState,
-    state_change: StateChange,
-) -> TransitionResult {
+pub fn state_transition(chain_state: ChainState, state_change: StateChange) -> TransitionResult {
     let result: TransitionResult = match state_change {
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
         StateChange::Block(inner) => handle_new_block(chain_state, inner),
@@ -250,28 +253,69 @@ pub fn state_transition(
         }
         StateChange::ContractReceiveChannelOpened(ref inner) => {
             let token_network_address = inner.channel_state.canonical_identifier.token_network_address;
-            handle_token_network_state_change(chain_state, token_network_address, state_change)
+            handle_token_network_state_change(
+                chain_state.clone(),
+                token_network_address,
+                state_change,
+                chain_state.block_number,
+                chain_state.block_hash,
+            )
         }
-        StateChange::ContractReceiveChannelClosed(inner) => handle_contract_receive_channel_closed(chain_state, inner),
+        StateChange::ContractReceiveChannelClosed(inner) => handle_contract_receive_channel_closed(
+            chain_state.clone(),
+            inner,
+            chain_state.block_number,
+            chain_state.block_hash,
+        ),
         StateChange::ContractReceiveChannelSettled(ref inner) => {
             let token_network_address = inner.canonical_identifier.token_network_address;
-            handle_token_network_state_change(chain_state, token_network_address, state_change)
+            handle_token_network_state_change(
+                chain_state.clone(),
+                token_network_address,
+                state_change,
+                chain_state.block_number,
+                chain_state.block_hash,
+            )
         }
         StateChange::ContractReceiveChannelDeposit(ref inner) => {
             let token_network_address = inner.canonical_identifier.token_network_address;
-            handle_token_network_state_change(chain_state, token_network_address, state_change)
+            handle_token_network_state_change(
+                chain_state.clone(),
+                token_network_address,
+                state_change,
+                chain_state.block_number,
+                chain_state.block_hash,
+            )
         }
         StateChange::ContractReceiveChannelWithdraw(ref inner) => {
             let token_network_address = inner.canonical_identifier.token_network_address;
-            handle_token_network_state_change(chain_state, token_network_address, state_change)
+            handle_token_network_state_change(
+                chain_state.clone(),
+                token_network_address,
+                state_change,
+                chain_state.block_number,
+                chain_state.block_hash,
+            )
         }
         StateChange::ContractReceiveChannelBatchUnlock(ref inner) => {
             let token_network_address = inner.canonical_identifier.token_network_address;
-            handle_token_network_state_change(chain_state, token_network_address, state_change)
+            handle_token_network_state_change(
+                chain_state.clone(),
+                token_network_address,
+                state_change,
+                chain_state.block_number,
+                chain_state.block_hash,
+            )
         }
         StateChange::ContractReceiveUpdateTransfer(ref inner) => {
             let token_network_address = inner.canonical_identifier.token_network_address;
-            handle_token_network_state_change(chain_state, token_network_address, state_change)
+            handle_token_network_state_change(
+                chain_state.clone(),
+                token_network_address,
+                state_change,
+                chain_state.block_number,
+                chain_state.block_hash,
+            )
         }
         StateChange::ContractReceiveSecretReveal(ref inner) => {
             subdispatch_to_payment_task(chain_state, state_change.clone(), inner.secrethash)
