@@ -1,4 +1,6 @@
 # raiden-rust
+[![continuous-integration](https://github.com/rakanalh/raiden-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/rakanalh/raiden-rust/actions/workflows/ci.yml)
+
 The **UNOFFICIAL** Raiden client implementation in Rust
 
 [![Raiden](https://raw.githubusercontent.com/rakanalh/raiden-rust/main/.github/images/raiden.png)](https://raiden.network/)
