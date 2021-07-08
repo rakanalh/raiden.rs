@@ -30,6 +30,6 @@ slog = "2.7.0"
 slog-async = "2.6.0"
 slog-term = "2.6.0"
 thiserror = "1.0"
-tokio = { version = "0.2.11", features=["full"] }
+tokio = { version = "1.0.2", features=["full"] }
 url = "2.2.2"
 web3 = "0.15.0"
