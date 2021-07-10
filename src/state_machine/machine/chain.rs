@@ -49,8 +49,13 @@ fn subdispatch_to_all_channels(
     for (_, token_network_registry) in chain_state.identifiers_to_tokennetworkregistries.iter_mut() {
         for (_, token_network) in token_network_registry.tokennetworkaddresses_to_tokennetworks.iter_mut() {
             for (_, channel_state) in token_network.channelidentifiers_to_channels.iter_mut() {
-                let result =
-                    channel::state_transition(channel_state.clone(), state_change.clone(), block_number, block_hash)?;
+                let result = channel::state_transition(
+                    channel_state.clone(),
+                    state_change.clone(),
+                    block_number,
+                    block_hash,
+                    chain_state.pseudo_random_number_generator.clone(),
+                )?;
 
                 if let Some(new_state) = result.new_state {
                     *channel_state = new_state;
@@ -194,8 +199,13 @@ fn handle_token_network_state_change(
         }
     };
 
-    let transition =
-        token_network::state_transition(token_network_state.clone(), state_change, block_number, block_hash)?;
+    let transition = token_network::state_transition(
+        token_network_state.clone(),
+        state_change,
+        block_number,
+        block_hash,
+        chain_state.pseudo_random_number_generator.clone(),
+    )?;
 
     let new_state: TokenNetworkState = transition.new_state;
     let registry_address = views::get_token_network_registry_by_token_network_address(&chain_state, new_state.address)

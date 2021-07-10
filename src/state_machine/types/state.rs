@@ -15,11 +15,14 @@ use web3::types::{
 };
 
 use crate::{
+    constants::DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
     errors::ChannelError,
     primitives::{
+        AddressMetadata,
         CanonicalIdentifier,
         ChainID,
         QueueIdentifier,
+        Random,
         TransactionExecutionStatus,
         TransactionResult,
         TransferTask,
@@ -42,6 +45,7 @@ pub struct ChainState {
     pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
     pub queueids_to_queues: HashMap<QueueIdentifier, Vec<SendMessageEvent>>,
     pub payment_mapping: PaymentMappingState,
+    pub pseudo_random_number_generator: Random,
 }
 
 impl ChainState {
@@ -56,6 +60,7 @@ impl ChainState {
             payment_mapping: PaymentMappingState {
                 secrethashes_to_task: HashMap::new(),
             },
+            pseudo_random_number_generator: Random::new(),
         }
     }
 }
@@ -114,7 +119,7 @@ impl TokenNetworkState {
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct TokenNetworkGraphState {}
 
-#[derive(PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChannelStatus {
     Opened,
     Closing,
@@ -129,8 +134,8 @@ pub struct ChannelState {
     pub canonical_identifier: CanonicalIdentifier,
     pub token_address: Address,
     pub token_network_registry_address: Address,
-    pub reveal_timeout: U256,
-    pub settle_timeout: U256,
+    pub reveal_timeout: U64,
+    pub settle_timeout: U64,
     pub our_state: ChannelEndState,
     pub partner_state: ChannelEndState,
     pub open_transaction: TransactionExecutionStatus,
@@ -146,8 +151,8 @@ impl ChannelState {
         token_network_registry_address: Address,
         our_address: Address,
         partner_address: Address,
-        reveal_timeout: U256,
-        settle_timeout: U256,
+        reveal_timeout: U64,
+        settle_timeout: U64,
         open_transaction: TransactionExecutionStatus,
     ) -> Result<ChannelState, ChannelError> {
         if reveal_timeout >= settle_timeout {
@@ -160,6 +165,7 @@ impl ChannelState {
         }
 
         let our_state = ChannelEndState::new(our_address);
+
         let partner_state = ChannelEndState::new(partner_address);
 
         Ok(ChannelState {
@@ -177,10 +183,10 @@ impl ChannelState {
         })
     }
 
-    fn get_status(&self) -> ChannelStatus {
+    pub fn status(&self) -> ChannelStatus {
         let mut status = ChannelStatus::Opened;
 
-        if let Some(settle_transaction) = self.settle_transaction {
+        if let Some(settle_transaction) = &self.settle_transaction {
             let finished_successfully = settle_transaction.result == Some(TransactionResult::Success);
             let running = settle_transaction.finished_block_number.is_none();
 
@@ -191,7 +197,7 @@ impl ChannelState {
             } else {
                 status = ChannelStatus::Unusable;
             }
-        } else if let Some(close_transaction) = self.close_transaction {
+        } else if let Some(close_transaction) = &self.close_transaction {
             let finished_successfully = close_transaction.result == Some(TransactionResult::Success);
             let running = close_transaction.finished_block_number.is_none();
 
@@ -218,7 +224,7 @@ pub struct ChannelEndState {
     pub secrethashes_to_lockedlocks: HashMap<H256, HashTimeLockState>,
     pub secrethashes_to_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
     pub secrethashes_to_onchain_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
-    pub balance_proof: Option<BalanceProofUnsignedState>,
+    pub balance_proof: Option<BalanceProofState>,
     pub pending_locks: PendingLocksState,
     pub onchain_locksroot: H256,
     pub nonce: u64,
@@ -252,29 +258,23 @@ impl ChannelEndState {
     pub fn total_withdraw(&self) -> u64 {
         max(self.offchain_total_withdraw(), self.onchain_total_withdraw)
     }
+
+    pub fn next_nonce(&self) -> u64 {
+        self.nonce + 1
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct BalanceProofUnsignedState {
+pub struct BalanceProofState {
     pub nonce: u64,
     pub transferred_amount: u64,
     pub locked_amount: u64,
     pub locksroot: H256,
     pub canonical_identifier: CanonicalIdentifier,
     pub balance_hash: H256,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct BalanceProofSignedState {
-    nonce: u64,
-    transferred_amount: u64,
-    locked_amount: u64,
-    locksroot: H256,
-    message_hash: H256,
-    signature: H256,
-    sender: Address,
-    canonical_identifier: CanonicalIdentifier,
-    balance_hash: H256,
+    pub message_hash: Option<H256>,
+    pub signature: Option<H256>,
+    pub sender: Option<Address>,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
@@ -302,20 +302,29 @@ pub struct HashTimeLockState {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ExpiredWithdrawState {
-    total_withdraw: u64,
-    expiration: u16,
-    nonce: u64,
+    pub total_withdraw: u64,
+    pub expiration: U64,
+    pub nonce: u64,
+    pub recipient_metadata: Option<AddressMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PendingWithdrawState {
-    total_withdraw: u64,
-    expiration: u16,
-    nonce: u64,
+    pub total_withdraw: u64,
+    pub expiration: U64,
+    pub nonce: u64,
+    pub recipient_metadata: Option<AddressMetadata>,
 }
 
 impl PendingWithdrawState {
-    fn has_expired(&self, current_block: U64, expiration_threshold: U64) -> bool {}
+    pub fn expiration_threshold(&self) -> U64 {
+        self.expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS * 2
+    }
+
+    pub fn has_expired(&self, current_block: U64) -> bool {
+        let threshold = self.expiration_threshold();
+        current_block >= threshold
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

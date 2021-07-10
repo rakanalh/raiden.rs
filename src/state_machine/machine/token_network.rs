@@ -5,6 +5,7 @@ use web3::types::{
 };
 
 use crate::errors::StateTransitionError;
+use crate::primitives::Random;
 use crate::state_machine::types::TokenNetworkState;
 use crate::state_machine::types::{
     ContractReceiveChannelOpened,
@@ -27,6 +28,7 @@ fn subdispatch_to_channel_by_id(
     state_change: StateChange,
     block_number: U64,
     block_hash: H256,
+    pseudo_random_number_generator: Random,
 ) -> TransitionResult {
     let channel_state = match token_network_state
         .channelidentifiers_to_channels
@@ -41,7 +43,13 @@ fn subdispatch_to_channel_by_id(
         }
     };
 
-    let result = channel::state_transition(channel_state.clone(), state_change, block_number, block_hash)?;
+    let result = channel::state_transition(
+        channel_state.clone(),
+        state_change,
+        block_number,
+        block_hash,
+        pseudo_random_number_generator,
+    )?;
     match result.new_state {
         Some(channel_state) => {
             token_network_state
@@ -99,6 +107,7 @@ pub fn state_transition(
     state_change: StateChange,
     block_number: U64,
     block_hash: H256,
+    pseudo_random_number_generator: Random,
 ) -> TransitionResult {
     match state_change {
         StateChange::ContractReceiveChannelOpened(inner) => {
@@ -112,6 +121,7 @@ pub fn state_transition(
                 state_change,
                 block_number,
                 block_hash,
+                pseudo_random_number_generator,
             )
         }
         StateChange::ContractReceiveChannelSettled(ref inner) => {
@@ -122,6 +132,7 @@ pub fn state_transition(
                 state_change,
                 block_number,
                 block_hash,
+                pseudo_random_number_generator,
             )
         }
         StateChange::ContractReceiveChannelDeposit(ref inner) => {
@@ -132,6 +143,7 @@ pub fn state_transition(
                 state_change,
                 block_number,
                 block_hash,
+                pseudo_random_number_generator,
             )
         }
         StateChange::ContractReceiveChannelWithdraw(ref inner) => {
@@ -142,6 +154,7 @@ pub fn state_transition(
                 state_change,
                 block_number,
                 block_hash,
+                pseudo_random_number_generator,
             )
         }
         StateChange::ContractReceiveChannelBatchUnlock(ref inner) => {
@@ -152,6 +165,7 @@ pub fn state_transition(
                 state_change,
                 block_number,
                 block_hash,
+                pseudo_random_number_generator,
             )
         }
         StateChange::ContractReceiveUpdateTransfer(ref inner) => {
@@ -162,6 +176,7 @@ pub fn state_transition(
                 state_change,
                 block_number,
                 block_hash,
+                pseudo_random_number_generator,
             )
         }
         _ => Err(StateTransitionError {

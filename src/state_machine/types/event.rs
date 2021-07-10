@@ -1,5 +1,5 @@
-use crate::state_machine::state::TokenNetworkState;
-use crate::state_machine::types::ContractReceiveTokenNetworkCreated;
+use std::ops::Deref;
+
 use serde::{
     Deserialize,
     Serialize,
@@ -10,28 +10,63 @@ use web3::types::{
     U64,
 };
 
+use crate::primitives::{
+    AddressMetadata,
+    CanonicalIdentifier,
+};
+
+use super::BalanceProofState;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Event {
-    TokenNetworkCreated(TokenNetworkCreated),
+    SendWithdrawExpired(SendWithdrawExpired),
+    ContractSendChannelSettle(ContractSendChannelSettle),
+    ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TokenNetworkCreated {
-    pub transaction_hash: Option<H256>,
-    pub token_network_registry_address: Address,
-    pub token_network: TokenNetworkState,
-    pub block_number: U64,
-    pub block_hash: H256,
+pub enum SendMessageEvent {
+    SendWithdrawExpired(SendWithdrawExpired),
 }
 
-impl From<ContractReceiveTokenNetworkCreated> for TokenNetworkCreated {
-    fn from(state_change: ContractReceiveTokenNetworkCreated) -> Self {
-        TokenNetworkCreated {
-            transaction_hash: state_change.transaction_hash,
-            token_network_registry_address: state_change.token_network_registry_address,
-            token_network: state_change.token_network,
-            block_number: state_change.block_number,
-            block_hash: state_change.block_hash,
-        }
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SendMessageEventInner {
+    pub recipient: Address,
+    pub recipient_metadata: Option<AddressMetadata>,
+    pub canonincal_identifier: CanonicalIdentifier,
+    pub message_identifier: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SendWithdrawExpired {
+    pub inner: SendMessageEventInner,
+    pub participant: Address,
+    pub nonce: u64,
+    pub expiration: U64,
+}
+
+impl Deref for SendWithdrawExpired {
+    type Target = SendMessageEventInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractSendEvent {
+    pub triggered_by_blockhash: H256,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractSendChannelSettle {
+    pub inner: ContractSendEvent,
+    pub canonical_identifier: CanonicalIdentifier,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractSendChannelUpdateTransfer {
+    pub inner: ContractSendEvent,
+    pub expiration: U64,
+    pub balance_proof: BalanceProofState,
 }
