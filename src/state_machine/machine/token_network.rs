@@ -5,7 +5,7 @@ use web3::types::{
 };
 
 use crate::errors::StateTransitionError;
-use crate::state_machine::state::TokenNetworkState;
+use crate::state_machine::types::TokenNetworkState;
 use crate::state_machine::types::{
     ContractReceiveChannelOpened,
     Event,

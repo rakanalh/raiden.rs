@@ -11,7 +11,7 @@ use web3::types::{
     U64,
 };
 
-use crate::state_machine::state::ChainState;
+use crate::state_machine::types::ChainState;
 
 use super::contracts::{
     ContractIdentifier,

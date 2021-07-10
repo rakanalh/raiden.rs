@@ -5,12 +5,12 @@ use web3::types::{
 
 use crate::{
     errors::StateTransitionError,
-    state_machine::{
-        state::ChannelState,
-        types::{
-            Event,
-            StateChange,
-        },
+    state_machine::types::{
+        ChannelState,
+        ChannelStatus,
+        Event,
+        SendWithdrawExpired,
+        StateChange,
     },
 };
 

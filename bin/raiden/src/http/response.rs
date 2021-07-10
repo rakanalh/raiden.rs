@@ -1,8 +1,10 @@
 use serde::Serialize;
 
 use raiden::state_machine::{
-    state::ChannelState,
-    types::ChannelStatus,
+    types::{
+        ChannelState,
+        ChannelStatus,
+    },
     views,
 };
 use web3::types::{
@@ -22,8 +24,8 @@ pub struct ChannelResponse {
     token_network_address: Address,
     token_address: Address,
     partner_address: Address,
-    settle_timeout: U256,
-    reveal_timeout: U256,
+    settle_timeout: U64,
+    reveal_timeout: U64,
     balance: u64,
     state: ChannelStatus,
     total_deposit: u64,
@@ -34,8 +36,8 @@ pub struct ChannelResponse {
 pub struct CreateChannelResponse {
     token_address: Address,
     partner_address: Address,
-    reveal_timeout: U256,
-    settle_timeout: U256,
+    reveal_timeout: U64,
+    settle_timeout: U64,
     total_deposit: U64,
 }
 

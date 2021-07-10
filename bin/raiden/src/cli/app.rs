@@ -23,7 +23,7 @@ use raiden::{
         key::PrivateKey,
         proxies::ProxyManager,
     },
-    state_machine::types::ChainID,
+    primitives::ChainID,
     state_manager::StateManager,
     storage::Storage,
 };

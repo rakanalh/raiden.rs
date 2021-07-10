@@ -9,18 +9,16 @@ use web3::types::{
 use crate::{
     constants::SNAPSHOT_STATE_CHANGE_COUNT,
     errors,
+    primitives::ChainID,
     state_machine::{
         machine::chain,
-        state::{
-            ChainState,
-            TokenNetworkRegistryState,
-        },
         types::{
             ActionInitChain,
-            ChainID,
+            ChainState,
             ContractReceiveTokenNetworkRegistry,
             Event,
             StateChange,
+            TokenNetworkRegistryState,
         },
     },
     storage::Storage,

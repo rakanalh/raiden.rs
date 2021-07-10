@@ -15,11 +15,5 @@ impl EventHandler {
         Self { state_manager }
     }
 
-    pub async fn handle_event(&self, event: Event) {
-        match event {
-            Event::TokenNetworkCreated(event) => {
-                let _token_network_address = event.token_network.address;
-            }
-        }
-    }
+    pub async fn handle_event(&self, _event: Event) {}
 }

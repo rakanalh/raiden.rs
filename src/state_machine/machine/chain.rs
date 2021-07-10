@@ -4,29 +4,30 @@ use web3::types::{
     U64,
 };
 
-use crate::state_machine::{
-    machine::{
-        channel,
-        token_network,
-    },
-    state::QueueIdentifier,
-    types::{
-        ActionInitChain,
-        Block,
-        ContractReceiveChannelClosed,
-        ContractReceiveTokenNetworkCreated,
-        ContractReceiveTokenNetworkRegistry,
-        Event,
-        StateChange,
-        TokenNetworkCreated,
-    },
-    views,
-};
 use crate::{
     errors::StateTransitionError,
-    state_machine::state::{
+    state_machine::types::{
         ChainState,
         TokenNetworkState,
+    },
+};
+use crate::{
+    primitives::QueueIdentifier,
+    state_machine::{
+        machine::{
+            channel,
+            token_network,
+        },
+        types::{
+            ActionInitChain,
+            Block,
+            ContractReceiveChannelClosed,
+            ContractReceiveTokenNetworkCreated,
+            ContractReceiveTokenNetworkRegistry,
+            Event,
+            StateChange,
+        },
+        views,
     },
 };
 
@@ -171,11 +172,9 @@ fn handle_contract_receive_token_network_created(
         state_change.token_network.address.clone(),
     );
 
-    let token_network_created: TokenNetworkCreated = state_change.into();
-
     Ok(ChainTransition {
         new_state: chain_state,
-        events: vec![Event::TokenNetworkCreated(token_network_created)],
+        events: vec![],
     })
 }
 

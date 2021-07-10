@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     blockchain::errors::ContractDefError,
-    state_machine::types::ChainID,
+    primitives::ChainID,
 };
 
 use ethabi::Event;

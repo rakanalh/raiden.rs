@@ -11,21 +11,21 @@ use web3::types::{
 
 use crate::{
     constants,
+    primitives::{
+        CanonicalIdentifier,
+        TransactionExecutionStatus,
+        TransactionResult,
+    },
     state_machine::{
-        state::{
-            CanonicalIdentifier,
+        types::{
             ChainState,
             ChannelState,
-            TokenNetworkState,
-            TransactionExecutionStatus,
-            TransactionResult,
-        },
-        types::{
             ContractReceiveChannelClosed,
             ContractReceiveChannelOpened,
             ContractReceiveChannelSettled,
             ContractReceiveTokenNetworkCreated,
             StateChange,
+            TokenNetworkState,
         },
         views,
     },
@@ -91,8 +91,8 @@ impl EventDecoder {
             _ => Address::zero(),
         };
         let settle_timeout = match event.data.get("settle_timeout")? {
-            Token::Uint(timeout) => timeout.clone(),
-            _ => U256::zero(),
+            Token::Uint(timeout) => U64::from(timeout.clone().low_u64()),
+            _ => U64::zero(),
         };
 
         let partner_address: Address;
@@ -109,7 +109,7 @@ impl EventDecoder {
         let token_network = views::get_token_network_by_address(&chain_state, token_network_address)?;
         let token_address = token_network.token_address;
         let token_network_registry_address = Address::zero();
-        let reveal_timeout = U256::from(constants::DEFAULT_REVEAL_TIMEOUT);
+        let reveal_timeout = U64::from(constants::DEFAULT_REVEAL_TIMEOUT);
         let open_transaction = TransactionExecutionStatus {
             started_block_number: Some(U64::from(0)),
             finished_block_number: Some(event.block_number),

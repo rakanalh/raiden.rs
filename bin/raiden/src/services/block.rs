@@ -3,9 +3,9 @@ use std::sync::Arc;
 use futures::StreamExt;
 use parking_lot::RwLock;
 use raiden::{
+    primitives::ChainID,
     state_machine::types::{
         Block,
-        ChainID,
         StateChange,
     },
     state_manager::StateManager,

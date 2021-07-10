@@ -1,11 +1,14 @@
-use crate::state_machine::{
-    state::{
+use crate::{
+    primitives::{
         CanonicalIdentifier,
+        ChainID,
+        MediationFeeConfig,
+    },
+    state_machine::types::{
         ChannelState,
         TokenNetworkRegistryState,
         TokenNetworkState,
     },
-    types::ChainID,
 };
 use serde::{
     Deserialize,
@@ -18,8 +21,6 @@ use web3::types::{
     U256,
     U64,
 };
-
-use super::MediationFeeConfig;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StateChange {

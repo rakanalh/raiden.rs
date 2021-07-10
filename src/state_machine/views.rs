@@ -1,24 +1,23 @@
 use std::cmp::max;
 
-use crate::state_machine::state::{
-    ChainState,
-    TokenNetworkRegistryState,
-    TokenNetworkState,
-};
 use web3::types::{
     Address,
     H256,
     U64,
 };
 
-use super::{
-    state::{
-        CanonicalIdentifier,
-        ChannelEndState,
-        ChannelState,
-        TransactionResult,
-    },
-    types::ChannelStatus,
+use crate::primitives::{
+    CanonicalIdentifier,
+    TransactionResult,
+};
+
+use super::types::{
+    ChainState,
+    ChannelEndState,
+    ChannelState,
+    ChannelStatus,
+    TokenNetworkRegistryState,
+    TokenNetworkState,
 };
 
 pub fn block_number(chain_state: &ChainState) -> U64 {

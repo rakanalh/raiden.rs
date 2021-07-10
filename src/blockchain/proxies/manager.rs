@@ -24,7 +24,7 @@ use crate::{
         errors::ContractDefError,
         key::PrivateKey,
     },
-    state_machine::state::ChannelState,
+    state_machine::types::ChannelState,
 };
 
 use super::{

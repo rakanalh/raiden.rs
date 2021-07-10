@@ -11,7 +11,7 @@ use std::{
 use ulid::Ulid;
 
 use self::types::StateChangeID;
-use crate::state_machine::state::ChainState;
+use crate::state_machine::types::ChainState;
 use crate::{
     errors::{
         RaidenError,

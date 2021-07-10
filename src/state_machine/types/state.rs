@@ -1,12 +1,11 @@
-use crate::errors::ChannelError;
-use crate::state_machine::types::ChainID;
-use serde::{
-    Deserialize,
-    Serialize,
-};
 use std::{
     cmp::max,
     collections::HashMap,
+};
+
+use serde::{
+    Deserialize,
+    Serialize,
 };
 use web3::types::{
     Address,
@@ -15,33 +14,19 @@ use web3::types::{
     U64,
 };
 
-use super::types::SendMessageEvent;
+use crate::{
+    errors::ChannelError,
+    primitives::{
+        CanonicalIdentifier,
+        ChainID,
+        QueueIdentifier,
+        TransactionExecutionStatus,
+        TransactionResult,
+        TransferTask,
+    },
+};
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct CanonicalIdentifier {
-    pub chain_identifier: ChainID,
-    pub token_network_address: Address,
-    pub channel_identifier: U256,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct QueueIdentifier {
-    pub recipient: Address,
-    pub canonical_identifier: CanonicalIdentifier,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum TransferRole {
-    Initiator,
-    Mediator,
-    Target,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TransferTask {
-    pub role: TransferRole,
-    pub token_network_address: Address,
-}
+use super::SendMessageEvent;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PaymentMappingState {
@@ -126,13 +111,17 @@ impl TokenNetworkState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct TokenNetworkGraphState {}
 
-impl TokenNetworkGraphState {
-    pub fn default() -> TokenNetworkGraphState {
-        TokenNetworkGraphState {}
-    }
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChannelStatus {
+    Opened,
+    Closing,
+    Closed,
+    Settling,
+    Settled,
+    Unusable,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -187,6 +176,36 @@ impl ChannelState {
             update_transaction: None,
         })
     }
+
+    fn get_status(&self) -> ChannelStatus {
+        let mut status = ChannelStatus::Opened;
+
+        if let Some(settle_transaction) = self.settle_transaction {
+            let finished_successfully = settle_transaction.result == Some(TransactionResult::Success);
+            let running = settle_transaction.finished_block_number.is_none();
+
+            if finished_successfully {
+                status = ChannelStatus::Settled;
+            } else if running {
+                status = ChannelStatus::Settling;
+            } else {
+                status = ChannelStatus::Unusable;
+            }
+        } else if let Some(close_transaction) = self.close_transaction {
+            let finished_successfully = close_transaction.result == Some(TransactionResult::Success);
+            let running = close_transaction.finished_block_number.is_none();
+
+            if finished_successfully {
+                status = ChannelStatus::Closed;
+            } else if running {
+                status = ChannelStatus::Closing;
+            } else {
+                status = ChannelStatus::Unusable;
+            }
+        }
+
+        status
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -217,7 +236,7 @@ impl ChannelEndState {
             secrethashes_to_unlockedlocks: HashMap::new(),
             secrethashes_to_onchain_unlockedlocks: HashMap::new(),
             balance_proof: None,
-            pending_locks: PendingLocksState::new(),
+            pending_locks: PendingLocksState::default(),
             onchain_locksroot: H256::zero(),
             nonce: 0,
         }
@@ -258,15 +277,9 @@ pub struct BalanceProofSignedState {
     balance_hash: H256,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct PendingLocksState {
     locks: Vec<H256>,
-}
-
-impl PendingLocksState {
-    fn new() -> Self {
-        PendingLocksState { locks: vec![] }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -287,17 +300,6 @@ pub struct HashTimeLockState {
     encoded: H256,
 }
 
-impl HashTimeLockState {
-    pub fn new(amount: u64, expiration: u16, secrethash: H256, encoded: H256) -> HashTimeLockState {
-        HashTimeLockState {
-            amount,
-            expiration,
-            secrethash,
-            encoded,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ExpiredWithdrawState {
     total_withdraw: u64,
@@ -312,23 +314,14 @@ pub struct PendingWithdrawState {
     nonce: u64,
 }
 
+impl PendingWithdrawState {
+    fn has_expired(&self, current_block: U64, expiration_threshold: U64) -> bool {}
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FeeScheduleState {
     flat: u64,
     proportional: u64,
     imbalance_penalty: Option<Vec<(u64, u64)>>,
     penalty_func: Option<u64>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub enum TransactionResult {
-    Success,
-    Failure,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TransactionExecutionStatus {
-    pub started_block_number: Option<U64>,
-    pub finished_block_number: Option<U64>,
-    pub result: Option<TransactionResult>,
 }
