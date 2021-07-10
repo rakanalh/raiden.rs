@@ -1,4 +1,5 @@
 use web3::types::{
+    Bytes,
     H256,
     U64,
 };
@@ -16,6 +17,8 @@ use crate::{
         ChannelState,
         ChannelStatus,
         ContractReceiveChannelClosed,
+        ContractReceiveChannelSettled,
+        ContractSendChannelBatchUnlock,
         ContractSendChannelSettle,
         ContractSendChannelUpdateTransfer,
         ContractSendEvent,
@@ -153,8 +156,7 @@ fn set_closed(mut channel_state: ChannelState, block_number: U64) -> ChannelStat
 fn handle_channel_closed(channel_state: ChannelState, state_change: ContractReceiveChannelClosed) -> TransitionResult {
     let mut events = vec![];
 
-    let just_closed = state_change.canonical_identifier.chain_identifier
-        == channel_state.canonical_identifier.chain_identifier
+    let just_closed = state_change.canonical_identifier == channel_state.canonical_identifier
         && CHANNEL_STATES_PRIOR_TO_CLOSE
             .to_vec()
             .iter()
@@ -199,6 +201,59 @@ fn handle_channel_closed(channel_state: ChannelState, state_change: ContractRece
     })
 }
 
+fn set_settled(mut channel_state: ChannelState, block_number: U64) -> ChannelState {
+    if channel_state.settle_transaction.is_none() {
+        channel_state.settle_transaction = Some(TransactionExecutionStatus {
+            started_block_number: None,
+            finished_block_number: Some(block_number),
+            result: Some(TransactionResult::Success),
+        });
+    } else if let Some(ref mut settle_transaction) = channel_state.settle_transaction {
+        if settle_transaction.finished_block_number.is_none() {
+            settle_transaction.finished_block_number = Some(block_number);
+            settle_transaction.result = Some(TransactionResult::Success);
+        }
+    }
+    channel_state
+}
+
+fn handle_channel_settled(
+    channel_state: ChannelState,
+    state_change: ContractReceiveChannelSettled,
+) -> TransitionResult {
+    let mut events = vec![];
+
+    if state_change.canonical_identifier == channel_state.canonical_identifier {
+        let mut channel_state = set_settled(channel_state.clone(), state_change.block_number);
+        let our_locksroot = state_change.our_onchain_locksroot.clone();
+        let partner_locksroot = state_change.our_onchain_locksroot.clone();
+        let should_clear_channel = our_locksroot == Bytes(vec![]) && partner_locksroot == Bytes(vec![]);
+
+        if should_clear_channel {
+            return Ok(ChannelTransition {
+                new_state: None,
+                events,
+            });
+        }
+
+        channel_state.our_state.onchain_locksroot = our_locksroot;
+        channel_state.partner_state.onchain_locksroot = partner_locksroot;
+
+        events.push(Event::ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock {
+            inner: ContractSendEvent {
+                triggered_by_blockhash: state_change.block_hash,
+            },
+            canonical_identifier: channel_state.canonical_identifier,
+            sender: channel_state.partner_state.address,
+        }));
+    }
+
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events,
+    })
+}
+
 pub fn state_transition(
     channel_state: ChannelState,
     state_change: StateChange,
@@ -209,10 +264,7 @@ pub fn state_transition(
     match state_change {
         StateChange::Block(inner) => handle_block(channel_state, inner, block_number, pseudo_random_number_generator),
         StateChange::ContractReceiveChannelClosed(inner) => handle_channel_closed(channel_state, inner),
-        StateChange::ContractReceiveChannelSettled(ref _inner) => Ok(ChannelTransition {
-            new_state: Some(channel_state),
-            events: vec![],
-        }),
+        StateChange::ContractReceiveChannelSettled(inner) => handle_channel_settled(channel_state, inner),
         StateChange::ContractReceiveChannelDeposit(ref _inner) => Ok(ChannelTransition {
             new_state: Some(channel_state),
             events: vec![],

@@ -9,6 +9,7 @@ use serde::{
 };
 use web3::types::{
     Address,
+    Bytes,
     H256,
     U256,
     U64,
@@ -226,7 +227,7 @@ pub struct ChannelEndState {
     pub secrethashes_to_onchain_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
     pub balance_proof: Option<BalanceProofState>,
     pub pending_locks: PendingLocksState,
-    pub onchain_locksroot: H256,
+    pub onchain_locksroot: Bytes,
     pub nonce: u64,
 }
 
@@ -243,7 +244,7 @@ impl ChannelEndState {
             secrethashes_to_onchain_unlockedlocks: HashMap::new(),
             balance_proof: None,
             pending_locks: PendingLocksState::default(),
-            onchain_locksroot: H256::zero(),
+            onchain_locksroot: Bytes(vec![]),
             nonce: 0,
         }
     }

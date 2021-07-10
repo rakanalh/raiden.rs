@@ -22,6 +22,7 @@ pub enum Event {
     SendWithdrawExpired(SendWithdrawExpired),
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
+    ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -69,4 +70,11 @@ pub struct ContractSendChannelUpdateTransfer {
     pub inner: ContractSendEvent,
     pub expiration: U64,
     pub balance_proof: BalanceProofState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ContractSendChannelBatchUnlock {
+    pub inner: ContractSendEvent,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub sender: Address,
 }
