@@ -22,6 +22,7 @@ use crate::{
         AddressMetadata,
         CanonicalIdentifier,
         ChainID,
+        MediationFeeConfig,
         QueueIdentifier,
         Random,
         TransactionExecutionStatus,
@@ -137,6 +138,7 @@ pub struct ChannelState {
     pub token_network_registry_address: Address,
     pub reveal_timeout: U64,
     pub settle_timeout: U64,
+    pub fee_schedule: FeeScheduleState,
     pub our_state: ChannelEndState,
     pub partner_state: ChannelEndState,
     pub open_transaction: TransactionExecutionStatus,
@@ -155,6 +157,7 @@ impl ChannelState {
         reveal_timeout: U64,
         settle_timeout: U64,
         open_transaction: TransactionExecutionStatus,
+        fee_config: MediationFeeConfig,
     ) -> Result<ChannelState, ChannelError> {
         if reveal_timeout >= settle_timeout {
             return Err(ChannelError {
@@ -181,6 +184,12 @@ impl ChannelState {
             close_transaction: None,
             settle_transaction: None,
             update_transaction: None,
+            fee_schedule: FeeScheduleState {
+                cap_fees: fee_config.cap_meditation_fees,
+                flat: fee_config.get_flat_fee(&token_address),
+                proportional: fee_config.get_proportional_fee(&token_address),
+                imbalance_penalty: None,
+            },
         })
     }
 
@@ -212,6 +221,11 @@ impl ChannelState {
         }
 
         status
+    }
+
+    pub fn capacity(&self) -> u64 {
+        self.our_state.contract_balance - self.our_state.total_withdraw() + self.partner_state.contract_balance
+            - self.partner_state.total_withdraw()
     }
 }
 
@@ -330,8 +344,16 @@ impl PendingWithdrawState {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FeeScheduleState {
-    flat: u64,
-    proportional: u64,
-    imbalance_penalty: Option<Vec<(u64, u64)>>,
-    penalty_func: Option<u64>,
+    pub cap_fees: bool,
+    pub flat: u64,
+    pub proportional: u64,
+    pub imbalance_penalty: Option<Vec<(u64, u64)>>,
+    //penalty_func: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TransactionChannelDeposit {
+    pub participant_address: Address,
+    pub contract_balance: u64,
+    pub deposit_block_number: U64,
 }

@@ -13,6 +13,7 @@ use crate::{
     constants,
     primitives::{
         CanonicalIdentifier,
+        RaidenConfig,
         TransactionExecutionStatus,
         TransactionResult,
     },
@@ -38,11 +39,12 @@ use super::{
 
 pub struct EventDecoder {
     proxy_manager: Arc<ProxyManager>,
+    config: RaidenConfig,
 }
 
 impl EventDecoder {
-    pub fn new(proxy_manager: Arc<ProxyManager>) -> Self {
-        Self { proxy_manager }
+    pub fn new(config: RaidenConfig, proxy_manager: Arc<ProxyManager>) -> Self {
+        Self { proxy_manager, config }
     }
 
     pub async fn as_state_change(&self, event: Event, chain_state: &ChainState) -> Option<StateChange> {
@@ -128,6 +130,7 @@ impl EventDecoder {
             reveal_timeout,
             settle_timeout,
             open_transaction,
+            self.config.mediation_config.clone(),
         )
         .ok()?;
 

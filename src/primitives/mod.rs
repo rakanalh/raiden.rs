@@ -1,3 +1,7 @@
+mod config;
+
+pub use config::*;
+
 use std::{
     collections::HashMap,
     str::FromStr,
@@ -29,8 +33,9 @@ use crate::constants::{
 pub type AddressMetadata = HashMap<String, String>;
 
 pub type BlockTimeout = u32;
-pub type FeeAmount = u32;
-pub type ProportionalFeeAmount = u32;
+pub type TokenAmount = u64;
+pub type FeeAmount = u64;
+pub type ProportionalFeeAmount = u64;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Random(ChaChaRng);
@@ -111,9 +116,9 @@ pub struct TransactionExecutionStatus {
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct MediationFeeConfig {
     pub token_to_flat_fee: HashMap<Address, FeeAmount>,
-    token_to_proportional_fee: HashMap<Address, ProportionalFeeAmount>,
-    token_to_proportional_imbalance_fee: HashMap<Address, ProportionalFeeAmount>,
-    cap_meditation_fees: bool,
+    pub token_to_proportional_fee: HashMap<Address, ProportionalFeeAmount>,
+    pub token_to_proportional_imbalance_fee: HashMap<Address, ProportionalFeeAmount>,
+    pub cap_meditation_fees: bool,
 }
 
 impl MediationFeeConfig {

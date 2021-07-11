@@ -22,6 +22,8 @@ use web3::types::{
     U64,
 };
 
+use super::TransactionChannelDeposit;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StateChange {
     Block(Block),
@@ -101,7 +103,7 @@ pub struct ContractReceiveChannelSettled {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelDeposit {
     pub canonical_identifier: CanonicalIdentifier,
-    pub deposit_transaction: Address,
+    pub deposit_transaction: TransactionChannelDeposit,
     pub fee_config: MediationFeeConfig,
 }
 
@@ -109,7 +111,7 @@ pub struct ContractReceiveChannelDeposit {
 pub struct ContractReceiveChannelWithdraw {
     pub canonical_identifier: CanonicalIdentifier,
     pub participant: Address,
-    pub total_withdraw: u32,
+    pub total_withdraw: u64,
     pub fee_config: MediationFeeConfig,
 }
 

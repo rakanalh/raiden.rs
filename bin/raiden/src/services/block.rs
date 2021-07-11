@@ -3,7 +3,6 @@ use std::sync::Arc;
 use futures::StreamExt;
 use parking_lot::RwLock;
 use raiden::{
-    primitives::ChainID,
     state_machine::types::{
         Block,
         StateChange,
@@ -22,7 +21,6 @@ use super::{
 };
 
 pub struct BlockMonitorService {
-    chain_id: ChainID,
     web3: Web3<WebSocket>,
     state_manager: Arc<RwLock<StateManager>>,
     transition_service: Arc<TransitionService>,
@@ -33,7 +31,6 @@ pub struct BlockMonitorService {
 impl BlockMonitorService {
     pub fn new(
         socket: WebSocket,
-        chain_id: ChainID,
         state_manager: Arc<RwLock<StateManager>>,
         transition_service: Arc<TransitionService>,
         sync_service: SyncService,
@@ -42,7 +39,6 @@ impl BlockMonitorService {
         let web3 = web3::Web3::new(socket);
 
         Ok(Self {
-            chain_id,
             web3,
             state_manager,
             transition_service,

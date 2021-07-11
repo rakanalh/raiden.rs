@@ -1,25 +1,22 @@
 #[macro_use]
 extern crate slog;
-extern crate slog_term;
-extern crate tokio;
-extern crate web3;
+// extern crate slog_term;
+// extern crate tokio;
+// extern crate web3;
 
-use clap::{
-    App,
-    Arg,
-};
-use cli::{
-    Config,
-    RaidenApp,
-};
+use clap::Clap;
+use cli::RaidenApp;
 use raiden::blockchain::key::PrivateKey;
 use slog::Drain;
 use std::{
+    convert::TryInto,
     fs,
     path::PathBuf,
     process,
 };
 use web3::types::Address;
+
+use crate::cli::Opt;
 
 mod accounts;
 mod cli;
@@ -30,67 +27,14 @@ mod traits;
 
 #[tokio::main]
 async fn main() {
-    let cli = App::new("Raiden unofficial rust client")
-        .arg(
-            Arg::with_name("chain-id")
-                .short("c")
-                .long("chain-id")
-                .possible_values(&["ropsten", "kovan", "goerli", "rinkeby", "mainnet"])
-                .default_value("mainnet")
-                .required(true)
-                .takes_value(true)
-                .help("Specify the blockchain to run Raiden with"),
-        )
-        .arg(
-            Arg::with_name("eth-rpc-endpoint")
-                .long("eth-rpc-endpoint")
-                .required(true)
-                .takes_value(true)
-                .help("Specify the RPC endpoint to interact with"),
-        )
-        .arg(
-            Arg::with_name("eth-rpc-socket-endpoint")
-                .long("eth-rpc-socket-endpoint")
-                .required(true)
-                .takes_value(true)
-                .help("Specify the RPC endpoint to interact with"),
-        )
-        .arg(
-            Arg::with_name("keystore-path")
-                .short("k")
-                .long("keystore-path")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("datadir")
-                .long("datadir")
-                .default_value("~/.raiden")
-                .takes_value(true)
-                .help("Directory for storing raiden data."),
-        )
-        .arg(
-            Arg::with_name("verbosity")
-                .short("v")
-                .multiple(true)
-                .help("Sets the level of verbosity"),
-        );
+    let cli = Opt::parse();
 
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
     let logger = slog::Logger::root(drain, o!());
 
-    let matches = cli.get_matches();
-    let configs = match Config::new(matches.clone()) {
-        Ok(configs) => configs,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            process::exit(1);
-        }
-    };
-
-    match setup_data_directory(configs.clone().datadir) {
+    match setup_data_directory(cli.datadir.clone()) {
         Err(e) => {
             eprintln!("Error initializing data directory: {}", e);
             process::exit(1);
@@ -98,10 +42,18 @@ async fn main() {
         _ => {}
     };
 
-    let (node_address, secret_key) = prompt_key(configs.clone().keystore_path);
+    let (node_address, secret_key) = prompt_key(cli.keystore_path.clone());
 
     info!(logger, "Welcome to Raiden");
     info!(logger, "Initializing");
+
+    let configs = match cli.try_into() {
+        Ok(configs) => configs,
+        Err(e) => {
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
 
     let raiden_app = match RaidenApp::new(configs, node_address, secret_key, logger.clone()) {
         Ok(app) => app,
@@ -113,8 +65,6 @@ async fn main() {
 
     info!(logger, "Raiden is starting");
     raiden_app.run().await;
-    //let server = http::server(log.clone());
-    // let _ = eloop.run(server);
 }
 
 fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {

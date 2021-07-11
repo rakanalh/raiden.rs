@@ -19,6 +19,7 @@ use raiden::{
         filters::filters_from_chain_state,
         proxies::ProxyManager,
     },
+    primitives::RaidenConfig,
     state_manager::StateManager,
 };
 
@@ -76,6 +77,7 @@ impl BlockBatchSizeAdjuster {
 
 pub struct SyncService {
     web3: Web3<Http>,
+    config: RaidenConfig,
     state_manager: Arc<RwLock<StateManager>>,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
@@ -87,6 +89,7 @@ pub struct SyncService {
 impl SyncService {
     pub fn new(
         web3: Web3<Http>,
+        config: RaidenConfig,
         state_manager: Arc<RwLock<StateManager>>,
         contracts_manager: Arc<ContractsManager>,
         proxy_manager: Arc<ProxyManager>,
@@ -106,6 +109,7 @@ impl SyncService {
 
         Self {
             web3,
+            config,
             state_manager,
             contracts_manager,
             proxy_manager,
@@ -157,7 +161,7 @@ impl SyncService {
                                 continue;
                             }
                         };
-                        let decoder = EventDecoder::new(self.proxy_manager.clone());
+                        let decoder = EventDecoder::new(self.config.clone(), self.proxy_manager.clone());
                         match decoder.as_state_change(event, current_state).await {
                             Some(state_change) => self.transition_service.transition(state_change).await,
                             None => {

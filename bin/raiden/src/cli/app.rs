@@ -10,7 +10,6 @@ use crate::{
         ToSocketEndpoint,
     },
 };
-use clap::ArgMatches;
 use futures::executor;
 use parking_lot::RwLock;
 use raiden::{
@@ -23,17 +22,18 @@ use raiden::{
         key::PrivateKey,
         proxies::ProxyManager,
     },
-    primitives::ChainID,
+    primitives::{
+        MediationFeeConfig,
+        RaidenConfig,
+    },
     state_manager::StateManager,
     storage::Storage,
 };
 use rusqlite::Connection;
 use slog::Logger;
 use std::{
-    path::{
-        Path,
-        PathBuf,
-    },
+    convert::TryFrom,
+    path::Path,
     sync::Arc,
 };
 use web3::{
@@ -46,25 +46,18 @@ use web3::{
     Web3,
 };
 
+use super::Opt;
+
 type Result<T> = std::result::Result<T, String>;
 
-#[derive(Clone)]
-pub struct Config {
-    pub chain_id: ChainID,
-    pub datadir: PathBuf,
-    pub keystore_path: PathBuf,
-    pub eth_http_rpc_endpoint: String,
-    pub eth_socket_rpc_endpoint: String,
-}
+impl TryFrom<Opt> for RaidenConfig {
+    type Error = String;
 
-impl Config {
-    pub fn new(args: ArgMatches) -> Result<Self> {
+    fn try_from(args: Opt) -> Result<Self> {
         // TODO: No unwrap
-        let chain_name = args.value_of("chain-id").unwrap();
-        let chain_id = chain_name.parse().unwrap();
-
-        let eth_rpc_http_endpoint = args.value_of("eth-rpc-endpoint").unwrap();
-        let eth_rpc_socket_endpoint = args.value_of("eth-rpc-socket-endpoint").unwrap();
+        let chain_id = args.chain_id.into();
+        let eth_rpc_http_endpoint = args.eth_rpc_endpoint;
+        let eth_rpc_socket_endpoint = args.eth_rpc_socket_endpoint;
         let http_endpoint = eth_rpc_http_endpoint.to_http();
         if let Err(e) = http_endpoint {
             return Err(format!("Invalid RPC endpoint: {}", e));
@@ -75,12 +68,35 @@ impl Config {
             return Err(format!("Invalid RPC endpoint: {}", e));
         }
 
-        let keystore_path = Path::new(args.value_of("keystore-path").unwrap());
-        let datadir = expanduser::expanduser(args.value_of("datadir").unwrap()).unwrap();
+        let keystore_path = Path::new(&args.keystore_path);
+        let datadir = expanduser::expanduser(args.datadir.to_string_lossy()).unwrap();
+
+        let mediation_config = MediationFeeConfig {
+            token_to_flat_fee: args
+                .mediation_fees
+                .flat_fee
+                .into_iter()
+                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v))
+                .collect(),
+            token_to_proportional_fee: args
+                .mediation_fees
+                .proportional_fee
+                .into_iter()
+                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v))
+                .collect(),
+            token_to_proportional_imbalance_fee: args
+                .mediation_fees
+                .proportional_imbalance_fee
+                .into_iter()
+                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v))
+                .collect(),
+            cap_meditation_fees: args.mediation_fees.cap_mediation_fees,
+        };
 
         Ok(Self {
             chain_id,
             datadir,
+            mediation_config,
             keystore_path: keystore_path.to_path_buf(),
             eth_http_rpc_endpoint: http_endpoint.unwrap(),
             eth_socket_rpc_endpoint: socket_endpoint.unwrap(),
@@ -89,9 +105,8 @@ impl Config {
 }
 
 pub struct RaidenApp {
-    config: Config,
+    config: RaidenConfig,
     web3: Web3<Http>,
-    node_address: Address,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
@@ -99,7 +114,7 @@ pub struct RaidenApp {
 }
 
 impl RaidenApp {
-    pub fn new(config: Config, node_address: Address, private_key: PrivateKey, logger: Logger) -> Result<Self> {
+    pub fn new(config: RaidenConfig, node_address: Address, private_key: PrivateKey, logger: Logger) -> Result<Self> {
         let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
         let web3 = web3::Web3::new(http);
 
@@ -156,7 +171,6 @@ impl RaidenApp {
         Ok(Self {
             config,
             web3,
-            node_address,
             contracts_manager,
             proxy_manager: Arc::new(proxy_manager),
             state_manager: Arc::new(RwLock::new(state_manager)),
@@ -179,6 +193,7 @@ impl RaidenApp {
 
         let mut sync_service = SyncService::new(
             self.web3.clone(),
+            self.config.clone(),
             self.state_manager.clone(),
             self.contracts_manager.clone(),
             self.proxy_manager.clone(),
@@ -189,7 +204,6 @@ impl RaidenApp {
 
         let block_monitor = match BlockMonitorService::new(
             ws,
-            self.config.chain_id.clone(),
             self.state_manager.clone(),
             transition_service.clone(),
             sync_service,
