@@ -297,16 +297,19 @@ fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: U2
     }
 }
 
-/// Returns a list of num numbers from start to stop (inclusive).
-fn linspace(start: u128, stop: u128, num: u128) -> Vec<TokenAmount> {
+/// Returns a list of numbers from start to stop (inclusive).
+fn linspace(start: U256, stop: U256, num: U256) -> Vec<TokenAmount> {
     // assert num > 1, "Must generate at least one step"
     // assert start <= stop, "start must be smaller than stop"
 
     let step = (stop - start) / (num - 1);
 
     let mut result = vec![];
-    for i in 0..num {
-        result.push(U256::from(start + i * step));
+
+    let mut i = U256::zero();
+    while i < num {
+        result.push(start + i * step);
+        i = i + 1;
     }
 
     result
@@ -324,24 +327,30 @@ fn calculate_imbalance_fees(
         return None;
     }
 
-    let maximum_slope = U256::from(10 ^ -1);
-    let max_imbalance_fee = channel_capacity.saturating_mul(proportional_imbalance_fee) / U256::from(1_000_000);
+    let maximum_slope = U256::from(10); // 0.1
+    let (max_imbalance_fee, overflow) = channel_capacity.overflowing_mul(proportional_imbalance_fee);
 
+    if overflow {
+        // TODO: Should fail?
+        return None;
+    }
+
+    let max_imbalance_fee = max_imbalance_fee / U256::from(1_000_000);
     // assert proportional_imbalance_fee / 1e6 <= maximum_slope / 2, "Too high imbalance fee"
 
     // calculate function parameters
     let s = maximum_slope;
     let c = max_imbalance_fee;
     let o = channel_capacity.div(2);
-    let b = o.pow(s).div(c);
+    let b = o.div(s).div(c);
     let b = b.min(U256::from(10)); // limit exponent to keep numerical stability;
-    let a = (c / o).pow(b);
+    let a = c / o.pow(b);
 
     let f = |x: U256| -> U256 { a * (x - o).pow(b) };
 
     // calculate discrete function points
     let num_base_points = min(NUM_DISCRETISATION_POINTS.into(), channel_capacity + 1);
-    let x_values: Vec<U256> = linspace(0, channel_capacity.as_u128(), num_base_points.as_u128());
+    let x_values: Vec<U256> = linspace(0u64.into(), channel_capacity, num_base_points);
     let y_values: Vec<U256> = x_values.iter().map(|x| f(*x)).collect();
 
     Some(x_values.into_iter().zip(y_values).collect())
