@@ -10,7 +10,10 @@ use web3::types::{
     H256,
 };
 
-use crate::{primitives::U64, state_machine::types::ChainState};
+use crate::{
+    primitives::U64,
+    state_machine::types::ChainState,
+};
 
 use super::contracts::{
     ContractIdentifier,
