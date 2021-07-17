@@ -76,19 +76,19 @@ impl TryFrom<Opt> for RaidenConfig {
                 .mediation_fees
                 .flat_fee
                 .into_iter()
-                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v))
+                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
                 .collect(),
             token_to_proportional_fee: args
                 .mediation_fees
                 .proportional_fee
                 .into_iter()
-                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v))
+                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
                 .collect(),
             token_to_proportional_imbalance_fee: args
                 .mediation_fees
                 .proportional_imbalance_fee
                 .into_iter()
-                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v))
+                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
                 .collect(),
             cap_meditation_fees: args.mediation_fees.cap_mediation_fees,
         };
@@ -200,7 +200,9 @@ impl RaidenApp {
             transition_service.clone(),
             self.logger.clone(),
         );
-        sync_service.sync(sync_start_block_number, latest_block_number).await;
+        sync_service
+            .sync(sync_start_block_number, latest_block_number.into())
+            .await;
 
         let block_monitor = match BlockMonitorService::new(
             ws,

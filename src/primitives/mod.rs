@@ -1,6 +1,8 @@
 mod config;
+mod numeric;
 
 pub use config::*;
+pub use numeric::*;
 
 use std::{
     collections::HashMap,
@@ -21,7 +23,6 @@ use serde::{
 use web3::types::{
     Address,
     U256,
-    U64,
 };
 
 use crate::constants::{
@@ -33,9 +34,9 @@ use crate::constants::{
 pub type AddressMetadata = HashMap<String, String>;
 
 pub type BlockTimeout = u32;
-pub type TokenAmount = u64;
-pub type FeeAmount = u64;
-pub type ProportionalFeeAmount = u64;
+pub type TokenAmount = U256;
+pub type FeeAmount = U256;
+pub type ProportionalFeeAmount = U256;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Random(ChaChaRng);
@@ -126,20 +127,20 @@ impl MediationFeeConfig {
         *self
             .token_to_flat_fee
             .get(token_address)
-            .unwrap_or(&DEFAULT_MEDIATION_FLAT_FEE)
+            .unwrap_or(&DEFAULT_MEDIATION_FLAT_FEE.into())
     }
 
     pub fn get_proportional_fee(&self, token_address: &Address) -> ProportionalFeeAmount {
         *self
             .token_to_proportional_fee
             .get(token_address)
-            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_FEE)
+            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_FEE.into())
     }
 
     pub fn get_proportional_imbalance_fee(self, token_address: &Address) -> ProportionalFeeAmount {
         *self
             .token_to_proportional_imbalance_fee
             .get(token_address)
-            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE)
+            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE.into())
     }
 }

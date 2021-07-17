@@ -75,7 +75,7 @@ impl BlockMonitorService {
                 self.transition_service
                     .transition(StateChange::Block(block_state_change))
                     .await;
-                self.sync_service.sync(current_block_number, block_number).await;
+                self.sync_service.sync(current_block_number, block_number.into()).await;
             }
         }
     }

@@ -1,7 +1,6 @@
 use web3::types::{
     Address,
     H256,
-    U64,
 };
 
 use crate::{

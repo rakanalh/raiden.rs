@@ -7,7 +7,6 @@ use parking_lot::RwLock;
 use slog::Logger;
 use web3::{
     transports::Http,
-    types::U64,
     Web3,
 };
 
@@ -19,7 +18,10 @@ use raiden::{
         filters::filters_from_chain_state,
         proxies::ProxyManager,
     },
-    primitives::RaidenConfig,
+    primitives::{
+        RaidenConfig,
+        U64,
+    },
     state_manager::StateManager,
 };
 
@@ -136,7 +138,7 @@ impl SyncService {
 
         while from_block < end_block_number {
             let to_block = cmp::min(
-                from_block + self.block_batch_size_adjuster.batch_size(),
+                from_block + self.block_batch_size_adjuster.batch_size().into(),
                 end_block_number,
             );
 
@@ -169,7 +171,7 @@ impl SyncService {
                             }
                         };
                     }
-                    from_block = to_block + 1;
+                    from_block = to_block + 1u64.into();
                     self.block_batch_size_adjuster.increase();
                 }
                 Err(_) => {

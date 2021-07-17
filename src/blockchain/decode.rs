@@ -6,7 +6,6 @@ use web3::types::{
     Bytes,
     H256,
     U256,
-    U64,
 };
 
 use crate::{
@@ -16,6 +15,7 @@ use crate::{
         RaidenConfig,
         TransactionExecutionStatus,
         TransactionResult,
+        U64,
     },
     state_machine::{
         types::{
@@ -93,16 +93,18 @@ impl EventDecoder {
             _ => Address::zero(),
         };
         let settle_timeout = match event.data.get("settle_timeout")? {
-            Token::Uint(timeout) => U64::from(timeout.clone().low_u64()),
-            _ => U64::zero(),
+            Token::Uint(timeout) => U256::from(timeout.clone().low_u64()),
+            _ => U256::zero(),
         };
 
         let partner_address: Address;
         let our_address = chain_state.our_address;
-        if participant1 == our_address {
+        if our_address == participant1 {
             partner_address = participant2;
-        } else {
+        } else if our_address == participant2 {
             partner_address = participant1;
+        } else {
+            return None;
         }
 
         let token_network_address = event.address;
@@ -114,7 +116,7 @@ impl EventDecoder {
         let reveal_timeout = U64::from(constants::DEFAULT_REVEAL_TIMEOUT);
         let open_transaction = TransactionExecutionStatus {
             started_block_number: Some(U64::from(0)),
-            finished_block_number: Some(event.block_number),
+            finished_block_number: Some(event.block_number.clone()),
             result: Some(TransactionResult::Success),
         };
         let channel_state = ChannelState::new(

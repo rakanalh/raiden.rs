@@ -3,10 +3,7 @@ use std::{
     convert::TryInto,
 };
 
-use crate::{
-    blockchain::errors::ContractDefError,
-    primitives::ChainID,
-};
+use crate::{blockchain::errors::ContractDefError, primitives::{ChainID, U64}};
 
 use ethabi::Event;
 use serde_json::{
@@ -15,7 +12,6 @@ use serde_json::{
 };
 use web3::types::{
     Address,
-    U64,
 };
 
 use super::{

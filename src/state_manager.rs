@@ -3,13 +3,15 @@ use ulid::Ulid;
 use web3::types::{
     Address,
     H256,
-    U64,
 };
 
 use crate::{
     constants::SNAPSHOT_STATE_CHANGE_COUNT,
     errors,
-    primitives::ChainID,
+    primitives::{
+        ChainID,
+        U64,
+    },
     state_machine::{
         machine::chain,
         types::{

@@ -1,11 +1,13 @@
 use web3::types::{
     H256,
     U256,
-    U64,
 };
 
 use crate::errors::StateTransitionError;
-use crate::primitives::Random;
+use crate::primitives::{
+    Random,
+    U64,
+};
 use crate::state_machine::types::TokenNetworkState;
 use crate::state_machine::types::{
     ContractReceiveChannelOpened,

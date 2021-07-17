@@ -12,7 +12,6 @@ use web3::types::{
     Bytes,
     H256,
     U256,
-    U64,
 };
 
 use crate::{
@@ -28,6 +27,7 @@ use crate::{
         TransactionExecutionStatus,
         TransactionResult,
         TransferTask,
+        U64,
     },
 };
 
@@ -137,7 +137,7 @@ pub struct ChannelState {
     pub token_address: Address,
     pub token_network_registry_address: Address,
     pub reveal_timeout: U64,
-    pub settle_timeout: U64,
+    pub settle_timeout: U256,
     pub fee_schedule: FeeScheduleState,
     pub our_state: ChannelEndState,
     pub partner_state: ChannelEndState,
@@ -155,14 +155,14 @@ impl ChannelState {
         our_address: Address,
         partner_address: Address,
         reveal_timeout: U64,
-        settle_timeout: U64,
+        settle_timeout: U256,
         open_transaction: TransactionExecutionStatus,
         fee_config: MediationFeeConfig,
     ) -> Result<ChannelState, ChannelError> {
-        if reveal_timeout >= settle_timeout {
+        if U256::from(reveal_timeout) >= settle_timeout {
             return Err(ChannelError {
                 msg: format!(
-                    "reveal_timeout({}) must be smaller than settle_timeout({})",
+                    "reveal_timeout({:?}) must be smaller than settle_timeout({:?})",
                     reveal_timeout, settle_timeout,
                 ),
             });
@@ -223,7 +223,7 @@ impl ChannelState {
         status
     }
 
-    pub fn capacity(&self) -> u64 {
+    pub fn capacity(&self) -> U256 {
         self.our_state.contract_balance - self.our_state.total_withdraw() + self.partner_state.contract_balance
             - self.partner_state.total_withdraw()
     }
@@ -232,9 +232,9 @@ impl ChannelState {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChannelEndState {
     pub address: Address,
-    pub contract_balance: u64,
-    pub onchain_total_withdraw: u64,
-    pub withdraws_pending: HashMap<u64, PendingWithdrawState>,
+    pub contract_balance: U256,
+    pub onchain_total_withdraw: U256,
+    pub withdraws_pending: HashMap<U256, PendingWithdrawState>,
     pub withdraws_expired: Vec<ExpiredWithdrawState>,
     pub secrethashes_to_lockedlocks: HashMap<H256, HashTimeLockState>,
     pub secrethashes_to_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
@@ -242,15 +242,15 @@ pub struct ChannelEndState {
     pub balance_proof: Option<BalanceProofState>,
     pub pending_locks: PendingLocksState,
     pub onchain_locksroot: Bytes,
-    pub nonce: u64,
+    pub nonce: U256,
 }
 
 impl ChannelEndState {
     pub fn new(address: Address) -> Self {
         Self {
             address,
-            contract_balance: 0,
-            onchain_total_withdraw: 0,
+            contract_balance: U256::zero(),
+            onchain_total_withdraw: U256::zero(),
             withdraws_pending: HashMap::new(),
             withdraws_expired: vec![],
             secrethashes_to_lockedlocks: HashMap::new(),
@@ -259,31 +259,31 @@ impl ChannelEndState {
             balance_proof: None,
             pending_locks: PendingLocksState::default(),
             onchain_locksroot: Bytes(vec![]),
-            nonce: 0,
+            nonce: U256::zero(),
         }
     }
 
-    pub fn offchain_total_withdraw(&self) -> u64 {
+    pub fn offchain_total_withdraw(&self) -> U256 {
         self.withdraws_pending
             .values()
             .map(|w| w.total_withdraw)
-            .fold(0, |a, b| max(a, b))
+            .fold(U256::zero(), |a, b| max(a, b))
     }
 
-    pub fn total_withdraw(&self) -> u64 {
+    pub fn total_withdraw(&self) -> U256 {
         max(self.offchain_total_withdraw(), self.onchain_total_withdraw)
     }
 
-    pub fn next_nonce(&self) -> u64 {
+    pub fn next_nonce(&self) -> U256 {
         self.nonce + 1
     }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct BalanceProofState {
-    pub nonce: u64,
-    pub transferred_amount: u64,
-    pub locked_amount: u64,
+    pub nonce: U256,
+    pub transferred_amount: U256,
+    pub locked_amount: U256,
     pub locksroot: H256,
     pub canonical_identifier: CanonicalIdentifier,
     pub balance_hash: H256,
@@ -301,39 +301,41 @@ pub struct PendingLocksState {
 pub struct UnlockPartialProofState {
     lock: HashTimeLockState,
     secret: H256,
-    amount: u64,
-    expiration: u16,
+    amount: U256,
+    expiration: U64,
     secrethash: H256,
     encoded: H256,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HashTimeLockState {
-    amount: u64,
-    expiration: u16,
+    amount: U256,
+    expiration: U64,
     secrethash: H256,
     encoded: H256,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ExpiredWithdrawState {
-    pub total_withdraw: u64,
+    pub total_withdraw: U256,
     pub expiration: U64,
-    pub nonce: u64,
+    pub nonce: U256,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PendingWithdrawState {
-    pub total_withdraw: u64,
+    pub total_withdraw: U256,
     pub expiration: U64,
-    pub nonce: u64,
+    pub nonce: U256,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
 impl PendingWithdrawState {
     pub fn expiration_threshold(&self) -> U64 {
-        self.expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS * 2
+        self.expiration
+            .saturating_add(DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.saturating_mul(2).into())
+            .into()
     }
 
     pub fn has_expired(&self, current_block: U64) -> bool {
@@ -345,15 +347,15 @@ impl PendingWithdrawState {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FeeScheduleState {
     pub cap_fees: bool,
-    pub flat: u64,
-    pub proportional: u64,
-    pub imbalance_penalty: Option<Vec<(u64, u64)>>,
+    pub flat: U256,
+    pub proportional: U256,
+    pub imbalance_penalty: Option<Vec<(U256, U256)>>,
     //penalty_func: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransactionChannelDeposit {
     pub participant_address: Address,
-    pub contract_balance: u64,
+    pub contract_balance: U256,
     pub deposit_block_number: U64,
 }

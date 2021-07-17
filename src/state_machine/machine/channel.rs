@@ -3,7 +3,7 @@ use std::cmp::min;
 use web3::types::{
     Bytes,
     H256,
-    U64,
+    U256,
 };
 
 use crate::{
@@ -19,6 +19,7 @@ use crate::{
         TokenAmount,
         TransactionExecutionStatus,
         TransactionResult,
+        U64,
     },
     state_machine::types::{
         Block,
@@ -268,14 +269,14 @@ fn handle_channel_settled(
     })
 }
 
-fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: u64) {
+fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: U256) {
     if contract_balance > end_state.contract_balance {
         end_state.contract_balance = contract_balance;
     }
 }
 
 /// Returns a list of num numbers from start to stop (inclusive).
-fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<TokenAmount> {
+fn linspace(start: u128, stop: u128, num: u128) -> Vec<TokenAmount> {
     // assert num > 1, "Must generate at least one step"
     // assert start <= stop, "start must be smaller than stop"
 
@@ -283,43 +284,43 @@ fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<Toke
 
     let mut result = vec![];
     for i in 0..num {
-        result.push(start + i * step);
+        result.push(U256::from(start + i * step));
     }
 
     result
 }
 
 fn calculate_imbalance_fees(
-    channel_capacity: u64,
-    proportional_imbalance_fee: u64,
+    channel_capacity: U256,
+    proportional_imbalance_fee: U256,
 ) -> Option<Vec<(TokenAmount, FeeAmount)>> {
-    if proportional_imbalance_fee == 0 {
+    if proportional_imbalance_fee == U256::zero() {
         return None;
     }
 
-    if channel_capacity == 0 {
+    if channel_capacity == U256::zero() {
         return None;
     }
 
-    let maximum_slope = 0.1;
-    let max_imbalance_fee = (channel_capacity as f64 * proportional_imbalance_fee as f64) / 1e6;
+    let maximum_slope = U256::from(10 ^ -1);
+    let max_imbalance_fee = channel_capacity.saturating_mul(proportional_imbalance_fee) / U256::from(1_000_000);
 
     // assert proportional_imbalance_fee / 1e6 <= maximum_slope / 2, "Too high imbalance fee"
 
     // calculate function parameters
     let s = maximum_slope;
     let c = max_imbalance_fee;
-    let o = (channel_capacity / 2) as f64;
-    let b = s * o / c;
-    let b = b.min(10.0); // limit exponent to keep numerical stability;
-    let a = (c / (o as f64)).powf(b);
+    let o = channel_capacity.div(2);
+    let b = o.pow(s).div(c);
+    let b = b.min(U256::from(10)); // limit exponent to keep numerical stability;
+    let a = (c / o).pow(b);
 
-    let f = |x: f64| -> u64 { f64::floor(a * f64::abs(x - o).powf(b)).round() as u64 };
+    let f = |x: U256| -> U256 { a * (x - o).pow(b) };
 
     // calculate discrete function points
-    let num_base_points = min(NUM_DISCRETISATION_POINTS, channel_capacity + 1);
-    let x_values: Vec<u64> = linspace(0, channel_capacity, num_base_points);
-    let y_values: Vec<u64> = x_values.iter().map(|x| f(*x as f64)).collect();
+    let num_base_points = min(NUM_DISCRETISATION_POINTS.into(), channel_capacity + 1);
+    let x_values: Vec<U256> = linspace(0, channel_capacity.as_u128(), num_base_points.as_u128());
+    let y_values: Vec<U256> = x_values.iter().map(|x| f(*x)).collect();
 
     Some(x_values.into_iter().zip(y_values).collect())
 }

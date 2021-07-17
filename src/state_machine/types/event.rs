@@ -7,12 +7,13 @@ use serde::{
 use web3::types::{
     Address,
     H256,
-    U64,
+    U256,
 };
 
 use crate::primitives::{
     AddressMetadata,
     CanonicalIdentifier,
+    U64,
 };
 
 use super::BalanceProofState;
@@ -42,7 +43,7 @@ pub struct SendMessageEventInner {
 pub struct SendWithdrawExpired {
     pub inner: SendMessageEventInner,
     pub participant: Address,
-    pub nonce: u64,
+    pub nonce: U256,
     pub expiration: U64,
 }
 
@@ -68,7 +69,7 @@ pub struct ContractSendChannelSettle {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractSendChannelUpdateTransfer {
     pub inner: ContractSendEvent,
-    pub expiration: U64,
+    pub expiration: U256,
     pub balance_proof: BalanceProofState,
 }
 

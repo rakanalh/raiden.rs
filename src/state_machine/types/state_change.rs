@@ -3,6 +3,7 @@ use crate::{
         CanonicalIdentifier,
         ChainID,
         MediationFeeConfig,
+        U64,
     },
     state_machine::types::{
         ChannelState,
@@ -19,7 +20,6 @@ use web3::types::{
     Bytes,
     H256,
     U256,
-    U64,
 };
 
 use super::TransactionChannelDeposit;
@@ -111,7 +111,7 @@ pub struct ContractReceiveChannelDeposit {
 pub struct ContractReceiveChannelWithdraw {
     pub canonical_identifier: CanonicalIdentifier,
     pub participant: Address,
-    pub total_withdraw: u64,
+    pub total_withdraw: U256,
     pub fee_config: MediationFeeConfig,
 }
 

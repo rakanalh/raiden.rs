@@ -7,8 +7,9 @@ use web3::types::{
     Address,
     Log,
     H256,
-    U64,
 };
+
+use crate::primitives::U64;
 
 use super::contracts::ContractsManager;
 
@@ -64,7 +65,7 @@ impl Event {
                 return Some(Event {
                     name: event.name.clone(),
                     address: log.address,
-                    block_number: log.block_number.unwrap(),
+                    block_number: log.block_number.unwrap().into(),
                     block_hash: log.block_hash.unwrap(),
                     transaction_hash: log.transaction_hash.unwrap(),
                     data,

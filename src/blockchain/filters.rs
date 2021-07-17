@@ -8,10 +8,9 @@ use web3::types::{
     FilterBuilder,
     H160,
     H256,
-    U64,
 };
 
-use crate::state_machine::types::ChainState;
+use crate::{primitives::U64, state_machine::types::ChainState};
 
 use super::contracts::{
     ContractIdentifier,

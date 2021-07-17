@@ -3,12 +3,13 @@ use std::cmp::max;
 use web3::types::{
     Address,
     H256,
-    U64,
+    U256,
 };
 
 use crate::primitives::{
     CanonicalIdentifier,
     TransactionResult,
+    U64,
 };
 
 use super::types::{
@@ -131,16 +132,15 @@ pub fn get_channel_status(channel_state: &ChannelState) -> ChannelStatus {
     result
 }
 
-pub fn get_channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> u64 {
-    let mut sender_transferred_amount = 0;
-    let mut receiver_transferred_amount = 0;
+pub fn get_channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> U256 {
+    let mut sender_transferred_amount = U256::zero();
+    let mut receiver_transferred_amount = U256::zero();
 
-    if let Some(ref sender_balance_proof) = sender.balance_proof {
-        sender_transferred_amount = sender_balance_proof.transferred_amount;
+    if let Some(balance_proof) = &sender.balance_proof {
+        sender_transferred_amount = balance_proof.transferred_amount;
     }
-
-    if let Some(ref receiver_balance_proof) = receiver.balance_proof {
-        receiver_transferred_amount = receiver_balance_proof.transferred_amount;
+    if let Some(balance_proof) = &receiver.balance_proof {
+        receiver_transferred_amount = balance_proof.transferred_amount;
     }
 
     sender.contract_balance
