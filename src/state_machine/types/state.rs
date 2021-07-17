@@ -1,3 +1,4 @@
+use derive_more::Display;
 use std::{
     cmp::max,
     collections::HashMap,
@@ -121,13 +122,19 @@ impl TokenNetworkState {
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct TokenNetworkGraphState {}
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Display, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChannelStatus {
+    #[display(fmt = "Opened")]
     Opened,
+    #[display(fmt = "Closing")]
     Closing,
+    #[display(fmt = "Closed")]
     Closed,
+    #[display(fmt = "Settling")]
     Settling,
+    #[display(fmt = "Settled")]
     Settled,
+    #[display(fmt = "Unusable")]
     Unusable,
 }
 
