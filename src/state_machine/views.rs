@@ -72,6 +72,19 @@ pub fn get_token_network_by_address(
         .find(|tn| tn.address == token_network_address)
 }
 
+pub fn get_token_network_by_token_address(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+) -> Option<&TokenNetworkState> {
+    let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
+    token_network_registries
+        .values()
+        .map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
+        .flatten()
+        .find(|tn| tn.token_address == token_address)
+}
+
 pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
     let mut channels = vec![];
 
@@ -95,6 +108,22 @@ pub fn get_channel_by_canonical_identifier(
             .get(&canonical_identifier.channel_identifier);
     }
     None
+}
+
+pub fn get_channel_state_for(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+    partner_address: Address,
+) -> Option<&ChannelState> {
+    match get_token_network_by_token_address(chain_state, registry_address, token_address) {
+        Some(token_network) => token_network
+            .channelidentifiers_to_channels
+            .iter()
+            .map(|(_, c)| c)
+            .find(|c| c.partner_state.address == partner_address),
+        _ => None,
+    }
 }
 
 pub fn get_channel_status(channel_state: &ChannelState) -> ChannelStatus {
