@@ -5,9 +5,16 @@ use web3::types::{
 
 use crate::{
     errors::StateTransitionError,
-    state_machine::types::{
-        ChainState,
-        TokenNetworkState,
+    primitives::{
+        CanonicalIdentifier,
+        U64,
+    },
+    state_machine::{
+        types::{
+            ChainState,
+            TokenNetworkState,
+        },
+        views::get_token_network_by_address,
     },
 };
 use crate::{
@@ -35,6 +42,31 @@ type TransitionResult = std::result::Result<ChainTransition, StateTransitionErro
 pub struct ChainTransition {
     pub new_state: ChainState,
     pub events: Vec<Event>,
+}
+
+fn subdispatch_by_canonical_id(
+    chain_state: ChainState,
+    state_change: StateChange,
+    canonical_identifier: CanonicalIdentifier,
+) -> TransitionResult {
+    let mut events = vec![];
+    if let Some(token_network_state) =
+        get_token_network_by_address(&chain_state, canonical_identifier.token_network_address)
+    {
+        let transition = token_network::state_transition(
+            token_network_state.clone(),
+            state_change,
+            chain_state.block_number,
+            chain_state.block_hash,
+            chain_state.pseudo_random_number_generator.clone(),
+        )?;
+        events = transition.events;
+    }
+
+    Ok(ChainTransition {
+        new_state: chain_state,
+        events,
+    })
 }
 
 fn subdispatch_to_all_channels(
@@ -252,6 +284,9 @@ fn handle_contract_receive_channel_closed(
 pub fn state_transition(chain_state: ChainState, state_change: StateChange) -> TransitionResult {
     match state_change {
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
+        StateChange::ActionChannelWithdraw(ref inner) => {
+            subdispatch_by_canonical_id(chain_state, state_change.clone(), inner.canonical_identifier.clone())
+        }
         StateChange::Block(inner) => handle_new_block(chain_state, inner),
         StateChange::ContractReceiveTokenNetworkRegistry(inner) => {
             handle_contract_receive_token_network_registry(chain_state, inner)

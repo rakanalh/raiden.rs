@@ -1,5 +1,6 @@
 use crate::{
     primitives::{
+        AddressMetadata,
         CanonicalIdentifier,
         ChainID,
         MediationFeeConfig,
@@ -28,6 +29,7 @@ use super::TransactionChannelDeposit;
 pub enum StateChange {
     Block(Block),
     ActionInitChain(ActionInitChain),
+    ActionChannelWithdraw(ActionChannelWithdraw),
     ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
     ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated),
     ContractReceiveChannelOpened(ContractReceiveChannelOpened),
@@ -54,6 +56,13 @@ pub struct ActionInitChain {
     pub block_number: U64,
     pub block_hash: H256,
     pub our_address: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionChannelWithdraw {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub total_withdraw: U256,
+    pub recipient_metadata: Option<AddressMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

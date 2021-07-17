@@ -1,4 +1,7 @@
-use std::cmp::min;
+use std::{
+    cmp::min,
+    ops::Div,
+};
 
 use web3::types::{
     Bytes,
@@ -13,6 +16,7 @@ use crate::{
     },
     errors::StateTransitionError,
     primitives::{
+        AddressMetadata,
         FeeAmount,
         MediationFeeConfig,
         Random,
@@ -21,27 +25,34 @@ use crate::{
         TransactionResult,
         U64,
     },
-    state_machine::types::{
-        Block,
-        ChannelEndState,
-        ChannelState,
-        ChannelStatus,
-        ContractReceiveChannelBatchUnlock,
-        ContractReceiveChannelClosed,
-        ContractReceiveChannelDeposit,
-        ContractReceiveChannelSettled,
-        ContractReceiveChannelWithdraw,
-        ContractReceiveUpdateTransfer,
-        ContractSendChannelBatchUnlock,
-        ContractSendChannelSettle,
-        ContractSendChannelUpdateTransfer,
-        ContractSendEvent,
-        Event,
-        ExpiredWithdrawState,
-        FeeScheduleState,
-        SendMessageEventInner,
-        SendWithdrawExpired,
-        StateChange,
+    state_machine::{
+        types::{
+            ActionChannelWithdraw,
+            Block,
+            ChannelEndState,
+            ChannelState,
+            ChannelStatus,
+            ContractReceiveChannelBatchUnlock,
+            ContractReceiveChannelClosed,
+            ContractReceiveChannelDeposit,
+            ContractReceiveChannelSettled,
+            ContractReceiveChannelWithdraw,
+            ContractReceiveUpdateTransfer,
+            ContractSendChannelBatchUnlock,
+            ContractSendChannelSettle,
+            ContractSendChannelUpdateTransfer,
+            ContractSendEvent,
+            Event,
+            EventInvalidActionWithdraw,
+            ExpiredWithdrawState,
+            FeeScheduleState,
+            PendingWithdrawState,
+            SendMessageEventInner,
+            SendWithdrawExpired,
+            SendWithdrawRequest,
+            StateChange,
+        },
+        views::get_channel_balance,
     },
 };
 
@@ -50,6 +61,14 @@ type TransitionResult = std::result::Result<ChannelTransition, StateTransitionEr
 pub struct ChannelTransition {
     pub new_state: Option<ChannelState>,
     pub events: Vec<Event>,
+}
+
+fn get_safe_initial_expiration(block_number: U64, reveal_timeout: U64, lock_timeout: Option<U64>) -> U64 {
+    if let Some(lock_timeout) = lock_timeout {
+        return block_number + lock_timeout;
+    }
+
+    block_number + (reveal_timeout * 2)
 }
 
 fn send_expired_withdraws(
@@ -128,8 +147,9 @@ fn handle_block(
             }
         };
 
-        let settlement_end = channel_state.settle_timeout + closed_block_number;
-        if state_change.block_number > settlement_end {
+        let settlement_end = channel_state.settle_timeout.saturating_add(closed_block_number.into());
+        let state_change_block_number: U256 = state_change.block_number.into();
+        if state_change_block_number > settlement_end {
             channel_state.settle_transaction = Some(TransactionExecutionStatus {
                 started_block_number: Some(state_change.block_number),
                 finished_block_number: None,
@@ -193,7 +213,9 @@ fn handle_channel_closed(channel_state: ChannelState, state_change: ContractRece
         let call_update = state_change.transaction_from != channel_state.our_state.address
             && channel_state.update_transaction.is_none();
         if call_update {
-            let expiration = state_change.block_number + channel_state.settle_timeout;
+            let expiration = channel_state
+                .settle_timeout
+                .saturating_add(state_change.block_number.into());
             let update = Event::ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer {
                 inner: ContractSendEvent {
                     triggered_by_blockhash: state_change.block_hash,
@@ -436,6 +458,109 @@ fn handle_channel_update_transfer(
     });
 }
 
+fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChannelWithdraw) -> Result<(), String> {
+    let balance = get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
+    let (_, overflow) = withdraw
+        .total_withdraw
+        .overflowing_add(channel_state.partner_state.total_withdraw());
+
+    let withdraw_amount = withdraw.total_withdraw - channel_state.our_state.total_withdraw();
+
+    if channel_state.status() != ChannelStatus::Opened {
+        return Err("Invalid withdraw, the channel is not opened".to_owned());
+    } else if withdraw_amount == U256::zero() {
+        return Err(format!("Total withdraw {:?} did not increase", withdraw.total_withdraw));
+    } else if balance < withdraw_amount {
+        return Err(format!(
+            "Insufficient balance: {:?}. Requested {:?} for withdraw",
+            balance, withdraw_amount
+        ));
+    } else if overflow {
+        return Err(format!(
+            "The new total_withdraw {:?} will cause an overflow",
+            withdraw.total_withdraw
+        ));
+    }
+
+    return Ok(());
+}
+
+fn send_withdraw_request(
+    channel_state: &mut ChannelState,
+    total_withdraw: U256,
+    block_number: U64,
+    mut pseudo_random_number_generator: Random,
+    recipient_metadata: Option<AddressMetadata>,
+) -> Vec<Event> {
+    let good_channel = CHANNEL_STATES_PRIOR_TO_CLOSE
+        .to_vec()
+        .iter()
+        .position(|status| status == &channel_state.status())
+        .is_some();
+
+    if !good_channel {
+        return vec![];
+    }
+
+    let nonce = channel_state.our_state.next_nonce();
+    let expiration = get_safe_initial_expiration(block_number, channel_state.reveal_timeout, None);
+
+    let withdraw_state = PendingWithdrawState {
+        total_withdraw,
+        expiration,
+        nonce,
+        recipient_metadata,
+    };
+
+    channel_state.our_state.nonce = nonce;
+    channel_state
+        .our_state
+        .withdraws_pending
+        .insert(withdraw_state.total_withdraw, withdraw_state.clone());
+
+    vec![Event::SendWithdrawRequest(SendWithdrawRequest {
+        inner: SendMessageEventInner {
+            recipient: channel_state.partner_state.address,
+            recipient_metadata: withdraw_state.recipient_metadata.clone(),
+            canonincal_identifier: channel_state.canonical_identifier.clone(),
+            message_identifier: pseudo_random_number_generator.next(),
+        },
+        participant: channel_state.our_state.address,
+        nonce: channel_state.our_state.nonce,
+        expiration: withdraw_state.expiration,
+    })]
+}
+
+fn handle_action_withdraw(
+    mut channel_state: ChannelState,
+    state_change: ActionChannelWithdraw,
+    block_number: U64,
+    pseudo_random_number_generator: Random,
+) -> TransitionResult {
+    let mut events = vec![];
+    match is_valid_action_withdraw(&channel_state, &state_change) {
+        Ok(_) => {
+            events = send_withdraw_request(
+                &mut channel_state,
+                state_change.total_withdraw,
+                block_number,
+                pseudo_random_number_generator,
+                state_change.recipient_metadata,
+            );
+        }
+        Err(e) => {
+            events.push(Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+                attemped_withdraw: state_change.total_withdraw,
+                reason: e,
+            }));
+        }
+    };
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events,
+    })
+}
+
 pub fn state_transition(
     channel_state: ChannelState,
     state_change: StateChange,
@@ -452,6 +577,9 @@ pub fn state_transition(
         StateChange::ContractReceiveChannelBatchUnlock(inner) => handle_channel_batch_unlock(channel_state, inner),
         StateChange::ContractReceiveUpdateTransfer(inner) => {
             handle_channel_update_transfer(channel_state, inner, block_number)
+        }
+        StateChange::ActionChannelWithdraw(inner) => {
+            handle_action_withdraw(channel_state, inner, block_number, pseudo_random_number_generator)
         }
         _ => Err(StateTransitionError {
             msg: String::from("Could not transition channel"),

@@ -21,9 +21,11 @@ use super::BalanceProofState;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Event {
     SendWithdrawExpired(SendWithdrawExpired),
+    SendWithdrawRequest(SendWithdrawRequest),
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
+    InvalidActionWithdraw(EventInvalidActionWithdraw),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -56,6 +58,22 @@ impl Deref for SendWithdrawExpired {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SendWithdrawRequest {
+    pub inner: SendMessageEventInner,
+    pub participant: Address,
+    pub expiration: U64,
+    pub nonce: U256,
+}
+
+impl Deref for SendWithdrawRequest {
+    type Target = SendMessageEventInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractSendEvent {
     pub triggered_by_blockhash: H256,
 }
@@ -78,4 +96,10 @@ pub struct ContractSendChannelBatchUnlock {
     pub inner: ContractSendEvent,
     pub canonical_identifier: CanonicalIdentifier,
     pub sender: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct EventInvalidActionWithdraw {
+    pub attemped_withdraw: U256,
+    pub reason: String,
 }
