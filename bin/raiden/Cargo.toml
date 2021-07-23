@@ -32,4 +32,4 @@ slog-term = "2.6.0"
 thiserror = "1.0"
 tokio = { version = "0.2.11", features=["full"] }
 url = "2.2.2"
-web3 = { git = "https://github.com/rakanalh/rust-web3", branch = "transport-out-send" }
+web3 = "0.16.0"

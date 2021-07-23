@@ -146,18 +146,13 @@ impl ProxyManager {
             .clone())
     }
 
-    pub async fn payment_channel(
-        &self,
-        channel_state: &ChannelState,
-    ) -> Result<ChannelProxy<Http>, ContractDefError> {
+    pub async fn payment_channel(&self, channel_state: &ChannelState) -> Result<ChannelProxy<Http>, ContractDefError> {
         let token_network_address = channel_state.canonical_identifier.token_network_address;
         let token_address = channel_state.token_address;
         let channel_identifier = channel_state.canonical_identifier.channel_identifier;
 
         if !self.channels.read().await.contains_key(&channel_identifier) {
-            let token_network_proxy = self
-                .token_network(token_address, token_network_address)
-                .await?;
+            let token_network_proxy = self.token_network(token_address, token_network_address).await?;
             let proxy = ChannelProxy::new(
                 token_network_proxy,
                 self.account.clone(),

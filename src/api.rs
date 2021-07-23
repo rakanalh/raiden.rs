@@ -358,11 +358,7 @@ impl Api {
         result
     }
 
-    pub async fn channel_deposit(
-        &self,
-        channel_state: &ChannelState,
-        total_deposit: U256,
-    ) -> Result<(), ApiError> {
+    pub async fn channel_deposit(&self, channel_state: &ChannelState, total_deposit: U256) -> Result<(), ApiError> {
         info!(
             self.logger,
             "Depositing to channel. channel_identifier={}, total_deposit={:?}.",
@@ -395,10 +391,7 @@ impl Api {
 
         let token_network_proxy = self
             .proxy_manager
-            .token_network(
-                channel_state.token_address,
-                token_network_address,
-            )
+            .token_network(channel_state.token_address, token_network_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
@@ -495,11 +488,7 @@ impl Api {
         Ok(())
     }
 
-    pub async fn channel_withdraw(
-        &self,
-        _channel_state: &ChannelState,
-        _total_withdraw: U256,
-    ) -> Result<(), ApiError> {
+    pub async fn channel_withdraw(&self, _channel_state: &ChannelState, _total_withdraw: U256) -> Result<(), ApiError> {
         return Err(ApiError::State(format!("Not implemented")));
     }
 

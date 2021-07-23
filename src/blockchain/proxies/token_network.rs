@@ -19,6 +19,7 @@ use web3::{
 };
 
 use crate::blockchain::contracts::GasMetadata;
+use crate::blockchain::proxies::transaction::Transaction;
 
 use super::transaction::{
     ChannelSetTotalDepositTransaction,
@@ -33,7 +34,6 @@ use super::{
     transaction::{
         ChannelOpenTransaction,
         ChannelOpenTransactionParams,
-        Transaction,
     },
     TokenProxy,
 };
@@ -50,7 +50,11 @@ pub struct TokenNetworkProxy<T: Transport> {
     channel_operations_lock: Arc<RwLock<HashMap<Address, Mutex<bool>>>>,
 }
 
-impl<T: Transport + Send + Sync> TokenNetworkProxy<T> {
+impl<T> TokenNetworkProxy<T>
+where
+    T: Transport + Send + Sync,
+    T::Out: Send,
+{
     pub fn new(
         web3: Web3<T>,
         account: Account<T>,

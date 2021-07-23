@@ -30,7 +30,11 @@ pub struct ChannelProxy<T: Transport> {
     lock: Arc<RwLock<bool>>,
 }
 
-impl<T: Transport + Send + Sync> ChannelProxy<T> {
+impl<T> ChannelProxy<T>
+where
+    T: Transport + Send + Sync,
+    T::Out: Send,
+{
     pub fn new(
         token_network: TokenNetworkProxy<T>,
         account: Account<T>,

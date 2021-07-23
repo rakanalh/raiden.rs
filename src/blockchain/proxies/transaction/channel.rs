@@ -57,7 +57,11 @@ pub struct ChannelOpenTransaction<T: Transport> {
 }
 
 #[async_trait::async_trait]
-impl<T: Transport + Send + Sync> Transaction for ChannelOpenTransaction<T> {
+impl<T> Transaction for ChannelOpenTransaction<T>
+where
+    T: Transport + Send + Sync,
+    T::Out: Send,
+{
     type Output = U256;
     type Params = ChannelOpenTransactionParams;
     type Data = ChannelOpenTransactionData;
@@ -250,7 +254,11 @@ pub struct ChannelSetTotalDepositTransaction<T: Transport> {
 }
 
 #[async_trait::async_trait]
-impl<T: Transport + Send + Sync> Transaction for ChannelSetTotalDepositTransaction<T> {
+impl<T> Transaction for ChannelSetTotalDepositTransaction<T>
+where
+    T: Transport + Send + Sync,
+    T::Out: Send,
+{
     type Output = ();
     type Params = ChannelSetTotalDepositTransactionParams;
     type Data = ChannelSetTotalDepositTransactionData;
