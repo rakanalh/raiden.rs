@@ -1,10 +1,10 @@
+use derive_more::Deref;
 use serde::{
     Deserialize,
     Serialize,
 };
 use std::ops::{
     Add,
-    Deref,
     Mul,
 };
 use web3::types::{
@@ -12,7 +12,7 @@ use web3::types::{
     U64 as PrimitiveU64,
 };
 
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Deref, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct U64(PrimitiveU64);
 
 impl std::fmt::Display for U64 {
@@ -78,13 +78,5 @@ impl From<u32> for U64 {
 impl From<i32> for U64 {
     fn from(n: i32) -> Self {
         Self((n as u64).into())
-    }
-}
-
-impl Deref for U64 {
-    type Target = PrimitiveU64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }

@@ -1,5 +1,4 @@
-use std::ops::Deref;
-
+use derive_more::Deref;
 use serde::{
     Deserialize,
     Serialize,
@@ -41,36 +40,22 @@ pub struct SendMessageEventInner {
     pub message_identifier: u32,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug)]
 pub struct SendWithdrawExpired {
+    #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
     pub nonce: U256,
     pub expiration: U64,
 }
 
-impl Deref for SendWithdrawExpired {
-    type Target = SendMessageEventInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug)]
 pub struct SendWithdrawRequest {
+    #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
     pub expiration: U64,
     pub nonce: U256,
-}
-
-impl Deref for SendWithdrawRequest {
-    type Target = SendMessageEventInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

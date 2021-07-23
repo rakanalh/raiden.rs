@@ -186,7 +186,7 @@ impl EventDecoder {
         )?;
 
         let (our_onchain_locksroot, partner_onchain_locksroot) = self
-            .get_onchain_locksroot(channel_state, chain_state.our_address, chain_state.block_hash)
+            .get_onchain_locksroot(channel_state, chain_state.block_hash)
             .await?;
 
         let channel_settled = ContractReceiveChannelSettled {
@@ -207,17 +207,16 @@ impl EventDecoder {
     async fn get_onchain_locksroot(
         &self,
         channel_state: &ChannelState,
-        account_address: Address,
         block: H256,
     ) -> Option<(Bytes, Bytes)> {
         let payment_channel = self
             .proxy_manager
-            .payment_channel(&channel_state, account_address)
+            .payment_channel(&channel_state)
             .await
             .ok()?;
         let (our_data, partner_data) = payment_channel
             .token_network
-            .details_participants(
+            .participants_details(
                 channel_state.canonical_identifier.channel_identifier,
                 channel_state.our_state.address,
                 channel_state.partner_state.address,
