@@ -17,7 +17,8 @@ members = [
 ]
 
 [dependencies]
-ethabi = "13.0.0"
+async-trait = "0.1.50"
+ethabi = "14.0.0"
 ethsign = "0.8.0"
 derive_more = "0.99.11"
 futures = "0.3.12"
@@ -29,7 +30,7 @@ serde_json = "1.0.59"
 slog = "2.7.0"
 thiserror = "1.0"
 tokio = "0.2"
-web3 = "0.15.0"
+web3 = { git = "https://github.com/rakanalh/rust-web3", branch = "transport-out-send" }
 ulid = "0.4.1"
 
 [profile.dev]
