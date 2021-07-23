@@ -19,6 +19,7 @@ use crate::{
         },
     },
     constants,
+    primitives::U64,
     state_machine::{
         types::{
             ChannelState,
@@ -71,7 +72,7 @@ impl Api {
         token_address: Address,
         partner_address: Address,
         settle_timeout: Option<U256>,
-        reveal_timeout: Option<U256>,
+        reveal_timeout: Option<U64>,
         total_deposit: Option<U256>,
         retry_timeout: Option<f32>,
     ) -> Result<U256, ApiError> {
@@ -90,12 +91,12 @@ impl Api {
 
         let token_proxy = self
             .proxy_manager
-            .token(token_address, our_address)
+            .token(token_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
         let balance = token_proxy
-            .balance_of(our_address, views::confirmed_block_hash(&current_state))
+            .balance_of(our_address, Some(views::confirmed_block_hash(&current_state)))
             .await
             .map_err(ApiError::Proxy)?;
 
@@ -112,7 +113,7 @@ impl Api {
         };
 
         let settle_timeout = settle_timeout.unwrap_or(U256::from(constants::DEFAULT_SETTLE_TIMEOUT));
-        let reveal_timeout = reveal_timeout.unwrap_or(U256::from(constants::DEFAULT_REVEAL_TIMEOUT));
+        let reveal_timeout = reveal_timeout.unwrap_or(U64::from(constants::DEFAULT_REVEAL_TIMEOUT));
         let _retry_timeout = retry_timeout.unwrap_or(constants::DEFAULT_RETRY_TIMEOUT);
 
         self.check_invalid_channel_timeouts(settle_timeout, reveal_timeout)?;
@@ -161,7 +162,7 @@ impl Api {
 
         let token_network = self
             .proxy_manager
-            .token_network(token_address, token_network_address, our_address)
+            .token_network(token_address, token_network_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
@@ -252,11 +253,11 @@ impl Api {
         registry_address: Address,
         token_address: Address,
         partner_address: Address,
-        reveal_timeout: Option<U256>,
+        reveal_timeout: Option<U64>,
         total_deposit: Option<U256>,
         total_withdraw: Option<U256>,
         state: Option<ChannelStatus>,
-    ) -> Result<ChannelState, ApiError> {
+    ) -> Result<(), ApiError> {
         info!(
             self.logger,
             "Patching channel. registry_address={}, partner_Address={}, token_address={}, reveal_timeout={:?}, total_deposit={:?}, total_withdraw={:?}, state={:?}.",
@@ -361,7 +362,7 @@ impl Api {
         &self,
         channel_state: &ChannelState,
         total_deposit: U256,
-    ) -> Result<ChannelState, ApiError> {
+    ) -> Result<(), ApiError> {
         info!(
             self.logger,
             "Depositing to channel. channel_identifier={}, total_deposit={:?}.",
@@ -377,7 +378,7 @@ impl Api {
         let confirmed_block_identifier = views::confirmed_block_hash(chain_state);
         let token = self
             .proxy_manager
-            .token(channel_state.token_address, chain_state.our_address)
+            .token(channel_state.token_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
@@ -397,19 +398,17 @@ impl Api {
             .token_network(
                 channel_state.token_address,
                 token_network_address,
-                chain_state.our_address,
             )
             .await
             .map_err(ApiError::ContractSpec)?;
 
         let channel_proxy = self
             .proxy_manager
-            .payment_channel(channel_state, chain_state.our_address)
+            .payment_channel(channel_state)
             .await
             .map_err(ApiError::ContractSpec)?;
 
         let blockhash = chain_state.block_hash;
-        let token_network_proxy = channel_proxy.token_network.clone();
 
         let safety_deprecation_switch = token_network_proxy
             .safety_deprecation_switch(blockhash)
@@ -417,12 +416,12 @@ impl Api {
             .map_err(ApiError::Proxy)?;
 
         let balance = token
-            .balance_of(chain_state.our_address, blockhash)
+            .balance_of(chain_state.our_address, Some(blockhash))
             .await
             .map_err(ApiError::Proxy)?;
 
         let network_balance = token
-            .balance_of(token_network_address, blockhash)
+            .balance_of(token_network_address, Some(blockhash))
             .await
             .map_err(ApiError::Proxy)?;
 
@@ -438,7 +437,7 @@ impl Api {
             .await
             .map_err(ApiError::Proxy)?;
 
-        let (total_channel_deposit, total_channel_deposit_overflow) =
+        let (_, total_channel_deposit_overflow) =
             total_deposit.overflowing_add(channel_state.partner_state.contract_balance);
 
         if safety_deprecation_switch {
@@ -484,36 +483,41 @@ impl Api {
             return Err(ApiError::State(format!("Deposit overflow",)));
         }
 
-        channel_proxy
-            .approve_and_set_total_deposit(total_deposit, blockhash)
+        let _ = channel_proxy
+            .approve_and_set_total_deposit(
+                channel_state.canonical_identifier.channel_identifier,
+                channel_state.partner_state.address,
+                total_deposit,
+                blockhash,
+            )
             .await;
 
-        Ok(channel_state.clone())
+        Ok(())
     }
 
     pub async fn channel_withdraw(
         &self,
-        channel_state: &ChannelState,
-        total_withdraw: U256,
-    ) -> Result<ChannelState, ApiError> {
+        _channel_state: &ChannelState,
+        _total_withdraw: U256,
+    ) -> Result<(), ApiError> {
         return Err(ApiError::State(format!("Not implemented")));
     }
 
     pub async fn channel_reveal_timeout(
         &self,
-        channel_state: &ChannelState,
-        reveal_timeout: U256,
-    ) -> Result<ChannelState, ApiError> {
+        _channel_state: &ChannelState,
+        _reveal_timeout: U64,
+    ) -> Result<(), ApiError> {
         return Err(ApiError::State(format!("Not implemented")));
     }
 
-    pub async fn channel_close(&self, channel_state: &ChannelState) -> Result<ChannelState, ApiError> {
+    pub async fn channel_close(&self, _channel_state: &ChannelState) -> Result<(), ApiError> {
         return Err(ApiError::State(format!("Not implemented")));
     }
 
-    fn check_invalid_channel_timeouts(&self, settle_timeout: U256, reveal_timeout: U256) -> Result<(), ApiError> {
-        if reveal_timeout < U256::from(constants::MIN_REVEAL_TIMEOUT) {
-            if reveal_timeout <= U256::from(0) {
+    fn check_invalid_channel_timeouts(&self, settle_timeout: U256, reveal_timeout: U64) -> Result<(), ApiError> {
+        if reveal_timeout < U64::from(constants::MIN_REVEAL_TIMEOUT) {
+            if reveal_timeout <= U64::from(0) {
                 return Err(ApiError::Param("reveal_timeout should be larger than zero.".to_owned()));
             } else {
                 return Err(ApiError::Param(format!(
@@ -523,7 +527,7 @@ impl Api {
             }
         }
 
-        if settle_timeout < reveal_timeout * 2 {
+        if settle_timeout < U256::from(reveal_timeout * 2) {
             return Err(ApiError::Param(
                 "`settle_timeout` can not be smaller than double the `reveal_timeout`.\n\n
                 The setting `reveal_timeout` determines the maximum number of

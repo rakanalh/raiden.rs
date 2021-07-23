@@ -100,11 +100,10 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, Error>
             params.reveal_timeout,
             params.total_withdraw,
             params.total_deposit,
-            params.total_deposit,
             params.state,
         )
         .await
     );
 
-    json_response!(serde_json::to_string(channel_state))
+    json_response!(unwrap!(serde_json::to_string(&channel_state)))
 }

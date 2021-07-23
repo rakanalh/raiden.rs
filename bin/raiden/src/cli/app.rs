@@ -215,7 +215,11 @@ impl RaidenApp {
             Err(_) => return,
         };
 
-        let api = Api::new(self.state_manager.clone(), self.proxy_manager.clone());
+        let api = Api::new(
+            self.state_manager.clone(),
+            self.proxy_manager.clone(),
+            self.logger.clone(),
+        );
 
         futures::join!(
             block_monitor.start(),

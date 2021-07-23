@@ -14,7 +14,7 @@ pub struct ChannelOpenParams {
     pub partner_address: Address,
     pub token_address: Address,
     pub settle_timeout: Option<U256>,
-    pub reveal_timeout: Option<U256>,
+    pub reveal_timeout: Option<U64>,
     pub total_deposit: Option<U256>,
 }
 

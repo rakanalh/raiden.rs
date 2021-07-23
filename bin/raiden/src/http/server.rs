@@ -71,7 +71,7 @@ async fn log_request(req: Request<Body>) -> Result<Request<Body>, Error> {
     Ok(req)
 }
 
-async fn error_handler(err: routerify::Error, _: RequestInfo) -> Response<Body> {
+async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<Body> {
     eprintln!("{}", err);
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
