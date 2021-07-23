@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 use web3::{
     contract::{
         Contract,
@@ -13,23 +13,29 @@ use web3::{
         U256,
     },
     Transport,
+    Web3,
 };
 
-use super::ProxyError;
+use super::{
+    common::Account,
+    ProxyError,
+};
 
 type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct TokenProxy<T: Transport> {
-    from: Address,
+    account: Account<T>,
+    web3: Web3<T>,
     contract: Contract<T>,
     lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> TokenProxy<T> {
-    pub fn new(contract: Contract<T>, address: Address) -> Self {
+    pub fn new(web3: Web3<T>, account: Account<T>, contract: Contract<T>) -> Self {
         Self {
-            from: address,
+            account,
+            web3,
             contract,
             lock: Arc::new(RwLock::new(true)),
         }
@@ -48,47 +54,49 @@ impl<T: Transport> TokenProxy<T> {
             .map_err(Into::into)
     }
 
-    pub async fn balance_of(&self, address: Address, block: H256) -> Result<U256> {
+    pub async fn balance_of(&self, address: Address, block: Option<H256>) -> Result<U256> {
+        let block = block.map(|b| BlockId::Hash(b));
         self.contract
             .query(
                 "balanceOf",
                 (address,),
-                self.from,
+                self.account.address(),
                 Options::default(),
-                Some(BlockId::Hash(block)),
+                block,
             )
             .await
             .map_err(Into::into)
     }
 
-    pub async fn approve(&self, allowed_address: Address, allowance: U256, block: H256) -> Result<H256> {
+    pub async fn approve(&self, allowed_address: Address, allowance: U256) -> Result<H256> {
+        let nonce = self.account.peek_next_nonce().await;
+        let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
         let gas_estimate = self
             .contract
-            .estimate_gas("approve", (allowed_address, allowance), self.from, Options::default())
-            .await;
+            .estimate_gas(
+                "approve",
+                (allowed_address, allowance),
+                self.account.address(),
+                Options::default(),
+            )
+            .await
+            .map_err(ProxyError::ChainError)?;
 
-        let lock = self.lock.write();
-
-        let transaction_hash = match gas_estimate {
-            Ok(_gas_estimate) => {
-                match self
-                    .contract
-                    .call("approve", (allowed_address, allowance), self.from, Options::default())
-                    .await
-                {
-                    Ok(transaction_hash) => transaction_hash,
-                    Err(e) => {
-                        // check_transaction_failure
-                        let balance = self.balance_of(self.from, block).await?;
-                        if balance < allowance {}
-                        return Err(ProxyError::ChainError(e));
-                    }
-                }
-            }
-            Err(e) => {
-                return Err(ProxyError::ChainError(e));
-            }
-        };
+        let lock = self.lock.write().await;
+        let transaction_hash = self
+            .contract
+            .call(
+                "approve",
+                (allowed_address, allowance),
+                self.account.address(),
+                Options::with(|opt| {
+                    opt.gas = Some(gas_estimate);
+                    opt.nonce = Some(nonce);
+                    opt.gas_price = Some(gas_price);
+                }),
+            )
+            .await
+            .map_err(ProxyError::ChainError)?;
 
         drop(lock);
 

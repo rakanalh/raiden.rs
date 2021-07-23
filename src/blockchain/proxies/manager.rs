@@ -100,17 +100,13 @@ impl ProxyManager {
             .clone())
     }
 
-    pub async fn token(
-        &self,
-        token_address: Address,
-        account_address: Address,
-    ) -> Result<TokenProxy<Http>, ContractDefError> {
+    pub async fn token(&self, token_address: Address) -> Result<TokenProxy<Http>, ContractDefError> {
         if !self.tokens.read().await.contains_key(&token_address) {
             let token_contract = self.contracts_manager.get(ContractIdentifier::HumanStandardToken);
             let token_web3_contract =
                 Contract::from_json(self.web3.eth(), token_address, token_contract.abi.as_slice())
                     .map_err(ContractDefError::ABI)?;
-            let proxy = TokenProxy::new(token_web3_contract, account_address);
+            let proxy = TokenProxy::new(self.web3.clone(), self.account.clone(), token_web3_contract);
             let mut tokens = self.tokens.write().await;
             tokens.insert(token_address, proxy);
         }
@@ -121,10 +117,9 @@ impl ProxyManager {
         &self,
         token_address: Address,
         token_network_address: Address,
-        account_address: Address,
     ) -> Result<TokenNetworkProxy<Http>, ContractDefError> {
         if !self.token_networks.read().await.contains_key(&token_network_address) {
-            let token_proxy = self.token(token_address, account_address).await?;
+            let token_proxy = self.token(token_address).await?;
             let token_network_contract = self.contracts_manager.get(ContractIdentifier::TokenNetwork);
             let token_network_web3_contract = Contract::from_json(
                 self.web3.eth(),
@@ -154,7 +149,6 @@ impl ProxyManager {
     pub async fn payment_channel(
         &self,
         channel_state: &ChannelState,
-        account_address: Address,
     ) -> Result<ChannelProxy<Http>, ContractDefError> {
         let token_network_address = channel_state.canonical_identifier.token_network_address;
         let token_address = channel_state.token_address;
@@ -162,9 +156,14 @@ impl ProxyManager {
 
         if !self.channels.read().await.contains_key(&channel_identifier) {
             let token_network_proxy = self
-                .token_network(token_address, token_network_address, account_address)
+                .token_network(token_address, token_network_address)
                 .await?;
-            let proxy = ChannelProxy::new(token_network_proxy, account_address);
+            let proxy = ChannelProxy::new(
+                token_network_proxy,
+                self.account.clone(),
+                self.web3.clone(),
+                self.gas_metadata.clone(),
+            );
             let mut channels = self.channels.write().await;
             channels.insert(channel_identifier, proxy);
         }

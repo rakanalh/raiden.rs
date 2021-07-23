@@ -1,26 +1,60 @@
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 use web3::{
-    types::Address,
+    types::{
+        Address,
+        H256,
+        U256,
+    },
     Transport,
+    Web3,
 };
 
-use super::TokenNetworkProxy;
+use crate::blockchain::contracts::GasMetadata;
+
+use super::{
+    common::{
+        Account,
+        Result,
+    },
+    TokenNetworkProxy,
+};
 
 #[derive(Clone)]
 pub struct ChannelProxy<T: Transport> {
     pub token_network: TokenNetworkProxy<T>,
-    from: Address,
+    account: Account<T>,
+    web3: Web3<T>,
+    gas_metadata: Arc<GasMetadata>,
     lock: Arc<RwLock<bool>>,
 }
 
-impl<T: Transport> ChannelProxy<T> {
-    pub fn new(token_network: TokenNetworkProxy<T>, address: Address) -> Self {
+impl<T: Transport + Send + Sync> ChannelProxy<T> {
+    pub fn new(
+        token_network: TokenNetworkProxy<T>,
+        account: Account<T>,
+        web3: Web3<T>,
+        gas_metadata: Arc<GasMetadata>,
+    ) -> Self {
         Self {
-            from: address,
+            account,
             token_network,
+            web3,
+            gas_metadata,
             lock: Arc::new(RwLock::new(true)),
         }
+    }
+
+    pub async fn approve_and_set_total_deposit(
+        &self,
+        channel_identifier: U256,
+        partner: Address,
+        total_deposit: U256,
+        block_hash: H256,
+    ) -> Result<()> {
+        self.token_network
+            .approve_and_set_total_deposit(channel_identifier, partner, total_deposit, block_hash)
+            .await
     }
 }

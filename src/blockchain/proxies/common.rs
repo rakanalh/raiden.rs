@@ -17,6 +17,8 @@ use crate::blockchain::key::PrivateKey;
 
 use super::ProxyError;
 
+pub type Result<T> = std::result::Result<T, ProxyError>;
+
 #[derive(Clone)]
 pub struct Nonce {
     inner: Arc<Mutex<U256>>,
@@ -33,6 +35,11 @@ impl Nonce {
         let mut inner = self.inner.lock().await;
         *inner += U256::from(1);
         inner.clone()
+    }
+
+    pub async fn peek_next(&self) -> U256 {
+        let inner = self.inner.lock().await;
+        *inner + U256::from(1)
     }
 }
 
@@ -64,7 +71,11 @@ impl<T: Transport> Account<T> {
         self.nonce.next().await
     }
 
-    pub async fn check_for_insufficient_eth(&self, required_gas: U256, block: U64) -> Result<(), ProxyError> {
+    pub async fn peek_next_nonce(&self) -> U256 {
+        self.nonce.peek_next().await
+    }
+
+    pub async fn check_for_insufficient_eth(&self, required_gas: U256, block: U64) -> Result<()> {
         let actual_balance = self
             .web3
             .eth()
