@@ -18,10 +18,10 @@ clap = "3.0.0-beta.2"
 ethsign = "0.8.0"
 expanduser = "1.2.1"
 futures = "0.3.12"
-hyper = "0.13.10"
+hyper = { version = "0.14.10", features = ["server"] }
 parking_lot = "0.11.1"
 raiden = { path = "../.." }
-routerify = "1.1.4"
+routerify = "2.1.0"
 rpassword = "5.0.1"
 rusqlite = "0.24.2"
 serde = "1.0.119"
@@ -30,6 +30,6 @@ slog = "2.7.0"
 slog-async = "2.6.0"
 slog-term = "2.6.0"
 thiserror = "1.0"
-tokio = { version = "0.2.11", features=["full"] }
+tokio = { version = "1.8.2", features=["full"] }
 url = "2.2.2"
-web3 = "0.15.0"
+web3 = "0.16.0"
