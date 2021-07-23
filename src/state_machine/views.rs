@@ -77,11 +77,14 @@ pub fn get_token_network_by_token_address(
     registry_address: Address,
     token_address: Address,
 ) -> Option<&TokenNetworkState> {
-    let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
-    token_network_registries
+    let token_network_registry = match chain_state.identifiers_to_tokennetworkregistries.get(&registry_address) {
+        Some(tnr) => tnr,
+        None => return None,
+    };
+
+    token_network_registry
+        .tokennetworkaddresses_to_tokennetworks
         .values()
-        .map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
-        .flatten()
         .find(|tn| tn.token_address == token_address)
 }
 
