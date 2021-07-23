@@ -134,6 +134,8 @@ pub enum ChannelStatus {
     Settling,
     #[display(fmt = "Settled")]
     Settled,
+    #[display(fmt = "Removed")]
+    Removed,
     #[display(fmt = "Unusable")]
     Unusable,
 }
