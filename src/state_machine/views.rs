@@ -6,10 +6,13 @@ use web3::types::{
     U256,
 };
 
-use crate::primitives::{
-    CanonicalIdentifier,
-    TransactionResult,
-    U64,
+use crate::{
+    primitives::{
+        CanonicalIdentifier,
+        TransactionResult,
+        U64,
+    },
+    state_machine::views,
 };
 
 use super::types::{
@@ -179,4 +182,88 @@ pub fn get_channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState)
         - max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw)
         - sender_transferred_amount
         + receiver_transferred_amount
+}
+
+pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address) -> Vec<Address> {
+    match chain_state.identifiers_to_tokennetworkregistries.get(&registry_address) {
+        Some(registry) => registry
+            .tokenaddresses_to_tokennetworkaddresses
+            .keys()
+            .cloned()
+            .collect(),
+        None => vec![],
+    }
+}
+
+fn get_channelstate_filter(
+    chain_state: &ChainState,
+    token_network_registry_address: Address,
+    token_address: Address,
+    filter_fn: fn(&ChannelState) -> bool,
+) -> Vec<ChannelState> {
+    let token_network =
+        match views::get_token_network_by_token_address(chain_state, token_network_registry_address, token_address) {
+            Some(token_network) => token_network,
+            None => return vec![],
+        };
+
+    let mut result = vec![];
+
+    for channel_state in token_network.channelidentifiers_to_channels.values() {
+        if filter_fn(channel_state) {
+            result.push(channel_state.clone())
+        }
+    }
+
+    return result;
+}
+
+pub fn get_channelstate_open(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+) -> Vec<ChannelState> {
+    return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+        channel_state.status() == ChannelStatus::Opened
+    });
+}
+
+pub fn get_channelstate_closing(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+) -> Vec<ChannelState> {
+    return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+        channel_state.status() == ChannelStatus::Closing
+    });
+}
+
+pub fn get_channelstate_closed(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+) -> Vec<ChannelState> {
+    return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+        channel_state.status() == ChannelStatus::Closed
+    });
+}
+
+pub fn get_channelstate_settling(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+) -> Vec<ChannelState> {
+    return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+        channel_state.status() == ChannelStatus::Settling
+    });
+}
+
+pub fn get_channelstate_settled(
+    chain_state: &ChainState,
+    registry_address: Address,
+    token_address: Address,
+) -> Vec<ChannelState> {
+    return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+        channel_state.status() == ChannelStatus::Settled
+    });
 }
