@@ -41,9 +41,9 @@ pub struct ProxyManager {
     account: Account<Http>,
     gas_metadata: Arc<GasMetadata>,
     contracts_manager: Arc<ContractsManager>,
-    tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
-    token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
-    token_network_registries: RwLock<HashMap<Address, TokenNetworkRegistryProxy<Http>>>,
+    pub tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
+    pub token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
+    pub token_network_registries: RwLock<HashMap<Address, TokenNetworkRegistryProxy<Http>>>,
     channels: RwLock<HashMap<U256, ChannelProxy<Http>>>,
 }
 
@@ -67,6 +67,18 @@ impl ProxyManager {
             token_network_registries: RwLock::new(HashMap::new()),
             channels: RwLock::new(HashMap::new()),
         })
+    }
+
+    pub fn web3(&self) -> Web3<Http> {
+        self.web3.clone()
+    }
+
+    pub fn gas_metadata(&self) -> Arc<GasMetadata> {
+        self.gas_metadata.clone()
+    }
+
+    pub fn account(&self) -> Account<Http> {
+        self.account.clone()
     }
 
     pub async fn token_network_registry(

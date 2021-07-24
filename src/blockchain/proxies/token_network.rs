@@ -47,6 +47,7 @@ pub struct TokenNetworkProxy<T: Transport> {
     gas_metadata: Arc<GasMetadata>,
     token_proxy: TokenProxy<T>,
     contract: TokenNetworkContract<T>,
+    pub opening_channels_count: u32,
     channel_operations_lock: Arc<RwLock<HashMap<Address, Mutex<bool>>>>,
 }
 
@@ -68,11 +69,12 @@ where
             gas_metadata,
             token_proxy,
             contract: TokenNetworkContract { inner: contract },
+            opening_channels_count: 0,
             channel_operations_lock: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    pub async fn new_channel(&self, partner: Address, settle_timeout: U256, block: H256) -> Result<U256> {
+    pub async fn new_channel(&mut self, partner: Address, settle_timeout: U256, block: H256) -> Result<U256> {
         let channel_operations_lock = self.channel_operations_lock.write().await;
         let _partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
 
@@ -83,7 +85,9 @@ where
             token_proxy: self.token_proxy.clone(),
             gas_metadata: self.gas_metadata.clone(),
         };
-        Ok(open_channel_transaction
+
+        self.opening_channels_count += 1;
+        let channel_id = open_channel_transaction
             .execute(
                 ChannelOpenTransactionParams {
                     partner,
@@ -91,7 +95,10 @@ where
                 },
                 block,
             )
-            .await?)
+            .await?;
+        self.opening_channels_count -= 1;
+
+        Ok(channel_id)
     }
 
     pub async fn approve_and_set_total_deposit(
@@ -112,9 +119,9 @@ where
         Ok(set_total_deposit_transaction
             .execute(
                 ChannelSetTotalDepositTransactionParams {
-                    channel_identifier: channel_identifier,
-                    partner: partner,
-                    total_deposit: total_deposit,
+                    channel_identifier,
+                    partner,
+                    total_deposit,
                 },
                 block_hash,
             )
