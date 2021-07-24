@@ -6,3 +6,4 @@ pub mod primitives;
 pub mod state_machine;
 pub mod state_manager;
 pub mod storage;
+pub mod waiting;

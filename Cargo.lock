@@ -1617,7 +1617,7 @@ dependencies = [
  "serde_json",
  "slog",
  "thiserror",
- "tokio 0.2.25",
+ "tokio 1.8.2",
  "ulid",
  "web3",
 ]

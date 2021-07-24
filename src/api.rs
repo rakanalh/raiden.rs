@@ -14,6 +14,7 @@ use crate::{
     blockchain::{
         errors::ContractDefError,
         proxies::{
+            GasReserve,
             ProxyError,
             ProxyManager,
         },
@@ -28,6 +29,7 @@ use crate::{
         views,
     },
     state_manager::StateManager,
+    waiting,
 };
 
 #[derive(Error, Debug)]
@@ -74,7 +76,7 @@ impl Api {
         settle_timeout: Option<U256>,
         reveal_timeout: Option<U64>,
         total_deposit: Option<U256>,
-        retry_timeout: Option<f32>,
+        retry_timeout: Option<u64>,
     ) -> Result<U256, ApiError> {
         let current_state = &self.state_manager.read().current_state.clone();
 
@@ -160,7 +162,7 @@ impl Api {
             )));
         }
 
-        let token_network = self
+        let mut token_network = self
             .proxy_manager
             .token_network(token_address, token_network_address)
             .await
@@ -194,58 +196,39 @@ impl Api {
             )));
         }
 
-        // has_enough_reserve, estimated_required_reserve = has_enough_gas_reserve(
-        //     self.raiden, channels_to_open=1
-        // )
+        let chain_state = &self.state_manager.read().current_state.clone();
+        let gas_reserve = GasReserve::new(self.proxy_manager.clone(), registry_address);
+        let (has_enough_reserve, estimated_required_reserve) =
+            gas_reserve.has_enough(chain_state, 1).await.map_err(ApiError::Proxy)?;
 
-        // if not has_enough_reserve:
-        //     raise InsufficientGasReserve(
-        //         "The account balance is below the estimated amount necessary to "
-        //         "finish the lifecycles of all active channels. A balance of at "
-        //         f"least {estimated_required_reserve} wei is required."
-        //     )
+        if !has_enough_reserve {
+            return Err(ApiError::OnChainCall(format!(
+                "The account balance is below the estimated amount necessary to \
+                finish the lifecycles of all active channels. A balance of at \
+                least {} wei is required.",
+                estimated_required_reserve,
+            )));
+        }
 
         let channel_details = token_network
             .new_channel(partner_address, settle_timeout, confirmed_block_identifier)
             .await
             .map_err(ApiError::Proxy)?;
 
-        Ok(channel_details)
-        // except DuplicatedChannelError:
-        //     log.info("partner opened channel first")
-        // except RaidenRecoverableError:
-        //     # The channel may have been created in the pending block.
-        //     duplicated_channel = self.is_already_existing_channel(
-        //         token_network_address=token_network_address, partner_address=partner_address
-        //     )
-        //     if duplicated_channel:
-        //         log.info("Channel has already been opened")
-        //     else:
-        //         raise
+        waiting::wait_for_new_channel(
+            self.state_manager.clone(),
+            registry_address,
+            token_address,
+            partner_address,
+            retry_timeout,
+        ).await;
 
-        // waiting.wait_for_newchannel(
-        //     raiden=self.raiden,
-        //     token_network_registry_address=registry_address,
-        //     token_address=token_address,
-        //     partner_address=partner_address,
-        //     retry_timeout=retry_timeout,
-        // )
-
-        // chain_state = views.state_from_raiden(self.raiden)
-        // channel_state = views.get_channelstate_for(
-        //     chain_state=chain_state,
-        //     token_network_registry_address=registry_address,
-        //     token_address=token_address,
-        //     partner_address=partner_address,
-        // )
-
-        // assert channel_state, f"channel {channel_state} is gone"
-
+        let chain_state = &self.state_manager.read().current_state.clone();
         // self.raiden.set_channel_reveal_timeout(
         //     canonical_identifier=channel_state.canonical_identifier, reveal_timeout=reveal_timeout
         // )
-
-        // return channel_state.identifier
+        //
+        Ok(channel_details)
     }
 
     pub async fn update_channel(
