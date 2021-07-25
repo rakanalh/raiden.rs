@@ -72,6 +72,22 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
         .await
     );
 
+    if params.total_deposit.is_some() {
+        unwrap!(
+            api.update_channel(
+                params.registry_address,
+                params.token_address,
+                params.partner_address,
+                None,
+                params.total_deposit,
+                None,
+                None,
+                None,
+            )
+            .await
+        );
+    }
+
     let mut data = HashMap::new();
     data.insert("channel_identifier".to_owned(), channel_identifier);
     json_response!(data)
@@ -100,6 +116,7 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, Error>
             params.total_withdraw,
             params.total_deposit,
             params.state,
+            None,
         )
         .await
     );

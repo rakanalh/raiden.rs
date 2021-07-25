@@ -102,7 +102,6 @@ impl Api {
 
         let settle_timeout = settle_timeout.unwrap_or(U256::from(constants::DEFAULT_SETTLE_TIMEOUT));
         let reveal_timeout = reveal_timeout.unwrap_or(U64::from(constants::DEFAULT_REVEAL_TIMEOUT));
-        let _retry_timeout = retry_timeout.unwrap_or(constants::DEFAULT_RETRY_TIMEOUT);
 
         self.check_invalid_channel_timeouts(settle_timeout, reveal_timeout)?;
 
@@ -208,7 +207,7 @@ impl Api {
             partner_address,
             retry_timeout,
         )
-        .await;
+        .await?;
 
         let chain_state = &self.state_manager.read().current_state.clone();
         let channel_state =
@@ -237,6 +236,7 @@ impl Api {
         total_deposit: Option<U256>,
         total_withdraw: Option<U256>,
         state: Option<ChannelStatus>,
+        retry_timeout: Option<u64>,
     ) -> Result<(), ApiError> {
         info!(
             self.logger,
@@ -321,7 +321,7 @@ impl Api {
             };
 
         let result = if let Some(total_deposit) = total_deposit {
-            self.channel_deposit(channel_state, total_deposit).await
+            self.channel_deposit(channel_state, total_deposit, retry_timeout).await
         } else if let Some(total_withdraw) = total_withdraw {
             self.channel_withdraw(channel_state, total_withdraw).await
         } else if let Some(reveal_timeout) = reveal_timeout {
@@ -338,7 +338,12 @@ impl Api {
         result
     }
 
-    pub async fn channel_deposit(&self, channel_state: &ChannelState, total_deposit: U256) -> Result<(), ApiError> {
+    pub async fn channel_deposit(
+        &self,
+        channel_state: &ChannelState,
+        total_deposit: U256,
+        retry_timeout: Option<u64>,
+    ) -> Result<(), ApiError> {
         info!(
             self.logger,
             "Depositing to channel. channel_identifier={}, total_deposit={:?}.",
@@ -456,14 +461,26 @@ impl Api {
             return Err(ApiError::State(format!("Deposit overflow",)));
         }
 
-        let _ = channel_proxy
+        channel_proxy
             .approve_and_set_total_deposit(
                 channel_state.canonical_identifier.channel_identifier,
                 channel_state.partner_state.address,
                 total_deposit,
                 blockhash,
             )
-            .await;
+            .await
+            .map_err(ApiError::Proxy)?;
+
+        waiting::wait_for_participant_deposit(
+            self.state_manager.clone(),
+            channel_state.token_network_registry_address,
+            channel_state.token_address,
+            channel_state.partner_state.address,
+            channel_state.our_state.address,
+            total_deposit,
+            retry_timeout,
+        )
+        .await?;
 
         Ok(())
     }
