@@ -21,10 +21,13 @@ use crate::{
     },
     constants,
     primitives::U64,
+    services::Transitioner,
     state_machine::{
         types::{
+            ActionChannelSetRevealTimeout,
             ChannelState,
             ChannelStatus,
+            StateChange,
         },
         views,
     },
@@ -56,14 +59,21 @@ pub enum ApiError {
 pub struct Api {
     state_manager: Arc<RwLock<StateManager>>,
     proxy_manager: Arc<ProxyManager>,
+    transition_service: Arc<dyn Transitioner + Send + Sync>,
     logger: Logger,
 }
 
 impl Api {
-    pub fn new(state_manager: Arc<RwLock<StateManager>>, proxy_manager: Arc<ProxyManager>, logger: Logger) -> Self {
+    pub fn new(
+        state_manager: Arc<RwLock<StateManager>>,
+        proxy_manager: Arc<ProxyManager>,
+        transition_service: Arc<dyn Transitioner + Send + Sync>,
+        logger: Logger,
+    ) -> Self {
         Self {
             state_manager,
             proxy_manager,
+            transition_service,
             logger,
         }
     }

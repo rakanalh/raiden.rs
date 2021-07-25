@@ -3,7 +3,6 @@ use crate::{
     services::{
         BlockMonitorService,
         SyncService,
-        TransitionService,
     },
     traits::{
         ToHTTPEndpoint,
@@ -25,6 +24,10 @@ use raiden::{
     primitives::{
         MediationFeeConfig,
         RaidenConfig,
+    },
+    services::{
+        TransitionService,
+        Transitioner,
     },
     state_manager::StateManager,
     storage::Storage,
@@ -110,6 +113,7 @@ pub struct RaidenApp {
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
+    transition_service: Arc<dyn Transitioner + Send + Sync>,
     logger: Logger,
 }
 
@@ -154,7 +158,7 @@ impl RaidenApp {
             token_network_registry_deployed_contract.address,
             token_network_registry_deployed_contract.block,
         ) {
-            Ok(state_manager) => state_manager,
+            Ok(state_manager) => Arc::new(RwLock::new(state_manager)),
             Err(e) => {
                 return Err(format!("Failed to initialize state {}", e));
             }
@@ -166,14 +170,22 @@ impl RaidenApp {
         };
 
         let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key, nonce)
+            .map(|pm| Arc::new(pm))
             .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
+
+        let sm = state_manager.clone();
+        let transition_service = Arc::new(TransitionService::new(state_manager.clone(), move |event| {
+            let event_handler = EventHandler::new(sm.clone());
+            async move { event_handler.handle_event(event).await }
+        }));
 
         Ok(Self {
             config,
             web3,
             contracts_manager,
-            proxy_manager: Arc::new(proxy_manager),
-            state_manager: Arc::new(RwLock::new(state_manager)),
+            proxy_manager,
+            state_manager,
+            transition_service,
             logger,
         })
     }
@@ -186,9 +198,6 @@ impl RaidenApp {
             Err(_) => return,
         };
 
-        let event_handler = EventHandler::new(self.state_manager.clone());
-        let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), event_handler));
-
         let sync_start_block_number = self.state_manager.read().current_state.block_number;
 
         let mut sync_service = SyncService::new(
@@ -197,7 +206,7 @@ impl RaidenApp {
             self.state_manager.clone(),
             self.contracts_manager.clone(),
             self.proxy_manager.clone(),
-            transition_service.clone(),
+            self.transition_service.clone(),
             self.logger.clone(),
         );
         sync_service
@@ -207,7 +216,7 @@ impl RaidenApp {
         let block_monitor = match BlockMonitorService::new(
             ws,
             self.state_manager.clone(),
-            transition_service.clone(),
+            self.transition_service.clone(),
             sync_service,
             self.logger.clone(),
         ) {
@@ -218,6 +227,7 @@ impl RaidenApp {
         let api = Api::new(
             self.state_manager.clone(),
             self.proxy_manager.clone(),
+            self.transition_service.clone(),
             self.logger.clone(),
         );
 

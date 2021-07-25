@@ -67,7 +67,6 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
             params.partner_address,
             params.settle_timeout,
             params.reveal_timeout,
-            params.total_deposit,
             None,
         )
         .await

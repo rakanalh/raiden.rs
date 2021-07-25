@@ -22,10 +22,9 @@ use raiden::{
         RaidenConfig,
         U64,
     },
+    services::Transitioner,
     state_manager::StateManager,
 };
-
-use super::TransitionService;
 
 struct BlockBatchSizeConfig {
     min: u64,
@@ -83,7 +82,7 @@ pub struct SyncService {
     state_manager: Arc<RwLock<StateManager>>,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
-    transition_service: Arc<TransitionService>,
+    transition_service: Arc<dyn Transitioner>,
     block_batch_size_adjuster: BlockBatchSizeAdjuster,
     logger: Logger,
 }
@@ -95,7 +94,7 @@ impl SyncService {
         state_manager: Arc<RwLock<StateManager>>,
         contracts_manager: Arc<ContractsManager>,
         proxy_manager: Arc<ProxyManager>,
-        transition_service: Arc<TransitionService>,
+        transition_service: Arc<dyn Transitioner>,
         logger: Logger,
     ) -> Self {
         let block_batch_size_adjuster = BlockBatchSizeAdjuster::new(
