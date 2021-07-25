@@ -75,7 +75,6 @@ impl Api {
         partner_address: Address,
         settle_timeout: Option<U256>,
         reveal_timeout: Option<U64>,
-        total_deposit: Option<U256>,
         retry_timeout: Option<u64>,
     ) -> Result<U256, ApiError> {
         let current_state = &self.state_manager.read().current_state.clone();
@@ -90,29 +89,6 @@ impl Api {
             reveal_timeout,
         );
         let our_address = current_state.our_address;
-
-        let token_proxy = self
-            .proxy_manager
-            .token(token_address)
-            .await
-            .map_err(ApiError::ContractSpec)?;
-
-        let balance = token_proxy
-            .balance_of(our_address, Some(views::confirmed_block_hash(&current_state)))
-            .await
-            .map_err(ApiError::Proxy)?;
-
-        match total_deposit {
-            Some(total_deposit) => {
-                if total_deposit > balance {
-                    return Err(ApiError::Param(format!(
-                        "Not enough balance to deposit. {} Available={} Needed {}",
-                        token_address, balance, total_deposit
-                    )));
-                }
-            }
-            _ => {}
-        };
 
         let settle_timeout = settle_timeout.unwrap_or(U256::from(constants::DEFAULT_SETTLE_TIMEOUT));
         let reveal_timeout = reveal_timeout.unwrap_or(U64::from(constants::DEFAULT_REVEAL_TIMEOUT));
@@ -221,13 +197,24 @@ impl Api {
             token_address,
             partner_address,
             retry_timeout,
-        ).await;
+        )
+        .await;
 
         let chain_state = &self.state_manager.read().current_state.clone();
-        // self.raiden.set_channel_reveal_timeout(
-        //     canonical_identifier=channel_state.canonical_identifier, reveal_timeout=reveal_timeout
-        // )
-        //
+        let channel_state =
+            match views::get_channel_state_for(chain_state, registry_address, token_address, partner_address) {
+                Some(channel_state) => channel_state,
+                None => return Err(ApiError::State(format!("Channel was not found"))),
+            };
+        self.transition_service
+            .transition(StateChange::ActionChannelSetRevealTimeout(
+                ActionChannelSetRevealTimeout {
+                    canonical_identifier: channel_state.canonical_identifier.clone(),
+                    reveal_timeout,
+                },
+            ))
+            .await;
+
         Ok(channel_details)
     }
 
