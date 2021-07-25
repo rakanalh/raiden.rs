@@ -25,6 +25,7 @@ pub enum Event {
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
     InvalidActionWithdraw(EventInvalidActionWithdraw),
+    InvalidActionSetRevealTimeout(EventInvalidActionSetRevealTimeout),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -86,5 +87,11 @@ pub struct ContractSendChannelBatchUnlock {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EventInvalidActionWithdraw {
     pub attemped_withdraw: U256,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct EventInvalidActionSetRevealTimeout {
+    pub reveal_timeout: U64,
     pub reason: String,
 }

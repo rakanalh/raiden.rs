@@ -29,6 +29,7 @@ use super::TransactionChannelDeposit;
 pub enum StateChange {
     Block(Block),
     ActionInitChain(ActionInitChain),
+    ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout),
     ActionChannelWithdraw(ActionChannelWithdraw),
     ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
     ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated),
@@ -56,6 +57,12 @@ pub struct ActionInitChain {
     pub block_number: U64,
     pub block_hash: H256,
     pub our_address: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionChannelSetRevealTimeout {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub reveal_timeout: U64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

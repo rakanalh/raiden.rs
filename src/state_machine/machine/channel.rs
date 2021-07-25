@@ -1,6 +1,9 @@
 use std::{
     cmp::min,
-    ops::Div,
+    ops::{
+        Div,
+        Mul,
+    },
 };
 
 use web3::types::{
@@ -27,6 +30,7 @@ use crate::{
     },
     state_machine::{
         types::{
+            ActionChannelSetRevealTimeout,
             ActionChannelWithdraw,
             Block,
             ChannelEndState,
@@ -43,6 +47,7 @@ use crate::{
             ContractSendChannelUpdateTransfer,
             ContractSendEvent,
             Event,
+            EventInvalidActionSetRevealTimeout,
             EventInvalidActionWithdraw,
             ExpiredWithdrawState,
             FeeScheduleState,
@@ -570,6 +575,32 @@ fn handle_action_withdraw(
     })
 }
 
+fn handle_action_set_channel_reveal_timeout(
+    mut channel_state: ChannelState,
+    state_change: ActionChannelSetRevealTimeout,
+) -> TransitionResult {
+    let double_reveal_timeout: U256 = state_change.reveal_timeout.mul(2u64).into();
+    let is_valid_reveal_timeout =
+        state_change.reveal_timeout >= 7u64.into() && channel_state.settle_timeout >= double_reveal_timeout;
+    if !is_valid_reveal_timeout {
+        return Ok(ChannelTransition {
+            new_state: Some(channel_state),
+            events: vec![Event::InvalidActionSetRevealTimeout(
+                EventInvalidActionSetRevealTimeout {
+                    reveal_timeout: state_change.reveal_timeout,
+                    reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
+                },
+            )],
+        });
+    }
+
+    channel_state.reveal_timeout = state_change.reveal_timeout;
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events: vec![],
+    })
+}
+
 pub fn state_transition(
     channel_state: ChannelState,
     state_change: StateChange,
@@ -589,6 +620,9 @@ pub fn state_transition(
         }
         StateChange::ActionChannelWithdraw(inner) => {
             handle_action_withdraw(channel_state, inner, block_number, pseudo_random_number_generator)
+        }
+        StateChange::ActionChannelSetRevealTimeout(inner) => {
+            handle_action_set_channel_reveal_timeout(channel_state, inner)
         }
         _ => Err(StateTransitionError {
             msg: String::from("Could not transition channel"),

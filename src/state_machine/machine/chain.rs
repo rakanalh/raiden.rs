@@ -287,6 +287,9 @@ pub fn state_transition(chain_state: ChainState, state_change: StateChange) -> T
         StateChange::ActionChannelWithdraw(ref inner) => {
             subdispatch_by_canonical_id(chain_state, state_change.clone(), inner.canonical_identifier.clone())
         }
+        StateChange::ActionChannelSetRevealTimeout(ref inner) => {
+            subdispatch_by_canonical_id(chain_state, state_change.clone(), inner.canonical_identifier.clone())
+        }
         StateChange::Block(inner) => handle_new_block(chain_state, inner),
         StateChange::ContractReceiveTokenNetworkRegistry(inner) => {
             handle_contract_receive_token_network_registry(chain_state, inner)
