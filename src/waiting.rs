@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use tokio::{
-    time::{
-        sleep,
-        Duration,
-    },
+use tokio::time::{
+    sleep,
+    Duration,
 };
 use web3::types::Address;
 
-use crate::{constants::DEFAULT_RETRY_TIMEOUT, state_machine::views, state_manager::StateManager};
+use crate::{
+    constants::DEFAULT_RETRY_TIMEOUT,
+    state_machine::views,
+    state_manager::StateManager,
+};
 
 pub async fn wait_for_new_channel(
     state_manager: Arc<RwLock<StateManager>>,
@@ -20,7 +22,7 @@ pub async fn wait_for_new_channel(
 ) {
     let retry_timeout = match retry_timeout {
         Some(timeout) => Duration::from_millis(timeout),
-        None => Duration::from_millis(DEFAULT_RETRY_TIMEOUT)
+        None => Duration::from_millis(DEFAULT_RETRY_TIMEOUT),
     };
     let chain_state = state_manager.read().current_state.clone();
     let mut channel_state =
