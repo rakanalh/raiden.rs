@@ -29,7 +29,7 @@ serde = "1.0.119"
 serde_json = "1.0.59"
 slog = "2.7.0"
 thiserror = "1.0"
-tokio = { version = "1.0", features = ["time"] }
+tokio = { version = "1.9", features = ["time"] }
 web3 = "0.16.0"
 ulid = "0.4.1"
 
