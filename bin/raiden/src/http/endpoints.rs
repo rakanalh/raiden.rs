@@ -21,6 +21,7 @@ use crate::{
     http::{
         request::ChannelPatchParams,
         response,
+        utils::account,
     },
     json_response,
     unwrap,
@@ -48,6 +49,7 @@ pub async fn channels(req: Request<Body>) -> Result<Response<Body>, Error> {
 
 pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error> {
     let api = api(&req);
+    let account = account(&req);
     let state_manager = state_manager(&req);
     let current_state = state_manager.read().current_state.clone();
     let _our_address = current_state.our_address;
@@ -62,6 +64,7 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
 
     let channel_identifier = unwrap!(
         api.create_channel(
+            account.clone(),
             params.registry_address,
             params.token_address,
             params.partner_address,
@@ -75,6 +78,7 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
     if params.total_deposit.is_some() {
         unwrap!(
             api.update_channel(
+                account,
                 params.registry_address,
                 params.token_address,
                 params.partner_address,
@@ -95,6 +99,7 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, Error>
 
 pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, Error> {
     let api = api(&req);
+    let account = account(&req);
     let state_manager = state_manager(&req);
     let current_state = state_manager.read().current_state.clone();
     let _our_address = current_state.our_address;
@@ -109,6 +114,7 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, Error>
 
     let channel_state = unwrap!(
         api.update_channel(
+            account,
             params.registry_address,
             params.token_address,
             params.partner_address,

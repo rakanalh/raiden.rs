@@ -12,7 +12,10 @@ use raiden::{
     api::Api,
     blockchain::{
         contracts::ContractsManager,
-        proxies::ProxyManager,
+        proxies::{
+            Account,
+            ProxyManager,
+        },
     },
     state_manager::StateManager,
 };
@@ -28,6 +31,7 @@ use std::{
     net::SocketAddr,
     sync::Arc,
 };
+use web3::transports::Http;
 
 use super::endpoints;
 
@@ -38,12 +42,20 @@ pub struct HttpServer {
 impl HttpServer {
     pub fn new(
         api: Arc<Api>,
+        account: Account<Http>,
         state_manager: Arc<RwLock<StateManager>>,
         contracts_manager: Arc<ContractsManager>,
         proxy_manager: Arc<ProxyManager>,
         logger: Logger,
     ) -> Self {
-        let router = router(api, state_manager, contracts_manager, proxy_manager, logger.clone());
+        let router = router(
+            api,
+            account,
+            state_manager,
+            contracts_manager,
+            proxy_manager,
+            logger.clone(),
+        );
 
         // Create a Service from the router above to handle incoming requests.
         let service = RouterService::new(router).unwrap();
@@ -81,6 +93,7 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<B
 
 fn router(
     api: Arc<Api>,
+    account: Account<Http>,
     state_manager: Arc<RwLock<StateManager>>,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
@@ -91,6 +104,7 @@ fn router(
         // error handler and middlewares.
         .middleware(Middleware::pre(log_request))
         .data(api)
+        .data(account)
         .data(state_manager)
         .data(contracts_manager)
         .data(proxy_manager)

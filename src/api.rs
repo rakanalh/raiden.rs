@@ -5,24 +5,12 @@ use slog::{
 };
 use std::sync::Arc;
 use thiserror::Error;
-use web3::types::{
+use web3::{transports::Http, types::{
     Address,
     U256,
-};
+}};
 
-use crate::{
-    blockchain::{
-        errors::ContractDefError,
-        proxies::{
-            GasReserve,
-            ProxyError,
-            ProxyManager,
-        },
-    },
-    constants,
-    primitives::U64,
-    services::Transitioner,
-    state_machine::{
+use crate::{blockchain::{errors::ContractDefError, proxies::{Account, GasReserve, ProxyError, ProxyManager}}, constants, primitives::U64, services::Transitioner, state_machine::{
         types::{
             ActionChannelSetRevealTimeout,
             ChannelState,
@@ -30,10 +18,7 @@ use crate::{
             StateChange,
         },
         views,
-    },
-    state_manager::StateManager,
-    waiting,
-};
+    }, state_manager::StateManager, waiting};
 
 #[derive(Error, Debug)]
 pub enum ContractError {}
@@ -80,6 +65,7 @@ impl Api {
 
     pub async fn create_channel(
         &self,
+        account: Account<Http>,
         registry_address: Address,
         token_address: Address,
         partner_address: Address,
@@ -98,8 +84,6 @@ impl Api {
             settle_timeout,
             reveal_timeout,
         );
-        let our_address = current_state.our_address;
-
         let settle_timeout = settle_timeout.unwrap_or(U256::from(constants::DEFAULT_SETTLE_TIMEOUT));
         let reveal_timeout = reveal_timeout.unwrap_or(U64::from(constants::DEFAULT_REVEAL_TIMEOUT));
 
@@ -108,7 +92,7 @@ impl Api {
         let confirmed_block_identifier = views::confirmed_block_hash(&current_state);
         let registry = self
             .proxy_manager
-            .token_network_registry(registry_address, our_address)
+            .token_network_registry(registry_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
@@ -184,7 +168,7 @@ impl Api {
         let chain_state = &self.state_manager.read().current_state.clone();
         let gas_reserve = GasReserve::new(self.proxy_manager.clone(), registry_address);
         let (has_enough_reserve, estimated_required_reserve) =
-            gas_reserve.has_enough(chain_state, 1).await.map_err(ApiError::Proxy)?;
+            gas_reserve.has_enough(account.clone(), chain_state, 1).await.map_err(ApiError::Proxy)?;
 
         if !has_enough_reserve {
             return Err(ApiError::OnChainCall(format!(
@@ -196,7 +180,7 @@ impl Api {
         }
 
         let channel_details = token_network
-            .new_channel(partner_address, settle_timeout, confirmed_block_identifier)
+            .new_channel(account.clone(), partner_address, settle_timeout, confirmed_block_identifier)
             .await
             .map_err(ApiError::Proxy)?;
 
@@ -229,6 +213,7 @@ impl Api {
 
     pub async fn update_channel(
         &self,
+        account: Account<Http>,
         registry_address: Address,
         token_address: Address,
         partner_address: Address,
@@ -321,7 +306,7 @@ impl Api {
             };
 
         let result = if let Some(total_deposit) = total_deposit {
-            self.channel_deposit(channel_state, total_deposit, retry_timeout).await
+            self.channel_deposit(account, channel_state, total_deposit, retry_timeout).await
         } else if let Some(total_withdraw) = total_withdraw {
             self.channel_withdraw(channel_state, total_withdraw).await
         } else if let Some(reveal_timeout) = reveal_timeout {
@@ -340,6 +325,7 @@ impl Api {
 
     pub async fn channel_deposit(
         &self,
+        account: Account<Http>,
         channel_state: &ChannelState,
         total_deposit: U256,
         retry_timeout: Option<u64>,
@@ -365,7 +351,7 @@ impl Api {
 
         let token_network_registry = self
             .proxy_manager
-            .token_network_registry(channel_state.token_network_registry_address, chain_state.our_address)
+            .token_network_registry(channel_state.token_network_registry_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
@@ -463,6 +449,7 @@ impl Api {
 
         channel_proxy
             .approve_and_set_total_deposit(
+                account.clone(),
                 channel_state.canonical_identifier.channel_identifier,
                 channel_state.partner_state.address,
                 total_deposit,
