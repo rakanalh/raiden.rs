@@ -79,10 +79,10 @@ pub struct Opt {
     #[clap(long, required = true, takes_value = true)]
     pub eth_rpc_socket_endpoint: String,
 
-    #[clap(short('c'), long, parse(from_os_str), value_hint = ValueHint::FilePath, required = true, takes_value = true)]
+    #[clap(short('k'), long, parse(from_os_str), value_hint = ValueHint::FilePath, required = true, takes_value = true)]
     pub keystore_path: PathBuf,
 
-    #[clap(short('d'), long, parse(from_os_str), value_hint = ValueHint::FilePath, required = true, takes_value = true, default_value = "~/.raiden")]
+    #[clap(short('d'), long, parse(from_os_str), value_hint = ValueHint::FilePath, required = true, takes_value = true, default_value = "~/.raiden/")]
     pub datadir: PathBuf,
 
     // The number of occurrences of the `v/verbose` flag
