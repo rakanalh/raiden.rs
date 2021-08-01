@@ -4,12 +4,7 @@ use crate::{
         BlockMonitorService,
         SyncService,
     },
-    traits::{
-        ToHTTPEndpoint,
-        ToSocketEndpoint,
-    },
 };
-use futures::executor;
 use parking_lot::RwLock;
 use raiden::{
     api::Api,
@@ -18,13 +13,9 @@ use raiden::{
             self,
             ContractsManager,
         },
-        key::PrivateKey,
         proxies::ProxyManager,
     },
-    primitives::{
-        MediationFeeConfig,
-        RaidenConfig,
-    },
+    primitives::RaidenConfig,
     services::{
         TransitionService,
         Transitioner,
@@ -34,78 +25,16 @@ use raiden::{
 };
 use rusqlite::Connection;
 use slog::Logger;
-use std::{
-    convert::TryFrom,
-    path::Path,
-    sync::Arc,
-};
+use std::sync::Arc;
 use web3::{
-    signing::Key,
     transports::{
         Http,
         WebSocket,
     },
-    types::Address,
     Web3,
 };
 
-use super::Opt;
-
 type Result<T> = std::result::Result<T, String>;
-
-impl TryFrom<Opt> for RaidenConfig {
-    type Error = String;
-
-    fn try_from(args: Opt) -> Result<Self> {
-        // TODO: No unwrap
-        let chain_id = args.chain_id.into();
-        let eth_rpc_http_endpoint = args.eth_rpc_endpoint;
-        let eth_rpc_socket_endpoint = args.eth_rpc_socket_endpoint;
-        let http_endpoint = eth_rpc_http_endpoint.to_http();
-        if let Err(e) = http_endpoint {
-            return Err(format!("Invalid RPC endpoint: {}", e));
-        }
-
-        let socket_endpoint = eth_rpc_socket_endpoint.to_socket();
-        if let Err(e) = socket_endpoint {
-            return Err(format!("Invalid RPC endpoint: {}", e));
-        }
-
-        let keystore_path = Path::new(&args.keystore_path);
-        let datadir = expanduser::expanduser(args.datadir.to_string_lossy()).unwrap();
-
-        let mediation_config = MediationFeeConfig {
-            token_to_flat_fee: args
-                .mediation_fees
-                .flat_fee
-                .into_iter()
-                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
-                .collect(),
-            token_to_proportional_fee: args
-                .mediation_fees
-                .proportional_fee
-                .into_iter()
-                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
-                .collect(),
-            token_to_proportional_imbalance_fee: args
-                .mediation_fees
-                .proportional_imbalance_fee
-                .into_iter()
-                .map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
-                .collect(),
-            cap_meditation_fees: args.mediation_fees.cap_mediation_fees,
-        };
-
-        Ok(Self {
-            chain_id,
-            datadir,
-            mediation_config,
-            keystore_path: keystore_path.to_path_buf(),
-            eth_http_rpc_endpoint: http_endpoint.unwrap(),
-            eth_socket_rpc_endpoint: socket_endpoint.unwrap(),
-        })
-    }
-}
 
 pub struct RaidenApp {
     config: RaidenConfig,
@@ -118,10 +47,7 @@ pub struct RaidenApp {
 }
 
 impl RaidenApp {
-    pub fn new(config: RaidenConfig, node_address: Address, private_key: PrivateKey, logger: Logger) -> Result<Self> {
-        let http = web3::transports::Http::new(&config.eth_http_rpc_endpoint).unwrap();
-        let web3 = web3::Web3::new(http);
-
+    pub fn new(config: RaidenConfig, web3: Web3<Http>, logger: Logger) -> Result<Self> {
         let contracts_manager = match contracts::ContractsManager::new(config.chain_id.clone()) {
             Ok(contracts_manager) => Arc::new(contracts_manager),
             Err(e) => {
@@ -154,7 +80,7 @@ impl RaidenApp {
         let state_manager = match StateManager::restore_or_init_state(
             storage,
             config.chain_id.clone(),
-            node_address.clone(),
+            config.account.address(),
             token_network_registry_deployed_contract.address,
             token_network_registry_deployed_contract.block,
         ) {
@@ -164,12 +90,7 @@ impl RaidenApp {
             }
         };
 
-        let nonce = match executor::block_on(web3.eth().transaction_count(private_key.address(), None)) {
-            Ok(nonce) => nonce,
-            Err(e) => return Err(format!("Failed to fetch nonce: {}", e)),
-        };
-
-        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone(), private_key, nonce)
+        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone())
             .map(|pm| Arc::new(pm))
             .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
 
@@ -235,6 +156,7 @@ impl RaidenApp {
             block_monitor.start(),
             crate::http::HttpServer::new(
                 Arc::new(api),
+                self.config.account.clone(),
                 self.state_manager.clone(),
                 self.contracts_manager.clone(),
                 self.proxy_manager.clone(),
