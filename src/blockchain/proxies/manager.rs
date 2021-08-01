@@ -22,23 +22,14 @@ use crate::{
             GasMetadata,
         },
         errors::ContractDefError,
-        key::PrivateKey,
     },
     state_machine::types::ChannelState,
 };
 
-use super::{
-    channel::ChannelProxy,
-    common::Account,
-    ProxyError,
-    TokenNetworkProxy,
-    TokenNetworkRegistryProxy,
-    TokenProxy,
-};
+use super::{ProxyError, TokenNetworkProxy, TokenNetworkRegistryProxy, TokenProxy, channel::ChannelProxy};
 
 pub struct ProxyManager {
     web3: Web3<Http>,
-    account: Account<Http>,
     gas_metadata: Arc<GasMetadata>,
     contracts_manager: Arc<ContractsManager>,
     pub tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
@@ -51,16 +42,12 @@ impl ProxyManager {
     pub fn new(
         web3: Web3<Http>,
         contracts_manager: Arc<ContractsManager>,
-        private_key: PrivateKey,
-        nonce: U256,
     ) -> Result<Self, ProxyError> {
         let gas_metadata = Arc::new(GasMetadata::new());
-        let account = Account::new(web3.clone(), private_key, nonce);
 
         Ok(Self {
             web3,
             contracts_manager,
-            account,
             gas_metadata,
             tokens: RwLock::new(HashMap::new()),
             token_networks: RwLock::new(HashMap::new()),
@@ -77,14 +64,9 @@ impl ProxyManager {
         self.gas_metadata.clone()
     }
 
-    pub fn account(&self) -> Account<Http> {
-        self.account.clone()
-    }
-
     pub async fn token_network_registry(
         &self,
         token_network_registry_address: Address,
-        account_address: Address,
     ) -> Result<TokenNetworkRegistryProxy<Http>, ContractDefError> {
         if !self
             .token_network_registries
@@ -99,7 +81,7 @@ impl ProxyManager {
                 token_network_registry_contract.abi.as_slice(),
             )
             .map_err(ContractDefError::ABI)?;
-            let proxy = TokenNetworkRegistryProxy::new(token_network_registry_web3_contract, account_address);
+            let proxy = TokenNetworkRegistryProxy::new(token_network_registry_web3_contract);
             let mut token_network_registries = self.token_network_registries.write().await;
             token_network_registries.insert(token_network_registry_address, proxy);
         }
@@ -118,7 +100,7 @@ impl ProxyManager {
             let token_web3_contract =
                 Contract::from_json(self.web3.eth(), token_address, token_contract.abi.as_slice())
                     .map_err(ContractDefError::ABI)?;
-            let proxy = TokenProxy::new(self.web3.clone(), self.account.clone(), token_web3_contract);
+            let proxy = TokenProxy::new(self.web3.clone(), token_web3_contract);
             let mut tokens = self.tokens.write().await;
             tokens.insert(token_address, proxy);
         }
@@ -141,7 +123,6 @@ impl ProxyManager {
             .map_err(ContractDefError::ABI)?;
             let proxy = TokenNetworkProxy::new(
                 self.web3.clone(),
-                self.account.clone(),
                 self.gas_metadata.clone(),
                 token_network_web3_contract,
                 token_proxy,
@@ -167,7 +148,6 @@ impl ProxyManager {
             let token_network_proxy = self.token_network(token_address, token_network_address).await?;
             let proxy = ChannelProxy::new(
                 token_network_proxy,
-                self.account.clone(),
                 self.web3.clone(),
                 self.gas_metadata.clone(),
             );

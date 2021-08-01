@@ -26,7 +26,6 @@ use super::transaction::{
     ChannelSetTotalDepositTransactionParams,
 };
 use super::{
-    common::Account,
     contract::{
         ParticipantDetails,
         TokenNetworkContract,
@@ -38,11 +37,10 @@ use super::{
     TokenProxy,
 };
 
-use super::common::Result;
+use super::common::{Account, Result};
 
 #[derive(Clone)]
 pub struct TokenNetworkProxy<T: Transport> {
-    account: Account<T>,
     web3: Web3<T>,
     gas_metadata: Arc<GasMetadata>,
     token_proxy: TokenProxy<T>,
@@ -58,14 +56,12 @@ where
 {
     pub fn new(
         web3: Web3<T>,
-        account: Account<T>,
         gas_metadata: Arc<GasMetadata>,
         contract: Contract<T>,
         token_proxy: TokenProxy<T>,
     ) -> Self {
         Self {
             web3,
-            account,
             gas_metadata,
             token_proxy,
             contract: TokenNetworkContract { inner: contract },
@@ -74,13 +70,13 @@ where
         }
     }
 
-    pub async fn new_channel(&mut self, partner: Address, settle_timeout: U256, block: H256) -> Result<U256> {
+    pub async fn new_channel(&mut self, account: Account<T>, partner: Address, settle_timeout: U256, block: H256) -> Result<U256> {
         let channel_operations_lock = self.channel_operations_lock.write().await;
         let _partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
 
         let open_channel_transaction = ChannelOpenTransaction {
             web3: self.web3.clone(),
-            account: self.account.clone(),
+            account: account.clone(),
             contract: self.contract.clone(),
             token_proxy: self.token_proxy.clone(),
             gas_metadata: self.gas_metadata.clone(),
@@ -103,6 +99,7 @@ where
 
     pub async fn approve_and_set_total_deposit(
         &self,
+        account: Account<T>,
         channel_identifier: U256,
         partner: Address,
         total_deposit: U256,
@@ -110,7 +107,7 @@ where
     ) -> Result<()> {
         let set_total_deposit_transaction = ChannelSetTotalDepositTransaction {
             web3: self.web3.clone(),
-            account: self.account.clone(),
+            account: account.clone(),
             contract: self.contract.clone(),
             token: self.token_proxy.clone(),
             gas_metadata: self.gas_metadata.clone(),

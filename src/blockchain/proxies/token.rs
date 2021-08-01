@@ -16,25 +16,20 @@ use web3::{
     Web3,
 };
 
-use super::{
-    common::Account,
-    ProxyError,
-};
+use super::{ProxyError, common::Account};
 
 type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct TokenProxy<T: Transport> {
-    account: Account<T>,
     web3: Web3<T>,
     contract: Contract<T>,
     lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> TokenProxy<T> {
-    pub fn new(web3: Web3<T>, account: Account<T>, contract: Contract<T>) -> Self {
+    pub fn new(web3: Web3<T>, contract: Contract<T>) -> Self {
         Self {
-            account,
             web3,
             contract,
             lock: Arc::new(RwLock::new(true)),
@@ -60,7 +55,7 @@ impl<T: Transport> TokenProxy<T> {
             .query(
                 "balanceOf",
                 (address,),
-                self.account.address(),
+                address,
                 Options::default(),
                 block,
             )
@@ -68,15 +63,15 @@ impl<T: Transport> TokenProxy<T> {
             .map_err(Into::into)
     }
 
-    pub async fn approve(&self, allowed_address: Address, allowance: U256) -> Result<H256> {
-        let nonce = self.account.peek_next_nonce().await;
+    pub async fn approve(&self, account: Account<T>, allowed_address: Address, allowance: U256) -> Result<H256> {
+        let nonce = account.peek_next_nonce().await;
         let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
         let gas_estimate = self
             .contract
             .estimate_gas(
                 "approve",
                 (allowed_address, allowance),
-                self.account.address(),
+                account.address(),
                 Options::default(),
             )
             .await
@@ -88,7 +83,7 @@ impl<T: Transport> TokenProxy<T> {
             .call(
                 "approve",
                 (allowed_address, allowance),
-                self.account.address(),
+                account.address(),
                 Options::with(|opt| {
                     opt.gas = Some(gas_estimate);
                     opt.nonce = Some(nonce);

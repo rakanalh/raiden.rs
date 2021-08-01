@@ -9,6 +9,7 @@ mod token_network;
 mod token_network_registry;
 mod transaction;
 
+pub use common::*;
 pub use error::*;
 pub use gas_reserve::*;
 pub use manager::*;

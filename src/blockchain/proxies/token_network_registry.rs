@@ -21,15 +21,13 @@ type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct TokenNetworkRegistryProxy<T: Transport> {
-    from: Address,
     contract: Contract<T>,
     lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> TokenNetworkRegistryProxy<T> {
-    pub fn new(contract: Contract<T>, address: Address) -> Self {
+    pub fn new(contract: Contract<T>) -> Self {
         Self {
-            from: address,
             contract,
             lock: Arc::new(RwLock::new(true)),
         }
