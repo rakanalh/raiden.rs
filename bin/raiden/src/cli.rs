@@ -63,7 +63,6 @@ pub struct CliMediationConfig {
     pub cap_mediation_fees: bool,
 }
 
-/// A basic example
 #[derive(Clap, Debug)]
 #[clap(name = "Raiden unofficial rust client")]
 pub struct Opt {
@@ -88,8 +87,8 @@ pub struct Opt {
     // The number of occurrences of the `v/verbose` flag
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[clap(short, long, parse(from_occurrences))]
-    verbose: u8,
+    pub verbose: u8,
 
     #[clap(flatten)]
-    mediation_fees: CliMediationConfig,
+    pub mediation_fees: CliMediationConfig,
 }
