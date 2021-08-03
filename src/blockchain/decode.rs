@@ -22,11 +22,15 @@ use crate::{
             ChainState,
             ChannelState,
             ContractReceiveChannelClosed,
+            ContractReceiveChannelDeposit,
             ContractReceiveChannelOpened,
             ContractReceiveChannelSettled,
+            ContractReceiveChannelWithdraw,
             ContractReceiveTokenNetworkCreated,
+            ContractReceiveUpdateTransfer,
             StateChange,
             TokenNetworkState,
+            TransactionChannelDeposit,
         },
         views,
     },
@@ -51,8 +55,11 @@ impl EventDecoder {
         match event.name.as_ref() {
             "TokenNetworkCreated" => self.token_network_created(event),
             "ChannelOpened" => self.channel_opened(chain_state, event),
+            "ChannelNewDeposit" => self.channel_deposit(chain_state, event),
+            "ChannelWithdraw" => self.channel_withdraw(chain_state, event),
             "ChannelClosed" => self.channel_closed(chain_state, event),
             "ChannelSettled" => self.channel_settled(chain_state, event).await,
+            "NonClosingBalanceProofUpdated" => self.channel_non_closing_balance_proof_updated(chain_state, event),
             _ => None,
         }
     }
@@ -146,6 +153,63 @@ impl EventDecoder {
         ))
     }
 
+    fn channel_deposit(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+        let token_network_address = event.address;
+        let channel_identifier = match event.data.get("channel_identifier")? {
+            Token::Uint(identifier) => identifier.clone(),
+            _ => U256::zero(),
+        };
+        let participant = match event.data.get("participant")? {
+            Token::Address(address) => address.clone(),
+            _ => Address::zero(),
+        };
+        let total_deposit = match event.data.get("total_deposit")? {
+            Token::Int(total_deposit) => total_deposit.clone(),
+            _ => U256::zero(),
+        };
+        let channel_deposit = ContractReceiveChannelDeposit {
+            canonical_identifier: CanonicalIdentifier {
+                chain_identifier: chain_state.chain_id.clone(),
+                token_network_address,
+                channel_identifier,
+            },
+            deposit_transaction: TransactionChannelDeposit {
+                participant_address: participant,
+                contract_balance: total_deposit,
+                deposit_block_number: event.block_number,
+            },
+            fee_config: self.config.mediation_config.clone(),
+        };
+        Some(StateChange::ContractReceiveChannelDeposit(channel_deposit))
+    }
+
+    fn channel_withdraw(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+        let token_network_address = event.address;
+        let channel_identifier = match event.data.get("channel_identifier")? {
+            Token::Uint(identifier) => identifier.clone(),
+            _ => U256::zero(),
+        };
+        let participant = match event.data.get("participant")? {
+            Token::Address(address) => address.clone(),
+            _ => Address::zero(),
+        };
+        let total_withdraw = match event.data.get("total_withdraw")? {
+            Token::Int(total_withdraw) => total_withdraw.clone(),
+            _ => U256::zero(),
+        };
+        let channel_withdraw = ContractReceiveChannelWithdraw {
+            canonical_identifier: CanonicalIdentifier {
+                chain_identifier: chain_state.chain_id.clone(),
+                token_network_address,
+                channel_identifier,
+            },
+            participant,
+            total_withdraw,
+            fee_config: self.config.mediation_config.clone(),
+        };
+        Some(StateChange::ContractReceiveChannelWithdraw(channel_withdraw))
+    }
+
     fn channel_closed(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
         let channel_identifier = match event.data.get("channel_identifier")? {
             Token::Uint(identifier) => identifier.clone(),
@@ -170,12 +234,34 @@ impl EventDecoder {
         Some(StateChange::ContractReceiveChannelClosed(channel_closed))
     }
 
+    fn channel_non_closing_balance_proof_updated(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+        let token_network_address = event.address;
+        let channel_identifier = match event.data.get("channel_identifier")? {
+            Token::Uint(identifier) => identifier.clone(),
+            _ => U256::zero(),
+        };
+        let nonce = match event.data.get("nonce")? {
+            Token::Uint(nonce) => nonce.clone(),
+            _ => U256::zero(),
+        };
+        let update_transfer = ContractReceiveUpdateTransfer {
+            canonical_identifier: CanonicalIdentifier {
+                chain_identifier: chain_state.chain_id.clone(),
+                token_network_address,
+                channel_identifier,
+            },
+            nonce,
+        };
+        Some(StateChange::ContractReceiveUpdateTransfer(update_transfer))
+    }
+
     async fn channel_settled(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
         let token_network_address = event.address;
         let channel_identifier = match event.data.get("channel_identifier")? {
             Token::Uint(identifier) => identifier.clone(),
             _ => U256::zero(),
         };
+        println!("Channel search");
         let channel_state = views::get_channel_by_canonical_identifier(
             chain_state,
             CanonicalIdentifier {
@@ -184,6 +270,7 @@ impl EventDecoder {
                 channel_identifier,
             },
         )?;
+        println!("Channel search finished");
 
         let (our_onchain_locksroot, partner_onchain_locksroot) = self
             .get_onchain_locksroot(channel_state, chain_state.block_hash)
@@ -215,6 +302,10 @@ impl EventDecoder {
                 block,
             )
             .await
+            .map_err(|e| {
+                println!("ERROR: {:?}", e);
+                e
+            })
             .ok()?;
         Some((our_data.locksroot, partner_data.locksroot))
     }
