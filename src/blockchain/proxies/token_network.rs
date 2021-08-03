@@ -37,7 +37,10 @@ use super::{
     TokenProxy,
 };
 
-use super::common::{Account, Result};
+use super::common::{
+    Account,
+    Result,
+};
 
 #[derive(Clone)]
 pub struct TokenNetworkProxy<T: Transport> {
@@ -70,7 +73,13 @@ where
         }
     }
 
-    pub async fn new_channel(&mut self, account: Account<T>, partner: Address, settle_timeout: U256, block: H256) -> Result<U256> {
+    pub async fn new_channel(
+        &mut self,
+        account: Account<T>,
+        partner: Address,
+        settle_timeout: U256,
+        block: H256,
+    ) -> Result<U256> {
         let channel_operations_lock = self.channel_operations_lock.write().await;
         let _partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
 

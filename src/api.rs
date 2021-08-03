@@ -5,12 +5,28 @@ use slog::{
 };
 use std::sync::Arc;
 use thiserror::Error;
-use web3::{transports::Http, types::{
-    Address,
-    U256,
-}};
+use web3::{
+    transports::Http,
+    types::{
+        Address,
+        U256,
+    },
+};
 
-use crate::{blockchain::{errors::ContractDefError, proxies::{Account, GasReserve, ProxyError, ProxyManager}}, constants, primitives::U64, services::Transitioner, state_machine::{
+use crate::{
+    blockchain::{
+        errors::ContractDefError,
+        proxies::{
+            Account,
+            GasReserve,
+            ProxyError,
+            ProxyManager,
+        },
+    },
+    constants,
+    primitives::U64,
+    services::Transitioner,
+    state_machine::{
         types::{
             ActionChannelSetRevealTimeout,
             ChannelState,
@@ -18,7 +34,10 @@ use crate::{blockchain::{errors::ContractDefError, proxies::{Account, GasReserve
             StateChange,
         },
         views,
-    }, state_manager::StateManager, waiting};
+    },
+    state_manager::StateManager,
+    waiting,
+};
 
 #[derive(Error, Debug)]
 pub enum ContractError {}
@@ -167,8 +186,10 @@ impl Api {
 
         let chain_state = &self.state_manager.read().current_state.clone();
         let gas_reserve = GasReserve::new(self.proxy_manager.clone(), registry_address);
-        let (has_enough_reserve, estimated_required_reserve) =
-            gas_reserve.has_enough(account.clone(), chain_state, 1).await.map_err(ApiError::Proxy)?;
+        let (has_enough_reserve, estimated_required_reserve) = gas_reserve
+            .has_enough(account.clone(), chain_state, 1)
+            .await
+            .map_err(ApiError::Proxy)?;
 
         if !has_enough_reserve {
             return Err(ApiError::OnChainCall(format!(
@@ -180,7 +201,12 @@ impl Api {
         }
 
         let channel_details = token_network
-            .new_channel(account.clone(), partner_address, settle_timeout, confirmed_block_identifier)
+            .new_channel(
+                account.clone(),
+                partner_address,
+                settle_timeout,
+                confirmed_block_identifier,
+            )
             .await
             .map_err(ApiError::Proxy)?;
 
@@ -306,7 +332,8 @@ impl Api {
             };
 
         let result = if let Some(total_deposit) = total_deposit {
-            self.channel_deposit(account, channel_state, total_deposit, retry_timeout).await
+            self.channel_deposit(account, channel_state, total_deposit, retry_timeout)
+                .await
         } else if let Some(total_withdraw) = total_withdraw {
             self.channel_withdraw(channel_state, total_withdraw).await
         } else if let Some(reveal_timeout) = reveal_timeout {

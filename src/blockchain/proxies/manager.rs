@@ -26,7 +26,13 @@ use crate::{
     state_machine::types::ChannelState,
 };
 
-use super::{ProxyError, TokenNetworkProxy, TokenNetworkRegistryProxy, TokenProxy, channel::ChannelProxy};
+use super::{
+    channel::ChannelProxy,
+    ProxyError,
+    TokenNetworkProxy,
+    TokenNetworkRegistryProxy,
+    TokenProxy,
+};
 
 pub struct ProxyManager {
     web3: Web3<Http>,
@@ -39,10 +45,7 @@ pub struct ProxyManager {
 }
 
 impl ProxyManager {
-    pub fn new(
-        web3: Web3<Http>,
-        contracts_manager: Arc<ContractsManager>,
-    ) -> Result<Self, ProxyError> {
+    pub fn new(web3: Web3<Http>, contracts_manager: Arc<ContractsManager>) -> Result<Self, ProxyError> {
         let gas_metadata = Arc::new(GasMetadata::new());
 
         Ok(Self {
@@ -146,11 +149,7 @@ impl ProxyManager {
 
         if !self.channels.read().await.contains_key(&channel_identifier) {
             let token_network_proxy = self.token_network(token_address, token_network_address).await?;
-            let proxy = ChannelProxy::new(
-                token_network_proxy,
-                self.web3.clone(),
-                self.gas_metadata.clone(),
-            );
+            let proxy = ChannelProxy::new(token_network_proxy, self.web3.clone(), self.gas_metadata.clone());
             let mut channels = self.channels.write().await;
             channels.insert(channel_identifier, proxy);
         }

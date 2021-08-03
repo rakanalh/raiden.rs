@@ -3,10 +3,13 @@ use std::{
     sync::Arc,
 };
 
-use web3::{Transport, types::{
-    Address,
-    U256,
-}};
+use web3::{
+    types::{
+        Address,
+        U256,
+    },
+    Transport,
+};
 
 use crate::{
     blockchain::contracts::GasMetadata,
@@ -20,7 +23,13 @@ use crate::{
     },
 };
 
-use super::{ProxyManager, common::{Account, Result}};
+use super::{
+    common::{
+        Account,
+        Result,
+    },
+    ProxyManager,
+};
 
 const GAS_REQUIRED_FOR_CHANNEL_LIFECYCLE_AFTER_SETTLE: u64 = UNLOCK_TX_GAS_LIMIT;
 
@@ -122,14 +131,14 @@ impl GasReserve {
         Ok(reserve_amount.mul((100.0 * GAS_RESERVE_ESTIMATE_SECURITY_FACTOR).round() as u32 / 100))
     }
 
-    pub async fn has_enough<T: Transport>(&self, account: Account<T>, chain_state: &ChainState, channels_to_open: u64) -> Result<(bool, U256)> {
+    pub async fn has_enough<T: Transport>(
+        &self,
+        account: Account<T>,
+        chain_state: &ChainState,
+        channels_to_open: u64,
+    ) -> Result<(bool, U256)> {
         let gas_reserve_estimate = self.get_estimate(chain_state, channels_to_open).await?;
-        let balance = self
-            .proxy_manager
-            .web3()
-            .eth()
-            .balance(account.address(), None)
-            .await?;
+        let balance = self.proxy_manager.web3().eth().balance(account.address(), None).await?;
 
         Ok((gas_reserve_estimate < balance, gas_reserve_estimate))
     }

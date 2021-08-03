@@ -34,11 +34,7 @@ where
     T: Transport + Send + Sync,
     T::Out: Send,
 {
-    pub fn new(
-        token_network: TokenNetworkProxy<T>,
-        web3: Web3<T>,
-        gas_metadata: Arc<GasMetadata>,
-    ) -> Self {
+    pub fn new(token_network: TokenNetworkProxy<T>, web3: Web3<T>, gas_metadata: Arc<GasMetadata>) -> Self {
         Self {
             token_network,
             web3,

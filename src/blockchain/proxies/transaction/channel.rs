@@ -424,7 +424,9 @@ where
         gas_price: U256,
     ) -> Result<Self::Output, ProxyError> {
         let allowance = data.amount_to_deposit + 1;
-        self.token.approve(self.account.clone(), self.contract.address(), allowance).await?;
+        self.token
+            .approve(self.account.clone(), self.contract.address(), allowance)
+            .await?;
         let nonce = self.account.next_nonce().await;
 
         self.contract

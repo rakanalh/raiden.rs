@@ -16,7 +16,10 @@ use web3::{
     Web3,
 };
 
-use super::{ProxyError, common::Account};
+use super::{
+    common::Account,
+    ProxyError,
+};
 
 type Result<T> = std::result::Result<T, ProxyError>;
 
@@ -52,13 +55,7 @@ impl<T: Transport> TokenProxy<T> {
     pub async fn balance_of(&self, address: Address, block: Option<H256>) -> Result<U256> {
         let block = block.map(|b| BlockId::Hash(b));
         self.contract
-            .query(
-                "balanceOf",
-                (address,),
-                address,
-                Options::default(),
-                block,
-            )
+            .query("balanceOf", (address,), address, Options::default(), block)
             .await
             .map_err(Into::into)
     }
