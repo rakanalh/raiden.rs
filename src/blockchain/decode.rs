@@ -8,6 +8,10 @@ use web3::types::{
     U256,
 };
 
+use super::{
+    events::Event,
+    proxies::ProxyManager,
+};
 use crate::{
     constants,
     primitives::{
@@ -35,11 +39,13 @@ use crate::{
         views,
     },
 };
+use derive_more::Display;
+use thiserror::Error;
 
-use super::{
-    events::Event,
-    proxies::ProxyManager,
-};
+#[derive(Error, Debug, Display)]
+pub struct DecodeError(String);
+
+pub type Result<T> = std::result::Result<T, DecodeError>;
 
 pub struct EventDecoder {
     proxy_manager: Arc<ProxyManager>,
@@ -51,7 +57,7 @@ impl EventDecoder {
         Self { proxy_manager, config }
     }
 
-    pub async fn as_state_change(&self, event: Event, chain_state: &ChainState) -> Option<StateChange> {
+    pub async fn as_state_change(&self, event: Event, chain_state: &ChainState) -> Result<Option<StateChange>> {
         match event.name.as_ref() {
             "TokenNetworkCreated" => self.token_network_created(event),
             "ChannelOpened" => self.channel_opened(chain_state, event),
@@ -60,22 +66,30 @@ impl EventDecoder {
             "ChannelClosed" => self.channel_closed(chain_state, event),
             "ChannelSettled" => self.channel_settled(chain_state, event).await,
             "NonClosingBalanceProofUpdated" => self.channel_non_closing_balance_proof_updated(chain_state, event),
-            _ => None,
+            _ => Err(DecodeError(format!("Event {} unknown", event.name))),
         }
     }
 
-    fn token_network_created(&self, event: Event) -> Option<StateChange> {
-        let token_address = match event.data.get("token_address")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+    fn token_network_created(&self, event: Event) -> Result<Option<StateChange>> {
+        let token_address = match event.data.get("token_address") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Token network created event has an invalid token address"
+                )))
+            }
         };
-        let token_network_address = match event.data.get("token_network_address")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+        let token_network_address = match event.data.get("token_network_address") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Token network created event has an invalid token network address"
+                )))
+            }
         };
         let token_network = TokenNetworkState::new(token_network_address, token_address);
         let token_network_registry_address = event.address;
-        Some(StateChange::ContractReceiveTokenNetworkCreated(
+        Ok(Some(StateChange::ContractReceiveTokenNetworkCreated(
             ContractReceiveTokenNetworkCreated {
                 transaction_hash: Some(event.transaction_hash),
                 block_number: event.block_number,
@@ -83,25 +97,33 @@ impl EventDecoder {
                 token_network_registry_address,
                 token_network,
             },
-        ))
+        )))
     }
 
-    fn channel_opened(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
-        let channel_identifier = match event.data.get("channel_identifier")? {
-            Token::Uint(identifier) => identifier.clone(),
-            _ => U256::zero(),
+    fn channel_opened(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
+        let channel_identifier = match event.data.get("channel_identifier") {
+            Some(Token::Uint(identifier)) => identifier.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel opened event has an invalid channel identifier"
+                )))
+            }
         };
-        let participant1 = match event.data.get("participant1")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+        let participant1 = match event.data.get("participant1") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => return Err(DecodeError(format!("Channel opened event has an invalid participant1"))),
         };
-        let participant2 = match event.data.get("participant2")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+        let participant2 = match event.data.get("participant2") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => return Err(DecodeError(format!("Channel opened event has an invalid participant2"))),
         };
-        let settle_timeout = match event.data.get("settle_timeout")? {
-            Token::Uint(timeout) => U256::from(timeout.clone().low_u64()),
-            _ => U256::zero(),
+        let settle_timeout = match event.data.get("settle_timeout") {
+            Some(Token::Uint(timeout)) => U256::from(timeout.clone().low_u64()),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel opened event has an invalid settle timeout"
+                )))
+            }
         };
 
         let partner_address: Address;
@@ -111,13 +133,12 @@ impl EventDecoder {
         } else if our_address == participant2 {
             partner_address = participant1;
         } else {
-            return None;
+            return Ok(None);
         }
 
         let token_network_address = event.address;
-        let _token_network_registry =
-            views::get_token_network_registry_by_token_network_address(&chain_state, token_network_address)?;
-        let token_network = views::get_token_network_by_address(&chain_state, token_network_address)?;
+        let token_network = views::get_token_network_by_address(&chain_state, token_network_address)
+            .ok_or_else(|| DecodeError(format!("Channel opened event has an unknown Token network address")))?;
         let token_address = token_network.token_address;
         let token_network_registry_address = Address::zero();
         let reveal_timeout = U64::from(constants::DEFAULT_REVEAL_TIMEOUT);
@@ -141,31 +162,39 @@ impl EventDecoder {
             open_transaction,
             self.config.mediation_config.clone(),
         )
-        .ok()?;
+        .map_err(|e| DecodeError(format!("{:?}", e)))?;
 
-        Some(StateChange::ContractReceiveChannelOpened(
+        Ok(Some(StateChange::ContractReceiveChannelOpened(
             ContractReceiveChannelOpened {
                 transaction_hash: Some(event.transaction_hash),
                 block_number: event.block_number,
                 block_hash: event.block_hash,
                 channel_state,
             },
-        ))
+        )))
     }
 
-    fn channel_deposit(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+    fn channel_deposit(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
         let token_network_address = event.address;
-        let channel_identifier = match event.data.get("channel_identifier")? {
-            Token::Uint(identifier) => identifier.clone(),
-            _ => U256::zero(),
+        let channel_identifier = match event.data.get("channel_identifier") {
+            Some(Token::Uint(identifier)) => identifier.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel deposit event has an invalid channel identifier"
+                )))
+            }
         };
-        let participant = match event.data.get("participant")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+        let participant = match event.data.get("participant") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => return Err(DecodeError(format!("Channel deposit event has an invalid participant"))),
         };
-        let total_deposit = match event.data.get("total_deposit")? {
-            Token::Int(total_deposit) => total_deposit.clone(),
-            _ => U256::zero(),
+        let total_deposit = match event.data.get("total_deposit") {
+            Some(Token::Int(total_deposit)) => total_deposit.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel deposit event has an invalid total deposit"
+                )))
+            }
         };
         let channel_deposit = ContractReceiveChannelDeposit {
             canonical_identifier: CanonicalIdentifier {
@@ -180,22 +209,34 @@ impl EventDecoder {
             },
             fee_config: self.config.mediation_config.clone(),
         };
-        Some(StateChange::ContractReceiveChannelDeposit(channel_deposit))
+        Ok(Some(StateChange::ContractReceiveChannelDeposit(channel_deposit)))
     }
 
-    fn channel_withdraw(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+    fn channel_withdraw(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
         let token_network_address = event.address;
-        let channel_identifier = match event.data.get("channel_identifier")? {
-            Token::Uint(identifier) => identifier.clone(),
-            _ => U256::zero(),
+        let channel_identifier = match event.data.get("channel_identifier") {
+            Some(Token::Uint(identifier)) => identifier.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel withdraw event has an invalid channel identifier"
+                )))
+            }
         };
-        let participant = match event.data.get("participant")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+        let participant = match event.data.get("participant") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel withdraw event has an invalid participant"
+                )))
+            }
         };
-        let total_withdraw = match event.data.get("total_withdraw")? {
-            Token::Int(total_withdraw) => total_withdraw.clone(),
-            _ => U256::zero(),
+        let total_withdraw = match event.data.get("total_withdraw") {
+            Some(Token::Int(total_withdraw)) => total_withdraw.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel withdraw event has an invalid total withdraw"
+                )))
+            }
         };
         let channel_withdraw = ContractReceiveChannelWithdraw {
             canonical_identifier: CanonicalIdentifier {
@@ -207,17 +248,25 @@ impl EventDecoder {
             total_withdraw,
             fee_config: self.config.mediation_config.clone(),
         };
-        Some(StateChange::ContractReceiveChannelWithdraw(channel_withdraw))
+        Ok(Some(StateChange::ContractReceiveChannelWithdraw(channel_withdraw)))
     }
 
-    fn channel_closed(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
-        let channel_identifier = match event.data.get("channel_identifier")? {
-            Token::Uint(identifier) => identifier.clone(),
-            _ => U256::zero(),
+    fn channel_closed(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
+        let channel_identifier = match event.data.get("channel_identifier") {
+            Some(Token::Uint(identifier)) => identifier.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel closed event has an invalid channel identifier"
+                )))
+            }
         };
-        let transaction_from = match event.data.get("closing_participant")? {
-            Token::Address(address) => address.clone(),
-            _ => Address::zero(),
+        let transaction_from = match event.data.get("closing_participant") {
+            Some(Token::Address(address)) => address.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel closed event has an invalid closing participant"
+                )))
+            }
         };
         let token_network_address = event.address;
         let channel_closed = ContractReceiveChannelClosed {
@@ -231,18 +280,30 @@ impl EventDecoder {
                 channel_identifier,
             },
         };
-        Some(StateChange::ContractReceiveChannelClosed(channel_closed))
+        Ok(Some(StateChange::ContractReceiveChannelClosed(channel_closed)))
     }
 
-    fn channel_non_closing_balance_proof_updated(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+    fn channel_non_closing_balance_proof_updated(
+        &self,
+        chain_state: &ChainState,
+        event: Event,
+    ) -> Result<Option<StateChange>> {
         let token_network_address = event.address;
-        let channel_identifier = match event.data.get("channel_identifier")? {
-            Token::Uint(identifier) => identifier.clone(),
-            _ => U256::zero(),
+        let channel_identifier = match event.data.get("channel_identifier") {
+            Some(Token::Uint(identifier)) => identifier.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel update non closing balance proof event has an invalid channel_identifier"
+                )))
+            }
         };
-        let nonce = match event.data.get("nonce")? {
-            Token::Uint(nonce) => nonce.clone(),
-            _ => U256::zero(),
+        let nonce = match event.data.get("nonce") {
+            Some(Token::Uint(nonce)) => nonce.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel update non closing balance proof event has an invalid nonce"
+                )))
+            }
         };
         let update_transfer = ContractReceiveUpdateTransfer {
             canonical_identifier: CanonicalIdentifier {
@@ -252,16 +313,19 @@ impl EventDecoder {
             },
             nonce,
         };
-        Some(StateChange::ContractReceiveUpdateTransfer(update_transfer))
+        Ok(Some(StateChange::ContractReceiveUpdateTransfer(update_transfer)))
     }
 
-    async fn channel_settled(&self, chain_state: &ChainState, event: Event) -> Option<StateChange> {
+    async fn channel_settled(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
         let token_network_address = event.address;
-        let channel_identifier = match event.data.get("channel_identifier")? {
-            Token::Uint(identifier) => identifier.clone(),
-            _ => U256::zero(),
+        let channel_identifier = match event.data.get("channel_identifier") {
+            Some(Token::Uint(identifier)) => identifier.clone(),
+            _ => {
+                return Err(DecodeError(format!(
+                    "Channel settled event arg `channel_identifier` invalid"
+                )))
+            }
         };
-        println!("Channel search");
         let channel_state = views::get_channel_by_canonical_identifier(
             chain_state,
             CanonicalIdentifier {
@@ -269,8 +333,10 @@ impl EventDecoder {
                 token_network_address,
                 channel_identifier,
             },
-        )?;
-        println!("Channel search finished");
+        )
+        .ok_or(DecodeError(format!(
+            "Channel settled event with an unknown channel identifier"
+        )))?;
 
         let (our_onchain_locksroot, partner_onchain_locksroot) = self
             .get_onchain_locksroot(channel_state, chain_state.block_hash)
@@ -288,11 +354,15 @@ impl EventDecoder {
             our_onchain_locksroot,
             partner_onchain_locksroot,
         };
-        Some(StateChange::ContractReceiveChannelSettled(channel_settled))
+        Ok(Some(StateChange::ContractReceiveChannelSettled(channel_settled)))
     }
 
-    async fn get_onchain_locksroot(&self, channel_state: &ChannelState, block: H256) -> Option<(Bytes, Bytes)> {
-        let payment_channel = self.proxy_manager.payment_channel(&channel_state).await.ok()?;
+    async fn get_onchain_locksroot(&self, channel_state: &ChannelState, block: H256) -> Result<(Bytes, Bytes)> {
+        let payment_channel = self
+            .proxy_manager
+            .payment_channel(&channel_state)
+            .await
+            .map_err(|e| DecodeError(format!("{:?}", e)))?;
         let (our_data, partner_data) = payment_channel
             .token_network
             .participants_details(
@@ -302,11 +372,8 @@ impl EventDecoder {
                 block,
             )
             .await
-            .map_err(|e| {
-                println!("ERROR: {:?}", e);
-                e
-            })
-            .ok()?;
-        Some((our_data.locksroot, partner_data.locksroot))
+            .map_err(|e| DecodeError(format!("{:?}", e)))?;
+
+        Ok((our_data.locksroot, partner_data.locksroot))
     }
 }
