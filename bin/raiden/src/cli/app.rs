@@ -119,7 +119,13 @@ impl RaidenApp {
             Err(_) => return,
         };
 
-        let sync_start_block_number = self.state_manager.read().current_state.block_number;
+        let sync_start_block_number = match self
+            .contracts_manager
+            .get_deployed(contracts::ContractIdentifier::TokenNetworkRegistry)
+        {
+            Ok(contract) => contract.block,
+            Err(_) => self.state_manager.read().current_state.block_number,
+        };
 
         let mut sync_service = SyncService::new(
             self.web3.clone(),
@@ -130,6 +136,7 @@ impl RaidenApp {
             self.transition_service.clone(),
             self.logger.clone(),
         );
+
         sync_service
             .sync(sync_start_block_number, latest_block_number.into())
             .await;
