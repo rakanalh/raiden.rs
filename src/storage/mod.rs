@@ -210,9 +210,9 @@ impl Storage {
         let mut stmt = conn
             .prepare(
                 "SELECT identifier, data FROM state_changes
-			WHERE identifier BETWEEEN ?1 AND ?2",
+                WHERE identifier>=?1 AND identifier<=?2",
             )
-            .map_err(|e| StorageError::Sql(e))?;
+            .map_err(StorageError::Sql)?;
 
         let start_state_change: String = start_state_change.into();
         let end_state_change: String = end_state_change.into();
