@@ -71,6 +71,7 @@ impl EventDecoder {
             "ChannelWithdraw" => self.channel_withdraw(chain_state, event),
             "ChannelClosed" => self.channel_closed(chain_state, event),
             "ChannelSettled" => self.channel_settled(chain_state, event).await,
+            // "ChannelUnlocked" => self.channel_unlocked(chain_state, event, storage).await,
             "NonClosingBalanceProofUpdated" => self.channel_non_closing_balance_proof_updated(chain_state, event),
             _ => Err(DecodeError(format!("Event {} unknown", event.name))),
         }
@@ -368,6 +369,79 @@ impl EventDecoder {
         Ok(Some(StateChange::ContractReceiveChannelSettled(channel_settled)))
     }
 
+    // async fn channel_unlocked(&self, chain_state: &ChainState, event: Event, storage: Arc<Storage>) -> Result<Option<StateChange>> {
+    //     let token_network_address = event.address;
+    //     let participant1 = match event.data.get("sender") {
+    //         Some(Token::Address(address)) => address.clone(),
+    //         _ => return Err(DecodeError(format!("{} event has an invalid sender", event.name))),
+    //     };
+    //     let participant2 = match event.data.get("receiver") {
+    //         Some(Token::Address(address)) => address.clone(),
+    //         _ => return Err(DecodeError(format!("{} event has an invalid receiver", event.name))),
+    //     };
+    //     let locksroot = match event.data.get("locksroot") {
+    //         Some(Token::Bytes(bytes)) => bytes.clone(),
+    //         _ => return Err(DecodeError(format!("{} event has an invalid locksroot", event.name))),
+    //     };
+    //     let unlocked_amount = match event.data.get("unlocked_amount") {
+    //         Some(Token::Uint(amount)) => amount.clone(),
+    //         _ => return Err(DecodeError(format!("{} event has an invalid unlocked amount", event.name))),
+    //     };
+    //     let returned_tokens = match event.data.get("returned_tokens") {
+    //         Some(Token::Uint(amount)) => amount.clone(),
+    //         _ => return Err(DecodeError(format!("{} event has an invalid returned tokens", event.name))),
+    //     };
+    //     let token_network = match views::get_token_network_by_address(chain_state, token_network_address) {
+    //         Some(token_network) => token_network,
+    //         None => return Ok(None),
+    //     };
+
+    //     let partner = if participant1 == chain_state.our_address {
+    //         participant2
+    //     } else if participant2 == chain_state.our_address {
+    //         participant1
+    //     } else {
+    //         return Ok(None);
+    //     };
+
+    //     let channel_identifiers = token_network.channelidentifiers_to_channels.keys();
+    //     let canonical_identifier = for channel_identifier in channel_identifiers {
+    //          if partner == participant1 {
+    //             let criteria = vec![
+    //                 ("balance_proof.canonical_identifier.chain_identifier".to_owned(), format!("{}", chain_state.chain_id)),
+    //                 ("balance_proof.canonical_identifier.token_network_address".to_owned(), format!("{}", token_network_address)),
+    //                 ("balance_proof.canonical_identifier.channel_identifier".to_owned(), format!("{}", channel_identifier)),
+    //                 ("balance_proof.locksroot".to_owned(), format!("{:?}", locksroot)),
+    //                 ("balance_proof.sender".to_owned(), format!("{}", participant1))
+    //             ];
+    //             let state_change_record = match storage.get_latest_state_change_by_data_field(criteria) {
+    //                 Ok(Some(state_change_record)) => state_change_record,
+    //                 _ => continue,
+    //             };
+
+    //             let state_change: StateChange = match serde_json::from_str(&state_change_record.data) {
+    //                 Ok(state_change) => state_change,
+    //                 _ => return Err(DecodeError(format!("{}: Could not restore state change", event.name))),
+    //             };
+    //         } else if partner == participant2 {
+
+    //         } else {
+    //             return Ok(None);
+    //         };
+
+    //     };
+
+    //     let channel_unlocked = ContractReceiveChannelBatchUnlock {
+    //         canonical_identifier,
+    //         receiver: participant2,
+    //         sender: participant1,
+    //         locksroot,
+    //         unlocked_amount,
+    //         returned_tokens,
+    //     };
+    //     Ok(Some(StateChange::ContractReceiveChannelBatchUnlock(channel_unlocked)))
+    // }
+
     async fn get_onchain_locksroot(&self, channel_state: &ChannelState, block: H256) -> Result<(Bytes, Bytes)> {
         let payment_channel = self
             .proxy_manager
@@ -387,4 +461,10 @@ impl EventDecoder {
 
         Ok((our_data.locksroot, partner_data.locksroot))
     }
+
+    #[allow(dead_code)]
+    fn get_state_change_with_balance_proof_by_locksroot() {}
+
+    #[allow(dead_code)]
+    fn get_event_with_balance_proof_by_locks_root() {}
 }

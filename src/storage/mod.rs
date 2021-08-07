@@ -233,4 +233,38 @@ impl Storage {
 
         Ok(state_changes)
     }
+
+    pub fn get_latest_state_change_by_data_field(
+        &self,
+        criteria: Vec<(String, String)>,
+    ) -> Result<Option<StateChangeRecord>> {
+        let mut where_cond = "".to_owned();
+        for (i, (field, _)) in criteria.iter().enumerate() {
+            where_cond.push_str(&format!("{}=?{}", field, i + 1));
+        }
+        let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT identifier, data FROM state_changes
+                    WHERE {}
+                    ORDER BY identifier DESC
+                    LIMIT 1",
+                where_cond
+            ))
+            .map_err(StorageError::Sql)?;
+
+        let mut rows = stmt
+            .query(criteria.iter().map(|(_, v)| v.clone()).collect::<Vec<String>>())
+            .map_err(StorageError::Sql)?;
+
+        let row = match rows.next().map_err(StorageError::Sql)? {
+            Some(row) => row,
+            None => return Err(StorageError::Other("State change not found")),
+        };
+        let identifier: String = row.get(0).map_err(StorageError::Sql)?;
+        Ok(Some(StateChangeRecord {
+            identifier: identifier.try_into().map_err(StorageError::ID)?,
+            data: row.get(1).map_err(StorageError::Sql)?,
+        }))
+    }
 }
