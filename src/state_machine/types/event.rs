@@ -17,7 +17,7 @@ use crate::primitives::{
 
 use super::BalanceProofState;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum Event {
     SendWithdrawExpired(SendWithdrawExpired),
     SendWithdrawRequest(SendWithdrawRequest),
@@ -28,7 +28,7 @@ pub enum Event {
     InvalidActionSetRevealTimeout(EventInvalidActionSetRevealTimeout),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum SendMessageEvent {
     SendWithdrawExpired(SendWithdrawExpired),
 }
@@ -41,7 +41,7 @@ pub struct SendMessageEventInner {
     pub message_identifier: u32,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct SendWithdrawExpired {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -50,7 +50,7 @@ pub struct SendWithdrawExpired {
     pub expiration: U64,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct SendWithdrawRequest {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -59,38 +59,38 @@ pub struct SendWithdrawRequest {
     pub nonce: U256,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendEvent {
     pub triggered_by_blockhash: H256,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelSettle {
     pub inner: ContractSendEvent,
     pub canonical_identifier: CanonicalIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelUpdateTransfer {
     pub inner: ContractSendEvent,
     pub expiration: U256,
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelBatchUnlock {
     pub inner: ContractSendEvent,
     pub canonical_identifier: CanonicalIdentifier,
     pub sender: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct EventInvalidActionWithdraw {
     pub attemped_withdraw: U256,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct EventInvalidActionSetRevealTimeout {
     pub reveal_timeout: U64,
     pub reason: String,

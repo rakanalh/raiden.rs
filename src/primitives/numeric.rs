@@ -12,7 +12,7 @@ use web3::types::{
     U64 as PrimitiveU64,
 };
 
-#[derive(Copy, Clone, Debug, Deref, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Default, Copy, Clone, Debug, Deref, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct U64(PrimitiveU64);
 
 impl std::fmt::Display for U64 {

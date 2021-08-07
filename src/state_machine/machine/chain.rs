@@ -155,12 +155,12 @@ fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Transit
 
     let mut events = channels_result.events;
 
-    let chain_state = channels_result.new_state;
+    chain_state = channels_result.new_state;
 
     let transfers_result = subdispatch_to_all_lockedtransfers(chain_state, StateChange::Block(state_change))?;
     events.extend(transfers_result.events);
 
-    let chain_state = transfers_result.new_state;
+    chain_state = transfers_result.new_state;
 
     Ok(ChainTransition {
         new_state: chain_state,
@@ -252,7 +252,7 @@ fn handle_token_network_state_change(
 
     Ok(ChainTransition {
         new_state: chain_state,
-        events: vec![],
+        events: transition.events,
     })
 }
 

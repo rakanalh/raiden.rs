@@ -238,7 +238,7 @@ impl ChannelState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct ChannelEndState {
     pub address: Address,
     pub contract_balance: U256,
@@ -288,7 +288,7 @@ impl ChannelEndState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct BalanceProofState {
     pub nonce: U256,
     pub transferred_amount: U256,
@@ -306,7 +306,7 @@ pub struct PendingLocksState {
     locks: Vec<H256>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct UnlockPartialProofState {
     lock: HashTimeLockState,
     secret: H256,
@@ -316,7 +316,7 @@ pub struct UnlockPartialProofState {
     encoded: H256,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct HashTimeLockState {
     amount: U256,
     expiration: U64,
@@ -324,7 +324,7 @@ pub struct HashTimeLockState {
     encoded: H256,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct ExpiredWithdrawState {
     pub total_withdraw: U256,
     pub expiration: U64,
@@ -332,7 +332,7 @@ pub struct ExpiredWithdrawState {
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct PendingWithdrawState {
     pub total_withdraw: U256,
     pub expiration: U64,
@@ -360,6 +360,17 @@ pub struct FeeScheduleState {
     pub proportional: U256,
     pub imbalance_penalty: Option<Vec<(U256, U256)>>,
     //penalty_func: Option<u64>,
+}
+
+impl Default for FeeScheduleState {
+    fn default() -> Self {
+        Self {
+            cap_fees: true,
+            flat: U256::zero(),
+            proportional: U256::zero(),
+            imbalance_penalty: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
