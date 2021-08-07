@@ -303,6 +303,7 @@ fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: U2
 }
 
 /// Returns a list of numbers from start to stop (inclusive).
+#[allow(dead_code)]
 fn linspace(start: U256, stop: U256, num: U256) -> Vec<TokenAmount> {
     // assert num > 1, "Must generate at least one step"
     // assert start <= stop, "start must be smaller than stop"
@@ -320,6 +321,7 @@ fn linspace(start: U256, stop: U256, num: U256) -> Vec<TokenAmount> {
     result
 }
 
+#[allow(dead_code)]
 fn calculate_imbalance_fees(
     channel_capacity: U256,
     proportional_imbalance_fee: U256,
@@ -361,6 +363,7 @@ fn calculate_imbalance_fees(
     Some(x_values.into_iter().zip(y_values).collect())
 }
 
+#[allow(dead_code)]
 fn update_fee_schedule_after_balance_change(channel_state: &mut ChannelState, fee_config: MediationFeeConfig) {
     let proportional_imbalance_fee = fee_config.get_proportional_imbalance_fee(&channel_state.token_address);
     let imbalance_penalty = calculate_imbalance_fees(channel_state.capacity(), proportional_imbalance_fee);
@@ -386,7 +389,7 @@ fn handle_channel_deposit(
         update_contract_balance(&mut channel_state.partner_state, contract_balance);
     }
 
-    update_fee_schedule_after_balance_change(&mut channel_state, state_change.fee_config);
+    //update_fee_schedule_after_balance_change(&mut channel_state, state_change.fee_config);
 
     Ok(ChannelTransition {
         new_state: Some(channel_state),
@@ -418,7 +421,7 @@ fn handle_channel_withdraw(
     }
     end_state.onchain_total_withdraw = state_change.total_withdraw;
 
-    update_fee_schedule_after_balance_change(&mut channel_state, state_change.fee_config);
+    // update_fee_schedule_after_balance_change(&mut channel_state, state_change.fee_config);
 
     return Ok(ChannelTransition {
         new_state: Some(channel_state),
