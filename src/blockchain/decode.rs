@@ -38,6 +38,7 @@ use crate::{
         },
         views,
     },
+    storage::Storage,
 };
 use derive_more::Display;
 use thiserror::Error;
@@ -57,7 +58,12 @@ impl EventDecoder {
         Self { proxy_manager, config }
     }
 
-    pub async fn as_state_change(&self, event: Event, chain_state: &ChainState) -> Result<Option<StateChange>> {
+    pub async fn as_state_change(
+        &self,
+        event: Event,
+        chain_state: &ChainState,
+        _storage: Arc<Storage>,
+    ) -> Result<Option<StateChange>> {
         match event.name.as_ref() {
             "TokenNetworkCreated" => self.token_network_created(event),
             "ChannelOpened" => self.channel_opened(chain_state, event),
@@ -75,7 +81,8 @@ impl EventDecoder {
             Some(Token::Address(address)) => address.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Token network created event has an invalid token address"
+                    "{} event has an invalid token address",
+                    event.name,
                 )))
             }
         };
@@ -83,7 +90,8 @@ impl EventDecoder {
             Some(Token::Address(address)) => address.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Token network created event has an invalid token network address"
+                    "{} event has an invalid token network address",
+                    event.name,
                 )))
             }
         };
@@ -105,23 +113,25 @@ impl EventDecoder {
             Some(Token::Uint(identifier)) => identifier.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel opened event has an invalid channel identifier"
+                    "{} event has an invalid channel identifier",
+                    event.name,
                 )))
             }
         };
         let participant1 = match event.data.get("participant1") {
             Some(Token::Address(address)) => address.clone(),
-            _ => return Err(DecodeError(format!("Channel opened event has an invalid participant1"))),
+            _ => return Err(DecodeError(format!("{} event has an invalid participant1", event.name))),
         };
         let participant2 = match event.data.get("participant2") {
             Some(Token::Address(address)) => address.clone(),
-            _ => return Err(DecodeError(format!("Channel opened event has an invalid participant2"))),
+            _ => return Err(DecodeError(format!("{} event has an invalid participant2", event.name))),
         };
         let settle_timeout = match event.data.get("settle_timeout") {
             Some(Token::Uint(timeout)) => U256::from(timeout.clone().low_u64()),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel opened event has an invalid settle timeout"
+                    "{} event has an invalid settle timeout",
+                    event.name,
                 )))
             }
         };
@@ -138,7 +148,7 @@ impl EventDecoder {
 
         let token_network_address = event.address;
         let token_network = views::get_token_network_by_address(&chain_state, token_network_address)
-            .ok_or_else(|| DecodeError(format!("Channel opened event has an unknown Token network address")))?;
+            .ok_or_else(|| DecodeError(format!("{} event haswan unknown Token network address", event.name)))?;
         let token_address = token_network.token_address;
         let token_network_registry_address = Address::zero();
         let reveal_timeout = U64::from(constants::DEFAULT_REVEAL_TIMEOUT);
@@ -180,19 +190,21 @@ impl EventDecoder {
             Some(Token::Uint(identifier)) => identifier.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel deposit event has an invalid channel identifier"
+                    "{} event has an invalid channel identifier",
+                    event.name,
                 )))
             }
         };
         let participant = match event.data.get("participant") {
             Some(Token::Address(address)) => address.clone(),
-            _ => return Err(DecodeError(format!("Channel deposit event has an invalid participant"))),
+            _ => return Err(DecodeError(format!("{} event has an invalid participant", event.name))),
         };
         let total_deposit = match event.data.get("total_deposit") {
-            Some(Token::Int(total_deposit)) => total_deposit.clone(),
+            Some(Token::Uint(total_deposit)) => total_deposit.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel deposit event has an invalid total deposit"
+                    "{} event has an invalid total deposit",
+                    event.name,
                 )))
             }
         };
@@ -218,23 +230,21 @@ impl EventDecoder {
             Some(Token::Uint(identifier)) => identifier.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel withdraw event has an invalid channel identifier"
+                    "{} event has an invalid channel identifier",
+                    event.name,
                 )))
             }
         };
         let participant = match event.data.get("participant") {
             Some(Token::Address(address)) => address.clone(),
-            _ => {
-                return Err(DecodeError(format!(
-                    "Channel withdraw event has an invalid participant"
-                )))
-            }
+            _ => return Err(DecodeError(format!("{} event has an invalid participant", event.name,))),
         };
         let total_withdraw = match event.data.get("total_withdraw") {
-            Some(Token::Int(total_withdraw)) => total_withdraw.clone(),
+            Some(Token::Uint(total_withdraw)) => total_withdraw.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel withdraw event has an invalid total withdraw"
+                    "{} event has an invalid total withdraw",
+                    event.name,
                 )))
             }
         };
@@ -256,7 +266,8 @@ impl EventDecoder {
             Some(Token::Uint(identifier)) => identifier.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel closed event has an invalid channel identifier"
+                    "{} event has an invalid channel identifier",
+                    event.name,
                 )))
             }
         };
@@ -264,7 +275,8 @@ impl EventDecoder {
             Some(Token::Address(address)) => address.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel closed event has an invalid closing participant"
+                    "{} event has an invalid closing participant",
+                    event.name,
                 )))
             }
         };
@@ -293,17 +305,14 @@ impl EventDecoder {
             Some(Token::Uint(identifier)) => identifier.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel update non closing balance proof event has an invalid channel_identifier"
+                    "{} event has an invalid channel_identifier",
+                    event.name,
                 )))
             }
         };
         let nonce = match event.data.get("nonce") {
             Some(Token::Uint(nonce)) => nonce.clone(),
-            _ => {
-                return Err(DecodeError(format!(
-                    "Channel update non closing balance proof event has an invalid nonce"
-                )))
-            }
+            _ => return Err(DecodeError(format!("{} event has an invalid nonce", event.name,))),
         };
         let update_transfer = ContractReceiveUpdateTransfer {
             canonical_identifier: CanonicalIdentifier {
@@ -322,21 +331,23 @@ impl EventDecoder {
             Some(Token::Uint(identifier)) => identifier.clone(),
             _ => {
                 return Err(DecodeError(format!(
-                    "Channel settled event arg `channel_identifier` invalid"
+                    "{} event arg `channel_identifier` invalid",
+                    event.name,
                 )))
             }
         };
-        let channel_state = views::get_channel_by_canonical_identifier(
+
+        let channel_state = match views::get_channel_by_canonical_identifier(
             chain_state,
             CanonicalIdentifier {
                 chain_identifier: chain_state.chain_id.clone(),
                 token_network_address,
                 channel_identifier,
             },
-        )
-        .ok_or(DecodeError(format!(
-            "Channel settled event with an unknown channel identifier"
-        )))?;
+        ) {
+            Some(channel_state) => channel_state,
+            None => return Ok(None),
+        };
 
         let (our_onchain_locksroot, partner_onchain_locksroot) = self
             .get_onchain_locksroot(channel_state, chain_state.block_hash)

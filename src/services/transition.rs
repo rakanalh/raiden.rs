@@ -52,8 +52,9 @@ where
                     (self.event_handler)(event).await;
                 }
             }
-            Err(_e) => {
+            Err(e) => {
                 // Maybe use an informant service for error logging
+                println!("Error transitioning: {:?}", e);
             }
         }
     }
