@@ -31,18 +31,3 @@ cargo build --release
 ```
 
 For the time being, i am testing on `Goerli` network with Infura where the JSON RPC endpoint looks like: `https://goerli.infura.io/v3/{ID}` and Websocket endpoint looks like: `wss://goerli.infura.io/ws/v3/{ID} `. For geth, i am guessing that you have to use `geth --goerli --syncmode full --http --ws` where geth provides the URIs for http and websocket addresses.
-
-## TODO
-- [x] Chain Sync Service
-- [ ] State machines
-  - [ ] Chain 
-  - [ ] Token Network
-  - [ ] Channel
-- [ ] Contract Proxies (WIP)
-- [ ] Networking
-  - [ ] Matrix
-  - [ ] WebRTC?
-- [ ] Transfer Logic
-- [ ] HTTP API
-- [ ] PFS / MS
-- [ ] Documentation
