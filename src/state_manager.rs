@@ -42,16 +42,17 @@ impl StateManager {
         our_address: Address,
         token_network_registry_address: Address,
         token_network_registry_deploy_block_number: U64,
-    ) -> std::result::Result<Self, errors::RaidenError> {
+    ) -> std::result::Result<(Self, U64), errors::RaidenError> {
         let snapshot = storage.get_snapshot_before_state_change(Ulid::from(u128::MAX));
 
-        let (current_state, state_changes) = match snapshot {
+        let (current_state, state_changes, block_number) = match snapshot {
             Ok(snapshot) => {
                 // Load state changes since the snapshot's state_change_identifier
                 // Set the snapshot
                 // and then apply state_changes after
-                let current_state =
+                let current_state: ChainState =
                     serde_json::from_str(&snapshot.data).map_err(|e| errors::RaidenError { msg: format!("{}", e) })?;
+                println!("{:#?}", current_state);
                 let state_changes_records = storage
                     .get_state_changes_in_range(snapshot.state_change_identifier, Ulid::from(u128::MAX).into())?;
 
@@ -61,7 +62,8 @@ impl StateManager {
                         .map_err(|e| errors::RaidenError { msg: format!("{}", e) })?;
                     state_changes.push(state_change);
                 }
-                (current_state, state_changes)
+                let block_number = current_state.block_number;
+                (current_state, state_changes, block_number)
             }
             Err(_e) => Self::init_state(
                 storage.clone(),
@@ -83,7 +85,7 @@ impl StateManager {
             let _ = state_manager.dispatch(state_change);
         }
 
-        Ok(state_manager)
+        Ok((state_manager, block_number))
     }
 
     fn init_state(
@@ -92,7 +94,7 @@ impl StateManager {
         our_address: Address,
         token_network_registry_address: Address,
         token_network_registry_deploy_block_number: U64,
-    ) -> std::result::Result<(ChainState, Vec<StateChange>), errors::RaidenError> {
+    ) -> std::result::Result<(ChainState, Vec<StateChange>, U64), errors::RaidenError> {
         let mut state_changes = vec![];
 
         let chain_state = ChainState::new(chain_id.clone(), U64::from(0), H256::zero(), our_address);
@@ -120,7 +122,7 @@ impl StateManager {
                 serde_json::from_str(&record.data).map_err(|e| errors::RaidenError { msg: format!("{}", e) })?;
             state_changes.push(state_change);
         }
-        Ok((chain_state, state_changes))
+        Ok((chain_state, state_changes, token_network_registry_deploy_block_number))
     }
 
     fn dispatch(&mut self, state_change: StateChange) -> Result<Vec<Event>> {

@@ -15,7 +15,10 @@ use raiden::{
         },
         proxies::ProxyManager,
     },
-    primitives::RaidenConfig,
+    primitives::{
+        RaidenConfig,
+        U64,
+    },
     services::{
         TransitionService,
         Transitioner,
@@ -43,6 +46,7 @@ pub struct RaidenApp {
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
     transition_service: Arc<dyn Transitioner + Send + Sync>,
+    sync_start_block_number: U64,
     logger: Logger,
 }
 
@@ -77,14 +81,14 @@ impl RaidenApp {
             };
 
         debug!(logger, "Restore state");
-        let state_manager = match StateManager::restore_or_init_state(
+        let (state_manager, sync_start_block_number) = match StateManager::restore_or_init_state(
             storage,
             config.chain_id.clone(),
             config.account.address(),
             token_network_registry_deployed_contract.address,
             token_network_registry_deployed_contract.block,
         ) {
-            Ok(state_manager) => Arc::new(RwLock::new(state_manager)),
+            Ok((state_manager, block_number)) => (Arc::new(RwLock::new(state_manager)), block_number),
             Err(e) => {
                 return Err(format!("Failed to initialize state {}", e));
             }
@@ -107,6 +111,7 @@ impl RaidenApp {
             proxy_manager,
             state_manager,
             transition_service,
+            sync_start_block_number,
             logger,
         })
     }
@@ -117,14 +122,6 @@ impl RaidenApp {
         let ws = match WebSocket::new(&self.config.eth_socket_rpc_endpoint).await {
             Ok(ws) => ws,
             Err(_) => return,
-        };
-
-        let sync_start_block_number = match self
-            .contracts_manager
-            .get_deployed(contracts::ContractIdentifier::TokenNetworkRegistry)
-        {
-            Ok(contract) => contract.block,
-            Err(_) => self.state_manager.read().current_state.block_number,
         };
 
         let mut sync_service = SyncService::new(
@@ -138,7 +135,7 @@ impl RaidenApp {
         );
 
         sync_service
-            .sync(sync_start_block_number, latest_block_number.into())
+            .sync(self.sync_start_block_number, latest_block_number.into())
             .await;
 
         let block_monitor = match BlockMonitorService::new(
