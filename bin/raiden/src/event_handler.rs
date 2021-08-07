@@ -7,12 +7,14 @@ use raiden::{
 };
 
 pub struct EventHandler {
-    state_manager: Arc<RwLock<StateManager>>,
+    _state_manager: Arc<RwLock<StateManager>>,
 }
 
 impl EventHandler {
     pub fn new(state_manager: Arc<RwLock<StateManager>>) -> Self {
-        Self { state_manager }
+        Self {
+            _state_manager: state_manager,
+        }
     }
 
     pub async fn handle_event(&self, _event: Event) {}

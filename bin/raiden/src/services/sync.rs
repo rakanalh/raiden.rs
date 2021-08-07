@@ -36,7 +36,7 @@ use raiden::{
 
 struct BlockBatchSizeConfig {
     min: u64,
-    warn_threshold: u64,
+    _warn_threshold: u64,
     initial: u32,
     max: u64,
 }
@@ -110,7 +110,7 @@ impl SyncService {
                 min: 5,
                 max: 100000,
                 initial: 1000,
-                warn_threshold: 50,
+                _warn_threshold: 50,
             },
             2.0, // base
             1.0, //step size
@@ -155,22 +155,20 @@ impl SyncService {
                 to_block,
             );
 
-            debug!(self.logger, "getLogs {} to {}", from_block, to_block);
             let logs = match self.web3.eth().logs((filter).clone()).await {
                 Ok(logs) => logs,
                 Err(e) => {
-                    error!(self.logger, "Error fetching logs: {:?}", e);
+                    warn!(self.logger, "Error fetching logs: {:?}", e);
                     self.block_batch_size_adjuster.decrease();
                     continue;
                 }
             };
 
-            debug!(self.logger, "process logs {} to {}", from_block, to_block);
             for log in logs {
                 let event = match Event::decode(self.contracts_manager.clone(), &log) {
                     Some(event) => event,
                     None => {
-                        error!(self.logger, "Could not find event that matches log: {:?}", log);
+                        warn!(self.logger, "Could not find event that matches log: {:?}", log);
                         continue;
                     }
                 };
@@ -186,7 +184,7 @@ impl SyncService {
                         self.transition_service.transition(state_change).await;
                     }
                     Err(e) => {
-                        error!(
+                        warn!(
                             self.logger,
                             "Error converting chain event to state change: {:?} ({})", e, event.name
                         );
@@ -194,7 +192,6 @@ impl SyncService {
                     _ => {}
                 };
             }
-            debug!(self.logger, "finished process logs {} to {}", from_block, to_block);
 
             let block_number = BlockNumber::Number(*to_block);
             let block = match self.web3.eth().block(BlockId::Number(block_number)).await {
