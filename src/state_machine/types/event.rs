@@ -34,6 +34,7 @@ pub enum SendMessageEvent {
 }
 
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
+#[cfg_attr(not(test), derive(PartialEq))]
 pub struct SendMessageEventInner {
     pub recipient: Address,
     pub recipient_metadata: Option<AddressMetadata>,
@@ -41,6 +42,7 @@ pub struct SendMessageEventInner {
     pub message_identifier: u32,
 }
 
+#[cfg(test)]
 impl PartialEq for SendMessageEventInner {
     fn eq(&self, other: &Self) -> bool {
         self.recipient == other.recipient
