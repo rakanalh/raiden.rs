@@ -122,7 +122,7 @@ pub fn channel_state(
             reveal_timeout: U64::from(DEFAULT_REVEAL_TIMEOUT),
             settle_timeout: U256::from(DEFAULT_SETTLE_TIMEOUT),
             fee_schedule: FeeScheduleState::default(),
-            our_state: empty_channel_end_state(Address::random()),
+            our_state: empty_channel_end_state(chain_state.our_address),
             partner_state: empty_channel_end_state(Address::random()),
             open_transaction: TransactionExecutionStatus {
                 started_block_number: Some(U64::from(1u64)),

@@ -7,6 +7,7 @@ use web3::types::{
 use crate::{
     primitives::{
         CanonicalIdentifier,
+        MediationFeeConfig,
         U64,
     },
     state_machine::{
@@ -14,10 +15,13 @@ use crate::{
         types::{
             BalanceProofState,
             ContractReceiveChannelClosed,
+            ContractReceiveChannelDeposit,
+            ContractReceiveChannelWithdraw,
             ContractSendChannelUpdateTransfer,
             ContractSendEvent,
             Event,
             StateChange,
+            TransactionChannelDeposit,
         },
         views,
     },
@@ -153,3 +157,120 @@ fn test_channel_closed() {
     assert!(!result.events.is_empty());
     assert_eq!(result.events[0], event);
 }
+
+#[test]
+fn test_channel_withdraw() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier: chain_identifier.clone(),
+        token_network_address,
+        channel_identifier,
+    };
+    let chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let channel_state = views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+        .expect("Channel should exist");
+
+    assert_eq!(channel_state.our_state.contract_balance, U256::zero());
+
+    let state_change = StateChange::ContractReceiveChannelWithdraw(ContractReceiveChannelWithdraw {
+        canonical_identifier: canonical_identifier.clone(),
+        participant: chain_state.our_address.clone(),
+        total_withdraw: U256::from(100u64),
+        fee_config: MediationFeeConfig::default(),
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Withdraw should succeed");
+    let chain_state = result.new_state;
+    let channel_state = views::get_channel_by_canonical_identifier(&chain_state.clone(), canonical_identifier.clone())
+        .expect("Channel should exist")
+        .clone();
+    assert_eq!(channel_state.our_state.onchain_total_withdraw, U256::from(100u64));
+
+    let state_change = StateChange::ContractReceiveChannelWithdraw(ContractReceiveChannelWithdraw {
+        canonical_identifier: canonical_identifier.clone(),
+        participant: channel_state.partner_state.address,
+        total_withdraw: U256::from(99u64),
+        fee_config: MediationFeeConfig::default(),
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Withdraw should succeed");
+    let chain_state = result.new_state;
+    let channel_state = views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+        .expect("Channel should exist");
+    assert_eq!(channel_state.partner_state.onchain_total_withdraw, U256::from(99u64));
+}
+
+#[test]
+fn test_channel_deposit() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier: chain_identifier.clone(),
+        token_network_address,
+        channel_identifier,
+    };
+    let chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let channel_state = views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+        .expect("Channel should exist");
+
+    assert_eq!(channel_state.our_state.contract_balance, U256::zero());
+
+    let state_change = StateChange::ContractReceiveChannelDeposit(ContractReceiveChannelDeposit {
+        canonical_identifier: canonical_identifier.clone(),
+        deposit_transaction: TransactionChannelDeposit {
+            participant_address: chain_state.our_address.clone(),
+            contract_balance: U256::from(100u64),
+            deposit_block_number: U64::from(10u64),
+        },
+        fee_config: MediationFeeConfig::default(),
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Deposit should succeed");
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+        .expect("Channel should exist");
+    assert_eq!(channel_state.our_state.contract_balance, U256::from(100u64));
+
+    let chain_state = result.new_state;
+    let state_change = StateChange::ContractReceiveChannelDeposit(ContractReceiveChannelDeposit {
+        canonical_identifier: canonical_identifier.clone(),
+        deposit_transaction: TransactionChannelDeposit {
+            participant_address: chain_state.our_address.clone(),
+            contract_balance: U256::from(99u64), // Less than the deposit before
+            deposit_block_number: U64::from(10u64),
+        },
+        fee_config: MediationFeeConfig::default(),
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Deposit should succeed");
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier)
+        .expect("Channel should exist");
+    assert_eq!(channel_state.our_state.contract_balance, U256::from(100u64));
+}
+
+#[test]
+fn test_channel_settled() {}
