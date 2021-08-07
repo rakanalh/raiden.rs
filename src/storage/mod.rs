@@ -1,7 +1,7 @@
 use derive_more::Display;
+use rusqlite::params;
 use rusqlite::Connection;
 use rusqlite::ToSql;
-use rusqlite::params;
 use std::{
     convert::TryInto,
     sync::Mutex,
@@ -253,9 +253,7 @@ impl Storage {
 
         let query_values: Vec<_> = criteria.iter().map(|(_, v)| v as &dyn ToSql).collect();
 
-        let mut rows = stmt
-            .query(query_values.as_slice())
-            .map_err(StorageError::Sql)?;
+        let mut rows = stmt.query(query_values.as_slice()).map_err(StorageError::Sql)?;
 
         let row = match rows.next().map_err(StorageError::Sql)? {
             Some(row) => row,
