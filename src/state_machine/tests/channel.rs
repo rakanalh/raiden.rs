@@ -1,9 +1,31 @@
-use web3::types::{Address, H256, U256};
+use web3::types::{
+    Address,
+    H256,
+    U256,
+};
 
-use crate::{primitives::{CanonicalIdentifier, U64}, state_machine::{machine::chain, types::{BalanceProofState, ContractReceiveChannelClosed, ContractSendChannelUpdateTransfer, ContractSendEvent, Event, StateChange}, views}, tests::factories::{
+use crate::{
+    primitives::{
+        CanonicalIdentifier,
+        U64,
+    },
+    state_machine::{
+        machine::chain,
+        types::{
+            BalanceProofState,
+            ContractReceiveChannelClosed,
+            ContractSendChannelUpdateTransfer,
+            ContractSendEvent,
+            Event,
+            StateChange,
+        },
+        views,
+    },
+    tests::factories::{
         chain_state_with_token_network,
         channel_state,
-    }};
+    },
+};
 
 #[test]
 fn test_channel_opened() {
@@ -97,9 +119,18 @@ fn test_channel_closed() {
         sender: Some(Address::zero()),
     };
 
-    let token_network_registry_state = chain_state.identifiers_to_tokennetworkregistries.get_mut(&token_network_registry_address).expect("Registry should exist");
-    let token_network_state = token_network_registry_state.tokennetworkaddresses_to_tokennetworks.get_mut(&token_network_address).expect("token network should exist");
-    let mut channel_state = token_network_state.channelidentifiers_to_channels.get_mut(&channel_identifier).expect("Channel should exist");
+    let token_network_registry_state = chain_state
+        .identifiers_to_tokennetworkregistries
+        .get_mut(&token_network_registry_address)
+        .expect("Registry should exist");
+    let token_network_state = token_network_registry_state
+        .tokennetworkaddresses_to_tokennetworks
+        .get_mut(&token_network_address)
+        .expect("token network should exist");
+    let mut channel_state = token_network_state
+        .channelidentifiers_to_channels
+        .get_mut(&channel_identifier)
+        .expect("Channel should exist");
     channel_state.partner_state.balance_proof = Some(balance_proof_state.clone());
 
     let state_change = StateChange::ContractReceiveChannelClosed(ContractReceiveChannelClosed {
