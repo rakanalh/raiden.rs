@@ -112,6 +112,28 @@ pub fn state_transition(
     pseudo_random_number_generator: Random,
 ) -> TransitionResult {
     match state_change {
+        StateChange::ActionChannelSetRevealTimeout(ref inner) => {
+            let channel_identifier = inner.canonical_identifier.channel_identifier;
+            subdispatch_to_channel_by_id(
+                token_network_state,
+                channel_identifier,
+                state_change,
+                block_number,
+                block_hash,
+                pseudo_random_number_generator,
+            )
+        }
+        StateChange::ActionChannelWithdraw(ref inner) => {
+            let channel_identifier = inner.canonical_identifier.channel_identifier;
+            subdispatch_to_channel_by_id(
+                token_network_state,
+                channel_identifier,
+                state_change,
+                block_number,
+                block_hash,
+                pseudo_random_number_generator,
+            )
+        }
         StateChange::ContractReceiveChannelOpened(inner) => {
             handle_contract_receive_channel_opened(token_network_state, inner)
         }
