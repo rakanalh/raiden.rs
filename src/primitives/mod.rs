@@ -4,11 +4,7 @@ mod numeric;
 pub use config::*;
 pub use numeric::*;
 
-use std::{
-    collections::HashMap,
-    str::FromStr,
-};
-
+use derive_more::Display;
 use rand_chacha::{
     rand_core::{
         RngCore,
@@ -19,6 +15,10 @@ use rand_chacha::{
 use serde::{
     Deserialize,
     Serialize,
+};
+use std::{
+    collections::HashMap,
+    str::FromStr,
 };
 use web3::types::{
     Address,
@@ -51,7 +51,7 @@ impl Random {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Display, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ChainID {
     Mainnet = 1,
     Ropsten = 3,
