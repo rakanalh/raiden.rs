@@ -17,7 +17,7 @@ members = [
 ]
 
 [dependencies]
-async-trait = "0.1.50"
+async-trait = "0.1.51"
 ethabi = "14.0.0"
 ethsign = "0.8.0"
 derive_more = "0.99.11"
