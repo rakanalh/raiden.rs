@@ -7,6 +7,10 @@ use parking_lot::RwLock;
 use slog::Logger;
 use web3::{
     transports::Http,
+    types::{
+        BlockId,
+        BlockNumber,
+    },
     Web3,
 };
 
@@ -23,6 +27,10 @@ use raiden::{
         U64,
     },
     services::Transitioner,
+    state_machine::types::{
+        Block,
+        StateChange,
+    },
     state_manager::StateManager,
 };
 
@@ -131,10 +139,6 @@ impl SyncService {
     pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
         let mut from_block = start_block_number;
 
-        // Clone here to prevent holding the lock
-        let current_state = &self.state_manager.read().current_state.clone();
-        let _our_address = current_state.our_address.clone();
-
         while from_block < end_block_number {
             let to_block = cmp::min(
                 from_block + self.block_batch_size_adjuster.batch_size().into(),
@@ -143,6 +147,7 @@ impl SyncService {
 
             debug!(self.logger, "Querying from blocks {} to {}", from_block, to_block);
 
+            let mut current_state = self.state_manager.read().current_state.clone();
             let filter = filters_from_chain_state(
                 self.contracts_manager.clone(),
                 current_state.clone(),
@@ -150,33 +155,68 @@ impl SyncService {
                 to_block,
             );
 
-            match self.web3.eth().logs((filter).clone()).await {
-                Ok(logs) => {
-                    for log in logs {
-                        let current_state = &self.state_manager.read().current_state.clone();
-
-                        let event = match Event::decode(self.contracts_manager.clone(), &log) {
-                            Some(event) => event,
-                            None => {
-                                error!(self.logger, "Could not find event that matches log: {:?}", log);
-                                continue;
-                            }
-                        };
-                        let decoder = EventDecoder::new(self.config.clone(), self.proxy_manager.clone());
-                        match decoder.as_state_change(event, current_state).await {
-                            Some(state_change) => self.transition_service.transition(state_change).await,
-                            None => {
-                                error!(self.logger, "Error converting chain event to state change: {:?}", log);
-                            }
-                        };
-                    }
-                    from_block = to_block + 1u64.into();
-                    self.block_batch_size_adjuster.increase();
-                }
-                Err(_) => {
+            debug!(self.logger, "getLogs {} to {}", from_block, to_block);
+            let logs = match self.web3.eth().logs((filter).clone()).await {
+                Ok(logs) => logs,
+                Err(e) => {
+                    error!(self.logger, "Error fetching logs: {:?}", e);
                     self.block_batch_size_adjuster.decrease();
+                    continue;
                 }
+            };
+
+            debug!(self.logger, "process logs {} to {}", from_block, to_block);
+            for log in logs {
+                let event = match Event::decode(self.contracts_manager.clone(), &log) {
+                    Some(event) => event,
+                    None => {
+                        error!(self.logger, "Could not find event that matches log: {:?}", log);
+                        continue;
+                    }
+                };
+
+                current_state = self.state_manager.read().current_state.clone();
+                let decoder = EventDecoder::new(self.config.clone(), self.proxy_manager.clone());
+                let storage = self.state_manager.read().storage.clone();
+                match decoder
+                    .as_state_change(event.clone(), &current_state.clone(), storage)
+                    .await
+                {
+                    Ok(Some(state_change)) => {
+                        self.transition_service.transition(state_change).await;
+                    }
+                    Err(e) => {
+                        error!(
+                            self.logger,
+                            "Error converting chain event to state change: {:?} ({})", e, event.name
+                        );
+                    }
+                    _ => {}
+                };
             }
+            debug!(self.logger, "finished process logs {} to {}", from_block, to_block);
+
+            let block_number = BlockNumber::Number(*to_block);
+            let block = match self.web3.eth().block(BlockId::Number(block_number)).await {
+                Ok(Some(block)) => block,
+                Ok(None) => {
+                    continue;
+                }
+                Err(e) => {
+                    error!(self.logger, "Error fetching block info: {:?}", e);
+                    continue;
+                }
+            };
+
+            let block_state_change = StateChange::Block(Block {
+                block_number: to_block,
+                block_hash: block.hash.unwrap(),
+                gas_limit: block.gas_limit,
+            });
+            self.transition_service.transition(block_state_change).await;
+
+            from_block = to_block + 1u64.into();
+            self.block_batch_size_adjuster.increase();
         }
     }
 }

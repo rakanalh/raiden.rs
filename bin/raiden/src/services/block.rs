@@ -63,7 +63,7 @@ impl BlockMonitorService {
                     Some(hash) => hash,
                     None => continue,
                 };
-                debug!(self.logger, "Block {}", block_number);
+                debug!(self.logger, "New Block {}", block_number);
                 let current_block_number = self.state_manager.read().current_state.block_number;
                 let block_state_change = Block {
                     block_number: block_number.into(),
