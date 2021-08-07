@@ -8,18 +8,25 @@ use crate::{
     primitives::{
         CanonicalIdentifier,
         MediationFeeConfig,
+        TransactionExecutionStatus,
+        TransactionResult,
         U64,
     },
     state_machine::{
         machine::chain,
         types::{
             BalanceProofState,
+            Block,
             ContractReceiveChannelClosed,
             ContractReceiveChannelDeposit,
             ContractReceiveChannelWithdraw,
+            ContractSendChannelSettle,
             ContractSendChannelUpdateTransfer,
             ContractSendEvent,
             Event,
+            PendingWithdrawState,
+            SendMessageEventInner,
+            SendWithdrawExpired,
             StateChange,
             TransactionChannelDeposit,
         },
@@ -30,6 +37,148 @@ use crate::{
         channel_state,
     },
 };
+
+#[test]
+fn test_open_channel_new_block_with_expired_withdraws() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+    let channel_identifier = U256::from(1u64);
+
+    let mut chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier,
+        token_network_address,
+        channel_identifier,
+    };
+
+    let token_network_registry_state = chain_state
+        .identifiers_to_tokennetworkregistries
+        .get_mut(&token_network_registry_address)
+        .expect("Registry should exist");
+    let token_network_state = token_network_registry_state
+        .tokennetworkaddresses_to_tokennetworks
+        .get_mut(&token_network_address)
+        .expect("token network should exist");
+    let channel_state = token_network_state
+        .channelidentifiers_to_channels
+        .get_mut(&channel_identifier)
+        .expect("Channel should exist");
+
+    channel_state.our_state.withdraws_pending.insert(
+        U256::from(100u64),
+        PendingWithdrawState {
+            total_withdraw: U256::from(100u64),
+            expiration: U64::from(50u64),
+            nonce: U256::from(1),
+            recipient_metadata: None,
+        },
+    );
+
+    let expected_event = Event::SendWithdrawExpired(SendWithdrawExpired {
+        inner: SendMessageEventInner {
+            recipient: channel_state.partner_state.address.clone(),
+            recipient_metadata: None,
+            canonincal_identifier: canonical_identifier.clone(),
+            message_identifier: 1,
+        },
+        participant: channel_state.our_state.address.clone(),
+        nonce: U256::from(1u64),
+        expiration: U64::from(50u64),
+    });
+    let state_change = StateChange::Block(Block {
+        block_number: U64::from(511u64),
+        block_hash: H256::random(),
+        gas_limit: U256::zero(),
+    });
+    let result = chain::state_transition(chain_state.clone(), state_change).expect("Block should succeed");
+
+    assert!(!result.events.is_empty());
+    assert_eq!(result.events[0], expected_event,)
+}
+
+#[test]
+fn test_closed_channel_new_block() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+    let channel_identifier = U256::from(1u64);
+    let mut chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier,
+        token_network_address,
+        channel_identifier,
+    };
+
+    let token_network_registry_state = chain_state
+        .identifiers_to_tokennetworkregistries
+        .get_mut(&token_network_registry_address)
+        .expect("Registry should exist");
+    let token_network_state = token_network_registry_state
+        .tokennetworkaddresses_to_tokennetworks
+        .get_mut(&token_network_address)
+        .expect("token network should exist");
+    let mut channel_state = token_network_state
+        .channelidentifiers_to_channels
+        .get_mut(&channel_identifier)
+        .expect("Channel should exist");
+
+    channel_state.close_transaction = Some(TransactionExecutionStatus {
+        started_block_number: Some(U64::from(10u64)),
+        finished_block_number: Some(U64::from(10u64)),
+        result: Some(TransactionResult::Success),
+    });
+
+    let block_hash = H256::random();
+    let state_change = StateChange::Block(Block {
+        block_number: U64::from(511u64),
+        block_hash,
+        gas_limit: U256::zero(),
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Block should succeed");
+
+    assert!(!result.events.is_empty());
+    assert_eq!(
+        result.events[0],
+        Event::ContractSendChannelSettle(ContractSendChannelSettle {
+            inner: ContractSendEvent {
+                triggered_by_blockhash: block_hash,
+            },
+            canonical_identifier: canonical_identifier.clone(),
+        })
+    );
+}
 
 #[test]
 fn test_channel_opened() {
@@ -274,3 +423,15 @@ fn test_channel_deposit() {
 
 #[test]
 fn test_channel_settled() {}
+
+#[test]
+fn test_channel_batch_unlock() {}
+
+#[test]
+fn test_channel_update_transfer() {}
+
+#[test]
+fn test_channel_action_withdraw() {}
+
+#[test]
+fn test_channel_set_reveal_timeout() {}

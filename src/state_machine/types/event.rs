@@ -33,12 +33,20 @@ pub enum SendMessageEvent {
     SendWithdrawExpired(SendWithdrawExpired),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct SendMessageEventInner {
     pub recipient: Address,
     pub recipient_metadata: Option<AddressMetadata>,
     pub canonincal_identifier: CanonicalIdentifier,
     pub message_identifier: u32,
+}
+
+impl PartialEq for SendMessageEventInner {
+    fn eq(&self, other: &Self) -> bool {
+        self.recipient == other.recipient
+            && self.recipient_metadata == other.recipient_metadata
+            && self.canonincal_identifier == other.canonincal_identifier
+    }
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
