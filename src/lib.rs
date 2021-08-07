@@ -7,4 +7,6 @@ pub mod services;
 pub mod state_machine;
 pub mod state_manager;
 pub mod storage;
+#[cfg(test)]
+mod tests;
 pub mod waiting;
