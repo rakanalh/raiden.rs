@@ -17,6 +17,11 @@ The **UNOFFICIAL** Raiden client implementation in Rust
 
 The Raiden Network is an off-chain scaling solution, enabling near-instant, low-fee and scalable payments. It's complementary to the Ethereum Blockchain and works with any ERC20 compatible token. The Raiden project is work in progress. Its goal is to research state channel technology, define protocols and develop reference implementations.
 
+## About this project
+
+The project is aimed at implementing the Raiden protocol as a set of framework components which can be put together to write your own Raiden-compatible clients which can serve different purposes. Examples of such clients can be decentralized exchanges, bots among others.
+
+Examples and documentation of the work you'll find in this repo should become available as soon as the implementation is completed.
 
 ## Building
 
