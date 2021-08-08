@@ -5,6 +5,7 @@ use std::ops::{
 
 use web3::types::{
     Address,
+    Bytes,
     H256,
     U256,
 };
@@ -27,7 +28,9 @@ use crate::{
             Block,
             ContractReceiveChannelClosed,
             ContractReceiveChannelDeposit,
+            ContractReceiveChannelSettled,
             ContractReceiveChannelWithdraw,
+            ContractSendChannelBatchUnlock,
             ContractSendChannelSettle,
             ContractSendChannelUpdateTransfer,
             ContractSendEvent,
@@ -433,7 +436,69 @@ fn test_channel_deposit() {
 }
 
 #[test]
-fn test_channel_settled() {}
+fn test_channel_settled() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier: chain_identifier.clone(),
+        token_network_address,
+        channel_identifier,
+    };
+    let chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let block_hash = H256::random();
+    let our_locksroot = Bytes(vec![1u8; 32]);
+
+    let state_change = StateChange::ContractReceiveChannelSettled(ContractReceiveChannelSettled {
+        transaction_hash: Some(H256::random()),
+        block_number: U64::from(1u64),
+        block_hash,
+        canonical_identifier: canonical_identifier.clone(),
+        our_onchain_locksroot: Bytes::default(),
+        partner_onchain_locksroot: Bytes::default(),
+    });
+    let result = chain::state_transition(chain_state.clone(), state_change).expect("Channel settled should succeed");
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone());
+    assert_eq!(channel_state, None);
+
+    let state_change = StateChange::ContractReceiveChannelSettled(ContractReceiveChannelSettled {
+        transaction_hash: Some(H256::random()),
+        block_number: U64::from(1u64),
+        block_hash,
+        canonical_identifier: canonical_identifier.clone(),
+        our_onchain_locksroot: our_locksroot.clone(),
+        partner_onchain_locksroot: Bytes::default(),
+    });
+    let result = chain::state_transition(chain_state.clone(), state_change).expect("Channel settled should succeed");
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+        .expect("channel should exist");
+
+    assert!(!result.events.is_empty());
+    assert_eq!(channel_state.our_state.onchain_locksroot, our_locksroot);
+    assert_eq!(
+        result.events[0],
+        Event::ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock {
+            inner: ContractSendEvent {
+                triggered_by_blockhash: block_hash,
+            },
+            canonical_identifier: canonical_identifier.clone(),
+            sender: channel_state.partner_state.address,
+        })
+    )
+}
 
 #[test]
 fn test_channel_batch_unlock() {}

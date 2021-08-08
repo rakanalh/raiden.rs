@@ -260,13 +260,13 @@ fn set_settled(mut channel_state: ChannelState, block_number: U64) -> ChannelSta
 }
 
 fn handle_channel_settled(
-    channel_state: ChannelState,
+    mut channel_state: ChannelState,
     state_change: ContractReceiveChannelSettled,
 ) -> TransitionResult {
     let mut events = vec![];
 
     if state_change.canonical_identifier == channel_state.canonical_identifier {
-        let mut channel_state = set_settled(channel_state.clone(), state_change.block_number);
+        channel_state = set_settled(channel_state.clone(), state_change.block_number);
         let our_locksroot = state_change.our_onchain_locksroot.clone();
         let partner_locksroot = state_change.our_onchain_locksroot.clone();
         let should_clear_channel = our_locksroot == Bytes(vec![]) && partner_locksroot == Bytes(vec![]);
@@ -285,7 +285,7 @@ fn handle_channel_settled(
             inner: ContractSendEvent {
                 triggered_by_blockhash: state_change.block_hash,
             },
-            canonical_identifier: channel_state.canonical_identifier,
+            canonical_identifier: channel_state.canonical_identifier.clone(),
             sender: channel_state.partner_state.address,
         }));
     }
