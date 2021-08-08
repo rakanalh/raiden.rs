@@ -38,7 +38,7 @@ pub type TokenAmount = U256;
 pub type FeeAmount = U256;
 pub type ProportionalFeeAmount = U256;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Random(ChaChaRng);
 
 impl Random {
@@ -88,26 +88,26 @@ pub struct QueueIdentifier {
     pub canonical_identifier: CanonicalIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransferRole {
     Initiator,
     Mediator,
     Target,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TransferTask {
     pub role: TransferRole,
     pub token_network_address: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransactionResult {
     Success,
     Failure,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TransactionExecutionStatus {
     pub started_block_number: Option<U64>,
     pub finished_block_number: Option<U64>,

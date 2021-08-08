@@ -34,12 +34,12 @@ use crate::{
 
 use super::SendMessageEvent;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PaymentMappingState {
     pub secrethashes_to_task: HashMap<H256, TransferTask>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChainState {
     pub chain_id: ChainID,
     pub block_number: U64,
@@ -68,7 +68,7 @@ impl ChainState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkRegistryState {
     pub address: Address,
     pub tokennetworkaddresses_to_tokennetworks: HashMap<Address, TokenNetworkState>,
@@ -98,7 +98,7 @@ impl TokenNetworkRegistryState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkState {
     pub address: Address,
     pub token_address: Address,
@@ -119,7 +119,7 @@ impl TokenNetworkState {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkGraphState {}
 
 #[derive(Clone, Display, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -140,7 +140,7 @@ pub enum ChannelStatus {
     Unusable,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelState {
     pub canonical_identifier: CanonicalIdentifier,
     pub token_address: Address,
@@ -238,7 +238,7 @@ impl ChannelState {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelEndState {
     pub address: Address,
     pub contract_balance: U256,
@@ -301,12 +301,12 @@ pub struct BalanceProofState {
     pub sender: Option<Address>,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingLocksState {
     locks: Vec<H256>,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct UnlockPartialProofState {
     lock: HashTimeLockState,
     secret: H256,
@@ -316,7 +316,7 @@ pub struct UnlockPartialProofState {
     encoded: H256,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HashTimeLockState {
     amount: U256,
     expiration: U64,
@@ -324,7 +324,7 @@ pub struct HashTimeLockState {
     encoded: H256,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ExpiredWithdrawState {
     pub total_withdraw: U256,
     pub expiration: U64,
@@ -332,7 +332,7 @@ pub struct ExpiredWithdrawState {
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingWithdrawState {
     pub total_withdraw: U256,
     pub expiration: U64,
@@ -353,7 +353,7 @@ impl PendingWithdrawState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct FeeScheduleState {
     pub cap_fees: bool,
     pub flat: U256,
