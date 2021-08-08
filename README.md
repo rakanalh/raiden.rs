@@ -23,13 +23,30 @@ The project is aimed at implementing the Raiden protocol as a set of framework c
 
 Examples and documentation of the work you'll find in this repo should become available as soon as the implementation is completed.
 
-## Building
+## Usage
+
+### Install Rust
+
+Using rustup (The recommended way)
 
 ``` sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+### Clone the repo
+
+``` sh
+git clone git@github.com:rakanalh/raiden-rust.git
+```
+
+### Building Raiden client
+
+``` sh
+cd raiden-rust
 cargo build --release
 ```
 
-## Running
+### Running Raiden
 
 ``` sh
 ./target/release/raiden --chain-id goerli --eth-rpc-endpoint {JSON_RPC_ENDPOINT} --eth-rpc-socket-endpoint {WSS_ENDPOINT} --keystore-path {ETH_KEYSTORE_PATH}
