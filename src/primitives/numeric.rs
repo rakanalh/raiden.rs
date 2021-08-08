@@ -15,6 +15,12 @@ use web3::types::{
 #[derive(Default, Copy, Clone, Debug, Deref, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct U64(PrimitiveU64);
 
+impl U64 {
+    pub fn zero() -> Self {
+        Self(PrimitiveU64::zero())
+    }
+}
+
 impl std::fmt::Display for U64 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

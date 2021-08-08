@@ -22,6 +22,7 @@ use crate::{
         machine::chain,
         types::{
             ActionChannelSetRevealTimeout,
+            ActionChannelWithdraw,
             BalanceProofState,
             Block,
             ContractReceiveChannelClosed,
@@ -32,9 +33,11 @@ use crate::{
             ContractSendEvent,
             Event,
             EventInvalidActionSetRevealTimeout,
+            EventInvalidActionWithdraw,
             PendingWithdrawState,
             SendMessageEventInner,
             SendWithdrawExpired,
+            SendWithdrawRequest,
             StateChange,
             TransactionChannelDeposit,
         },
@@ -439,7 +442,138 @@ fn test_channel_batch_unlock() {}
 fn test_channel_update_transfer() {}
 
 #[test]
-fn test_channel_action_withdraw() {}
+fn test_channel_action_withdraw() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier: chain_identifier.clone(),
+        token_network_address,
+        channel_identifier,
+    };
+    let mut chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    // Withdraw with insufficient onchain balance
+    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+        canonical_identifier: canonical_identifier.clone(),
+        total_withdraw: U256::from(100u64),
+        recipient_metadata: None,
+    });
+    let result = chain::state_transition(chain_state.clone(), state_change).expect("action withdraw should succeed");
+    assert!(!result.events.is_empty());
+    assert_eq!(
+        result.events[0],
+        Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+            attemped_withdraw: U256::from(100u64),
+            reason: format!("Insufficient balance: 0. Requested 100 for withdraw"),
+        })
+    );
+    // Withdraw a zero amount
+    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+        canonical_identifier: canonical_identifier.clone(),
+        total_withdraw: U256::zero(),
+        recipient_metadata: None,
+    });
+    let result = chain::state_transition(chain_state.clone(), state_change).expect("action withdraw should succeed");
+    assert!(!result.events.is_empty());
+    assert_eq!(
+        result.events[0],
+        Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+            attemped_withdraw: U256::zero(),
+            reason: format!("Total withdraw 0 did not increase"),
+        })
+    );
+
+    let token_network_registry_state = chain_state
+        .identifiers_to_tokennetworkregistries
+        .get_mut(&token_network_registry_address)
+        .expect("Registry should exist");
+    let token_network_state = token_network_registry_state
+        .tokennetworkaddresses_to_tokennetworks
+        .get_mut(&token_network_address)
+        .expect("token network should exist");
+    let mut channel_state = token_network_state
+        .channelidentifiers_to_channels
+        .get_mut(&channel_identifier)
+        .expect("Channel should exist");
+
+    channel_state.close_transaction = Some(TransactionExecutionStatus {
+        started_block_number: Some(U64::from(1u64)),
+        finished_block_number: Some(U64::from(1u64)),
+        result: Some(TransactionResult::Success),
+    });
+    // Withdraw on a closed channel
+    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+        canonical_identifier: canonical_identifier.clone(),
+        total_withdraw: U256::from(100u64),
+        recipient_metadata: None,
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("action withdraw should succeed");
+    assert!(!result.events.is_empty());
+    assert_eq!(
+        result.events[0],
+        Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+            attemped_withdraw: U256::from(100u64),
+            reason: format!("Invalid withdraw, the channel is not opened"),
+        })
+    );
+
+    let mut chain_state = result.new_state;
+    let token_network_registry_state = chain_state
+        .identifiers_to_tokennetworkregistries
+        .get_mut(&token_network_registry_address)
+        .expect("Registry should exist");
+    let token_network_state = token_network_registry_state
+        .tokennetworkaddresses_to_tokennetworks
+        .get_mut(&token_network_address)
+        .expect("token network should exist");
+    let mut channel_state = token_network_state
+        .channelidentifiers_to_channels
+        .get_mut(&channel_identifier)
+        .expect("Channel should exist");
+
+    // Successful withdraw
+    channel_state.close_transaction = None;
+    channel_state.our_state.contract_balance = U256::from(200u64);
+
+    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+        canonical_identifier: canonical_identifier.clone(),
+        total_withdraw: U256::from(100u64),
+        recipient_metadata: None,
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("action withdraw should succeed");
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+        .expect("Channel should exist");
+
+    assert!(!channel_state.our_state.withdraws_pending.is_empty());
+    assert!(!result.events.is_empty());
+    assert_eq!(
+        result.events[0],
+        Event::SendWithdrawRequest(SendWithdrawRequest {
+            inner: SendMessageEventInner {
+                recipient: channel_state.partner_state.address,
+                recipient_metadata: None,
+                canonincal_identifier: canonical_identifier.clone(),
+                message_identifier: 1, // Doesn't matter
+            },
+            participant: channel_state.our_state.address,
+            nonce: channel_state.our_state.nonce,
+            expiration: U64::from(101u64),
+        })
+    )
+}
 
 #[test]
 fn test_channel_set_reveal_timeout() {
