@@ -1,3 +1,8 @@
+use std::ops::{
+    Div,
+    Sub,
+};
+
 use web3::types::{
     Address,
     H256,
@@ -5,6 +10,7 @@ use web3::types::{
 };
 
 use crate::{
+    constants::DEFAULT_REVEAL_TIMEOUT,
     primitives::{
         CanonicalIdentifier,
         MediationFeeConfig,
@@ -15,6 +21,7 @@ use crate::{
     state_machine::{
         machine::chain,
         types::{
+            ActionChannelSetRevealTimeout,
             BalanceProofState,
             Block,
             ContractReceiveChannelClosed,
@@ -24,6 +31,7 @@ use crate::{
             ContractSendChannelUpdateTransfer,
             ContractSendEvent,
             Event,
+            EventInvalidActionSetRevealTimeout,
             PendingWithdrawState,
             SendMessageEventInner,
             SendWithdrawExpired,
@@ -434,4 +442,58 @@ fn test_channel_update_transfer() {}
 fn test_channel_action_withdraw() {}
 
 #[test]
-fn test_channel_set_reveal_timeout() {}
+fn test_channel_set_reveal_timeout() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
+
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier: chain_identifier.clone(),
+        token_network_address,
+        channel_identifier,
+    };
+    let chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let channel_state = views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+        .expect("Channel state should exist");
+
+    assert_eq!(channel_state.reveal_timeout, U64::from(DEFAULT_REVEAL_TIMEOUT));
+
+    let state_change = StateChange::ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout {
+        canonical_identifier: canonical_identifier.clone(),
+        reveal_timeout: U64::from(6u64),
+    });
+    let result = chain::state_transition(chain_state.clone(), state_change).expect("Set reveal timeout should succeed");
+    assert!(!result.events.is_empty());
+    assert_eq!(
+        result.events[0],
+        Event::InvalidActionSetRevealTimeout(EventInvalidActionSetRevealTimeout {
+            reveal_timeout: U64::from(6u64),
+            reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
+        })
+    );
+
+    let reveal_timeout = channel_state.settle_timeout.div(2).sub(1).as_u64();
+    println!("Reveal timeout {}", reveal_timeout);
+    let state_change = StateChange::ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout {
+        canonical_identifier: canonical_identifier.clone(),
+        reveal_timeout: U64::from(reveal_timeout),
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Set reveal timeout should succeed");
+    assert!(result.events.is_empty());
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+        .expect("Channel state should exist");
+
+    assert_eq!(channel_state.reveal_timeout, U64::from(reveal_timeout));
+}

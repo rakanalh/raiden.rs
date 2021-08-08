@@ -9,12 +9,9 @@ use crate::{
         CanonicalIdentifier,
         U64,
     },
-    state_machine::{
-        types::{
-            ChainState,
-            TokenNetworkState,
-        },
-        views::get_token_network_by_address,
+    state_machine::types::{
+        ChainState,
+        TokenNetworkState,
     },
 };
 use crate::{
@@ -45,26 +42,39 @@ pub struct ChainTransition {
 }
 
 fn subdispatch_by_canonical_id(
-    chain_state: ChainState,
+    chain_state: &mut ChainState,
     state_change: StateChange,
     canonical_identifier: CanonicalIdentifier,
 ) -> TransitionResult {
-    let mut events = vec![];
-    if let Some(token_network_state) =
-        get_token_network_by_address(&chain_state, canonical_identifier.token_network_address)
+    let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
+    let token_network = match token_network_registries
+        .values_mut()
+        .map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values_mut())
+        .flatten()
+        .find(|tn| tn.address == canonical_identifier.token_network_address)
     {
-        let transition = token_network::state_transition(
-            token_network_state.clone(),
-            state_change,
-            chain_state.block_number,
-            chain_state.block_hash,
-            chain_state.pseudo_random_number_generator.clone(),
-        )?;
-        events = transition.events;
-    }
+        Some(tn) => tn,
+        None => {
+            return Ok(ChainTransition {
+                new_state: chain_state.clone(),
+                events: vec![],
+            })
+        }
+    };
+
+    let transition = token_network::state_transition(
+        token_network.clone(),
+        state_change,
+        chain_state.block_number,
+        chain_state.block_hash,
+        chain_state.pseudo_random_number_generator.clone(),
+    )?;
+
+    *token_network = transition.new_state;
+    let events = transition.events;
 
     Ok(ChainTransition {
-        new_state: chain_state,
+        new_state: chain_state.clone(),
         events,
     })
 }
@@ -281,15 +291,19 @@ fn handle_contract_receive_channel_closed(
     )
 }
 
-pub fn state_transition(chain_state: ChainState, state_change: StateChange) -> TransitionResult {
+pub fn state_transition(mut chain_state: ChainState, state_change: StateChange) -> TransitionResult {
     match state_change {
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
-        StateChange::ActionChannelWithdraw(ref inner) => {
-            subdispatch_by_canonical_id(chain_state, state_change.clone(), inner.canonical_identifier.clone())
-        }
-        StateChange::ActionChannelSetRevealTimeout(ref inner) => {
-            subdispatch_by_canonical_id(chain_state, state_change.clone(), inner.canonical_identifier.clone())
-        }
+        StateChange::ActionChannelWithdraw(ref inner) => subdispatch_by_canonical_id(
+            &mut chain_state,
+            state_change.clone(),
+            inner.canonical_identifier.clone(),
+        ),
+        StateChange::ActionChannelSetRevealTimeout(ref inner) => subdispatch_by_canonical_id(
+            &mut chain_state,
+            state_change.clone(),
+            inner.canonical_identifier.clone(),
+        ),
         StateChange::Block(inner) => handle_new_block(chain_state, inner),
         StateChange::ContractReceiveTokenNetworkRegistry(inner) => {
             handle_contract_receive_token_network_registry(chain_state, inner)
