@@ -26,6 +26,7 @@ use crate::{
             ActionChannelWithdraw,
             BalanceProofState,
             Block,
+            ContractReceiveChannelBatchUnlock,
             ContractReceiveChannelClosed,
             ContractReceiveChannelDeposit,
             ContractReceiveChannelSettled,
@@ -501,10 +502,61 @@ fn test_channel_settled() {
 }
 
 #[test]
-fn test_channel_batch_unlock() {}
+fn test_channel_batch_unlock() {
+    let token_network_registry_address = Address::random();
+    let token_address = Address::random();
+    let token_network_address = Address::random();
 
-#[test]
-fn test_channel_update_transfer() {}
+    let chain_state =
+        chain_state_with_token_network(token_network_registry_address, token_address, token_network_address);
+
+    let channel_identifier = U256::from(1u64);
+    let chain_identifier = chain_state.chain_id.clone();
+    let canonical_identifier = CanonicalIdentifier {
+        chain_identifier: chain_identifier.clone(),
+        token_network_address,
+        channel_identifier,
+    };
+    let mut chain_state = channel_state(
+        chain_state,
+        token_network_registry_address,
+        token_network_address,
+        token_address,
+        channel_identifier,
+    );
+
+    let token_network_registry_state = chain_state
+        .identifiers_to_tokennetworkregistries
+        .get_mut(&token_network_registry_address)
+        .expect("Registry should exist");
+    let token_network_state = token_network_registry_state
+        .tokennetworkaddresses_to_tokennetworks
+        .get_mut(&token_network_address)
+        .expect("token network should exist");
+    let mut channel_state = token_network_state
+        .channelidentifiers_to_channels
+        .get_mut(&channel_identifier)
+        .expect("Channel should exist");
+
+    channel_state.settle_transaction = Some(TransactionExecutionStatus {
+        started_block_number: Some(U64::from(1u64)),
+        finished_block_number: Some(U64::from(2u64)),
+        result: Some(TransactionResult::Success),
+    });
+
+    let state_change = StateChange::ContractReceiveChannelBatchUnlock(ContractReceiveChannelBatchUnlock {
+        canonical_identifier: canonical_identifier.clone(),
+        receiver: channel_state.our_state.address,
+        sender: channel_state.partner_state.address,
+        locksroot: H256::zero(),
+        unlocked_amount: 100,
+        returned_tokens: 0,
+    });
+    let result = chain::state_transition(chain_state, state_change).expect("Should succeeed");
+
+    let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone());
+    assert_eq!(channel_state, None);
+}
 
 #[test]
 fn test_channel_action_withdraw() {
