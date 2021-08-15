@@ -25,6 +25,10 @@ use raiden::{
     },
     state_manager::StateManager,
     storage::Storage,
+    transport::{
+        matrix::MatrixTransport,
+        Transport,
+    },
 };
 use rusqlite::Connection;
 use slog::Logger;
@@ -46,6 +50,7 @@ pub struct RaidenApp {
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
     transition_service: Arc<dyn Transitioner + Send + Sync>,
+    transport: Arc<dyn Transport>,
     sync_start_block_number: U64,
     logger: Logger,
 }
@@ -104,6 +109,11 @@ impl RaidenApp {
             async move { event_handler.handle_event(event).await }
         }));
 
+        let transport = Arc::new(MatrixTransport::new(
+            config.transport_config.homeserver_url.clone(),
+            config.account.private_key(),
+        ));
+
         Ok(Self {
             config,
             web3,
@@ -112,6 +122,7 @@ impl RaidenApp {
             state_manager,
             transition_service,
             sync_start_block_number,
+            transport,
             logger,
         })
     }
@@ -158,6 +169,7 @@ impl RaidenApp {
 
         futures::join!(
             block_monitor.start(),
+            self.transport.sync(),
             crate::http::HttpServer::new(
                 Arc::new(api),
                 self.config.account.clone(),

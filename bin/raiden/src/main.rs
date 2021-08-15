@@ -7,6 +7,7 @@ use raiden::{
         proxies::Account,
     },
     primitives::{
+        MatrixTransportConfig,
         MediationFeeConfig,
         RaidenConfig,
     },
@@ -163,11 +164,16 @@ async fn raiden_config(cli: Opt, private_key: PrivateKey) -> Result<(RaidenConfi
 
     let account = Account::new(web3.clone(), private_key, nonce);
 
+    let transport_config = MatrixTransportConfig {
+        homeserver_url: "transport.transport01.raiden.network".to_owned(),
+    };
+
     let config = RaidenConfig {
         chain_id,
         account,
         datadir,
         mediation_config,
+        transport_config,
         keystore_path: keystore_path.to_path_buf(),
         eth_http_rpc_endpoint: eth_rpc_http_endpoint,
         eth_socket_rpc_endpoint: eth_rpc_socket_endpoint,

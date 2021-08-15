@@ -47,7 +47,7 @@ impl Key for PrivateKey {
     }
 }
 
-pub fn signature_to_bytes(s: &Signature) -> Vec<u8> {
+pub fn signature_to_bytes(s: Signature) -> Vec<u8> {
     let vb = s.v.to_be_bytes();
     let rb = s.r.to_fixed_bytes();
     let sb = s.s.to_fixed_bytes();
@@ -57,4 +57,10 @@ pub fn signature_to_bytes(s: &Signature) -> Vec<u8> {
     b.extend(&rb);
     b.extend(&sb);
     b
+}
+
+pub fn signature_to_str(s: Signature) -> String {
+    let bytes = signature_to_bytes(s);
+    let bytes = bytes.as_slice();
+    std::str::from_utf8(bytes).expect("Something").to_string()
 }

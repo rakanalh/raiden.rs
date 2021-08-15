@@ -9,6 +9,11 @@ use super::{
 };
 
 #[derive(Clone)]
+pub struct MatrixTransportConfig {
+    pub homeserver_url: String,
+}
+
+#[derive(Clone)]
 pub struct RaidenConfig {
     pub chain_id: ChainID,
     pub account: Account<Http>,
@@ -17,4 +22,5 @@ pub struct RaidenConfig {
     pub eth_http_rpc_endpoint: String,
     pub eth_socket_rpc_endpoint: String,
     pub mediation_config: MediationFeeConfig,
+    pub transport_config: MatrixTransportConfig,
 }
