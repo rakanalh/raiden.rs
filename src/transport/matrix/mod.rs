@@ -15,6 +15,9 @@ use crate::blockchain::key::{
 
 use super::Transport;
 
+pub mod constants;
+pub mod utils;
+
 pub struct MatrixTransport {
     client: Client,
     private_key: PrivateKey,

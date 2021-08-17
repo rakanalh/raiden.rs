@@ -112,7 +112,7 @@ fn router(
         .get("/api/v1/address", endpoints::address)
         .get("/api/v1/channels", endpoints::channels)
         .put("/api/v1/channels", endpoints::create_channel)
-        .patch("api/v1/channels", endpoints::channel_update)
+        .patch("/api/v1/channels", endpoints::channel_update)
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()

@@ -9,7 +9,10 @@ mod app;
 mod helpers;
 pub use self::app::*;
 pub use self::helpers::*;
-use raiden::primitives::ChainID;
+use raiden::{
+    primitives::ChainID,
+    transport::matrix::constants::MATRIX_AUTO_SELECT_SERVER,
+};
 
 /// Parse a single key-value pair
 fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
@@ -64,6 +67,12 @@ pub struct CliMediationConfig {
 }
 
 #[derive(StructOpt, Debug)]
+pub struct CliMatrixTransportConfig {
+    #[structopt(long, default_value = MATRIX_AUTO_SELECT_SERVER)]
+    pub matrix_server: String,
+}
+
+#[derive(StructOpt, Debug)]
 #[structopt(name = "Raiden unofficial rust client")]
 pub struct Opt {
     /// Specify the blockchain to run Raiden on.
@@ -98,4 +107,7 @@ pub struct Opt {
 
     #[structopt(flatten)]
     pub mediation_fees: CliMediationConfig,
+
+    #[clap(flatten)]
+    pub matrix_transport_config: CliMatrixTransportConfig,
 }
