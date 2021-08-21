@@ -2158,6 +2158,7 @@ dependencies = [
  "matrix-sdk",
  "parking_lot",
  "rand_chacha 0.3.1",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",

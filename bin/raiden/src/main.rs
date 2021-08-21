@@ -11,7 +11,13 @@ use raiden::{
         MediationFeeConfig,
         RaidenConfig,
     },
-    transport::matrix::constants::MATRIX_AUTO_SELECT_SERVER,
+    transport::matrix::{
+        constants::MATRIX_AUTO_SELECT_SERVER,
+        utils::{
+            get_default_matrix_servers,
+            select_best_server,
+        },
+    },
 };
 use slog::Drain;
 use std::{
@@ -166,14 +172,16 @@ async fn raiden_config(cli: Opt, private_key: PrivateKey) -> Result<(RaidenConfi
     let account = Account::new(web3.clone(), private_key, nonce);
 
     let homeserver_url = if cli.matrix_transport_config.matrix_server == MATRIX_AUTO_SELECT_SERVER {
-        let servers = get_default_matrix_servers().await;
+        let servers = get_default_matrix_servers(cli.environment_type.into())
+            .await
+            .map_err(|_| format!("Could not fetch default matrix servers"))?;
         select_best_server(servers)
     } else {
         cli.matrix_transport_config.matrix_server
     };
 
     let transport_config = MatrixTransportConfig {
-        homeserver_url: "transport.transport01.raiden.network".to_owned(),
+        homeserver_url
     };
 
     let config = RaidenConfig {
