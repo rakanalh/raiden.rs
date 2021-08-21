@@ -180,9 +180,7 @@ async fn raiden_config(cli: Opt, private_key: PrivateKey) -> Result<(RaidenConfi
         cli.matrix_transport_config.matrix_server
     };
 
-    let transport_config = MatrixTransportConfig {
-        homeserver_url
-    };
+    let transport_config = MatrixTransportConfig { homeserver_url };
 
     let config = RaidenConfig {
         chain_id,
