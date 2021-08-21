@@ -80,8 +80,14 @@ where
         settle_timeout: U256,
         block: H256,
     ) -> Result<U256> {
-        let channel_operations_lock = self.channel_operations_lock.write().await;
-        let _partner_lock_guard = channel_operations_lock.get(&partner).unwrap().lock().await;
+        let mut channel_operations_lock = self.channel_operations_lock.write().await;
+        let _partner_lock_guard = match channel_operations_lock.get(&partner) {
+            Some(mutex) => mutex.lock().await,
+            None => {
+                channel_operations_lock.insert(partner, Mutex::new(true));
+                channel_operations_lock.get(&partner).unwrap().lock().await
+            }
+        };
 
         let open_channel_transaction = ChannelOpenTransaction {
             web3: self.web3.clone(),
