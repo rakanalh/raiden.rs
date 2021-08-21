@@ -75,6 +75,11 @@ impl FromStr for ChainID {
     }
 }
 
+pub enum EnvironmentType {
+    Production,
+    Development,
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct CanonicalIdentifier {
     pub chain_identifier: ChainID,
