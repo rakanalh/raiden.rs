@@ -13,7 +13,7 @@ use crate::blockchain::key::{
     PrivateKey,
 };
 
-use super::Transport;
+use super::{Transport, TransportError};
 
 pub mod constants;
 pub mod utils;
@@ -50,8 +50,9 @@ impl MatrixTransport {
 
 #[async_trait::async_trait]
 impl Transport for MatrixTransport {
-    async fn init(&self) {
-        let _ = self.login().await;
+    async fn init(&self) -> Result<(), TransportError> {
+        self.login().await.map_err(|e| TransportError::Init(format!("{}", e)))?;
+        Ok(())
     }
 
     async fn sync(&self) {
