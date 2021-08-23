@@ -1,5 +1,4 @@
 use crate::{
-    event_handler::EventHandler,
     services::{
         BlockMonitorService,
         SyncService,
@@ -15,6 +14,7 @@ use raiden::{
         },
         proxies::ProxyManager,
     },
+    event_handler::EventHandler,
     primitives::{
         RaidenConfig,
         U64,

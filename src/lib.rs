@@ -2,6 +2,7 @@ pub mod api;
 pub mod blockchain;
 pub mod constants;
 pub mod errors;
+pub mod event_handler;
 pub mod primitives;
 pub mod services;
 pub mod state_machine;
