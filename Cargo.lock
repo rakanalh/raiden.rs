@@ -2165,6 +2165,7 @@ dependencies = [
  "slog",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "ulid",
  "web3",
 ]

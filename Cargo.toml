@@ -33,6 +33,7 @@ slog = "2.7.0"
 thiserror = "1.0"
 tokio = { version = "1.0", features = ["time"] }
 web3 = "0.17.0"
+tokio-stream = "0.1.7"
 ulid = "0.4.1"
 
 [profile.dev]

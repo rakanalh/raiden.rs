@@ -1,8 +1,6 @@
-use crate::{
-    services::{
-        BlockMonitorService,
-        SyncService,
-    },
+use crate::services::{
+    BlockMonitorService,
+    SyncService,
 };
 use parking_lot::RwLock;
 use raiden::{
@@ -19,15 +17,12 @@ use raiden::{
         RaidenConfig,
         U64,
     },
-    services::{
-        TransitionService,
-        Transitioner,
-    },
+    services::TransitionService,
     state_manager::StateManager,
     storage::Storage,
-    transport::{
-        matrix::MatrixTransport,
-        Transport,
+    transport::matrix::{
+        MatrixClient,
+        MatrixService,
     },
 };
 use rusqlite::Connection;
@@ -49,8 +44,7 @@ pub struct RaidenApp {
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
     state_manager: Arc<RwLock<StateManager>>,
-    transition_service: Arc<dyn Transitioner + Send + Sync>,
-    transport: Arc<dyn Transport>,
+    transport: Arc<MatrixClient>,
     sync_start_block_number: U64,
     logger: Logger,
 }
@@ -103,13 +97,7 @@ impl RaidenApp {
             .map(|pm| Arc::new(pm))
             .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
 
-        let sm = state_manager.clone();
-        let transition_service = Arc::new(TransitionService::new(state_manager.clone(), move |event| {
-            let event_handler = EventHandler::new(sm.clone());
-            async move { event_handler.handle_event(event).await }
-        }));
-
-        let transport = Arc::new(MatrixTransport::new(
+        let transport = Arc::new(MatrixClient::new(
             config.transport_config.homeserver_url.clone(),
             config.account.private_key(),
         ));
@@ -120,7 +108,6 @@ impl RaidenApp {
             contracts_manager,
             proxy_manager,
             state_manager,
-            transition_service,
             sync_start_block_number,
             transport,
             logger,
@@ -135,13 +122,23 @@ impl RaidenApp {
             Err(_) => return,
         };
 
+        let sm = self.state_manager.clone();
+        let account = self.config.account.clone();
+
+        let (transport_service, sender) = MatrixService::new(self.transport.clone());
+
+        let transition_service = Arc::new(TransitionService::new(self.state_manager.clone(), move |event| {
+            let event_handler = EventHandler::new(account.clone(), sm.clone(), sender.clone());
+            async move { event_handler.handle_event(event).await }
+        }));
+
         let mut sync_service = SyncService::new(
             self.web3.clone(),
             self.config.clone(),
             self.state_manager.clone(),
             self.contracts_manager.clone(),
             self.proxy_manager.clone(),
-            self.transition_service.clone(),
+            transition_service.clone(),
             self.logger.clone(),
         );
 
@@ -152,7 +149,7 @@ impl RaidenApp {
         let block_monitor = match BlockMonitorService::new(
             ws,
             self.state_manager.clone(),
-            self.transition_service.clone(),
+            transition_service.clone(),
             sync_service,
             self.logger.clone(),
         ) {
@@ -163,13 +160,13 @@ impl RaidenApp {
         let api = Api::new(
             self.state_manager.clone(),
             self.proxy_manager.clone(),
-            self.transition_service.clone(),
+            transition_service.clone(),
             self.logger.clone(),
         );
 
         futures::join!(
             block_monitor.start(),
-            self.transport.sync(),
+            transport_service.run(),
             crate::http::HttpServer::new(
                 Arc::new(api),
                 self.config.account.clone(),
