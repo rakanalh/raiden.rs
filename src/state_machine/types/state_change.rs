@@ -23,7 +23,7 @@ use web3::types::{
     U256,
 };
 
-use super::TransactionChannelDeposit;
+use super::{BalanceProofState, HopState, LockedTransferSignedState, RouteState, TransactionChannelDeposit, TransferDescriptionWithSecretState};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StateChange {
@@ -159,4 +159,28 @@ pub struct ContractReceiveRouteNew {
 pub struct ContractReceiveUpdateTransfer {
     pub canonical_identifier: CanonicalIdentifier,
     pub nonce: U256,
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionInitInitiator {
+    transfer: TransferDescriptionWithSecretState,
+    routes: Vec<RouteState>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionInitMediator {
+    sender: Address,
+    balance_proof: BalanceProofState,
+    from_hop: HopState,
+    candidate_route_states: Vec<RouteState>,
+    from_transfer: LockedTransferSignedState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionInitTarget {
+    sender: Address,
+    balance_proof: BalanceProofState,
+    from_hop: HopState,
+    transfer: LockedTransferSignedState,
 }
