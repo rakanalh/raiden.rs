@@ -379,3 +379,43 @@ pub struct TransactionChannelDeposit {
     pub contract_balance: U256,
     pub deposit_block_number: U64,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HopState {
+    node_address: Address,
+    channel_identifier: U256,
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RouteState {
+    route: Vec<Address>,
+    address_to_metadata: HashMap<Address, AddressMetadata>,
+    swaps: HashMap<Address, Address>,
+    estimated_fee: U256,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TransferDescriptionWithSecretState {
+    token_network_registry_address: Address,
+    payment_identifier: U64,
+    amount: U256,
+    token_network_address: Address,
+    initiator: Address,
+    target: Address,
+    secret: Bytes,
+    secrethash: H256,
+    lock_timeout: Option<U64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LockedTransferSignedState {
+    payment_identifier: U64,
+    token: Address,
+    lock: HashTimeLockState,
+    initiator: Address,
+    target: Address,
+    message_identifier: u32,
+    route_states: Vec<RouteState>,
+    balance_proof: BalanceProofState,
+}
