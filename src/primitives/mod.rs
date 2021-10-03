@@ -25,18 +25,17 @@ use web3::types::{
     U256,
 };
 
-use crate::constants::{
-    DEFAULT_MEDIATION_FLAT_FEE,
-    DEFAULT_MEDIATION_PROPORTIONAL_FEE,
-    DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
+use crate::{
+    constants::{
+        DEFAULT_MEDIATION_FLAT_FEE,
+        DEFAULT_MEDIATION_PROPORTIONAL_FEE,
+        DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
+    },
+    types::{
+        FeeAmount,
+        ProportionalFeeAmount,
+    },
 };
-
-pub type AddressMetadata = HashMap<String, String>;
-
-pub type BlockTimeout = u32;
-pub type TokenAmount = U256;
-pub type FeeAmount = U256;
-pub type ProportionalFeeAmount = U256;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Random(ChaChaRng);

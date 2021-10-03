@@ -11,7 +11,6 @@ use serde::{
 use web3::types::{
     Address,
     Bytes,
-    H256,
     U256,
 };
 
@@ -19,7 +18,6 @@ use crate::{
     constants::DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
     errors::ChannelError,
     primitives::{
-        AddressMetadata,
         CanonicalIdentifier,
         ChainID,
         MediationFeeConfig,
@@ -28,7 +26,31 @@ use crate::{
         TransactionExecutionStatus,
         TransactionResult,
         TransferTask,
-        U64,
+    },
+    types::{
+        AddressMetadata,
+        BalanceHash,
+        BalanceProofData,
+        BlockExpiration,
+        BlockHash,
+        BlockNumber,
+        BlockTimeout,
+        ChannelIdentifier,
+        EncodedLock,
+        LockTimeout,
+        LockedAmount,
+        Locksroot,
+        MessageHash,
+        MessageIdentifier,
+        Nonce,
+        PaymentIdentifier,
+        RawSecret,
+        RevealTimeout,
+        Secret,
+        SecretHash,
+        SettleTimeout,
+        Signature,
+        TokenAmount,
     },
 };
 
@@ -36,14 +58,14 @@ use super::SendMessageEvent;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PaymentMappingState {
-    pub secrethashes_to_task: HashMap<H256, TransferTask>,
+    pub secrethashes_to_task: HashMap<SecretHash, TransferTask>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChainState {
     pub chain_id: ChainID,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub our_address: Address,
     pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
     pub queueids_to_queues: HashMap<QueueIdentifier, Vec<SendMessageEvent>>,
@@ -52,7 +74,12 @@ pub struct ChainState {
 }
 
 impl ChainState {
-    pub fn new(chain_id: ChainID, block_number: U64, block_hash: H256, our_address: Address) -> ChainState {
+    pub fn new(
+        chain_id: ChainID,
+        block_number: BlockNumber,
+        block_hash: BlockHash,
+        our_address: Address,
+    ) -> ChainState {
         ChainState {
             chain_id,
             block_number,
@@ -104,7 +131,7 @@ pub struct TokenNetworkState {
     pub token_address: Address,
     pub network_graph: TokenNetworkGraphState,
     pub channelidentifiers_to_channels: HashMap<U256, ChannelState>,
-    pub partneraddresses_to_channelidentifiers: HashMap<Address, Vec<U256>>,
+    pub partneraddresses_to_channelidentifiers: HashMap<Address, Vec<ChannelIdentifier>>,
 }
 
 impl TokenNetworkState {
@@ -145,8 +172,8 @@ pub struct ChannelState {
     pub canonical_identifier: CanonicalIdentifier,
     pub token_address: Address,
     pub token_network_registry_address: Address,
-    pub reveal_timeout: U64,
-    pub settle_timeout: U256,
+    pub reveal_timeout: RevealTimeout,
+    pub settle_timeout: SettleTimeout,
     pub fee_schedule: FeeScheduleState,
     pub our_state: ChannelEndState,
     pub partner_state: ChannelEndState,
@@ -163,12 +190,12 @@ impl ChannelState {
         token_network_registry_address: Address,
         our_address: Address,
         partner_address: Address,
-        reveal_timeout: U64,
-        settle_timeout: U256,
+        reveal_timeout: RevealTimeout,
+        settle_timeout: SettleTimeout,
         open_transaction: TransactionExecutionStatus,
         fee_config: MediationFeeConfig,
     ) -> Result<ChannelState, ChannelError> {
-        if U256::from(reveal_timeout) >= settle_timeout {
+        if SettleTimeout::from(reveal_timeout) >= settle_timeout {
             return Err(ChannelError {
                 msg: format!(
                     "reveal_timeout({:?}) must be smaller than settle_timeout({:?})",
@@ -232,7 +259,7 @@ impl ChannelState {
         status
     }
 
-    pub fn capacity(&self) -> U256 {
+    pub fn capacity(&self) -> TokenAmount {
         self.our_state.contract_balance - self.our_state.total_withdraw() + self.partner_state.contract_balance
             - self.partner_state.total_withdraw()
     }
@@ -241,25 +268,25 @@ impl ChannelState {
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelEndState {
     pub address: Address,
-    pub contract_balance: U256,
-    pub onchain_total_withdraw: U256,
+    pub contract_balance: TokenAmount,
+    pub onchain_total_withdraw: TokenAmount,
     pub withdraws_pending: HashMap<U256, PendingWithdrawState>,
     pub withdraws_expired: Vec<ExpiredWithdrawState>,
-    pub secrethashes_to_lockedlocks: HashMap<H256, HashTimeLockState>,
-    pub secrethashes_to_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
-    pub secrethashes_to_onchain_unlockedlocks: HashMap<H256, UnlockPartialProofState>,
+    pub secrethashes_to_lockedlocks: HashMap<SecretHash, HashTimeLockState>,
+    pub secrethashes_to_unlockedlocks: HashMap<SecretHash, UnlockPartialProofState>,
+    pub secrethashes_to_onchain_unlockedlocks: HashMap<SecretHash, UnlockPartialProofState>,
     pub balance_proof: Option<BalanceProofState>,
     pub pending_locks: PendingLocksState,
     pub onchain_locksroot: Bytes,
-    pub nonce: U256,
+    pub nonce: Nonce,
 }
 
 impl ChannelEndState {
     pub fn new(address: Address) -> Self {
         Self {
             address,
-            contract_balance: U256::zero(),
-            onchain_total_withdraw: U256::zero(),
+            contract_balance: TokenAmount::zero(),
+            onchain_total_withdraw: TokenAmount::zero(),
             withdraws_pending: HashMap::new(),
             withdraws_expired: vec![],
             secrethashes_to_lockedlocks: HashMap::new(),
@@ -268,86 +295,86 @@ impl ChannelEndState {
             balance_proof: None,
             pending_locks: PendingLocksState::default(),
             onchain_locksroot: Bytes(vec![]),
-            nonce: U256::zero(),
+            nonce: Nonce::zero(),
         }
     }
 
-    pub fn offchain_total_withdraw(&self) -> U256 {
+    pub fn offchain_total_withdraw(&self) -> TokenAmount {
         self.withdraws_pending
             .values()
             .map(|w| w.total_withdraw)
-            .fold(U256::zero(), |a, b| max(a, b))
+            .fold(TokenAmount::zero(), |a, b| max(a, b))
     }
 
-    pub fn total_withdraw(&self) -> U256 {
+    pub fn total_withdraw(&self) -> TokenAmount {
         max(self.offchain_total_withdraw(), self.onchain_total_withdraw)
     }
 
-    pub fn next_nonce(&self) -> U256 {
+    pub fn next_nonce(&self) -> Nonce {
         self.nonce + 1
     }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct BalanceProofState {
-    pub nonce: U256,
-    pub transferred_amount: U256,
-    pub locked_amount: U256,
-    pub locksroot: H256,
+    pub nonce: Nonce,
+    pub transferred_amount: TokenAmount,
+    pub locked_amount: LockedAmount,
+    pub locksroot: Locksroot,
     pub canonical_identifier: CanonicalIdentifier,
-    pub balance_hash: H256,
-    pub message_hash: Option<H256>,
-    pub signature: Option<H256>,
+    pub balance_hash: BalanceHash,
+    pub message_hash: Option<MessageHash>,
+    pub signature: Option<Signature>,
     pub sender: Option<Address>,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingLocksState {
-    locks: Vec<H256>,
+    locks: Vec<EncodedLock>,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct UnlockPartialProofState {
     lock: HashTimeLockState,
-    secret: H256,
-    amount: U256,
-    expiration: U64,
-    secrethash: H256,
-    encoded: H256,
+    secret: Secret,
+    amount: TokenAmount,
+    expiration: BlockExpiration,
+    secrethash: SecretHash,
+    encoded: EncodedLock,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HashTimeLockState {
-    amount: U256,
-    expiration: U64,
-    secrethash: H256,
-    encoded: H256,
+    amount: TokenAmount,
+    expiration: BlockExpiration,
+    secrethash: SecretHash,
+    encoded: EncodedLock,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ExpiredWithdrawState {
-    pub total_withdraw: U256,
-    pub expiration: U64,
-    pub nonce: U256,
+    pub total_withdraw: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub nonce: Nonce,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingWithdrawState {
-    pub total_withdraw: U256,
-    pub expiration: U64,
-    pub nonce: U256,
+    pub total_withdraw: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub nonce: Nonce,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
 impl PendingWithdrawState {
-    pub fn expiration_threshold(&self) -> U64 {
+    pub fn expiration_threshold(&self) -> BlockExpiration {
         self.expiration
             .saturating_add(DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.saturating_mul(2).into())
             .into()
     }
 
-    pub fn has_expired(&self, current_block: U64) -> bool {
+    pub fn has_expired(&self, current_block: BlockNumber) -> bool {
         let threshold = self.expiration_threshold();
         current_block >= threshold
     }
@@ -376,14 +403,14 @@ impl Default for FeeScheduleState {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransactionChannelDeposit {
     pub participant_address: Address,
-    pub contract_balance: U256,
-    pub deposit_block_number: U64,
+    pub contract_balance: TokenAmount,
+    pub deposit_block_number: BlockNumber,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HopState {
     node_address: Address,
-    channel_identifier: U256,
+    channel_identifier: ChannelIdentifier,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -391,30 +418,30 @@ pub struct RouteState {
     route: Vec<Address>,
     address_to_metadata: HashMap<Address, AddressMetadata>,
     swaps: HashMap<Address, Address>,
-    estimated_fee: U256,
+    estimated_fee: TokenAmount,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransferDescriptionWithSecretState {
     token_network_registry_address: Address,
-    payment_identifier: U64,
-    amount: U256,
+    payment_identifier: PaymentIdentifier,
+    amount: TokenAmount,
     token_network_address: Address,
     initiator: Address,
     target: Address,
-    secret: Bytes,
-    secrethash: H256,
-    lock_timeout: Option<U64>,
+    secret: RawSecret,
+    secrethash: SecretHash,
+    lock_timeout: Option<BlockTimeout>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LockedTransferSignedState {
-    payment_identifier: U64,
+    payment_identifier: PaymentIdentifier,
     token: Address,
     lock: HashTimeLockState,
     initiator: Address,
     target: Address,
-    message_identifier: u32,
+    message_identifier: MessageIdentifier,
     route_states: Vec<RouteState>,
     balance_proof: BalanceProofState,
 }

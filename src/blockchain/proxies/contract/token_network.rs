@@ -4,6 +4,7 @@ use crate::{
         ProxyError,
     },
     state_machine::types::ChannelStatus,
+    types::SettleTimeout,
 };
 use derive_more::Deref;
 use web3::{
@@ -165,7 +166,7 @@ impl<T: Transport> TokenNetworkContract<T> {
         })
     }
 
-    pub async fn settlement_timeout_min(&self, block: H256) -> Result<U256> {
+    pub async fn settlement_timeout_min(&self, block: H256) -> Result<SettleTimeout> {
         self.inner
             .query(
                 "settlement_timeout_min",
@@ -175,10 +176,11 @@ impl<T: Transport> TokenNetworkContract<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map(|b: U256| b.as_u64().into())
             .map_err(Into::into)
     }
 
-    pub async fn settlement_timeout_max(&self, block: H256) -> Result<U256> {
+    pub async fn settlement_timeout_max(&self, block: H256) -> Result<SettleTimeout> {
         self.inner
             .query(
                 "settlement_timeout_max",
@@ -188,6 +190,7 @@ impl<T: Transport> TokenNetworkContract<T> {
                 Some(BlockId::Hash(block)),
             )
             .await
+            .map(|b: U256| b.as_u64().into())
             .map_err(Into::into)
     }
 

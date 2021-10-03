@@ -6,12 +6,6 @@ use std::{
     },
 };
 
-use web3::types::{
-    Bytes,
-    H256,
-    U256,
-};
-
 use crate::{
     constants::{
         CHANNEL_STATES_PRIOR_TO_CLOSE,
@@ -19,14 +13,10 @@ use crate::{
     },
     errors::StateTransitionError,
     primitives::{
-        AddressMetadata,
-        FeeAmount,
         MediationFeeConfig,
         Random,
-        TokenAmount,
         TransactionExecutionStatus,
         TransactionResult,
-        U64,
     },
     state_machine::{
         types::{
@@ -59,6 +49,16 @@ use crate::{
         },
         views::get_channel_balance,
     },
+    types::{
+        AddressMetadata,
+        BlockHash,
+        BlockNumber,
+        FeeAmount,
+        LockTimeout,
+        Locksroot,
+        RevealTimeout,
+        TokenAmount,
+    },
 };
 
 type TransitionResult = std::result::Result<ChannelTransition, StateTransitionError>;
@@ -68,7 +68,11 @@ pub struct ChannelTransition {
     pub events: Vec<Event>,
 }
 
-fn get_safe_initial_expiration(block_number: U64, reveal_timeout: U64, lock_timeout: Option<U64>) -> U64 {
+fn get_safe_initial_expiration(
+    block_number: BlockNumber,
+    reveal_timeout: RevealTimeout,
+    lock_timeout: Option<LockTimeout>,
+) -> BlockNumber {
     if let Some(lock_timeout) = lock_timeout {
         return block_number + lock_timeout;
     }
@@ -78,7 +82,7 @@ fn get_safe_initial_expiration(block_number: U64, reveal_timeout: U64, lock_time
 
 fn send_expired_withdraws(
     mut channel_state: ChannelState,
-    block_number: U64,
+    block_number: BlockNumber,
     mut pseudo_random_number_generator: Random,
 ) -> Vec<Event> {
     let mut events = vec![];
@@ -123,7 +127,7 @@ fn send_expired_withdraws(
 fn handle_block(
     mut channel_state: ChannelState,
     state_change: Block,
-    block_number: U64,
+    block_number: BlockNumber,
     pseudo_random_number_generator: Random,
 ) -> TransitionResult {
     let mut events = vec![];
@@ -152,8 +156,8 @@ fn handle_block(
             }
         };
 
-        let settlement_end = channel_state.settle_timeout.saturating_add(closed_block_number.into());
-        let state_change_block_number: U256 = state_change.block_number.into();
+        let settlement_end = channel_state.settle_timeout.saturating_add(*closed_block_number).into();
+        let state_change_block_number: BlockNumber = state_change.block_number;
         if state_change_block_number > settlement_end {
             channel_state.settle_transaction = Some(TransactionExecutionStatus {
                 started_block_number: Some(state_change.block_number),
@@ -176,7 +180,7 @@ fn handle_block(
     })
 }
 
-fn set_closed(mut channel_state: ChannelState, block_number: U64) -> ChannelState {
+fn set_closed(mut channel_state: ChannelState, block_number: BlockNumber) -> ChannelState {
     if channel_state.close_transaction.is_none() {
         channel_state.close_transaction = Some(TransactionExecutionStatus {
             started_block_number: None,
@@ -220,7 +224,8 @@ fn handle_channel_closed(channel_state: ChannelState, state_change: ContractRece
         if call_update {
             let expiration = channel_state
                 .settle_timeout
-                .saturating_add(state_change.block_number.into());
+                .saturating_add(*state_change.block_number)
+                .into();
             let update = Event::ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer {
                 inner: ContractSendEvent {
                     triggered_by_blockhash: state_change.block_hash,
@@ -243,7 +248,7 @@ fn handle_channel_closed(channel_state: ChannelState, state_change: ContractRece
     })
 }
 
-fn set_settled(mut channel_state: ChannelState, block_number: U64) -> ChannelState {
+fn set_settled(mut channel_state: ChannelState, block_number: BlockNumber) -> ChannelState {
     if channel_state.settle_transaction.is_none() {
         channel_state.settle_transaction = Some(TransactionExecutionStatus {
             started_block_number: None,
@@ -269,7 +274,8 @@ fn handle_channel_settled(
         channel_state = set_settled(channel_state.clone(), state_change.block_number);
         let our_locksroot = state_change.our_onchain_locksroot.clone();
         let partner_locksroot = state_change.our_onchain_locksroot.clone();
-        let should_clear_channel = our_locksroot == Bytes(vec![]) && partner_locksroot == Bytes(vec![]);
+        let should_clear_channel =
+            our_locksroot == Locksroot::from(vec![]) && partner_locksroot == Locksroot::from(vec![]);
 
         if should_clear_channel {
             return Ok(ChannelTransition {
@@ -296,7 +302,7 @@ fn handle_channel_settled(
     })
 }
 
-fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: U256) {
+fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: TokenAmount) {
     if contract_balance > end_state.contract_balance {
         end_state.contract_balance = contract_balance;
     }
@@ -304,7 +310,7 @@ fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: U2
 
 /// Returns a list of numbers from start to stop (inclusive).
 #[allow(dead_code)]
-fn linspace(start: U256, stop: U256, num: U256) -> Vec<TokenAmount> {
+fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<TokenAmount> {
     // assert num > 1, "Must generate at least one step"
     // assert start <= stop, "start must be smaller than stop"
 
@@ -312,7 +318,7 @@ fn linspace(start: U256, stop: U256, num: U256) -> Vec<TokenAmount> {
 
     let mut result = vec![];
 
-    let mut i = U256::zero();
+    let mut i = TokenAmount::zero();
     while i < num {
         result.push(start + i * step);
         i = i + 1;
@@ -323,18 +329,18 @@ fn linspace(start: U256, stop: U256, num: U256) -> Vec<TokenAmount> {
 
 #[allow(dead_code)]
 fn calculate_imbalance_fees(
-    channel_capacity: U256,
-    proportional_imbalance_fee: U256,
+    channel_capacity: TokenAmount,
+    proportional_imbalance_fee: TokenAmount,
 ) -> Option<Vec<(TokenAmount, FeeAmount)>> {
-    if proportional_imbalance_fee == U256::zero() {
+    if proportional_imbalance_fee == TokenAmount::zero() {
         return None;
     }
 
-    if channel_capacity == U256::zero() {
+    if channel_capacity == TokenAmount::zero() {
         return None;
     }
 
-    let maximum_slope = U256::from(10); // 0.1
+    let maximum_slope = TokenAmount::from(10); // 0.1
     let (max_imbalance_fee, overflow) = channel_capacity.overflowing_mul(proportional_imbalance_fee);
 
     if overflow {
@@ -342,7 +348,7 @@ fn calculate_imbalance_fees(
         return None;
     }
 
-    let max_imbalance_fee = max_imbalance_fee / U256::from(1_000_000);
+    let max_imbalance_fee = max_imbalance_fee / TokenAmount::from(1_000_000);
     // assert proportional_imbalance_fee / 1e6 <= maximum_slope / 2, "Too high imbalance fee"
 
     // calculate function parameters
@@ -350,15 +356,15 @@ fn calculate_imbalance_fees(
     let c = max_imbalance_fee;
     let o = channel_capacity.div(2);
     let b = o.div(s).div(c);
-    let b = b.min(U256::from(10)); // limit exponent to keep numerical stability;
+    let b = b.min(TokenAmount::from(10)); // limit exponent to keep numerical stability;
     let a = c / o.pow(b);
 
-    let f = |x: U256| -> U256 { a * (x - o).pow(b) };
+    let f = |x: TokenAmount| -> TokenAmount { a * (x - o).pow(b) };
 
     // calculate discrete function points
     let num_base_points = min(NUM_DISCRETISATION_POINTS.into(), channel_capacity + 1);
-    let x_values: Vec<U256> = linspace(0u64.into(), channel_capacity, num_base_points);
-    let y_values: Vec<U256> = x_values.iter().map(|x| f(*x)).collect();
+    let x_values: Vec<TokenAmount> = linspace(0u64.into(), channel_capacity, num_base_points);
+    let y_values: Vec<TokenAmount> = x_values.iter().map(|x| f(*x)).collect();
 
     Some(x_values.into_iter().zip(y_values).collect())
 }
@@ -435,13 +441,13 @@ fn handle_channel_batch_unlock(
 ) -> TransitionResult {
     if channel_state.status() == ChannelStatus::Settled {
         if state_change.sender == channel_state.our_state.address {
-            channel_state.our_state.onchain_locksroot = Bytes(vec![]);
+            channel_state.our_state.onchain_locksroot = Locksroot::from(vec![]);
         } else if state_change.sender == channel_state.partner_state.address {
-            channel_state.partner_state.onchain_locksroot = Bytes(vec![]);
+            channel_state.partner_state.onchain_locksroot = Locksroot::from(vec![]);
         }
 
-        let no_unlocks_left_to_do = channel_state.our_state.onchain_locksroot == Bytes(vec![])
-            && channel_state.partner_state.onchain_locksroot == Bytes(vec![]);
+        let no_unlocks_left_to_do = channel_state.our_state.onchain_locksroot == Locksroot::from(vec![])
+            && channel_state.partner_state.onchain_locksroot == Locksroot::from(vec![]);
         if no_unlocks_left_to_do {
             return Ok(ChannelTransition {
                 new_state: None,
@@ -459,7 +465,7 @@ fn handle_channel_batch_unlock(
 fn handle_channel_update_transfer(
     mut channel_state: ChannelState,
     state_change: ContractReceiveUpdateTransfer,
-    block_number: U64,
+    block_number: BlockNumber,
 ) -> TransitionResult {
     if state_change.canonical_identifier == channel_state.canonical_identifier {
         channel_state.update_transaction = Some(TransactionExecutionStatus {
@@ -485,7 +491,7 @@ fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChann
 
     if channel_state.status() != ChannelStatus::Opened {
         return Err("Invalid withdraw, the channel is not opened".to_owned());
-    } else if withdraw_amount == U256::zero() {
+    } else if withdraw_amount == TokenAmount::zero() {
         return Err(format!("Total withdraw {:?} did not increase", withdraw.total_withdraw));
     } else if balance < withdraw_amount {
         return Err(format!(
@@ -504,8 +510,8 @@ fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChann
 
 fn send_withdraw_request(
     channel_state: &mut ChannelState,
-    total_withdraw: U256,
-    block_number: U64,
+    total_withdraw: TokenAmount,
+    block_number: BlockNumber,
     mut pseudo_random_number_generator: Random,
     recipient_metadata: Option<AddressMetadata>,
 ) -> Vec<Event> {
@@ -551,7 +557,7 @@ fn send_withdraw_request(
 fn handle_action_withdraw(
     mut channel_state: ChannelState,
     state_change: ActionChannelWithdraw,
-    block_number: U64,
+    block_number: BlockNumber,
     pseudo_random_number_generator: Random,
 ) -> TransitionResult {
     let mut events = vec![];
@@ -582,7 +588,7 @@ fn handle_action_set_channel_reveal_timeout(
     mut channel_state: ChannelState,
     state_change: ActionChannelSetRevealTimeout,
 ) -> TransitionResult {
-    let double_reveal_timeout: U256 = state_change.reveal_timeout.mul(2u64).into();
+    let double_reveal_timeout: BlockNumber = state_change.reveal_timeout.mul(2u64).into();
     let is_valid_reveal_timeout =
         state_change.reveal_timeout >= 7u64.into() && channel_state.settle_timeout >= double_reveal_timeout;
     if !is_valid_reveal_timeout {
@@ -607,8 +613,8 @@ fn handle_action_set_channel_reveal_timeout(
 pub fn state_transition(
     channel_state: ChannelState,
     state_change: StateChange,
-    block_number: U64,
-    _block_hash: H256,
+    block_number: BlockNumber,
+    _block_hash: BlockHash,
     pseudo_random_number_generator: Random,
 ) -> TransitionResult {
     match state_change {

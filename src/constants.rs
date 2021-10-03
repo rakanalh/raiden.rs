@@ -1,6 +1,6 @@
 use crate::{
-    primitives::BlockTimeout,
     state_machine::types::ChannelStatus,
+    types::BlockTimeout,
 };
 
 pub const SECRET_LENGTH: u8 = 32;

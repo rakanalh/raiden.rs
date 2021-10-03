@@ -4,8 +4,6 @@ use ethabi::Token;
 use web3::types::{
     Address,
     Bytes,
-    H256,
-    U256,
 };
 
 use super::{
@@ -19,7 +17,6 @@ use crate::{
         RaidenConfig,
         TransactionExecutionStatus,
         TransactionResult,
-        U64,
     },
     state_machine::{
         types::{
@@ -39,6 +36,12 @@ use crate::{
         views,
     },
     storage::Storage,
+    types::{
+        BlockHash,
+        BlockNumber,
+        RevealTimeout,
+        SettleTimeout,
+    },
 };
 use derive_more::Display;
 use thiserror::Error;
@@ -128,7 +131,7 @@ impl EventDecoder {
             _ => return Err(DecodeError(format!("{} event has an invalid participant2", event.name))),
         };
         let settle_timeout = match event.data.get("settle_timeout") {
-            Some(Token::Uint(timeout)) => U256::from(timeout.clone().low_u64()),
+            Some(Token::Uint(timeout)) => SettleTimeout::from(timeout.clone().low_u64()),
             _ => {
                 return Err(DecodeError(format!(
                     "{} event has an invalid settle timeout",
@@ -152,9 +155,9 @@ impl EventDecoder {
             .ok_or_else(|| DecodeError(format!("{} event haswan unknown Token network address", event.name)))?;
         let token_address = token_network.token_address;
         let token_network_registry_address = Address::zero();
-        let reveal_timeout = U64::from(constants::DEFAULT_REVEAL_TIMEOUT);
+        let reveal_timeout = RevealTimeout::from(constants::DEFAULT_REVEAL_TIMEOUT);
         let open_transaction = TransactionExecutionStatus {
-            started_block_number: Some(U64::from(0)),
+            started_block_number: Some(BlockNumber::from(0)),
             finished_block_number: Some(event.block_number.clone()),
             result: Some(TransactionResult::Success),
         };
@@ -442,7 +445,7 @@ impl EventDecoder {
     //     Ok(Some(StateChange::ContractReceiveChannelBatchUnlock(channel_unlocked)))
     // }
 
-    async fn get_onchain_locksroot(&self, channel_state: &ChannelState, block: H256) -> Result<(Bytes, Bytes)> {
+    async fn get_onchain_locksroot(&self, channel_state: &ChannelState, block: BlockHash) -> Result<(Bytes, Bytes)> {
         let payment_channel = self
             .proxy_manager
             .payment_channel(&channel_state)

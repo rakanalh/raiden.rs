@@ -7,10 +7,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use web3::{
     transports::Http,
-    types::{
-        Address,
-        U256,
-    },
+    types::Address,
 };
 
 use crate::{
@@ -36,6 +33,15 @@ use crate::{
         views,
     },
     state_manager::StateManager,
+    types::{
+        ChannelIdentifier,
+        PaymentIdentifier,
+        RetryTimeout,
+        RevealTimeout,
+        SecretHash,
+        SettleTimeout,
+        TokenAmount,
+    },
     waiting,
 };
 
@@ -88,10 +94,10 @@ impl Api {
         registry_address: Address,
         token_address: Address,
         partner_address: Address,
-        settle_timeout: Option<U256>,
-        reveal_timeout: Option<U64>,
-        retry_timeout: Option<u64>,
-    ) -> Result<U256, ApiError> {
+        settle_timeout: Option<SettleTimeout>,
+        reveal_timeout: Option<RevealTimeout>,
+        retry_timeout: Option<RetryTimeout>,
+    ) -> Result<ChannelIdentifier, ApiError> {
         let current_state = &self.state_manager.read().current_state.clone();
 
         info!(
@@ -103,8 +109,8 @@ impl Api {
             settle_timeout,
             reveal_timeout,
         );
-        let settle_timeout = settle_timeout.unwrap_or(U256::from(constants::DEFAULT_SETTLE_TIMEOUT));
-        let reveal_timeout = reveal_timeout.unwrap_or(U64::from(constants::DEFAULT_REVEAL_TIMEOUT));
+        let settle_timeout = settle_timeout.unwrap_or(SettleTimeout::from(constants::DEFAULT_SETTLE_TIMEOUT));
+        let reveal_timeout = reveal_timeout.unwrap_or(RevealTimeout::from(constants::DEFAULT_REVEAL_TIMEOUT));
 
         self.check_invalid_channel_timeouts(settle_timeout, reveal_timeout)?;
 
@@ -243,11 +249,11 @@ impl Api {
         registry_address: Address,
         token_address: Address,
         partner_address: Address,
-        reveal_timeout: Option<U64>,
-        total_deposit: Option<U256>,
-        total_withdraw: Option<U256>,
+        reveal_timeout: Option<RevealTimeout>,
+        total_deposit: Option<TokenAmount>,
+        total_withdraw: Option<TokenAmount>,
         state: Option<ChannelStatus>,
-        retry_timeout: Option<u64>,
+        retry_timeout: Option<RetryTimeout>,
     ) -> Result<(), ApiError> {
         info!(
             self.logger,
@@ -298,13 +304,13 @@ impl Api {
         }
 
         if let Some(total_deposit) = total_deposit {
-            if total_deposit < U256::zero() {
+            if total_deposit < TokenAmount::zero() {
                 return Err(ApiError::Param(format!("Amount to deposit must not be negative")));
             }
         }
 
         if let Some(total_withdraw) = total_withdraw {
-            if total_withdraw < U256::zero() {
+            if total_withdraw < TokenAmount::zero() {
                 return Err(ApiError::Param(format!("Amount to withdraw must not be negative")));
             }
         }
@@ -354,8 +360,8 @@ impl Api {
         &self,
         account: Account<Http>,
         channel_state: &ChannelState,
-        total_deposit: U256,
-        retry_timeout: Option<u64>,
+        total_deposit: TokenAmount,
+        retry_timeout: Option<RetryTimeout>,
     ) -> Result<(), ApiError> {
         info!(
             self.logger,
@@ -499,14 +505,18 @@ impl Api {
         Ok(())
     }
 
-    pub async fn channel_withdraw(&self, _channel_state: &ChannelState, _total_withdraw: U256) -> Result<(), ApiError> {
+    pub async fn channel_withdraw(
+        &self,
+        _channel_state: &ChannelState,
+        _total_withdraw: TokenAmount,
+    ) -> Result<(), ApiError> {
         return Err(ApiError::State(format!("Not implemented")));
     }
 
     pub async fn channel_reveal_timeout(
         &self,
         _channel_state: &ChannelState,
-        _reveal_timeout: U64,
+        _reveal_timeout: RevealTimeout,
     ) -> Result<(), ApiError> {
         return Err(ApiError::State(format!("Not implemented")));
     }
@@ -515,9 +525,13 @@ impl Api {
         return Err(ApiError::State(format!("Not implemented")));
     }
 
-    fn check_invalid_channel_timeouts(&self, settle_timeout: U256, reveal_timeout: U64) -> Result<(), ApiError> {
-        if reveal_timeout < U64::from(constants::MIN_REVEAL_TIMEOUT) {
-            if reveal_timeout <= U64::from(0) {
+    fn check_invalid_channel_timeouts(
+        &self,
+        settle_timeout: SettleTimeout,
+        reveal_timeout: RevealTimeout,
+    ) -> Result<(), ApiError> {
+        if reveal_timeout < RevealTimeout::from(constants::MIN_REVEAL_TIMEOUT) {
+            if reveal_timeout <= RevealTimeout::from(0) {
                 return Err(ApiError::Param("reveal_timeout should be larger than zero.".to_owned()));
             } else {
                 return Err(ApiError::Param(format!(
@@ -527,7 +541,7 @@ impl Api {
             }
         }
 
-        if settle_timeout < U256::from(reveal_timeout * 2) {
+        if settle_timeout < SettleTimeout::from(reveal_timeout * 2) {
             return Err(ApiError::Param(
                 "`settle_timeout` can not be smaller than double the `reveal_timeout`.\n\n
                 The setting `reveal_timeout` determines the maximum number of
