@@ -386,7 +386,6 @@ pub struct HopState {
     channel_identifier: U256,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RouteState {
     route: Vec<Address>,
