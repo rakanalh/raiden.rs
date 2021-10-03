@@ -23,7 +23,14 @@ use web3::types::{
     U256,
 };
 
-use super::{BalanceProofState, HopState, LockedTransferSignedState, RouteState, TransactionChannelDeposit, TransferDescriptionWithSecretState};
+use super::{
+    BalanceProofState,
+    HopState,
+    LockedTransferSignedState,
+    RouteState,
+    TransactionChannelDeposit,
+    TransferDescriptionWithSecretState,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StateChange {
@@ -160,7 +167,6 @@ pub struct ContractReceiveUpdateTransfer {
     pub canonical_identifier: CanonicalIdentifier,
     pub nonce: U256,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionInitInitiator {
