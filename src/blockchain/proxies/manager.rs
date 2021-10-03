@@ -29,6 +29,7 @@ use crate::{
 use super::{
     channel::ChannelProxy,
     ProxyError,
+    SecretRegistryProxy,
     TokenNetworkProxy,
     TokenNetworkRegistryProxy,
     TokenProxy,
@@ -41,6 +42,7 @@ pub struct ProxyManager {
     pub tokens: RwLock<HashMap<Address, TokenProxy<Http>>>,
     pub token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
     pub token_network_registries: RwLock<HashMap<Address, TokenNetworkRegistryProxy<Http>>>,
+    pub secret_registries: RwLock<HashMap<Address, SecretRegistryProxy<Http>>>,
     channels: RwLock<HashMap<U256, ChannelProxy<Http>>>,
 }
 
@@ -55,6 +57,7 @@ impl ProxyManager {
             tokens: RwLock::new(HashMap::new()),
             token_networks: RwLock::new(HashMap::new()),
             token_network_registries: RwLock::new(HashMap::new()),
+            secret_registries: RwLock::new(HashMap::new()),
             channels: RwLock::new(HashMap::new()),
         })
     }
@@ -93,6 +96,36 @@ impl ProxyManager {
             .read()
             .await
             .get(&token_network_registry_address)
+            .unwrap()
+            .clone())
+    }
+
+    pub async fn secret_registry(
+        &self,
+        secret_registry_address: Address,
+    ) -> Result<SecretRegistryProxy<Http>, ContractDefError> {
+        if !self
+            .secret_registries
+            .read()
+            .await
+            .contains_key(&secret_registry_address)
+        {
+            let secret_registry_contract = self.contracts_manager.get(ContractIdentifier::SecretRegistry);
+            let secret_registry_web3_contract = Contract::from_json(
+                self.web3.eth(),
+                secret_registry_address,
+                secret_registry_contract.abi.as_slice(),
+            )
+            .map_err(ContractDefError::ABI)?;
+            let proxy = SecretRegistryProxy::new(secret_registry_web3_contract);
+            let mut secret_registries = self.secret_registries.write().await;
+            secret_registries.insert(secret_registry_address, proxy);
+        }
+        Ok(self
+            .secret_registries
+            .read()
+            .await
+            .get(&secret_registry_address)
             .unwrap()
             .clone())
     }
