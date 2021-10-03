@@ -7,7 +7,10 @@ use hyper::{
 use parking_lot::RwLock;
 use raiden::{
     api::Api,
-    blockchain::proxies::Account,
+    blockchain::{
+        contracts::ContractsManager,
+        proxies::Account,
+    },
     state_manager::StateManager,
 };
 use routerify::ext::RequestExt;
@@ -26,6 +29,10 @@ pub(crate) fn api(req: &Request<Body>) -> Arc<Api> {
 
 pub(crate) fn state_manager(req: &Request<Body>) -> Arc<RwLock<StateManager>> {
     req.data::<Arc<RwLock<StateManager>>>().unwrap().clone()
+}
+
+pub(crate) fn contracts_manager(req: &Request<Body>) -> Arc<ContractsManager> {
+    req.data::<Arc<ContractsManager>>().unwrap().clone()
 }
 
 pub(crate) async fn body_to_params<T: DeserializeOwned>(req: Request<Body>) -> Result<T, Error> {

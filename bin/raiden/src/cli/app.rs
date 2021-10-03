@@ -119,6 +119,14 @@ impl RaidenApp {
     pub async fn run(&self) {
         let latest_block_number = self.web3.eth().block_number().await.unwrap();
 
+        let api = Api::new(
+            self.state_manager.clone(),
+            self.contracts_manager.clone(),
+            self.proxy_manager.clone(),
+            self.transition_service.clone(),
+            self.logger.clone(),
+        );
+
         let ws = match WebSocket::new(&self.config.eth_socket_rpc_endpoint).await {
             Ok(ws) => ws,
             Err(_) => return,
@@ -149,24 +157,15 @@ impl RaidenApp {
             Err(_) => return,
         };
 
-        let api = Api::new(
+        let http_service = crate::http::HttpServer::new(
+            Arc::new(api),
+            self.config.account.clone(),
             self.state_manager.clone(),
+            self.contracts_manager.clone(),
             self.proxy_manager.clone(),
-            self.transition_service.clone(),
             self.logger.clone(),
         );
 
-        futures::join!(
-            block_monitor.start(),
-            crate::http::HttpServer::new(
-                Arc::new(api),
-                self.config.account.clone(),
-                self.state_manager.clone(),
-                self.contracts_manager.clone(),
-                self.proxy_manager.clone(),
-                self.logger.clone()
-            )
-            .start()
-        );
+        futures::join!(block_monitor.start(), http_service.start(),);
     }
 }

@@ -113,6 +113,11 @@ fn router(
         .get("/api/v1/channels", endpoints::channels)
         .put("/api/v1/channels", endpoints::create_channel)
         .patch("api/v1/channels", endpoints::channel_update)
+        .get("/api/v1/payments/:token_address/:partner_address", endpoints::payments)
+        .post(
+            "/api/v1/payments/:token_address/:partner_address",
+            endpoints::initiate_payment,
+        )
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()
