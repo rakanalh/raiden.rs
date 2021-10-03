@@ -5,6 +5,7 @@ use raiden::{
 use serde::Deserialize;
 use web3::types::{
     Address,
+    H256,
     U256,
 };
 
@@ -27,4 +28,12 @@ pub struct ChannelPatchParams {
     pub total_withdraw: Option<U256>,
     pub reveal_timeout: Option<U64>,
     pub state: Option<ChannelStatus>,
+}
+
+#[derive(Deserialize)]
+pub struct InitiatePaymentParams {
+    pub amount: U256,
+    pub payment_identifier: Option<u64>,
+    pub secret: Option<String>,
+    pub secret_hash: Option<H256>,
 }
