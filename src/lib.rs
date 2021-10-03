@@ -9,4 +9,5 @@ pub mod state_manager;
 pub mod storage;
 #[cfg(test)]
 mod tests;
+pub mod utils;
 pub mod waiting;
