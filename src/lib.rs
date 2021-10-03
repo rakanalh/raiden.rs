@@ -12,5 +12,6 @@ pub mod storage;
 #[cfg(test)]
 mod tests;
 pub mod transport;
+pub mod types;
 pub mod utils;
 pub mod waiting;

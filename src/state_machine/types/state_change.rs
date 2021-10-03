@@ -1,27 +1,33 @@
 use crate::{
     primitives::{
-        AddressMetadata,
         CanonicalIdentifier,
         ChainID,
         MediationFeeConfig,
-        U64,
     },
     state_machine::types::{
         ChannelState,
         TokenNetworkRegistryState,
         TokenNetworkState,
     },
+    types::{
+        AddressMetadata,
+        BlockHash,
+        BlockNumber,
+        GasLimit,
+        Locksroot,
+        Nonce,
+        RawSecret,
+        RevealTimeout,
+        SecretHash,
+        TokenAmount,
+        TransactionHash,
+    },
 };
 use serde::{
     Deserialize,
     Serialize,
 };
-use web3::types::{
-    Address,
-    Bytes,
-    H256,
-    U256,
-};
+use web3::types::Address;
 
 use super::{
     BalanceProofState,
@@ -53,74 +59,74 @@ pub enum StateChange {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {
-    pub block_number: U64,
-    pub block_hash: H256,
-    pub gas_limit: U256,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
+    pub gas_limit: GasLimit,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionInitChain {
     pub chain_id: ChainID,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub our_address: Address,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionChannelSetRevealTimeout {
     pub canonical_identifier: CanonicalIdentifier,
-    pub reveal_timeout: U64,
+    pub reveal_timeout: RevealTimeout,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionChannelWithdraw {
     pub canonical_identifier: CanonicalIdentifier,
-    pub total_withdraw: U256,
+    pub total_withdraw: TokenAmount,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveTokenNetworkRegistry {
-    pub transaction_hash: Option<H256>,
+    pub transaction_hash: Option<TransactionHash>,
     pub token_network_registry: TokenNetworkRegistryState,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveTokenNetworkCreated {
-    pub transaction_hash: Option<H256>,
+    pub transaction_hash: Option<TransactionHash>,
     pub token_network_registry_address: Address,
     pub token_network: TokenNetworkState,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelOpened {
-    pub transaction_hash: Option<H256>,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub channel_state: ChannelState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelClosed {
-    pub transaction_hash: Option<H256>,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub transaction_from: Address,
     pub canonical_identifier: CanonicalIdentifier,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelSettled {
-    pub transaction_hash: Option<H256>,
-    pub block_number: U64,
-    pub block_hash: H256,
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub canonical_identifier: CanonicalIdentifier,
-    pub our_onchain_locksroot: Bytes,
-    pub partner_onchain_locksroot: Bytes,
+    pub our_onchain_locksroot: Locksroot,
+    pub partner_onchain_locksroot: Locksroot,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -134,7 +140,7 @@ pub struct ContractReceiveChannelDeposit {
 pub struct ContractReceiveChannelWithdraw {
     pub canonical_identifier: CanonicalIdentifier,
     pub participant: Address,
-    pub total_withdraw: U256,
+    pub total_withdraw: TokenAmount,
     pub fee_config: MediationFeeConfig,
 }
 
@@ -143,16 +149,16 @@ pub struct ContractReceiveChannelBatchUnlock {
     pub canonical_identifier: CanonicalIdentifier,
     pub receiver: Address,
     pub sender: Address,
-    pub locksroot: H256,
-    pub unlocked_amount: u32,
-    pub returned_tokens: u32,
+    pub locksroot: Locksroot,
+    pub unlocked_amount: TokenAmount,
+    pub returned_tokens: TokenAmount,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveSecretReveal {
     pub secret_registry_address: Address,
-    pub secrethash: H256,
-    pub secret: Bytes,
+    pub secrethash: SecretHash,
+    pub secret: RawSecret,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -165,7 +171,7 @@ pub struct ContractReceiveRouteNew {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveUpdateTransfer {
     pub canonical_identifier: CanonicalIdentifier,
-    pub nonce: U256,
+    pub nonce: Nonce,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

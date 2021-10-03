@@ -5,10 +5,11 @@ use rand::{
 };
 
 use crate::constants::SECRET_LENGTH;
+use crate::types::PaymentIdentifier;
 
-pub fn random_identifier() -> u64 {
+pub fn random_identifier() -> PaymentIdentifier {
     let mut rng = rand::thread_rng();
-    rng.gen_range(1..std::u64::MAX)
+    rng.gen_range(1..std::u64::MAX).into()
 }
 
 pub fn random_secret() -> String {

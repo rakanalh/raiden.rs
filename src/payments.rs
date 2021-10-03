@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use tokio::sync::oneshot;
 use web3::types::Address;
 
-use crate::primitives::U64;
+use crate::types::PaymentIdentifier;
 
 pub struct Payment {
-    identifier: U64,
+    identifier: PaymentIdentifier,
     notifier: oneshot::Sender<()>,
 }
 
@@ -21,7 +21,7 @@ impl PaymentsRegistry {
         }
     }
 
-    pub fn register(&mut self, target: Address, identifier: U64) -> oneshot::Receiver<()> {
+    pub fn register(&mut self, target: Address, identifier: PaymentIdentifier) -> oneshot::Receiver<()> {
         let (sender, receiver) = oneshot::channel();
         self.payments.insert(target, Payment {
             identifier,

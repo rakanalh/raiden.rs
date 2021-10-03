@@ -20,6 +20,12 @@ use web3::{
 
 use crate::blockchain::contracts::GasMetadata;
 use crate::blockchain::proxies::transaction::Transaction;
+use crate::types::{
+    BlockHash,
+    ChannelIdentifier,
+    SettleTimeout,
+    TokenAmount,
+};
 
 use super::transaction::{
     ChannelSetTotalDepositTransaction,
@@ -77,9 +83,9 @@ where
         &mut self,
         account: Account<T>,
         partner: Address,
-        settle_timeout: U256,
-        block: H256,
-    ) -> Result<U256> {
+        settle_timeout: SettleTimeout,
+        block: BlockHash,
+    ) -> Result<ChannelIdentifier> {
         let mut channel_operations_lock = self.channel_operations_lock.write().await;
         let _partner_lock_guard = match channel_operations_lock.get(&partner) {
             Some(mutex) => mutex.lock().await,
@@ -115,10 +121,10 @@ where
     pub async fn approve_and_set_total_deposit(
         &self,
         account: Account<T>,
-        channel_identifier: U256,
+        channel_identifier: ChannelIdentifier,
         partner: Address,
-        total_deposit: U256,
-        block_hash: H256,
+        total_deposit: TokenAmount,
+        block_hash: BlockHash,
     ) -> Result<()> {
         let set_total_deposit_transaction = ChannelSetTotalDepositTransaction {
             web3: self.web3.clone(),
@@ -140,15 +146,15 @@ where
             .await?)
     }
 
-    pub async fn address_by_token_address(&self, token_address: Address, block: H256) -> Result<Address> {
+    pub async fn address_by_token_address(&self, token_address: Address, block: BlockHash) -> Result<Address> {
         self.contract.address_by_token_address(token_address, block).await
     }
 
-    pub async fn safety_deprecation_switch(&self, block: H256) -> Result<bool> {
+    pub async fn safety_deprecation_switch(&self, block: BlockHash) -> Result<bool> {
         self.contract.safety_deprecation_switch(block).await
     }
 
-    pub async fn channel_participant_deposit_limit(&self, block: H256) -> Result<U256> {
+    pub async fn channel_participant_deposit_limit(&self, block: BlockHash) -> Result<TokenAmount> {
         self.contract.channel_participant_deposit_limit(block).await
     }
 
@@ -156,8 +162,8 @@ where
         &self,
         participant1: Address,
         participant2: Address,
-        block: H256,
-    ) -> Result<Option<U256>> {
+        block: BlockHash,
+    ) -> Result<Option<ChannelIdentifier>> {
         self.contract
             .get_channel_identifier(participant1, participant2, block)
             .await
@@ -175,25 +181,25 @@ where
             .await
     }
 
-    pub async fn settlement_timeout_min(&self, block: H256) -> Result<U256> {
+    pub async fn settlement_timeout_min(&self, block: BlockHash) -> Result<SettleTimeout> {
         self.contract.settlement_timeout_min(block).await
     }
 
-    pub async fn settlement_timeout_max(&self, block: H256) -> Result<U256> {
+    pub async fn settlement_timeout_max(&self, block: BlockHash) -> Result<SettleTimeout> {
         self.contract.settlement_timeout_max(block).await
     }
 
-    pub async fn token_network_deposit_limit(&self, block: H256) -> Result<U256> {
+    pub async fn token_network_deposit_limit(&self, block: BlockHash) -> Result<TokenAmount> {
         self.contract.token_network_deposit_limit(block).await
     }
 
     #[allow(dead_code)]
     async fn participant_details(
         &self,
-        channel_identifier: U256,
+        channel_identifier: ChannelIdentifier,
         address: Address,
         partner: Address,
-        block: H256,
+        block: BlockHash,
     ) -> Result<ParticipantDetails> {
         self.contract
             .participant_details(channel_identifier, address, partner, Some(block))

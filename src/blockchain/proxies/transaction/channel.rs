@@ -6,7 +6,6 @@ use web3::{
         Address,
         BlockId,
         BlockNumber,
-        H256,
         U256,
     },
     Transport,
@@ -28,24 +27,32 @@ use crate::{
         },
     },
     state_machine::types::ChannelStatus,
+    types::{
+        BlockHash,
+        ChannelIdentifier,
+        GasLimit,
+        GasPrice,
+        SettleTimeout,
+        TokenAmount,
+    },
 };
 
 use super::Transaction;
 
 #[derive(Clone)]
 pub struct ChannelOpenTransactionData {
-    channel_identifier: Option<U256>,
-    settle_timeout_min: U256,
-    settle_timeout_max: U256,
-    token_network_deposit_limit: U256,
-    token_network_balance: U256,
+    channel_identifier: Option<ChannelIdentifier>,
+    settle_timeout_min: SettleTimeout,
+    settle_timeout_max: SettleTimeout,
+    token_network_deposit_limit: TokenAmount,
+    token_network_balance: TokenAmount,
     safety_deprecation_switch: bool,
 }
 
 #[derive(Clone)]
 pub struct ChannelOpenTransactionParams {
     pub(crate) partner: Address,
-    pub(crate) settle_timeout: U256,
+    pub(crate) settle_timeout: SettleTimeout,
 }
 
 pub struct ChannelOpenTransaction<T: Transport> {
@@ -62,11 +69,11 @@ where
     T: Transport + Send + Sync,
     T::Out: Send,
 {
-    type Output = U256;
+    type Output = ChannelIdentifier;
     type Params = ChannelOpenTransactionParams;
     type Data = ChannelOpenTransactionData;
 
-    async fn onchain_data(&self, params: Self::Params, at_block_hash: H256) -> Result<Self::Data, ProxyError> {
+    async fn onchain_data(&self, params: Self::Params, at_block_hash: BlockHash) -> Result<Self::Data, ProxyError> {
         let settle_timeout_min = self.contract.settlement_timeout_min(at_block_hash).await?;
         let settle_timeout_max = self.contract.settlement_timeout_max(at_block_hash).await?;
         let token_network_deposit_limit = self.contract.token_network_deposit_limit(at_block_hash).await?;
@@ -95,7 +102,7 @@ where
         &self,
         params: Self::Params,
         data: Self::Data,
-        _block: H256,
+        _block: BlockHash,
     ) -> Result<(), ProxyError> {
         if params.settle_timeout < data.settle_timeout_min || params.settle_timeout > data.settle_timeout_max {
             return Err(ProxyError::BrokenPrecondition(format!(
@@ -126,17 +133,18 @@ where
         Ok(())
     }
 
-    async fn estimate_gas(&self, params: Self::Params, _data: Self::Data) -> Result<(U256, U256), ()> {
+    async fn estimate_gas(&self, params: Self::Params, _data: Self::Data) -> Result<(GasLimit, GasPrice), ()> {
         let nonce = self.account.peek_next_nonce().await;
         let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
 
+        let settle_timeout: U256 = params.settle_timeout.into();
         self.contract
             .estimate_gas(
                 "openChannel",
-                (self.account.address(), params.partner, params.settle_timeout),
+                (self.account.address(), params.partner, settle_timeout),
                 self.account.address(),
                 Options::with(|opt| {
-                    opt.value = Some(U256::from(0));
+                    opt.value = Some(GasLimit::from(0));
                     opt.nonce = Some(nonce);
                     opt.gas_price = Some(gas_price);
                 }),
@@ -150,18 +158,19 @@ where
         &self,
         params: Self::Params,
         _data: Self::Data,
-        gas_estimate: U256,
-        gas_price: U256,
+        gas_estimate: GasLimit,
+        gas_price: GasPrice,
     ) -> Result<Self::Output, ProxyError> {
         let nonce = self.account.next_nonce().await;
 
+        let settle_timeout: U256 = params.settle_timeout.into();
         let receipt = self
             .contract
             .signed_call_with_confirmations(
                 "openChannel",
-                (self.account.address(), params.partner, params.settle_timeout),
+                (self.account.address(), params.partner, settle_timeout),
                 Options::with(|opt| {
-                    opt.value = Some(U256::from(0));
+                    opt.value = Some(GasLimit::from(0));
                     opt.gas = Some(gas_estimate);
                     opt.nonce = Some(nonce);
                     opt.gas_price = Some(gas_price);
@@ -178,7 +187,11 @@ where
             .unwrap())
     }
 
-    async fn validate_postconditions(&self, params: Self::Params, _block: H256) -> Result<Self::Output, ProxyError> {
+    async fn validate_postconditions(
+        &self,
+        params: Self::Params,
+        _block: BlockHash,
+    ) -> Result<Self::Output, ProxyError> {
         let failed_at = self
             .web3
             .eth()
@@ -226,23 +239,23 @@ where
 
 #[derive(Clone)]
 pub struct ChannelSetTotalDepositTransactionData {
-    pub(crate) channel_identifier: U256,
-    pub(crate) amount_to_deposit: U256,
+    pub(crate) channel_identifier: ChannelIdentifier,
+    pub(crate) amount_to_deposit: TokenAmount,
     pub(crate) channel_onchain_details: ChannelData,
     pub(crate) our_details: ParticipantDetails,
     pub(crate) partner_details: ParticipantDetails,
-    pub(crate) network_balance: U256,
+    pub(crate) network_balance: TokenAmount,
     pub(crate) safety_deprecation_switch: bool,
-    pub(crate) token_network_deposit_limit: U256,
-    pub(crate) channel_participant_deposit_limit: U256,
-    pub(crate) network_total_deposit: U256,
+    pub(crate) token_network_deposit_limit: TokenAmount,
+    pub(crate) channel_participant_deposit_limit: TokenAmount,
+    pub(crate) network_total_deposit: TokenAmount,
 }
 
 #[derive(Clone)]
 pub struct ChannelSetTotalDepositTransactionParams {
-    pub(crate) channel_identifier: U256,
+    pub(crate) channel_identifier: ChannelIdentifier,
     pub(crate) partner: Address,
-    pub(crate) total_deposit: U256,
+    pub(crate) total_deposit: TokenAmount,
 }
 
 pub struct ChannelSetTotalDepositTransaction<T: Transport> {
@@ -263,7 +276,7 @@ where
     type Params = ChannelSetTotalDepositTransactionParams;
     type Data = ChannelSetTotalDepositTransactionData;
 
-    async fn onchain_data(&self, params: Self::Params, at_block_hash: H256) -> Result<Self::Data, ProxyError> {
+    async fn onchain_data(&self, params: Self::Params, at_block_hash: BlockHash) -> Result<Self::Data, ProxyError> {
         let channel_identifier = self
             .contract
             .get_channel_identifier(self.account.address(), params.partner, at_block_hash)
@@ -344,7 +357,7 @@ where
         &self,
         params: Self::Params,
         data: Self::Data,
-        at_block_hash: H256,
+        at_block_hash: BlockHash,
     ) -> Result<(), ProxyError> {
         if data.channel_identifier != params.channel_identifier {
             return Err(ProxyError::BrokenPrecondition(format!(
@@ -420,8 +433,8 @@ where
         &self,
         params: Self::Params,
         data: Self::Data,
-        gas_estimate: U256,
-        gas_price: U256,
+        gas_estimate: GasLimit,
+        gas_price: GasPrice,
     ) -> Result<Self::Output, ProxyError> {
         let allowance = data.amount_to_deposit + 1;
         self.token
@@ -439,7 +452,7 @@ where
                     params.partner,
                 ),
                 Options::with(|opt| {
-                    opt.value = Some(U256::from(0));
+                    opt.value = Some(GasLimit::from(0));
                     opt.gas = Some(gas_estimate);
                     opt.nonce = Some(nonce);
                     opt.gas_price = Some(gas_price);
@@ -454,7 +467,7 @@ where
     async fn validate_postconditions(
         &self,
         params: Self::Params,
-        _at_block_hash: H256,
+        _at_block_hash: BlockHash,
     ) -> Result<Self::Output, ProxyError> {
         let failed_at = self
             .web3
@@ -574,7 +587,7 @@ where
         return Err(ProxyError::Recoverable(format!("deposit failed for an unknown reason")));
     }
 
-    async fn estimate_gas(&self, params: Self::Params, _data: Self::Data) -> Result<(U256, U256), ()> {
+    async fn estimate_gas(&self, params: Self::Params, _data: Self::Data) -> Result<(GasLimit, GasPrice), ()> {
         let nonce = self.account.peek_next_nonce().await;
         let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
 
@@ -589,7 +602,7 @@ where
                 ),
                 self.account.address(),
                 Options::with(|opt| {
-                    opt.value = Some(U256::from(0));
+                    opt.value = Some(GasLimit::from(0));
                     opt.nonce = Some(nonce);
                     opt.gas_price = Some(gas_price);
                 }),

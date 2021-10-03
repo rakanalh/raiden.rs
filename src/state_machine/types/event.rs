@@ -3,17 +3,19 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use web3::types::{
-    Address,
-    H256,
-    U256,
-};
+use web3::types::Address;
 
-use crate::primitives::{
-    AddressMetadata,
-    CanonicalIdentifier,
-    QueueIdentifier,
-    U64,
+use crate::{
+    primitives::CanonicalIdentifier,
+    types::{
+        AddressMetadata,
+        BlockExpiration,
+        BlockHash,
+        MessageIdentifier,
+        Nonce,
+        RevealTimeout,
+        TokenAmount,
+    },
 };
 
 use super::BalanceProofState;
@@ -40,7 +42,7 @@ pub struct SendMessageEventInner {
     pub recipient: Address,
     pub recipient_metadata: Option<AddressMetadata>,
     pub canonical_identifier: CanonicalIdentifier,
-    pub message_identifier: u32,
+    pub message_identifier: MessageIdentifier,
 }
 
 impl SendMessageEventInner {
@@ -66,9 +68,9 @@ pub struct SendWithdrawExpired {
     #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
-    pub total_withdraw: U256,
-    pub nonce: U256,
-    pub expiration: U64,
+    pub total_withdraw: TokenAmount,
+    pub nonce: Nonce,
+    pub expiration: BlockExpiration,
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -76,13 +78,13 @@ pub struct SendWithdrawRequest {
     #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
-    pub expiration: U64,
-    pub nonce: U256,
+    pub expiration: BlockExpiration,
+    pub nonce: Nonce,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendEvent {
-    pub triggered_by_blockhash: H256,
+    pub triggered_by_blockhash: BlockHash,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -94,7 +96,7 @@ pub struct ContractSendChannelSettle {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelUpdateTransfer {
     pub inner: ContractSendEvent,
-    pub expiration: U256,
+    pub expiration: BlockExpiration,
     pub balance_proof: BalanceProofState,
 }
 
@@ -107,12 +109,12 @@ pub struct ContractSendChannelBatchUnlock {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct EventInvalidActionWithdraw {
-    pub attemped_withdraw: U256,
+    pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct EventInvalidActionSetRevealTimeout {
-    pub reveal_timeout: U64,
+    pub reveal_timeout: RevealTimeout,
     pub reason: String,
 }
