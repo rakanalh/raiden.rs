@@ -3,6 +3,8 @@ use crate::{
     state_machine::types::ChannelStatus,
 };
 
+pub const SECRET_LENGTH: u8 = 32;
+
 pub const MIN_REVEAL_TIMEOUT: u32 = 1;
 pub const DEFAULT_REVEAL_TIMEOUT: u32 = 50;
 pub const DEFAULT_SETTLE_TIMEOUT: u32 = 500;
