@@ -26,3 +26,5 @@ pub const UNLOCK_TX_GAS_LIMIT: u64 = TRANSACTION_GAS_LIMIT_UPPER_BOUND;
 pub const GAS_RESERVE_ESTIMATE_SECURITY_FACTOR: f64 = 1.1;
 
 pub const CHANNEL_STATES_PRIOR_TO_CLOSE: [ChannelStatus; 2] = [ChannelStatus::Opened, ChannelStatus::Closing];
+
+pub const MAXIMUM_PENDING_TRANSFERS: usize = 160;

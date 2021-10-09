@@ -15,7 +15,10 @@ use web3::types::{
 };
 
 use crate::{
-    constants::DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
+    constants::{
+        DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
+        MAXIMUM_PENDING_TRANSFERS,
+    },
     errors::ChannelError,
     primitives::{
         CanonicalIdentifier,
@@ -263,6 +266,67 @@ impl ChannelState {
         self.our_state.contract_balance - self.our_state.total_withdraw() + self.partner_state.contract_balance
             - self.partner_state.total_withdraw()
     }
+
+    pub fn balance(&self, sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
+        let mut sender_transferred_amount = TokenAmount::zero();
+        let mut receiver_transferred_amount = TokenAmount::zero();
+
+        if let Some(sender_balance_proof) = sender.balance_proof {
+            sender_transferred_amount = sender_balance_proof.transferred_amount;
+        }
+
+        if let Some(receiver_balance_proof) = receiver.balance_proof {
+            receiver_transferred_amount = receiver_balance_proof.transferred_amount;
+        }
+
+        sender.contract_balance
+            - TokenAmount::max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw)
+            - sender_transferred_amount
+            + receiver_transferred_amount
+    }
+
+    pub fn is_usable_for_new_transfer(&self, amount: TokenAmount, lock_timeout: Option<LockTimeout>) -> bool {
+        let pending_transfers = self.our_state.count_pending_transfers();
+        let distributable = self.get_distributable(&self.our_state, &self.partner_state);
+        let lock_timeout_valid = match lock_timeout {
+            Some(lock_timeout) => lock_timeout <= self.settle_timeout && lock_timeout > self.reveal_timeout,
+            None => true,
+        };
+        let is_valid_settle_timeout = self.settle_timeout >= self.reveal_timeout * 2;
+
+        if self.status() != ChannelStatus::Opened {
+            return false;
+        }
+
+        if !is_valid_settle_timeout {
+            return false;
+        }
+
+        if pending_transfers >= MAXIMUM_PENDING_TRANSFERS {
+            return false;
+        }
+
+        if amount > distributable {
+            return false;
+        }
+
+        if !self.our_state.is_valid_amount(amount) {
+            return false;
+        }
+
+        if !lock_timeout_valid {
+            return false;
+        }
+
+        true
+    }
+
+    pub fn get_distributable(&self, sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
+        let (_, _, transferred_amount, locked_amount) = sender.get_current_balanceproof();
+        let distributable = self.balance(sender, receiver) - sender.locked_amount();
+        let overflow_limit = TokenAmount::MAX - transferred_amount - locked_amount;
+        TokenAmount::min(overflow_limit, distributable)
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -312,6 +376,49 @@ impl ChannelEndState {
 
     pub fn next_nonce(&self) -> Nonce {
         self.nonce + 1
+    }
+
+    pub fn count_pending_transfers(&self) -> usize {
+        self.pending_locks.locks.len()
+    }
+
+    pub fn locked_amount(&self) -> TokenAmount {
+        let total_pending: TokenAmount = self
+            .secrethashes_to_lockedlocks
+            .values()
+            .map(|lock| lock.amount)
+            .fold(TokenAmount::zero(), |acc, x| acc + x);
+        let total_unclaimed: TokenAmount = self
+            .secrethashes_to_unlockedlocks
+            .values()
+            .map(|unlock| unlock.lock.amount)
+            .fold(TokenAmount::zero(), |acc, x| acc + x);
+        let total_unclaimed_onchain: TokenAmount = self
+            .secrethashes_to_onchain_unlockedlocks
+            .values()
+            .map(|unlock| unlock.lock.amount)
+            .fold(TokenAmount::zero(), |acc, x| acc + x);
+        total_pending + total_unclaimed + total_unclaimed_onchain
+    }
+
+    pub fn get_current_balanceproof(&self) -> BalanceProofData {
+        match self.balance_proof {
+            Some(bp) => (bp.locksroot, bp.nonce, bp.transferred_amount, bp.locked_amount),
+            None => (
+                Locksroot::default(),
+                Nonce::default(),
+                TokenAmount::zero(),
+                TokenAmount::zero(),
+            ),
+        }
+    }
+
+    pub fn is_valid_amount(&self, amount: TokenAmount) -> bool {
+        let (_, _, transferred_amount, locked_amount) = self.get_current_balanceproof();
+        let transferred_amount_after_unlock = transferred_amount
+            .checked_add(locked_amount)
+            .map(|r| r.saturating_add(amount));
+        transferred_amount_after_unlock.is_some()
     }
 }
 
