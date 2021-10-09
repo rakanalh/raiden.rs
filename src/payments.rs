@@ -23,10 +23,13 @@ impl PaymentsRegistry {
 
     pub fn register(&mut self, target: Address, identifier: PaymentIdentifier) -> oneshot::Receiver<()> {
         let (sender, receiver) = oneshot::channel();
-        self.payments.insert(target, Payment {
-            identifier,
-            notifier: sender,
-        });
+        self.payments.insert(
+            target,
+            Payment {
+                identifier,
+                notifier: sender,
+            },
+        );
         receiver
     }
 }

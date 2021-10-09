@@ -5,7 +5,7 @@ use crate::{
         SyncService,
     },
 };
-use parking_lot::RwLock;
+use parking_lot::RwLock as SyncRwLock;
 use raiden::{
     api::Api,
     blockchain::{
@@ -15,6 +15,7 @@ use raiden::{
         },
         proxies::ProxyManager,
     },
+    payments::PaymentsRegistry,
     primitives::{
         RaidenConfig,
         U64,
@@ -29,6 +30,7 @@ use raiden::{
 use rusqlite::Connection;
 use slog::Logger;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use web3::{
     transports::{
         Http,
@@ -44,7 +46,7 @@ pub struct RaidenApp {
     web3: Web3<Http>,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
-    state_manager: Arc<RwLock<StateManager>>,
+    state_manager: Arc<SyncRwLock<StateManager>>,
     transition_service: Arc<dyn Transitioner + Send + Sync>,
     sync_start_block_number: U64,
     logger: Logger,
@@ -88,7 +90,7 @@ impl RaidenApp {
             token_network_registry_deployed_contract.address,
             token_network_registry_deployed_contract.block,
         ) {
-            Ok((state_manager, block_number)) => (Arc::new(RwLock::new(state_manager)), block_number),
+            Ok((state_manager, block_number)) => (Arc::new(SyncRwLock::new(state_manager)), block_number),
             Err(e) => {
                 return Err(format!("Failed to initialize state {}", e));
             }
@@ -119,11 +121,13 @@ impl RaidenApp {
     pub async fn run(&self) {
         let latest_block_number = self.web3.eth().block_number().await.unwrap();
 
+        let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));
         let api = Api::new(
             self.state_manager.clone(),
             self.contracts_manager.clone(),
             self.proxy_manager.clone(),
             self.transition_service.clone(),
+            payments_registry.clone(),
             self.logger.clone(),
         );
 
