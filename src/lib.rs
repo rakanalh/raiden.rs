@@ -11,6 +11,5 @@ pub mod state_manager;
 pub mod storage;
 #[cfg(test)]
 mod tests;
-pub mod types;
 pub mod utils;
 pub mod waiting;

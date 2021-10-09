@@ -28,6 +28,15 @@ use crate::{
         SECRET_LENGTH,
     },
     payments::PaymentsRegistry,
+    primitives::{
+        ChannelIdentifier,
+        PaymentIdentifier,
+        RetryTimeout,
+        RevealTimeout,
+        SecretHash,
+        SettleTimeout,
+        TokenAmount,
+    },
     routing,
     services::Transitioner,
     state_machine::{
@@ -42,15 +51,6 @@ use crate::{
         views,
     },
     state_manager::StateManager,
-    types::{
-        ChannelIdentifier,
-        PaymentIdentifier,
-        RetryTimeout,
-        RevealTimeout,
-        SecretHash,
-        SettleTimeout,
-        TokenAmount,
-    },
     utils::{
         random_identifier,
         random_secret,

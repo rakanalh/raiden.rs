@@ -5,7 +5,7 @@ use rand::{
 };
 
 use crate::constants::SECRET_LENGTH;
-use crate::types::PaymentIdentifier;
+use crate::primitives::PaymentIdentifier;
 
 pub fn random_identifier() -> PaymentIdentifier {
     let mut rng = rand::thread_rng();

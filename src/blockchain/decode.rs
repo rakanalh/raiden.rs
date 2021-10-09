@@ -13,8 +13,12 @@ use super::{
 use crate::{
     constants,
     primitives::{
+        BlockHash,
+        BlockNumber,
         CanonicalIdentifier,
         RaidenConfig,
+        RevealTimeout,
+        SettleTimeout,
         TransactionExecutionStatus,
         TransactionResult,
     },
@@ -36,12 +40,6 @@ use crate::{
         views,
     },
     storage::Storage,
-    types::{
-        BlockHash,
-        BlockNumber,
-        RevealTimeout,
-        SettleTimeout,
-    },
 };
 use derive_more::Display;
 use thiserror::Error;

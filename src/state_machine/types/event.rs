@@ -5,17 +5,15 @@ use serde::{
 };
 use web3::types::Address;
 
-use crate::{
-    primitives::CanonicalIdentifier,
-    types::{
-        AddressMetadata,
-        BlockExpiration,
-        BlockHash,
-        MessageIdentifier,
-        Nonce,
-        RevealTimeout,
-        TokenAmount,
-    },
+use crate::primitives::{
+    AddressMetadata,
+    BlockExpiration,
+    BlockHash,
+    CanonicalIdentifier,
+    MessageIdentifier,
+    Nonce,
+    RevealTimeout,
+    TokenAmount,
 };
 
 use super::BalanceProofState;

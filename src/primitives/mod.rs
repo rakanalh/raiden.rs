@@ -1,8 +1,10 @@
 mod config;
 mod numeric;
+mod types;
 
 pub use config::*;
 pub use numeric::*;
+pub use types::*;
 
 use derive_more::Display;
 use rand_chacha::{
@@ -25,16 +27,10 @@ use web3::types::{
     U256,
 };
 
-use crate::{
-    constants::{
-        DEFAULT_MEDIATION_FLAT_FEE,
-        DEFAULT_MEDIATION_PROPORTIONAL_FEE,
-        DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
-    },
-    types::{
-        FeeAmount,
-        ProportionalFeeAmount,
-    },
+use crate::constants::{
+    DEFAULT_MEDIATION_FLAT_FEE,
+    DEFAULT_MEDIATION_PROPORTIONAL_FEE,
+    DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]

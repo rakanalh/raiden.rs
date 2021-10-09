@@ -1,26 +1,24 @@
 use crate::{
     primitives::{
-        CanonicalIdentifier,
-        ChainID,
-        MediationFeeConfig,
-    },
-    state_machine::types::{
-        ChannelState,
-        TokenNetworkRegistryState,
-        TokenNetworkState,
-    },
-    types::{
         AddressMetadata,
         BlockHash,
         BlockNumber,
+        CanonicalIdentifier,
+        ChainID,
         GasLimit,
         Locksroot,
+        MediationFeeConfig,
         Nonce,
         RawSecret,
         RevealTimeout,
         SecretHash,
         TokenAmount,
         TransactionHash,
+    },
+    state_machine::types::{
+        ChannelState,
+        TokenNetworkRegistryState,
+        TokenNetworkState,
     },
 };
 use serde::{
