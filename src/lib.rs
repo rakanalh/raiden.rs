@@ -4,6 +4,7 @@ pub mod constants;
 pub mod errors;
 pub mod payments;
 pub mod primitives;
+pub mod routing;
 pub mod services;
 pub mod state_machine;
 pub mod state_manager;
