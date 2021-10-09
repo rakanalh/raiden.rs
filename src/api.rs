@@ -1,17 +1,20 @@
-use parking_lot::RwLock;
+use parking_lot::RwLock as SyncRwLock;
 use slog::{
     info,
     Logger,
 };
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::RwLock;
 use web3::{
+    signing::keccak256,
     transports::Http,
     types::Address,
 };
 
 use crate::{
     blockchain::{
+        contracts::ContractsManager,
         errors::ContractDefError,
         proxies::{
             Account,
@@ -20,15 +23,21 @@ use crate::{
             ProxyManager,
         },
     },
-    constants,
-    primitives::U64,
+    constants::{
+        self,
+        SECRET_LENGTH,
+    },
+    payments::PaymentsRegistry,
+    routing,
     services::Transitioner,
     state_machine::{
         types::{
             ActionChannelSetRevealTimeout,
+            ActionInitInitiator,
             ChannelState,
             ChannelStatus,
             StateChange,
+            TransferDescriptionWithSecretState,
         },
         views,
     },
@@ -41,6 +50,10 @@ use crate::{
         SecretHash,
         SettleTimeout,
         TokenAmount,
+    },
+    utils::{
+        random_identifier,
+        random_secret,
     },
     waiting,
 };
@@ -67,23 +80,29 @@ pub enum ApiError {
 }
 
 pub struct Api {
-    state_manager: Arc<RwLock<StateManager>>,
+    state_manager: Arc<SyncRwLock<StateManager>>,
+    contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
     transition_service: Arc<dyn Transitioner + Send + Sync>,
+    payments_registry: Arc<RwLock<PaymentsRegistry>>,
     logger: Logger,
 }
 
 impl Api {
     pub fn new(
-        state_manager: Arc<RwLock<StateManager>>,
+        state_manager: Arc<SyncRwLock<StateManager>>,
+        contracts_manager: Arc<ContractsManager>,
         proxy_manager: Arc<ProxyManager>,
         transition_service: Arc<dyn Transitioner + Send + Sync>,
+        payments_registry: Arc<RwLock<PaymentsRegistry>>,
         logger: Logger,
     ) -> Self {
         Self {
             state_manager,
+            contracts_manager,
             proxy_manager,
             transition_service,
+            payments_registry,
             logger,
         }
     }
@@ -525,6 +544,100 @@ impl Api {
         return Err(ApiError::State(format!("Not implemented")));
     }
 
+    pub async fn initiate_payment(
+        &self,
+        account: Account<Http>,
+        token_network_registry_address: Address,
+        secret_registry_address: Address,
+        token_address: Address,
+        partner_address: Address,
+        amount: TokenAmount,
+        payment_identifier: Option<PaymentIdentifier>,
+        secret: Option<String>,
+        secret_hash: Option<SecretHash>,
+    ) -> Result<(), ApiError> {
+        if account.address() == partner_address {
+            return Err(ApiError::Param(format!("Address must be different for partner")));
+        }
+
+        if amount == TokenAmount::zero() {
+            return Err(ApiError::Param(format!("Amount should not be zero")));
+        }
+
+        let chain_state = &self.state_manager.read().current_state.clone();
+        let valid_tokens = views::get_token_identifiers(chain_state, token_network_registry_address);
+        if !valid_tokens.contains(&token_address) {
+            return Err(ApiError::Param(format!("Token address is not known")));
+        }
+
+        let payment_identifier = match payment_identifier {
+            Some(identifier) => identifier,
+            None => random_identifier(),
+        };
+
+        let token_network_address =
+            views::get_token_network_by_token_address(chain_state, token_network_registry_address, token_address)
+                .ok_or(ApiError::Param(format!(
+                    "Token {} is not registered with network {}",
+                    token_address, token_network_registry_address
+                )))?;
+
+        let secret = match secret {
+            Some(secret) => secret,
+            None => {
+                if secret_hash.is_none() {
+                    random_secret()
+                } else {
+                    "".to_string()
+                }
+            }
+        };
+
+        let secret_hash = match secret_hash {
+            Some(hash) => hash,
+            None => keccak256(secret.as_bytes()).into(),
+        };
+
+        if !secret.is_empty() {
+            if secret_hash != keccak256(secret.as_bytes()).into() {
+                return Err(ApiError::Param(format!("Provided secret and secret_hash do not match")));
+            }
+        }
+
+        if secret.len() != SECRET_LENGTH as usize {
+            return Err(ApiError::Param(format!("Secret of invalid length")));
+        }
+
+        let secret_registry_proxy = self
+            .proxy_manager
+            .secret_registry(secret_registry_address)
+            .await
+            .map_err(ApiError::ContractSpec)?;
+
+        let secret_registered = secret_registry_proxy
+            .is_secret_registered(secret_hash, None)
+            .await
+            .map_err(ApiError::Proxy)?;
+
+        if secret_registered {
+            return Err(ApiError::Param(format!(
+                "Attempted to initiate a locked transfer with secrethash
+                `{}`. That secret is already registered onchain",
+                secret_hash,
+            )));
+        }
+
+        let payment_completed = self
+            .payments_registry
+            .write()
+            .await
+            .register(partner_address, payment_identifier);
+
+        let _ = payment_completed.await;
+
+        Ok(())
+    }
+
     fn check_invalid_channel_timeouts(
         &self,
         settle_timeout: SettleTimeout,
@@ -558,5 +671,21 @@ impl Api {
         }
 
         Ok(())
+    }
+
+    fn initiator_init(&self) -> Result<ActionInitInitiator, ApiError> {
+        // let transfer_state = TransferDescriptionWithSecretState {
+        //     token_network_registry_address: (),
+        //     payment_identifier: (),
+        //     amount: (),
+        //     token_network_address: (),
+        //     initiator: (),
+        //     target: (),
+        //     secret: (),
+        //     secrethash: (),
+        //     lock_timeout: (),
+        // };
+
+        // let routes = routing::get_routes();
     }
 }
