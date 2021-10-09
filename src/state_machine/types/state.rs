@@ -269,11 +269,11 @@ impl ChannelState {
         let mut sender_transferred_amount = TokenAmount::zero();
         let mut receiver_transferred_amount = TokenAmount::zero();
 
-        if let Some(sender_balance_proof) = sender.balance_proof {
+        if let Some(sender_balance_proof) = &sender.balance_proof {
             sender_transferred_amount = sender_balance_proof.transferred_amount;
         }
 
-        if let Some(receiver_balance_proof) = receiver.balance_proof {
+        if let Some(receiver_balance_proof) = &receiver.balance_proof {
             receiver_transferred_amount = receiver_balance_proof.transferred_amount;
         }
 
@@ -400,8 +400,8 @@ impl ChannelEndState {
     }
 
     pub fn get_current_balanceproof(&self) -> BalanceProofData {
-        match self.balance_proof {
-            Some(bp) => (bp.locksroot, bp.nonce, bp.transferred_amount, bp.locked_amount),
+        match &self.balance_proof {
+            Some(bp) => (bp.locksroot.clone(), bp.nonce, bp.transferred_amount, bp.locked_amount),
             None => (
                 Locksroot::default(),
                 Nonce::default(),
