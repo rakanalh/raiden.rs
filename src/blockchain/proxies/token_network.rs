@@ -20,7 +20,7 @@ use web3::{
 
 use crate::blockchain::contracts::GasMetadata;
 use crate::blockchain::proxies::transaction::Transaction;
-use crate::types::{
+use crate::primitives::{
     BlockHash,
     ChannelIdentifier,
     SettleTimeout,

@@ -3,8 +3,8 @@ use crate::{
         common::Result,
         ProxyError,
     },
+    primitives::SettleTimeout,
     state_machine::types::ChannelStatus,
-    types::SettleTimeout,
 };
 use derive_more::Deref;
 use web3::{

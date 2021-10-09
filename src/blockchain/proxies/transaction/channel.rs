@@ -26,8 +26,7 @@ use crate::{
             TokenProxy,
         },
     },
-    state_machine::types::ChannelStatus,
-    types::{
+    primitives::{
         BlockHash,
         ChannelIdentifier,
         GasLimit,
@@ -35,6 +34,7 @@ use crate::{
         SettleTimeout,
         TokenAmount,
     },
+    state_machine::types::ChannelStatus,
 };
 
 use super::Transaction;

@@ -13,6 +13,16 @@ use crate::{
     },
     errors::StateTransitionError,
     primitives::{
+        AddressMetadata,
+        BlockHash,
+        BlockNumber,
+        FeeAmount,
+        LockTimeout,
+        Locksroot,
+        RevealTimeout,
+        TokenAmount,
+    },
+    primitives::{
         MediationFeeConfig,
         Random,
         TransactionExecutionStatus,
@@ -48,16 +58,6 @@ use crate::{
             StateChange,
         },
         views::get_channel_balance,
-    },
-    types::{
-        AddressMetadata,
-        BlockHash,
-        BlockNumber,
-        FeeAmount,
-        LockTimeout,
-        Locksroot,
-        RevealTimeout,
-        TokenAmount,
     },
 };
 

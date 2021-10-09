@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 use web3::transports::Http;
 
-use crate::blockchain::proxies::Account;
+use crate::{
+    blockchain::proxies::Account,
+    primitives::TokenAmount,
+};
 
 use super::{
     ChainID,

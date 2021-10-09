@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tokio::sync::oneshot;
 use web3::types::Address;
 
-use crate::types::PaymentIdentifier;
+use crate::primitives::PaymentIdentifier;
 
 pub struct Payment {
     identifier: PaymentIdentifier,

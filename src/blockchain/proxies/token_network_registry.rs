@@ -13,7 +13,7 @@ use web3::{
     Transport,
 };
 
-use crate::types::{
+use crate::primitives::{
     BlockHash,
     SettleTimeout,
 };
