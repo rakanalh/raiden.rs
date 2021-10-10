@@ -13,7 +13,7 @@ use web3::{
     Web3,
 };
 
-use crate::blockchain::key::PrivateKey;
+use crate::primitives::PrivateKey;
 
 use super::ProxyError;
 
