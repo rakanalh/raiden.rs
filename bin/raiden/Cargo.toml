@@ -14,7 +14,7 @@ name = "raiden"
 path = "src/main.rs"
 
 [dependencies]
-clap = "3.0.0-beta.2"
+clap = "3.0.0-beta.5"
 ethsign = "0.8.0"
 expanduser = "1.2.1"
 futures = "0.3.12"
