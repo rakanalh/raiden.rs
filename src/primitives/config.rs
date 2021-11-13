@@ -1,5 +1,8 @@
 use std::path::PathBuf;
-use web3::transports::Http;
+use web3::{
+    transports::Http,
+    types::Address,
+};
 
 use crate::{
     blockchain::proxies::Account,
@@ -7,6 +10,8 @@ use crate::{
 };
 
 use super::{
+    BlockNumber,
+    BlockTimeout,
     ChainID,
     MediationFeeConfig,
 };
@@ -26,4 +31,27 @@ pub struct RaidenConfig {
     pub eth_socket_rpc_endpoint: String,
     pub mediation_config: MediationFeeConfig,
     pub transport_config: MatrixTransportConfig,
+}
+
+#[derive(Clone)]
+pub struct PFSInfo {
+    pub url: String,
+    pub price: TokenAmount,
+    pub chain_id: ChainID,
+    pub token_network_registry_address: Address,
+    pub user_deposit_address: Address,
+    pub payment_address: Address,
+    pub message: String,
+    pub operator: String,
+    pub version: String,
+    pub confirmed_block_number: BlockNumber,
+    pub matrix_server: String,
+}
+
+#[derive(Clone)]
+pub struct PFSConfig {
+    pub info: PFSInfo,
+    pub maximum_fee: TokenAmount,
+    pub iou_timeout: BlockTimeout,
+    pub max_paths: usize,
 }
