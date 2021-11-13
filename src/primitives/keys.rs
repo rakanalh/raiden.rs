@@ -3,7 +3,6 @@ use web3::{
     signing::{
         self,
         Key,
-        Signature,
     },
     types::{
         Address,
