@@ -3,9 +3,12 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use std::ops::{
-    Add,
-    Mul,
+use std::{
+    ops::{
+        Add,
+        Mul,
+    },
+    str::FromStr,
 };
 use web3::types::{
     U256,
@@ -36,6 +39,14 @@ impl From<PrimitiveU64> for U64 {
 impl From<U64> for PrimitiveU64 {
     fn from(n: U64) -> Self {
         n.0
+    }
+}
+
+impl FromStr for U64 {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(U64(PrimitiveU64::from_str(s).map_err(|_| ())?))
     }
 }
 
