@@ -1493,6 +1493,7 @@ name = "raiden"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "derive_more",
  "ethabi",
  "ethsign",
@@ -1500,6 +1501,7 @@ dependencies = [
  "parking_lot",
  "rand 0.8.4",
  "rand_chacha 0.3.1",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1819,6 +1821,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "serde",
+ "serde_json",
  "serde_urlencoded",
  "tokio",
  "tokio-native-tls",

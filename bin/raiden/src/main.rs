@@ -7,12 +7,10 @@ extern crate slog;
 use clap::Clap;
 use cli::RaidenApp;
 use raiden::{
-    blockchain::{
-        key::PrivateKey,
-        proxies::Account,
-    },
+    blockchain::proxies::Account,
     primitives::{
         MediationFeeConfig,
+        PrivateKey,
         RaidenConfig,
     },
 };

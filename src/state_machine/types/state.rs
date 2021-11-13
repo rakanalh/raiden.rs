@@ -514,39 +514,39 @@ pub struct TransactionChannelDeposit {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HopState {
-    node_address: Address,
-    channel_identifier: ChannelIdentifier,
+    pub node_address: Address,
+    pub channel_identifier: ChannelIdentifier,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RouteState {
-    route: Vec<Address>,
-    address_to_metadata: HashMap<Address, AddressMetadata>,
-    swaps: HashMap<Address, Address>,
-    estimated_fee: TokenAmount,
+    pub route: Vec<Address>,
+    pub address_to_metadata: HashMap<Address, AddressMetadata>,
+    pub swaps: HashMap<Address, Address>,
+    pub estimated_fee: TokenAmount,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransferDescriptionWithSecretState {
-    token_network_registry_address: Address,
-    payment_identifier: PaymentIdentifier,
-    amount: TokenAmount,
-    token_network_address: Address,
-    initiator: Address,
-    target: Address,
-    secret: RawSecret,
-    secrethash: SecretHash,
-    lock_timeout: Option<BlockTimeout>,
+    pub token_network_registry_address: Address,
+    pub payment_identifier: PaymentIdentifier,
+    pub amount: TokenAmount,
+    pub token_network_address: Address,
+    pub initiator: Address,
+    pub target: Address,
+    pub secret: RawSecret,
+    pub secrethash: SecretHash,
+    pub lock_timeout: Option<BlockTimeout>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LockedTransferSignedState {
-    payment_identifier: PaymentIdentifier,
-    token: Address,
-    lock: HashTimeLockState,
-    initiator: Address,
-    target: Address,
-    message_identifier: MessageIdentifier,
-    route_states: Vec<RouteState>,
-    balance_proof: BalanceProofState,
+    pub payment_identifier: PaymentIdentifier,
+    pub token: Address,
+    pub lock: HashTimeLockState,
+    pub initiator: Address,
+    pub target: Address,
+    pub message_identifier: MessageIdentifier,
+    pub route_states: Vec<RouteState>,
+    pub balance_proof: BalanceProofState,
 }
