@@ -2,6 +2,7 @@ mod config;
 mod iou;
 mod keys;
 mod numeric;
+pub mod signature;
 mod types;
 
 pub use config::*;
