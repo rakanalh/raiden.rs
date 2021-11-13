@@ -2,13 +2,11 @@
 extern crate slog;
 use cli::RaidenApp;
 use raiden::{
-    blockchain::{
-        key::PrivateKey,
-        proxies::Account,
-    },
+    blockchain::proxies::Account,
     primitives::{
         MatrixTransportConfig,
         MediationFeeConfig,
+        PrivateKey,
         RaidenConfig,
     },
     transport::matrix::{
