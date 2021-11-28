@@ -5,14 +5,12 @@ use raiden::{
         SecretHash,
         SettleTimeout,
         TokenAmount,
-        U64,
     },
     state_machine::types::ChannelStatus,
 };
 use serde::Deserialize;
 use web3::types::{
     Address,
-    H256,
     U256,
 };
 

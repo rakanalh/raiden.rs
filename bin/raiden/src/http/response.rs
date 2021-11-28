@@ -5,7 +5,6 @@ use raiden::{
         RevealTimeout,
         SettleTimeout,
         TokenAmount,
-        U64,
     },
     state_machine::{
         types::{

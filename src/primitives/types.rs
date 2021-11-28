@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use web3::types::{
+    Address,
     Bytes,
     H256,
     U256,
@@ -8,7 +9,7 @@ use web3::types::{
 
 use crate::primitives::U64;
 
-pub type AddressMetadata = HashMap<String, String>;
+pub type AddressMetadata = HashMap<Address, String>;
 
 pub type BalanceProofData = (Locksroot, Nonce, TokenAmount, LockedAmount);
 
