@@ -2,6 +2,7 @@ pub mod api;
 pub mod blockchain;
 pub mod constants;
 pub mod errors;
+pub mod pathfinding;
 pub mod payments;
 pub mod primitives;
 pub mod routing;

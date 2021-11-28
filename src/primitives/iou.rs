@@ -25,7 +25,7 @@ use super::{
     TokenAmount,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct IOU {
     pub sender: Address,
     pub receiver: Address,
