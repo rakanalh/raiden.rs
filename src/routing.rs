@@ -1,22 +1,51 @@
+use std::collections::HashMap;
+
 use web3::types::{
     Address,
     U256,
 };
 
-use crate::state_machine::{
-    types::ChainState,
-    views,
+use crate::{
+    pathfinding::{
+        self,
+        PFSPath,
+        RoutingError,
+        PFS,
+    },
+    primitives::{
+        AddressMetadata,
+        BlockNumber,
+        ChannelIdentifier,
+        PFSConfig,
+        PrivateKey,
+        TokenAmount,
+    },
+    state_machine::{
+        types::{
+            ChainState,
+            ChannelState,
+            ChannelStatus,
+            RouteState,
+        },
+        views,
+    },
 };
 
 pub async fn get_best_routes(
+    pfs_config: PFSConfig,
+    private_key: PrivateKey,
     chain_state: ChainState,
+    our_address_metadata: AddressMetadata,
     token_network_address: Address,
+    one_to_n_address: Option<Address>,
+    from_address: Address,
     to_address: Address,
     amount: U256,
-) -> Result<(), String> {
+    previous_address: Option<Address>,
+) -> Result<(Vec<RouteState>, String), RoutingError> {
     let token_network = match views::get_token_network_by_address(&chain_state, token_network_address) {
         Some(token_network) => token_network,
-        None => return Err("Token network does not exist".to_owned()),
+        None => return Err(RoutingError::TokenNetworkUnknown),
     };
 
     // Always use a direct channel if available:
@@ -33,9 +62,153 @@ pub async fn get_best_routes(
 
             // Direct channels don't have fees.
             let payment_with_fee_amount = amount;
-            if channel_state.is_usable_for_new_transfer(payment_with_fee_amount, None) {}
+            if channel_state.is_usable_for_new_transfer(payment_with_fee_amount, None) {
+                let mut address_to_address_metadata = HashMap::new();
+                address_to_address_metadata.insert(from_address, our_address_metadata.clone());
+
+                let metadata = pathfinding::query_address_metadata(pfs_config.info.url, to_address).await?;
+                address_to_address_metadata.insert(to_address, metadata);
+
+                return Ok((
+                    vec![RouteState {
+                        route: vec![from_address, to_address],
+                        address_to_metadata: address_to_address_metadata,
+                        swaps: HashMap::default(),
+                        estimated_fee: TokenAmount::zero(),
+                    }],
+                    String::new(),
+                ));
+            }
         }
     }
 
-    Ok(())
+    let one_to_n_address = one_to_n_address.ok_or(RoutingError::PFServiceUnusable)?;
+
+    // Does any channel have sufficient capacity for the payment?
+    let usable_channels: Vec<&ChannelState> = token_network
+        .partneraddresses_to_channelidentifiers
+        .values()
+        .map(|channels: &Vec<ChannelIdentifier>| {
+            channels
+                .iter()
+                .map(|channel_id| &token_network.channelidentifiers_to_channels[channel_id])
+                .filter(|channel: &&ChannelState| channel.is_usable_for_new_transfer(amount, None))
+                .collect::<Vec<&ChannelState>>()
+        })
+        .flatten()
+        .collect();
+
+    if usable_channels.is_empty() {
+        return Err(RoutingError::NoUsableChannels);
+    }
+
+    let latest_channel_opened_at = token_network
+        .channelidentifiers_to_channels
+        .values()
+        .map(|channel_state| channel_state.open_transaction.finished_block_number)
+        .max()
+        .flatten()
+        .unwrap_or_default();
+
+    let (pfs_routes, pfs_feedback_token) = get_best_routes_pfs(
+        pfs_config,
+        private_key,
+        our_address_metadata,
+        chain_state,
+        token_network_address,
+        one_to_n_address,
+        from_address,
+        to_address,
+        amount,
+        previous_address,
+        latest_channel_opened_at,
+    )
+    .await?;
+
+    Ok((pfs_routes, pfs_feedback_token))
+}
+
+pub async fn get_best_routes_pfs(
+    pfs_config: PFSConfig,
+    private_key: PrivateKey,
+    our_address_metadata: AddressMetadata,
+    chain_state: ChainState,
+    token_network_address: Address,
+    one_to_n_address: Address,
+    from_address: Address,
+    to_address: Address,
+    amount: TokenAmount,
+    previous_address: Option<Address>,
+    pfs_wait_for_block: BlockNumber,
+) -> Result<(Vec<RouteState>, String), RoutingError> {
+    let pfs = PFS::new(
+        chain_state.chain_id.clone(),
+        pfs_config,
+        private_key,
+        our_address_metadata,
+    );
+    let (routes, feedback_token) = pfs
+        .query_paths(
+            chain_state.our_address,
+            token_network_address,
+            one_to_n_address,
+            chain_state.block_number,
+            from_address,
+            to_address,
+            amount,
+            pfs_wait_for_block,
+        )
+        .await?;
+
+    let mut paths = vec![];
+    for route in routes {
+        if let Some(route_state) = make_route_state(
+            route,
+            previous_address,
+            chain_state.clone(),
+            token_network_address,
+            from_address,
+        ) {
+            paths.push(route_state)
+        }
+    }
+
+    Ok((paths, feedback_token))
+}
+
+pub fn make_route_state(
+    route: PFSPath,
+    previous_address: Option<Address>,
+    chain_state: ChainState,
+    token_network_address: Address,
+    from_address: Address,
+) -> Option<RouteState> {
+    if route.nodes.len() < 2 {
+        return None;
+    }
+
+    let partner_address = route.nodes[1];
+    // Prevent back routing
+    if let Some(previous_address) = previous_address {
+        if partner_address == previous_address {
+            return None;
+        }
+    }
+
+    let channel_state =
+        match views::get_channel_by_token_network_and_partner(&chain_state, token_network_address, partner_address) {
+            Some(channel_state) => channel_state,
+            None => return None,
+        };
+
+    if channel_state.status() != ChannelStatus::Opened {
+        return None;
+    }
+
+    return Some(RouteState {
+        route: route.nodes,
+        address_to_metadata: route.address_metadata,
+        swaps: HashMap::new(),
+        estimated_fee: route.estimated_fee,
+    });
 }
