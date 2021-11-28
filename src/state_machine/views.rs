@@ -123,7 +123,10 @@ pub fn get_channel_by_token_network_and_partner(
 ) -> Option<&ChannelState> {
     let token_network = get_token_network_by_address(chain_state, token_network_address);
     if let Some(token_network) = token_network {
-        return token_network.channelidentifiers_to_channels.values().find(|channel| channel.partner_state.address == partner_address)
+        return token_network
+            .channelidentifiers_to_channels
+            .values()
+            .find(|channel| channel.partner_state.address == partner_address);
     }
     None
 }

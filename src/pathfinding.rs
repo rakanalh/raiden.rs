@@ -25,19 +25,17 @@ use web3::{
     },
 };
 
-use crate::{
-    primitives::{
-        signature::SignatureUtils,
-        AddressMetadata,
-        BlockExpiration,
-        BlockNumber,
-        ChainID,
-        PFSConfig,
-        PFSInfo,
-        PrivateKey,
-        TokenAmount,
-        IOU,
-    },
+use crate::primitives::{
+    signature::SignatureUtils,
+    AddressMetadata,
+    BlockExpiration,
+    BlockNumber,
+    ChainID,
+    PFSConfig,
+    PFSInfo,
+    PrivateKey,
+    TokenAmount,
+    IOU,
 };
 
 const MAX_PATHS_QUERY_ATTEMPT: usize = 2;
@@ -212,7 +210,11 @@ impl PFS {
         payload: PFSRequest,
     ) -> Result<PFSPathsResponse, RoutingError> {
         let client = reqwest::Client::new();
-        let response: PFSPathsResponse = client.post(format!("{}/api/v1/{}/paths", &self.pfs_config.info.url, token_network_address))
+        let response: PFSPathsResponse = client
+            .post(format!(
+                "{}/api/v1/{}/paths",
+                &self.pfs_config.info.url, token_network_address
+            ))
             .json(&payload)
             .send()
             .await
@@ -379,15 +381,12 @@ impl PFS {
 }
 
 pub async fn query_address_metadata(url: String, address: Address) -> Result<AddressMetadata, RoutingError> {
-    let metadata = reqwest::get(format!(
-        "{}/api/v1/address/{}/metadata",
-        url, address
-    ))
-    .await
-    .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?
-    .json::<AddressMetadata>()
-    .await
-    .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e)))?;
+    let metadata = reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address))
+        .await
+        .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?
+        .json::<AddressMetadata>()
+        .await
+        .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e)))?;
 
     Ok(metadata)
 }
