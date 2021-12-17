@@ -24,7 +24,7 @@ raiden = { path = "../.." }
 routerify = "2.2.0"
 rpassword = "5.0.1"
 rusqlite = "0.25.3"
-serde = "1.0.119"
+serde = "1.0.132"
 serde_json = "1.0.59"
 slog = "2.7.0"
 slog-async = "2.7.0"
