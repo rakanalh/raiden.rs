@@ -27,12 +27,16 @@ use crate::{
         self,
         SECRET_LENGTH,
     },
+    pathfinding::RoutingError,
     payments::PaymentsRegistry,
     primitives::{
+        BlockTimeout,
         ChannelIdentifier,
         PaymentIdentifier,
+        RaidenConfig,
         RetryTimeout,
         RevealTimeout,
+        Secret,
         SecretHash,
         SettleTimeout,
         TokenAmount,
@@ -45,6 +49,7 @@ use crate::{
             ActionInitInitiator,
             ChannelState,
             ChannelStatus,
+            RouteState,
             StateChange,
             TransferDescriptionWithSecretState,
         },
@@ -75,11 +80,14 @@ pub enum ApiError {
     OnChainCall(String),
     #[error("Invalid state: `{0}`")]
     State(String),
+    #[error("Routing error: `{0}`")]
+    Routing(RoutingError),
     #[error("Invalid parameter: `{0}`")]
     Param(String),
 }
 
 pub struct Api {
+    config: RaidenConfig,
     state_manager: Arc<SyncRwLock<StateManager>>,
     contracts_manager: Arc<ContractsManager>,
     proxy_manager: Arc<ProxyManager>,
@@ -90,6 +98,7 @@ pub struct Api {
 
 impl Api {
     pub fn new(
+        config: RaidenConfig,
         state_manager: Arc<SyncRwLock<StateManager>>,
         contracts_manager: Arc<ContractsManager>,
         proxy_manager: Arc<ProxyManager>,
@@ -98,6 +107,7 @@ impl Api {
         logger: Logger,
     ) -> Self {
         Self {
+            config,
             state_manager,
             contracts_manager,
             proxy_manager,
@@ -575,7 +585,7 @@ impl Api {
             None => random_identifier(),
         };
 
-        let token_network_address =
+        let _token_network_address =
             views::get_token_network_by_token_address(chain_state, token_network_registry_address, token_address)
                 .ok_or(ApiError::Param(format!(
                     "Token {} is not registered with network {}",
@@ -673,19 +683,47 @@ impl Api {
         Ok(())
     }
 
-    fn initiator_init(&self) -> Result<ActionInitInitiator, ApiError> {
-        // let transfer_state = TransferDescriptionWithSecretState {
-        //     token_network_registry_address: (),
-        //     payment_identifier: (),
-        //     amount: (),
-        //     token_network_address: (),
-        //     initiator: (),
-        //     target: (),
-        //     secret: (),
-        //     secrethash: (),
-        //     lock_timeout: (),
-        // };
+    fn initiator_init(
+        &self,
+        transfer_identifier: PaymentIdentifier,
+        transfer_amount: TokenAmount,
+        transfer_secret: Secret,
+        transfer_secrethash: SecretHash,
+        token_network_registry_address: Address,
+        token_network_address: Address,
+        target_address: Address,
+        lock_timeout: Option<BlockTimeout>,
+        route_states: Option<Vec<RouteState>>,
+    ) -> Result<ActionInitInitiator, ApiError> {
+        let chain_state = &self.state_manager.read().current_state.clone();
+        let our_address = chain_state.our_address;
+        let transfer_state = TransferDescriptionWithSecretState {
+            token_network_registry_address,
+            token_network_address,
+            lock_timeout,
+            payment_identifier: transfer_identifier,
+            amount: transfer_amount,
+            initiator: our_address,
+            target: target_address,
+            secret: transfer_secret,
+            secrethash: transfer_secrethash,
+        };
 
-        // let routes = routing::get_routes();
+        if route_states.is_none() {
+            let (routes, feedback_token) = routing::get_best_routes(
+                self.config.pfs_config.clone(),
+                self.config.account.private_key(),
+                chain_state,
+                our_address_metadata,
+                token_network_address,
+                one_to_n_address,
+                from_address,
+                to_address,
+                amount,
+                previous_address,
+            )
+            .await
+            .map_err(ApiError::Routing)?;
+        }
     }
 }
