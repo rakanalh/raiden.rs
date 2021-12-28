@@ -1,4 +1,11 @@
-use std::path::PathBuf;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+};
 use web3::{
     transports::Http,
     types::Address,
@@ -13,7 +20,8 @@ use super::{
     BlockNumber,
     BlockTimeout,
     ChainID,
-    MediationFeeConfig,
+    FeeAmount,
+    ProportionalFeeAmount,
 };
 
 #[derive(Clone)]
@@ -25,6 +33,7 @@ pub struct RaidenConfig {
     pub eth_http_rpc_endpoint: String,
     pub eth_socket_rpc_endpoint: String,
     pub mediation_config: MediationFeeConfig,
+    pub pfs_config: PFSConfig,
 }
 
 #[derive(Clone)]
@@ -48,4 +57,35 @@ pub struct PFSConfig {
     pub maximum_fee: TokenAmount,
     pub iou_timeout: BlockTimeout,
     pub max_paths: usize,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct MediationFeeConfig {
+    pub token_to_flat_fee: HashMap<Address, FeeAmount>,
+    pub token_to_proportional_fee: HashMap<Address, ProportionalFeeAmount>,
+    pub token_to_proportional_imbalance_fee: HashMap<Address, ProportionalFeeAmount>,
+    pub cap_meditation_fees: bool,
+}
+
+impl MediationFeeConfig {
+    pub fn get_flat_fee(&self, token_address: &Address) -> FeeAmount {
+        *self
+            .token_to_flat_fee
+            .get(token_address)
+            .unwrap_or(&DEFAULT_MEDIATION_FLAT_FEE.into())
+    }
+
+    pub fn get_proportional_fee(&self, token_address: &Address) -> ProportionalFeeAmount {
+        *self
+            .token_to_proportional_fee
+            .get(token_address)
+            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_FEE.into())
+    }
+
+    pub fn get_proportional_imbalance_fee(self, token_address: &Address) -> ProportionalFeeAmount {
+        *self
+            .token_to_proportional_imbalance_fee
+            .get(token_address)
+            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE.into())
+    }
 }
