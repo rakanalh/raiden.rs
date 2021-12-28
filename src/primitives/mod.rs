@@ -142,34 +142,3 @@ pub struct TransactionExecutionStatus {
     pub finished_block_number: Option<U64>,
     pub result: Option<TransactionResult>,
 }
-
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub struct MediationFeeConfig {
-    pub token_to_flat_fee: HashMap<Address, FeeAmount>,
-    pub token_to_proportional_fee: HashMap<Address, ProportionalFeeAmount>,
-    pub token_to_proportional_imbalance_fee: HashMap<Address, ProportionalFeeAmount>,
-    pub cap_meditation_fees: bool,
-}
-
-impl MediationFeeConfig {
-    pub fn get_flat_fee(&self, token_address: &Address) -> FeeAmount {
-        *self
-            .token_to_flat_fee
-            .get(token_address)
-            .unwrap_or(&DEFAULT_MEDIATION_FLAT_FEE.into())
-    }
-
-    pub fn get_proportional_fee(&self, token_address: &Address) -> ProportionalFeeAmount {
-        *self
-            .token_to_proportional_fee
-            .get(token_address)
-            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_FEE.into())
-    }
-
-    pub fn get_proportional_imbalance_fee(self, token_address: &Address) -> ProportionalFeeAmount {
-        *self
-            .token_to_proportional_imbalance_fee
-            .get(token_address)
-            .unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE.into())
-    }
-}
