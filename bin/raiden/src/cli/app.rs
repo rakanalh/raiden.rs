@@ -82,6 +82,11 @@ impl RaidenApp {
                 }
             };
 
+        let one_to_n_deployed_contract = match contracts_manager.get_deployed(contracts::ContractIdentifier::OneToN) {
+            Ok(contract) => contract,
+            Err(e) => return Err(format!("Could not find OneToN deployment info: {:?}", e)),
+        };
+
         debug!(logger, "Restore state");
         let (state_manager, sync_start_block_number) = match StateManager::restore_or_init_state(
             storage,
