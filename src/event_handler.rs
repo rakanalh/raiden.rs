@@ -5,11 +5,11 @@ use crate::{
     state_machine::types::Event,
     state_manager::StateManager,
     transport::messages::{
-            Message,
-            SignedMessage,
-            TransportServiceMessage,
-            WithdrawExpired,
-        },
+        Message,
+        SignedMessage,
+        TransportServiceMessage,
+        WithdrawExpired,
+    },
 };
 use parking_lot::RwLock;
 use tokio::sync::mpsc::UnboundedSender;
@@ -40,9 +40,10 @@ impl EventHandler {
                 let queue_identifier = inner.queue_identifier();
                 let mut message: WithdrawExpired = inner.into();
                 let _ = message.sign(self.account.private_key());
-                let _ = self
-                    .transport
-                    .send(TransportServiceMessage::Enqueue((queue_identifier, Message::WithdrawExpired(message))));
+                let _ = self.transport.send(TransportServiceMessage::Enqueue((
+                    queue_identifier,
+                    Message::WithdrawExpired(message),
+                )));
             }
             Event::SendWithdrawRequest(_) => todo!(),
             Event::ContractSendChannelSettle(_) => todo!(),

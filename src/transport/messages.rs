@@ -14,10 +14,18 @@ use web3::{
     },
 };
 
-use crate::{blockchain::key::{
+use crate::{
+    blockchain::key::{
         signature_to_bytes,
         PrivateKey,
-    }, primitives::{ChainID, QueueIdentifier, U64}, state_machine::types::SendWithdrawExpired};
+    },
+    primitives::{
+        ChainID,
+        QueueIdentifier,
+        U64,
+    },
+    state_machine::types::SendWithdrawExpired,
+};
 
 enum CmdId {
     Processed = 0,

@@ -10,7 +10,13 @@ use tokio::{
     time::sleep,
 };
 
-use crate::{primitives::QueueIdentifier, transport::messages::{Message, TransportServiceMessage}};
+use crate::{
+    primitives::QueueIdentifier,
+    transport::messages::{
+        Message,
+        TransportServiceMessage,
+    },
+};
 
 pub struct RetryMessageQueue {
     pub identifier: QueueIdentifier,
