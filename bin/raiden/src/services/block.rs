@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use parking_lot::RwLock;
 use raiden::{
+    raiden::Raiden,
     services::Transitioner,
     state_machine::types::{
         Block,
         StateChange,
     },
-    state_manager::StateManager,
 };
-use slog::Logger;
 use web3::{
     transports::WebSocket,
     Web3,
@@ -19,29 +17,26 @@ use web3::{
 use super::SyncService;
 
 pub struct BlockMonitorService {
+    raiden: Arc<Raiden>,
     web3: Web3<WebSocket>,
-    state_manager: Arc<RwLock<StateManager>>,
     transition_service: Arc<dyn Transitioner>,
     sync_service: SyncService,
-    logger: Logger,
 }
 
 impl BlockMonitorService {
     pub fn new(
+        raiden: Arc<Raiden>,
         socket: WebSocket,
-        state_manager: Arc<RwLock<StateManager>>,
         transition_service: Arc<dyn Transitioner>,
         sync_service: SyncService,
-        logger: Logger,
     ) -> Result<Self, ()> {
         let web3 = web3::Web3::new(socket);
 
         Ok(Self {
+            raiden,
             web3,
-            state_manager,
             transition_service,
             sync_service,
-            logger,
         })
     }
 
@@ -63,8 +58,8 @@ impl BlockMonitorService {
                     Some(hash) => hash,
                     None => continue,
                 };
-                debug!(self.logger, "New Block {}", block_number);
-                let current_block_number = self.state_manager.read().current_state.block_number;
+                debug!(self.raiden.logger, "New Block {}", block_number);
+                let current_block_number = self.raiden.state_manager.read().current_state.block_number;
                 let block_state_change = Block {
                     block_number: block_number.into(),
                     block_hash,

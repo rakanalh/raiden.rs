@@ -7,17 +7,9 @@ use hyper::{
     Server,
     StatusCode,
 };
-use parking_lot::RwLock;
 use raiden::{
     api::Api,
-    blockchain::{
-        contracts::ContractsManager,
-        proxies::{
-            Account,
-            ProxyManager,
-        },
-    },
-    state_manager::StateManager,
+    raiden::Raiden,
 };
 use routerify::{
     ext::RequestExt,
@@ -31,7 +23,6 @@ use std::{
     net::SocketAddr,
     sync::Arc,
 };
-use web3::transports::Http;
 
 use super::endpoints;
 
@@ -40,22 +31,8 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub fn new(
-        api: Arc<Api>,
-        account: Account<Http>,
-        state_manager: Arc<RwLock<StateManager>>,
-        contracts_manager: Arc<ContractsManager>,
-        proxy_manager: Arc<ProxyManager>,
-        logger: Logger,
-    ) -> Self {
-        let router = router(
-            api,
-            account,
-            state_manager,
-            contracts_manager,
-            proxy_manager,
-            logger.clone(),
-        );
+    pub fn new(raiden: Arc<Raiden>, api: Arc<Api>) -> Self {
+        let router = router(raiden, api);
 
         // Create a Service from the router above to handle incoming requests.
         let service = RouterService::new(router).unwrap();
@@ -91,24 +68,17 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<B
         .unwrap()
 }
 
-fn router(
-    api: Arc<Api>,
-    account: Account<Http>,
-    state_manager: Arc<RwLock<StateManager>>,
-    contracts_manager: Arc<ContractsManager>,
-    proxy_manager: Arc<ProxyManager>,
-    logger: Logger,
-) -> Router<Body, Error> {
+fn router(raiden: Arc<Raiden>, api: Arc<Api>) -> Router<Body, Error> {
     Router::builder()
         // Specify the state data which will be available to every route handlers,
         // error handler and middlewares.
         .middleware(Middleware::pre(log_request))
         .data(api)
-        .data(account)
-        .data(state_manager)
-        .data(contracts_manager)
-        .data(proxy_manager)
-        .data(logger)
+        .data(raiden.config.account.clone())
+        .data(raiden.state_manager.clone())
+        .data(raiden.contracts_manager.clone())
+        .data(raiden.proxy_manager.clone())
+        .data(raiden.logger.clone())
         .get("/api/v1/address", endpoints::address)
         .get("/api/v1/channels", endpoints::channels)
         .put("/api/v1/channels", endpoints::create_channel)

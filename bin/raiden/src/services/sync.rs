@@ -3,35 +3,24 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::RwLock;
-use slog::Logger;
-use web3::{
-    transports::Http,
-    types::{
-        BlockId,
-        BlockNumber,
-    },
-    Web3,
+use web3::types::{
+    BlockId,
+    BlockNumber,
 };
 
 use raiden::{
     blockchain::{
-        contracts::ContractsManager,
         decode::EventDecoder,
         events::Event,
         filters::filters_from_chain_state,
-        proxies::ProxyManager,
     },
-    primitives::{
-        RaidenConfig,
-        U64,
-    },
+    primitives::U64,
+    raiden::Raiden,
     services::Transitioner,
     state_machine::types::{
         Block,
         StateChange,
     },
-    state_manager::StateManager,
 };
 
 struct BlockBatchSizeConfig {
@@ -85,26 +74,13 @@ impl BlockBatchSizeAdjuster {
 }
 
 pub struct SyncService {
-    web3: Web3<Http>,
-    config: RaidenConfig,
-    state_manager: Arc<RwLock<StateManager>>,
-    contracts_manager: Arc<ContractsManager>,
-    proxy_manager: Arc<ProxyManager>,
+    raiden: Arc<Raiden>,
     transition_service: Arc<dyn Transitioner>,
     block_batch_size_adjuster: BlockBatchSizeAdjuster,
-    logger: Logger,
 }
 
 impl SyncService {
-    pub fn new(
-        web3: Web3<Http>,
-        config: RaidenConfig,
-        state_manager: Arc<RwLock<StateManager>>,
-        contracts_manager: Arc<ContractsManager>,
-        proxy_manager: Arc<ProxyManager>,
-        transition_service: Arc<dyn Transitioner>,
-        logger: Logger,
-    ) -> Self {
+    pub fn new(raiden: Arc<Raiden>, transition_service: Arc<dyn Transitioner>) -> Self {
         let block_batch_size_adjuster = BlockBatchSizeAdjuster::new(
             BlockBatchSizeConfig {
                 min: 5,
@@ -117,20 +93,15 @@ impl SyncService {
         );
 
         Self {
-            web3,
-            config,
-            state_manager,
-            contracts_manager,
-            proxy_manager,
+            raiden,
             transition_service,
             block_batch_size_adjuster,
-            logger,
         }
     }
 
     pub async fn sync(&mut self, start_block_number: U64, end_block_number: U64) {
         info!(
-            self.logger,
+            self.raiden.logger,
             "Sync started: {} -> {}", start_block_number, end_block_number
         );
         self.poll_contract_filters(start_block_number, end_block_number).await;
@@ -145,37 +116,40 @@ impl SyncService {
                 end_block_number,
             );
 
-            debug!(self.logger, "Querying from blocks {} to {}", from_block, to_block);
+            debug!(
+                self.raiden.logger,
+                "Querying from blocks {} to {}", from_block, to_block
+            );
 
-            let mut current_state = self.state_manager.read().current_state.clone();
+            let mut current_state = self.raiden.state_manager.read().current_state.clone();
             let filter = filters_from_chain_state(
-                self.contracts_manager.clone(),
+                self.raiden.contracts_manager.clone(),
                 current_state.clone(),
                 from_block,
                 to_block,
             );
 
-            let logs = match self.web3.eth().logs((filter).clone()).await {
+            let logs = match self.raiden.web3.eth().logs((filter).clone()).await {
                 Ok(logs) => logs,
                 Err(e) => {
-                    warn!(self.logger, "Error fetching logs: {:?}", e);
+                    warn!(self.raiden.logger, "Error fetching logs: {:?}", e);
                     self.block_batch_size_adjuster.decrease();
                     continue;
                 }
             };
 
             for log in logs {
-                let event = match Event::decode(self.contracts_manager.clone(), &log) {
+                let event = match Event::decode(self.raiden.contracts_manager.clone(), &log) {
                     Some(event) => event,
                     None => {
-                        warn!(self.logger, "Could not find event that matches log: {:?}", log);
+                        warn!(self.raiden.logger, "Could not find event that matches log: {:?}", log);
                         continue;
                     }
                 };
 
-                current_state = self.state_manager.read().current_state.clone();
-                let decoder = EventDecoder::new(self.config.clone(), self.proxy_manager.clone());
-                let storage = self.state_manager.read().storage.clone();
+                current_state = self.raiden.state_manager.read().current_state.clone();
+                let decoder = EventDecoder::new(self.raiden.config.clone(), self.raiden.proxy_manager.clone());
+                let storage = self.raiden.state_manager.read().storage.clone();
                 match decoder
                     .as_state_change(event.clone(), &current_state.clone(), storage)
                     .await
@@ -185,7 +159,7 @@ impl SyncService {
                     }
                     Err(e) => {
                         warn!(
-                            self.logger,
+                            self.raiden.logger,
                             "Error converting chain event to state change: {:?} ({})", e, event.name
                         );
                     }
@@ -194,13 +168,13 @@ impl SyncService {
             }
 
             let block_number = BlockNumber::Number(*to_block);
-            let block = match self.web3.eth().block(BlockId::Number(block_number)).await {
+            let block = match self.raiden.web3.eth().block(BlockId::Number(block_number)).await {
                 Ok(Some(block)) => block,
                 Ok(None) => {
                     continue;
                 }
                 Err(e) => {
-                    error!(self.logger, "Error fetching block info: {:?}", e);
+                    error!(self.raiden.logger, "Error fetching block info: {:?}", e);
                     continue;
                 }
             };

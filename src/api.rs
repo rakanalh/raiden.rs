@@ -1,8 +1,4 @@
-use parking_lot::RwLock as SyncRwLock;
-use slog::{
-    info,
-    Logger,
-};
+use slog::info;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -14,13 +10,11 @@ use web3::{
 
 use crate::{
     blockchain::{
-        contracts::ContractsManager,
         errors::ContractDefError,
         proxies::{
             Account,
             GasReserve,
             ProxyError,
-            ProxyManager,
         },
     },
     constants::{
@@ -33,14 +27,14 @@ use crate::{
         BlockTimeout,
         ChannelIdentifier,
         PaymentIdentifier,
-        RaidenConfig,
+        RawSecret,
         RetryTimeout,
         RevealTimeout,
-        Secret,
         SecretHash,
         SettleTimeout,
         TokenAmount,
     },
+    raiden::Raiden,
     routing,
     services::Transitioner,
     state_machine::{
@@ -55,7 +49,6 @@ use crate::{
         },
         views,
     },
-    state_manager::StateManager,
     utils::{
         random_identifier,
         random_secret,
@@ -87,33 +80,21 @@ pub enum ApiError {
 }
 
 pub struct Api {
-    config: RaidenConfig,
-    state_manager: Arc<SyncRwLock<StateManager>>,
-    contracts_manager: Arc<ContractsManager>,
-    proxy_manager: Arc<ProxyManager>,
+    raiden: Arc<Raiden>,
     transition_service: Arc<dyn Transitioner + Send + Sync>,
     payments_registry: Arc<RwLock<PaymentsRegistry>>,
-    logger: Logger,
 }
 
 impl Api {
     pub fn new(
-        config: RaidenConfig,
-        state_manager: Arc<SyncRwLock<StateManager>>,
-        contracts_manager: Arc<ContractsManager>,
-        proxy_manager: Arc<ProxyManager>,
+        raiden: Arc<Raiden>,
         transition_service: Arc<dyn Transitioner + Send + Sync>,
         payments_registry: Arc<RwLock<PaymentsRegistry>>,
-        logger: Logger,
     ) -> Self {
         Self {
-            config,
-            state_manager,
-            contracts_manager,
-            proxy_manager,
+            raiden,
             transition_service,
             payments_registry,
-            logger,
         }
     }
 
@@ -127,10 +108,10 @@ impl Api {
         reveal_timeout: Option<RevealTimeout>,
         retry_timeout: Option<RetryTimeout>,
     ) -> Result<ChannelIdentifier, ApiError> {
-        let current_state = &self.state_manager.read().current_state.clone();
+        let current_state = &self.raiden.state_manager.read().current_state.clone();
 
         info!(
-            self.logger,
+            self.raiden.logger,
             "Opening channel. registry_address={}, partner_address={}, token_address={}, settle_timeout={:?}, reveal_timeout={:?}.",
             registry_address,
             partner_address,
@@ -145,6 +126,7 @@ impl Api {
 
         let confirmed_block_identifier = views::confirmed_block_hash(&current_state);
         let registry = self
+            .raiden
             .proxy_manager
             .token_network_registry(registry_address)
             .await
@@ -186,6 +168,7 @@ impl Api {
         }
 
         let mut token_network = self
+            .raiden
             .proxy_manager
             .token_network(token_address, token_network_address)
             .await
@@ -219,8 +202,8 @@ impl Api {
             )));
         }
 
-        let chain_state = &self.state_manager.read().current_state.clone();
-        let gas_reserve = GasReserve::new(self.proxy_manager.clone(), registry_address);
+        let chain_state = &self.raiden.state_manager.read().current_state.clone();
+        let gas_reserve = GasReserve::new(self.raiden.proxy_manager.clone(), registry_address);
         let (has_enough_reserve, estimated_required_reserve) = gas_reserve
             .has_enough(account.clone(), chain_state, 1)
             .await
@@ -246,7 +229,7 @@ impl Api {
             .map_err(ApiError::Proxy)?;
 
         waiting::wait_for_new_channel(
-            self.state_manager.clone(),
+            self.raiden.state_manager.clone(),
             registry_address,
             token_address,
             partner_address,
@@ -254,7 +237,7 @@ impl Api {
         )
         .await?;
 
-        let chain_state = &self.state_manager.read().current_state.clone();
+        let chain_state = &self.raiden.state_manager.read().current_state.clone();
         let channel_state =
             match views::get_channel_state_for(chain_state, registry_address, token_address, partner_address) {
                 Some(channel_state) => channel_state,
@@ -285,7 +268,7 @@ impl Api {
         retry_timeout: Option<RetryTimeout>,
     ) -> Result<(), ApiError> {
         info!(
-            self.logger,
+            self.raiden.logger,
             "Patching channel. registry_address={}, partner_Address={}, token_address={}, reveal_timeout={:?}, total_deposit={:?}, total_withdraw={:?}, state={:?}.",
             registry_address,
             partner_address,
@@ -354,7 +337,7 @@ impl Api {
             )));
         }
 
-        let current_state = &self.state_manager.read().current_state.clone();
+        let current_state = &self.raiden.state_manager.read().current_state.clone();
         let channel_state =
             match views::get_channel_state_for(current_state, registry_address, token_address, partner_address) {
                 Some(channel_state) => channel_state,
@@ -393,7 +376,7 @@ impl Api {
         retry_timeout: Option<RetryTimeout>,
     ) -> Result<(), ApiError> {
         info!(
-            self.logger,
+            self.raiden.logger,
             "Depositing to channel. channel_identifier={}, total_deposit={:?}.",
             channel_state.canonical_identifier.channel_identifier,
             total_deposit,
@@ -403,15 +386,17 @@ impl Api {
             return Err(ApiError::State(format!("Can't set total deposit on a closed channel")));
         }
 
-        let chain_state = &self.state_manager.read().current_state.clone();
+        let chain_state = &self.raiden.state_manager.read().current_state.clone();
         let confirmed_block_identifier = views::confirmed_block_hash(chain_state);
         let token = self
+            .raiden
             .proxy_manager
             .token(channel_state.token_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
         let token_network_registry = self
+            .raiden
             .proxy_manager
             .token_network_registry(channel_state.token_network_registry_address)
             .await
@@ -423,12 +408,14 @@ impl Api {
             .map_err(ApiError::Proxy)?;
 
         let token_network_proxy = self
+            .raiden
             .proxy_manager
             .token_network(channel_state.token_address, token_network_address)
             .await
             .map_err(ApiError::ContractSpec)?;
 
         let channel_proxy = self
+            .raiden
             .proxy_manager
             .payment_channel(channel_state)
             .await
@@ -521,7 +508,7 @@ impl Api {
             .map_err(ApiError::Proxy)?;
 
         waiting::wait_for_participant_deposit(
-            self.state_manager.clone(),
+            self.raiden.state_manager.clone(),
             channel_state.token_network_registry_address,
             channel_state.token_address,
             channel_state.partner_state.address,
@@ -574,7 +561,7 @@ impl Api {
             return Err(ApiError::Param(format!("Amount should not be zero")));
         }
 
-        let chain_state = &self.state_manager.read().current_state.clone();
+        let chain_state = &self.raiden.state_manager.read().current_state.clone();
         let valid_tokens = views::get_token_identifiers(chain_state, token_network_registry_address);
         if !valid_tokens.contains(&token_address) {
             return Err(ApiError::Param(format!("Token address is not known")));
@@ -619,6 +606,7 @@ impl Api {
         }
 
         let secret_registry_proxy = self
+            .raiden
             .proxy_manager
             .secret_registry(secret_registry_address)
             .await
@@ -683,11 +671,11 @@ impl Api {
         Ok(())
     }
 
-    fn initiator_init(
+    async fn initiator_init(
         &self,
         transfer_identifier: PaymentIdentifier,
         transfer_amount: TokenAmount,
-        transfer_secret: Secret,
+        transfer_secret: RawSecret,
         transfer_secrethash: SecretHash,
         token_network_registry_address: Address,
         token_network_address: Address,
@@ -695,7 +683,7 @@ impl Api {
         lock_timeout: Option<BlockTimeout>,
         route_states: Option<Vec<RouteState>>,
     ) -> Result<ActionInitInitiator, ApiError> {
-        let chain_state = &self.state_manager.read().current_state.clone();
+        let chain_state = self.raiden.state_manager.read().current_state.clone();
         let our_address = chain_state.our_address;
         let transfer_state = TransferDescriptionWithSecretState {
             token_network_registry_address,
@@ -709,21 +697,27 @@ impl Api {
             secrethash: transfer_secrethash,
         };
 
+        let our_address_metadata = self.raiden.transport.address_metadata();
+        let one_to_n_address = self.raiden.addresses.one_to_n;
+        let from_address = self.raiden.config.account.address();
+
         if route_states.is_none() {
             let (routes, feedback_token) = routing::get_best_routes(
-                self.config.pfs_config.clone(),
-                self.config.account.private_key(),
+                self.raiden.config.pfs_config.clone(),
+                self.raiden.config.account.private_key(),
                 chain_state,
                 our_address_metadata,
                 token_network_address,
-                one_to_n_address,
+                Some(one_to_n_address),
                 from_address,
-                to_address,
-                amount,
-                previous_address,
+                target_address,
+                transfer_amount,
+                None,
             )
             .await
             .map_err(ApiError::Routing)?;
         }
+
+        return Err(ApiError::Param("Blah blah".to_owned()));
     }
 }
