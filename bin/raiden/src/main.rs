@@ -1,10 +1,5 @@
 #[macro_use]
 extern crate slog;
-// extern crate slog_term;
-// extern crate tokio;
-// extern crate web3;
-
-use clap::Clap;
 use cli::RaidenApp;
 use raiden::{
     blockchain::{
@@ -25,6 +20,7 @@ use std::{
     },
     process,
 };
+use structopt::StructOpt;
 use web3::{
     signing::Key,
     transports::Http,
@@ -49,7 +45,7 @@ mod traits;
 
 #[tokio::main]
 async fn main() {
-    let cli = Opt::parse();
+    let cli = Opt::from_args();
 
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
