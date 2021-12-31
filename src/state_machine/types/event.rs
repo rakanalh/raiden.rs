@@ -12,6 +12,7 @@ use crate::primitives::{
     CanonicalIdentifier,
     MessageIdentifier,
     Nonce,
+    QueueIdentifier,
     RevealTimeout,
     TokenAmount,
 };

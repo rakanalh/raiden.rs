@@ -13,7 +13,12 @@ use web3::{
 
 use crate::{
     blockchain::proxies::Account,
-    primitives::TokenAmount,
+    primitives::{
+        TokenAmount,
+        DEFAULT_MEDIATION_FLAT_FEE,
+        DEFAULT_MEDIATION_PROPORTIONAL_FEE,
+        DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
+    },
 };
 
 use super::{

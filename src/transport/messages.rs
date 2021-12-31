@@ -15,12 +15,10 @@ use web3::{
 };
 
 use crate::{
-    blockchain::key::{
-        signature_to_bytes,
-        PrivateKey,
-    },
     primitives::{
+        signature_to_bytes,
         ChainID,
+        PrivateKey,
         QueueIdentifier,
         U64,
     },
