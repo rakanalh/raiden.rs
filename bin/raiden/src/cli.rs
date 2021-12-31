@@ -54,10 +54,12 @@ impl From<ArgChainID> for ChainID {
     }
 }
 
-#[derive(StructOpt, Debug, PartialEq)]
-pub enum ArgEnvironmentType {
-    Production,
-    Development,
+arg_enum! {
+    #[derive(Debug, PartialEq)]
+    pub enum ArgEnvironmentType {
+        Production,
+        Development,
+    }
 }
 
 impl From<ArgEnvironmentType> for EnvironmentType {
@@ -94,12 +96,18 @@ pub struct CliMatrixTransportConfig {
 #[structopt(name = "Raiden unofficial rust client")]
 pub struct Opt {
     /// Specify the blockchain to run Raiden on.
-    #[structopt(possible_values = &ArgChainID::variants(), short("c"), long, default_value = "mainnet", required = true, takes_value = true)]
+    #[structopt(
+		possible_values = &ArgChainID::variants(),
+		short("c"), long,
+		default_value = "mainnet",
+		required = true,
+		takes_value = true
+	)]
     pub chain_id: ArgChainID,
 
-    #[clap(
-        arg_enum,
-        short('e'),
+    #[structopt(
+		possible_values = &ArgEnvironmentType::variants(),
+        short("e"),
         long,
         default_value = "production",
         required = true,
@@ -136,6 +144,6 @@ pub struct Opt {
     #[structopt(flatten)]
     pub mediation_fees: CliMediationConfig,
 
-    #[clap(flatten)]
+    #[structopt(flatten)]
     pub matrix_transport_config: CliMatrixTransportConfig,
 }
