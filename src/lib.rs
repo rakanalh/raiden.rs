@@ -6,6 +6,7 @@ pub mod event_handler;
 pub mod pathfinding;
 pub mod payments;
 pub mod primitives;
+pub mod raiden;
 pub mod routing;
 pub mod services;
 pub mod state_machine;
