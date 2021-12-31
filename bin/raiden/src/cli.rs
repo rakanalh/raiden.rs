@@ -9,7 +9,13 @@ mod app;
 mod helpers;
 pub use self::app::*;
 pub use self::helpers::*;
-use raiden::primitives::ChainID;
+use raiden::{
+    primitives::{
+        ChainID,
+        EnvironmentType,
+    },
+    transport::matrix::constants::MATRIX_AUTO_SELECT_SERVER,
+};
 
 /// Parse a single key-value pair
 fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
@@ -48,6 +54,23 @@ impl From<ArgChainID> for ChainID {
     }
 }
 
+arg_enum! {
+    #[derive(Debug, PartialEq)]
+    pub enum ArgEnvironmentType {
+        Production,
+        Development,
+    }
+}
+
+impl From<ArgEnvironmentType> for EnvironmentType {
+    fn from(e: ArgEnvironmentType) -> Self {
+        match e {
+            ArgEnvironmentType::Development => EnvironmentType::Development,
+            ArgEnvironmentType::Production => EnvironmentType::Production,
+        }
+    }
+}
+
 #[derive(StructOpt, Debug)]
 pub struct CliMediationConfig {
     #[structopt(long, parse(try_from_str = parse_key_val), number_of_values = 1)]
@@ -64,11 +87,33 @@ pub struct CliMediationConfig {
 }
 
 #[derive(StructOpt, Debug)]
+pub struct CliMatrixTransportConfig {
+    #[structopt(long, default_value = MATRIX_AUTO_SELECT_SERVER)]
+    pub matrix_server: String,
+}
+
+#[derive(StructOpt, Debug)]
 #[structopt(name = "Raiden unofficial rust client")]
 pub struct Opt {
     /// Specify the blockchain to run Raiden on.
-    #[structopt(possible_values = &ArgChainID::variants(), short("c"), long, default_value = "3", required = true, takes_value = true)]
+    #[structopt(
+		possible_values = &ArgChainID::variants(),
+		short("c"), long,
+		default_value = "mainnet",
+		required = true,
+		takes_value = true
+	)]
     pub chain_id: ArgChainID,
+
+    #[structopt(
+		possible_values = &ArgEnvironmentType::variants(),
+        short("e"),
+        long,
+        default_value = "production",
+        required = true,
+        takes_value = true
+    )]
+    pub environment_type: ArgEnvironmentType,
 
     /// Specify the RPC endpoint to interact with.
     #[structopt(long, required = true, takes_value = true)]
@@ -98,4 +143,7 @@ pub struct Opt {
 
     #[structopt(flatten)]
     pub mediation_fees: CliMediationConfig,
+
+    #[structopt(flatten)]
+    pub matrix_transport_config: CliMatrixTransportConfig,
 }

@@ -12,6 +12,7 @@ use web3::types::{
 use crate::primitives::{
     AddressMetadata,
     CanonicalIdentifier,
+    QueueIdentifier,
     U64,
 };
 
@@ -38,8 +39,17 @@ pub enum SendMessageEvent {
 pub struct SendMessageEventInner {
     pub recipient: Address,
     pub recipient_metadata: Option<AddressMetadata>,
-    pub canonincal_identifier: CanonicalIdentifier,
+    pub canonical_identifier: CanonicalIdentifier,
     pub message_identifier: u32,
+}
+
+impl SendMessageEventInner {
+    pub fn queue_identifier(&self) -> QueueIdentifier {
+        QueueIdentifier {
+            recipient: self.recipient.clone(),
+            canonical_identifier: self.canonical_identifier.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -47,7 +57,7 @@ impl PartialEq for SendMessageEventInner {
     fn eq(&self, other: &Self) -> bool {
         self.recipient == other.recipient
             && self.recipient_metadata == other.recipient_metadata
-            && self.canonincal_identifier == other.canonincal_identifier
+            && self.canonical_identifier == other.canonical_identifier
     }
 }
 
@@ -56,6 +66,7 @@ pub struct SendWithdrawExpired {
     #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
+    pub total_withdraw: U256,
     pub nonce: U256,
     pub expiration: U64,
 }

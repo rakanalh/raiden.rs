@@ -108,10 +108,11 @@ fn send_expired_withdraws(
             inner: SendMessageEventInner {
                 recipient: channel_state.partner_state.address,
                 recipient_metadata: withdraw_state.recipient_metadata.clone(),
-                canonincal_identifier: channel_state.canonical_identifier.clone(),
+                canonical_identifier: channel_state.canonical_identifier.clone(),
                 message_identifier: pseudo_random_number_generator.next(),
             },
             participant: channel_state.our_state.address,
+            total_withdraw: withdraw_state.total_withdraw,
             nonce: channel_state.our_state.nonce,
             expiration: withdraw_state.expiration,
         }));
@@ -539,7 +540,7 @@ fn send_withdraw_request(
         inner: SendMessageEventInner {
             recipient: channel_state.partner_state.address,
             recipient_metadata: withdraw_state.recipient_metadata.clone(),
-            canonincal_identifier: channel_state.canonical_identifier.clone(),
+            canonical_identifier: channel_state.canonical_identifier.clone(),
             message_identifier: pseudo_random_number_generator.next(),
         },
         participant: channel_state.our_state.address,

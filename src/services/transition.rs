@@ -41,7 +41,7 @@ where
 impl<F, Fut> Transitioner for TransitionService<F, Fut>
 where
     F: Fn(Event) -> Fut + Send + Sync,
-    Fut: Future<Output = ()> + Send + Sync,
+    Fut: Future<Output = ()> + Send,
 {
     // TODO: Should return Result
     async fn transition(&self, state_change: StateChange) {

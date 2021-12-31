@@ -7,8 +7,16 @@ use raiden::{
         proxies::Account,
     },
     primitives::{
+        MatrixTransportConfig,
         MediationFeeConfig,
         RaidenConfig,
+    },
+    transport::matrix::{
+        constants::MATRIX_AUTO_SELECT_SERVER,
+        utils::{
+            get_default_matrix_servers,
+            select_best_server,
+        },
     },
 };
 use slog::Drain;
@@ -38,7 +46,6 @@ use crate::{
 
 mod accounts;
 mod cli;
-mod event_handler;
 mod http;
 mod services;
 mod traits;
@@ -163,11 +170,23 @@ async fn raiden_config(cli: Opt, private_key: PrivateKey) -> Result<(RaidenConfi
 
     let account = Account::new(web3.clone(), private_key, nonce);
 
+    let homeserver_url = if cli.matrix_transport_config.matrix_server == MATRIX_AUTO_SELECT_SERVER {
+        let servers = get_default_matrix_servers(cli.environment_type.into())
+            .await
+            .map_err(|_| format!("Could not fetch default matrix servers"))?;
+        select_best_server(servers)
+    } else {
+        cli.matrix_transport_config.matrix_server
+    };
+
+    let transport_config = MatrixTransportConfig { homeserver_url };
+
     let config = RaidenConfig {
         chain_id,
         account,
         datadir,
         mediation_config,
+        transport_config,
         keystore_path: keystore_path.to_path_buf(),
         eth_http_rpc_endpoint: eth_rpc_http_endpoint,
         eth_socket_rpc_endpoint: eth_rpc_socket_endpoint,

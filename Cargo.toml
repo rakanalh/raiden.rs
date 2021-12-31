@@ -22,7 +22,9 @@ ethabi = "14.0.0"
 ethsign = "0.8.0"
 derive_more = "0.99.11"
 futures = "0.3.12"
+matrix-sdk = "0.3.0"
 parking_lot = "0.11.2"
+reqwest = { version = "0.11.4", features = ["json"] }
 rand_chacha = { version = "0.3.1", features = ["serde1"] }
 rusqlite = "0.25.3"
 serde = "1.0.132"
@@ -31,6 +33,7 @@ slog = "2.7.0"
 thiserror = "1.0"
 tokio = { version = "1.0", features = ["time"] }
 web3 = "0.17.0"
+tokio-stream = "0.1.7"
 ulid = "0.4.1"
 
 [profile.dev]

@@ -96,7 +96,7 @@ fn test_open_channel_new_block_with_expired_withdraws() {
         PendingWithdrawState {
             total_withdraw: U256::from(100u64),
             expiration: U64::from(50u64),
-            nonce: U256::from(1),
+            nonce: U256::from(1u64),
             recipient_metadata: None,
         },
     );
@@ -105,12 +105,13 @@ fn test_open_channel_new_block_with_expired_withdraws() {
         inner: SendMessageEventInner {
             recipient: channel_state.partner_state.address.clone(),
             recipient_metadata: None,
-            canonincal_identifier: canonical_identifier.clone(),
+            canonical_identifier: canonical_identifier.clone(),
             message_identifier: 1,
         },
         participant: channel_state.our_state.address.clone(),
         nonce: U256::from(1u64),
         expiration: U64::from(50u64),
+        total_withdraw: U256::from(100u64),
     });
     let state_change = StateChange::Block(Block {
         block_number: U64::from(511u64),
@@ -682,7 +683,7 @@ fn test_channel_action_withdraw() {
             inner: SendMessageEventInner {
                 recipient: channel_state.partner_state.address,
                 recipient_metadata: None,
-                canonincal_identifier: canonical_identifier.clone(),
+                canonical_identifier: canonical_identifier.clone(),
                 message_identifier: 1, // Doesn't matter
             },
             participant: channel_state.our_state.address,

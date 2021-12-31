@@ -51,13 +51,19 @@ impl Random {
     }
 }
 
-#[derive(Clone, Display, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Display, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ChainID {
     Mainnet = 1,
     Ropsten = 3,
     Rinkeby = 4,
     Goerli = 5,
     Kovan = 42,
+}
+
+impl Into<Vec<u8>> for ChainID {
+    fn into(self) -> Vec<u8> {
+        (self as u8).to_be_bytes().to_vec()
+    }
 }
 
 impl FromStr for ChainID {
@@ -73,6 +79,11 @@ impl FromStr for ChainID {
             _ => Err(()),
         }
     }
+}
+
+pub enum EnvironmentType {
+    Production,
+    Development,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
