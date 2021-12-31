@@ -18,7 +18,7 @@ ethsign = "0.8.0"
 expanduser = "1.2.1"
 futures = "0.3.12"
 hyper = { version = "0.14.11", features = ["server"] }
-parking_lot = "0.11.1"
+parking_lot = "0.11.2"
 raiden = { path = "../.." }
 routerify = "2.2.0"
 rpassword = "5.0.1"
