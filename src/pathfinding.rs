@@ -89,7 +89,7 @@ pub struct PFSInfoResponse {
 #[derive(Deserialize)]
 pub struct PFSPath {
     pub nodes: Vec<Address>,
-    pub address_metadata: AddressMetadata,
+    pub address_metadata: HashMap<Address, AddressMetadata>,
     pub estimated_fee: TokenAmount,
 }
 

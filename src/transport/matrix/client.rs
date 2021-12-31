@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use matrix_sdk::{
     deserialized_responses::SyncResponse,
     Client,
@@ -8,8 +10,9 @@ use reqwest::Url;
 use web3::signing::Key;
 
 use crate::{
-    blockchain::key::{
+    primitives::{
         signature_to_str,
+        AddressMetadata,
         PrivateKey,
     },
     transport::TransportError,
@@ -51,5 +54,15 @@ impl MatrixClient {
 
     pub async fn sync_once(&self, settings: SyncSettings<'_>) -> Result<SyncResponse, Error> {
         self.client.sync_once(settings).await
+    }
+
+    pub fn address_metadata(&self) -> AddressMetadata {
+        let user_id = format!("@{}:{}", self.private_key.address().to_string(), self.server_name);
+        let displayname = signature_to_str(self.private_key.sign(user_id.as_bytes(), None).unwrap());
+        AddressMetadata {
+            user_id,
+            displayname,
+            capabilities: HashMap::new(),
+        }
     }
 }

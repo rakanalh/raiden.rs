@@ -51,6 +51,13 @@ impl Random {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub struct AddressMetadata {
+    pub user_id: String,
+    pub displayname: String,
+    pub capabilities: HashMap<String, String>,
+}
+
 #[repr(u8)]
 #[derive(Copy, Clone, Display, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ChainID {
