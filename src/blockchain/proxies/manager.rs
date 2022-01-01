@@ -32,7 +32,7 @@ use super::{
     SecretRegistryProxy,
     TokenNetworkProxy,
     TokenNetworkRegistryProxy,
-    TokenProxy,
+    TokenProxy, ServiceRegistryProxy,
 };
 
 pub struct ProxyManager {
@@ -43,6 +43,7 @@ pub struct ProxyManager {
     pub token_networks: RwLock<HashMap<Address, TokenNetworkProxy<Http>>>,
     pub token_network_registries: RwLock<HashMap<Address, TokenNetworkRegistryProxy<Http>>>,
     pub secret_registries: RwLock<HashMap<Address, SecretRegistryProxy<Http>>>,
+    pub service_registries: RwLock<HashMap<Address, ServiceRegistryProxy<Http>>>,
     channels: RwLock<HashMap<U256, ChannelProxy<Http>>>,
 }
 
@@ -58,6 +59,7 @@ impl ProxyManager {
             token_networks: RwLock::new(HashMap::new()),
             token_network_registries: RwLock::new(HashMap::new()),
             secret_registries: RwLock::new(HashMap::new()),
+            service_registries: RwLock::new(HashMap::new()),
             channels: RwLock::new(HashMap::new()),
         })
     }
@@ -126,6 +128,36 @@ impl ProxyManager {
             .read()
             .await
             .get(&secret_registry_address)
+            .unwrap()
+            .clone())
+    }
+
+    pub async fn service_registry(
+        &self,
+        service_registry_address: Address,
+    ) -> Result<ServiceRegistryProxy<Http>, ContractDefError> {
+        if !self
+            .service_registries
+            .read()
+            .await
+            .contains_key(&service_registry_address)
+        {
+            let service_registry_contract = self.contracts_manager.get(ContractIdentifier::ServiceRegistry);
+            let service_registry_web3_contract = Contract::from_json(
+                self.web3.eth(),
+                service_registry_address,
+                service_registry_contract.abi.as_slice(),
+            )
+            .map_err(ContractDefError::ABI)?;
+            let proxy = ServiceRegistryProxy::new(self.web3.clone(), service_registry_web3_contract);
+            let mut service_registries = self.service_registries.write().await;
+            service_registries.insert(service_registry_address, proxy);
+        }
+        Ok(self
+            .service_registries
+            .read()
+            .await
+            .get(&service_registry_address)
             .unwrap()
             .clone())
     }
