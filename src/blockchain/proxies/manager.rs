@@ -30,9 +30,10 @@ use super::{
     channel::ChannelProxy,
     ProxyError,
     SecretRegistryProxy,
+    ServiceRegistryProxy,
     TokenNetworkProxy,
     TokenNetworkRegistryProxy,
-    TokenProxy, ServiceRegistryProxy,
+    TokenProxy,
 };
 
 pub struct ProxyManager {

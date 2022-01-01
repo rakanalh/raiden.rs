@@ -27,6 +27,7 @@ use super::{
     ChainID,
     FeeAmount,
     ProportionalFeeAmount,
+    RoutingMode,
 };
 
 #[derive(Clone)]
@@ -68,6 +69,17 @@ pub struct PFSConfig {
     pub maximum_fee: TokenAmount,
     pub iou_timeout: BlockTimeout,
     pub max_paths: usize,
+}
+
+#[derive(Clone)]
+pub struct ServicesConfig {
+    pub routing_mode: RoutingMode,
+    pub pathfinding_service_random_address: bool,
+    pub pathfinding_service_specific_address: String,
+    pub pathfinding_max_paths: usize,
+    pub pathfinding_max_fee: TokenAmount,
+    pub pathfinding_iou_timeout: BlockTimeout,
+    pub monitoring_enabled: bool,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
