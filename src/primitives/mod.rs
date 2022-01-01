@@ -94,6 +94,12 @@ pub enum EnvironmentType {
     Development,
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum RoutingMode {
+    PFS,
+    Private,
+}
+
 #[repr(u8)]
 #[derive(Clone, Display, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum MessageTypeId {
