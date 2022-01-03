@@ -6,7 +6,10 @@ use parking_lot::RwLock as SyncRwLock;
 use raiden::{
     api::Api,
     blockchain::{
-        contracts,
+        contracts::{
+            self,
+            ContractsManager,
+        },
         proxies::ProxyManager,
     },
     event_handler::EventHandler,
@@ -47,13 +50,13 @@ pub struct RaidenApp {
 }
 
 impl RaidenApp {
-    pub fn new(config: RaidenConfig, web3: Web3<Http>, logger: Logger) -> Result<Self> {
-        let contracts_manager = match contracts::ContractsManager::new(config.chain_id.clone()) {
-            Ok(contracts_manager) => Arc::new(contracts_manager),
-            Err(e) => {
-                return Err(format!("Error creating contracts manager: {}", e));
-            }
-        };
+    pub fn new(
+        config: RaidenConfig,
+        web3: Web3<Http>,
+        contracts_manager: Arc<ContractsManager>,
+        proxy_manager: Arc<ProxyManager>,
+        logger: Logger,
+    ) -> Result<Self> {
         let conn = match Connection::open(config.datadir.join("raiden.db")) {
             Ok(conn) => conn,
             Err(e) => {
@@ -94,10 +97,6 @@ impl RaidenApp {
                 return Err(format!("Failed to initialize state {}", e));
             }
         };
-
-        let proxy_manager = ProxyManager::new(web3.clone(), contracts_manager.clone())
-            .map(|pm| Arc::new(pm))
-            .map_err(|e| format!("Failed to initialize proxy manager: {}", e))?;
 
         let transport = Arc::new(MatrixClient::new(
             config.transport_config.homeserver_url.clone(),

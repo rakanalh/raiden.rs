@@ -144,7 +144,7 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
     let api = api(&req);
     let account = account(&req);
     let contracts_manager = contracts_manager(&req);
-    let state_manager = state_manager(&req);
+    // let state_manager = state_manager(&req);
 
     let token_address = unwrap!(req.param("token_address").ok_or(Error::Uri("Missing token address")));
     let partner_address = unwrap!(req

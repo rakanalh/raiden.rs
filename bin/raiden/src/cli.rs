@@ -1,3 +1,9 @@
+use raiden::primitives::{
+    BlockTimeout,
+    RoutingMode,
+    ServicesConfig,
+    TokenAmount,
+};
 use std::error::Error;
 use std::path::PathBuf;
 use structopt::{
@@ -71,6 +77,23 @@ impl From<ArgEnvironmentType> for EnvironmentType {
     }
 }
 
+arg_enum! {
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum ArgRoutingMode {
+        PFS,
+        Private,
+    }
+}
+
+impl From<ArgRoutingMode> for RoutingMode {
+    fn from(m: ArgRoutingMode) -> Self {
+        match m {
+            ArgRoutingMode::PFS => RoutingMode::PFS,
+            ArgRoutingMode::Private => RoutingMode::Private,
+        }
+    }
+}
+
 #[derive(StructOpt, Debug)]
 pub struct CliMediationConfig {
     #[structopt(long, parse(try_from_str = parse_key_val), number_of_values = 1)]
@@ -84,6 +107,43 @@ pub struct CliMediationConfig {
 
     #[structopt(long)]
     pub cap_mediation_fees: bool,
+}
+
+#[derive(StructOpt, Clone, Debug)]
+pub struct CliServicesConfig {
+    #[structopt(
+		possible_values = &ArgRoutingMode::variants(),
+		default_value = "pfs",
+		required = false,
+		takes_value = true
+	)]
+    pub routing_mode: ArgRoutingMode,
+    #[structopt(long)]
+    pub pathfinding_service_random_address: bool,
+    #[structopt(long)]
+    pub pathfinding_service_specific_address: String,
+    #[structopt(long)]
+    pub pathfinding_max_paths: usize,
+    #[structopt(long)]
+    pub pathfinding_max_fee: TokenAmount,
+    #[structopt(long)]
+    pub pathfinding_iou_timeout: BlockTimeout,
+    #[structopt(long)]
+    pub monitoring_enabled: bool,
+}
+
+impl From<CliServicesConfig> for ServicesConfig {
+    fn from(s: CliServicesConfig) -> ServicesConfig {
+        ServicesConfig {
+            routing_mode: s.routing_mode.into(),
+            pathfinding_service_random_address: s.pathfinding_service_random_address,
+            pathfinding_service_specific_address: s.pathfinding_service_specific_address,
+            pathfinding_max_paths: s.pathfinding_max_paths,
+            pathfinding_max_fee: s.pathfinding_max_fee,
+            pathfinding_iou_timeout: s.pathfinding_iou_timeout,
+            monitoring_enabled: s.monitoring_enabled,
+        }
+    }
 }
 
 #[derive(StructOpt, Debug)]
@@ -146,4 +206,7 @@ pub struct Opt {
 
     #[structopt(flatten)]
     pub matrix_transport_config: CliMatrixTransportConfig,
+
+    #[structopt(flatten)]
+    pub services_config: CliServicesConfig,
 }

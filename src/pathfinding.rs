@@ -3,6 +3,7 @@ use chrono::{
     Utc,
 };
 use derive_more::Display;
+use rand::prelude::SliceRandom;
 use reqwest::Url;
 use serde::{
     Deserialize,
@@ -19,23 +20,32 @@ use web3::{
         Key,
         SigningError,
     },
+    transports::Http,
     types::{
         Address,
         H256,
     },
 };
 
-use crate::primitives::{
-    signature::SignatureUtils,
-    AddressMetadata,
-    BlockExpiration,
-    BlockNumber,
-    ChainID,
-    PFSConfig,
-    PFSInfo,
-    PrivateKey,
-    TokenAmount,
-    IOU,
+use crate::{
+    blockchain::proxies::{
+        ProxyError,
+        ServiceRegistryProxy,
+    },
+    primitives::{
+        signature::SignatureUtils,
+        AddressMetadata,
+        BlockExpiration,
+        BlockNumber,
+        ChainID,
+        PFSConfig,
+        PFSInfo,
+        PrivateKey,
+        RoutingMode,
+        ServicesConfig,
+        TokenAmount,
+        IOU,
+    },
 };
 
 const MAX_PATHS_QUERY_ATTEMPT: usize = 2;
@@ -56,6 +66,12 @@ pub enum RoutingError {
     MalformedMatrixUrl,
     #[display(fmt = "Failed to sign IOU")]
     Signing(SigningError),
+    #[display(fmt = "Service registry error: {}", _0)]
+    ServiceRegistry(ProxyError),
+    #[display(fmt = "Invalid routing mode")]
+    InvalidRoutingMode,
+    #[display(fmt = "No valid pathfinding service provider found")]
+    NoPathFindingServiceFound,
 }
 
 #[derive(Clone, Serialize)]
@@ -389,4 +405,101 @@ pub async fn query_address_metadata(url: String, address: Address) -> Result<Add
         .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e)))?;
 
     Ok(metadata)
+}
+
+pub async fn configure_pfs(
+    services_config: ServicesConfig,
+    service_registry: ServiceRegistryProxy<Http>,
+) -> Result<PFSInfo, RoutingError> {
+    if services_config.routing_mode != RoutingMode::PFS {
+        return Err(RoutingError::InvalidRoutingMode);
+    }
+
+    let pfs_url = if services_config.pathfinding_service_random_address {
+        get_random_pfs(service_registry, services_config.pathfinding_max_fee).await?
+    } else {
+        services_config.pathfinding_service_specific_address
+    };
+
+    get_pfs_info(pfs_url).await
+}
+
+pub async fn get_random_pfs(
+    service_registry: ServiceRegistryProxy<Http>,
+    pathfinding_max_fee: TokenAmount,
+) -> Result<String, RoutingError> {
+    let number_of_addresses = service_registry
+        .ever_made_deposits_len(None)
+        .await
+        .map_err(|e| RoutingError::ServiceRegistry(e))?;
+    let mut indicies_to_try: Vec<u32> = (0..number_of_addresses.as_u32()).collect();
+    indicies_to_try.shuffle(&mut rand::thread_rng());
+
+    while let Some(index) = indicies_to_try.pop() {
+        if let Ok(url) = get_valid_pfs_url(service_registry.clone(), index, pathfinding_max_fee).await {
+            return Ok(url);
+        }
+    }
+    Err(RoutingError::NoPathFindingServiceFound)
+}
+
+async fn get_valid_pfs_url(
+    service_registry: ServiceRegistryProxy<Http>,
+    index_in_service_registry: u32,
+    pathfinding_max_fee: TokenAmount,
+) -> Result<String, RoutingError> {
+    let address = service_registry
+        .ever_made_deposits(index_in_service_registry, None)
+        .await
+        .map_err(|e| RoutingError::ServiceRegistry(e))?;
+
+    let has_valid_registration = !service_registry
+        .has_valid_registration(address, None)
+        .await
+        .map_err(|e| RoutingError::ServiceRegistry(e))?;
+
+    if !has_valid_registration {
+        return Err(RoutingError::PFServiceUnusable);
+    }
+
+    let url = service_registry
+        .get_service_url(address, None)
+        .await
+        .map_err(|e| RoutingError::ServiceRegistry(e))?;
+
+    let pfs_info = get_pfs_info(url.clone()).await?;
+    if pfs_info.price > pathfinding_max_fee {
+        return Err(RoutingError::PFServiceUnusable);
+    }
+
+    Ok(url)
+}
+
+async fn get_pfs_info(url: String) -> Result<PFSInfo, RoutingError> {
+    let infos: PFSInfoResponse = reqwest::get(format!("{}/api/v1/info", &url))
+        .await
+        .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?
+        .json()
+        .await
+        .map_err(|e| RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e)))?;
+
+    let matrix_server = Url::parse(&infos.matrix_server)
+        .map_err(|_| RoutingError::MalformedMatrixUrl)?
+        .host()
+        .ok_or(RoutingError::MalformedMatrixUrl)?
+        .to_string();
+
+    Ok(PFSInfo {
+        url,
+        price: infos.price_info,
+        chain_id: infos.network_info.chain_id,
+        token_network_registry_address: infos.network_info.token_network_registry_address,
+        user_deposit_address: infos.network_info.user_deposit_address,
+        payment_address: infos.payment_address,
+        message: infos.message,
+        operator: infos.operator,
+        version: infos.version,
+        confirmed_block_number: infos.network_info.confirmed_block_number,
+        matrix_server,
+    })
 }
