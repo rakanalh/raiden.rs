@@ -1,5 +1,6 @@
 use raiden::{
     primitives::{
+        BlockTimeout,
         PaymentIdentifier,
         RevealTimeout,
         SecretHash,
@@ -41,4 +42,5 @@ pub struct InitiatePaymentParams {
     pub payment_identifier: Option<PaymentIdentifier>,
     pub secret: Option<String>,
     pub secret_hash: Option<SecretHash>,
+    pub lock_timeout: Option<BlockTimeout>,
 }

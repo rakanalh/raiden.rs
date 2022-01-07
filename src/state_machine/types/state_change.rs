@@ -9,8 +9,8 @@ use crate::{
         Locksroot,
         MediationFeeConfig,
         Nonce,
-        RawSecret,
         RevealTimeout,
+        Secret,
         SecretHash,
         TokenAmount,
         TransactionHash,
@@ -156,7 +156,7 @@ pub struct ContractReceiveChannelBatchUnlock {
 pub struct ContractReceiveSecretReveal {
     pub secret_registry_address: Address,
     pub secrethash: SecretHash,
-    pub secret: RawSecret,
+    pub secret: Secret,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -170,6 +170,7 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
             params.payment_identifier,
             params.secret,
             params.secret_hash,
+            params.lock_timeout,
         )
         .await
     );

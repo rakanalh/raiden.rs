@@ -3,15 +3,20 @@ use std::collections::HashMap;
 use tokio::sync::oneshot;
 use web3::types::Address;
 
-use crate::primitives::PaymentIdentifier;
+use crate::primitives::{
+    PaymentIdentifier,
+    TokenAmount,
+};
 
 pub struct Payment {
-    identifier: PaymentIdentifier,
-    notifier: oneshot::Sender<()>,
+    pub identifier: PaymentIdentifier,
+    pub token_network_address: Address,
+    pub amount: TokenAmount,
+    pub notifier: Option<oneshot::Sender<()>>,
 }
 
 pub struct PaymentsRegistry {
-    payments: HashMap<Address, Payment>,
+    payments: HashMap<Address, HashMap<PaymentIdentifier, Payment>>,
 }
 
 impl PaymentsRegistry {
@@ -21,15 +26,52 @@ impl PaymentsRegistry {
         }
     }
 
-    pub fn register(&mut self, target: Address, identifier: PaymentIdentifier) -> oneshot::Receiver<()> {
+    pub fn get(&self, target: Address, identifier: PaymentIdentifier) -> Option<&Payment> {
+        if let Some(payments) = self.payments.get(&target) {
+            return payments.get(&identifier);
+        }
+        return None;
+    }
+
+    pub fn register(
+        &mut self,
+        token_network_address: Address,
+        target: Address,
+        identifier: PaymentIdentifier,
+        amount: TokenAmount,
+    ) -> oneshot::Receiver<()> {
         let (sender, receiver) = oneshot::channel();
-        self.payments.insert(
-            target,
+
+        if let None = self.payments.get(&target) {
+            self.payments.insert(target, HashMap::new());
+        }
+
+        let payments = self.payments.get_mut(&target).expect("Just created above");
+        payments.insert(
+            identifier.clone(),
             Payment {
                 identifier,
-                notifier: sender,
+                token_network_address,
+                amount,
+                notifier: Some(sender),
             },
         );
         receiver
+    }
+
+    pub fn complete(&mut self, target: Address, identifier: PaymentIdentifier) {
+        let payments = match self.payments.get_mut(&target) {
+            Some(payments) => payments,
+            None => return,
+        };
+
+        let payment = match payments.get_mut(&identifier) {
+            Some(payment) => payment,
+            None => return,
+        };
+
+        if let Some(notifier) = payment.notifier.take() {
+            notifier.send(());
+        }
     }
 }

@@ -5,7 +5,10 @@ use tokio::sync::RwLock;
 use web3::{
     signing::keccak256,
     transports::Http,
-    types::Address,
+    types::{
+        Address,
+        Bytes,
+    },
 };
 
 use crate::{
@@ -27,9 +30,9 @@ use crate::{
         BlockTimeout,
         ChannelIdentifier,
         PaymentIdentifier,
-        RawSecret,
         RetryTimeout,
         RevealTimeout,
+        Secret,
         SecretHash,
         SettleTimeout,
         TokenAmount,
@@ -552,6 +555,7 @@ impl Api {
         payment_identifier: Option<PaymentIdentifier>,
         secret: Option<String>,
         secret_hash: Option<SecretHash>,
+        lock_timeout: Option<BlockTimeout>,
     ) -> Result<(), ApiError> {
         if account.address() == partner_address {
             return Err(ApiError::Param(format!("Address must be different for partner")));
@@ -572,12 +576,13 @@ impl Api {
             None => random_identifier(),
         };
 
-        let _token_network_address =
+        let token_network =
             views::get_token_network_by_token_address(chain_state, token_network_registry_address, token_address)
                 .ok_or(ApiError::Param(format!(
                     "Token {} is not registered with network {}",
                     token_address, token_network_registry_address
                 )))?;
+        let token_network_address = token_network.address;
 
         let secret = match secret {
             Some(secret) => secret,
@@ -590,18 +595,20 @@ impl Api {
             }
         };
 
+        let secret = Bytes(secret.as_bytes().to_vec());
+
         let secret_hash = match secret_hash {
             Some(hash) => hash,
-            None => keccak256(secret.as_bytes()).into(),
+            None => keccak256(&secret.0).into(),
         };
 
-        if !secret.is_empty() {
-            if secret_hash != keccak256(secret.as_bytes()).into() {
+        if !secret.0.is_empty() {
+            if secret_hash != keccak256(&secret.0).into() {
                 return Err(ApiError::Param(format!("Provided secret and secret_hash do not match")));
             }
         }
 
-        if secret.len() != SECRET_LENGTH as usize {
+        if secret.0.len() != SECRET_LENGTH as usize {
             return Err(ApiError::Param(format!("Secret of invalid length")));
         }
 
@@ -625,11 +632,47 @@ impl Api {
             )));
         }
 
-        let payment_completed = self
+        if let Some(payment) = self
             .payments_registry
-            .write()
+            .read()
             .await
-            .register(partner_address, payment_identifier);
+            .get(partner_address, payment_identifier)
+        {
+            let matches = payment.token_network_address == token_network_address && payment.amount == amount;
+            if matches {
+                return Err(ApiError::Param(format!(
+                    "Another payment with the same id is in flight"
+                )));
+            }
+        }
+
+        let payment_completed = self.payments_registry.write().await.register(
+            token_network_address,
+            partner_address,
+            payment_identifier,
+            amount,
+        );
+
+        let action_initiator_init = self
+            .initiator_init(
+                payment_identifier,
+                amount,
+                secret,
+                secret_hash,
+                token_network_registry_address,
+                token_network_address,
+                partner_address,
+                lock_timeout,
+                None,
+            )
+            .await;
+
+        if action_initiator_init.is_err() {
+            self.payments_registry
+                .write()
+                .await
+                .complete(partner_address, payment_identifier);
+        }
 
         let _ = payment_completed.await;
 
@@ -675,7 +718,7 @@ impl Api {
         &self,
         transfer_identifier: PaymentIdentifier,
         transfer_amount: TokenAmount,
-        transfer_secret: RawSecret,
+        transfer_secret: Secret,
         transfer_secrethash: SecretHash,
         token_network_registry_address: Address,
         token_network_address: Address,

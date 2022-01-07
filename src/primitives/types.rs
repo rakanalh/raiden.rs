@@ -46,13 +46,11 @@ pub type ProportionalFeeAmount = U256;
 
 pub type RevealTimeout = U64;
 
-pub type Signature = H256;
-
-pub type RawSecret = Bytes;
-
 pub type RetryTimeout = u64;
 
-pub type Secret = H256;
+pub type Signature = H256;
+
+pub type Secret = Bytes;
 
 pub type SecretHash = H256;
 

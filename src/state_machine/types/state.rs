@@ -42,7 +42,6 @@ use crate::{
         PaymentIdentifier,
         QueueIdentifier,
         Random,
-        RawSecret,
         RevealTimeout,
         Secret,
         SecretHash,
@@ -534,7 +533,7 @@ pub struct TransferDescriptionWithSecretState {
     pub token_network_address: Address,
     pub initiator: Address,
     pub target: Address,
-    pub secret: RawSecret,
+    pub secret: Secret,
     pub secrethash: SecretHash,
     pub lock_timeout: Option<BlockTimeout>,
 }
