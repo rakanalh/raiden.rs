@@ -701,8 +701,10 @@ impl Api {
         let one_to_n_address = self.raiden.addresses.one_to_n;
         let from_address = self.raiden.config.account.address();
 
-        if route_states.is_none() {
-            let (routes, feedback_token) = routing::get_best_routes(
+        let route_states = if let Some(route_states) = route_states {
+            route_states
+        } else {
+            let (routes, _feedback_token) = routing::get_best_routes(
                 self.raiden.config.pfs_config.clone(),
                 self.raiden.config.account.private_key(),
                 chain_state,
@@ -716,8 +718,13 @@ impl Api {
             )
             .await
             .map_err(ApiError::Routing)?;
-        }
 
-        return Err(ApiError::Param("Blah blah".to_owned()));
+            routes
+        };
+
+        Ok(ActionInitInitiator {
+            transfer: transfer_state,
+            routes: route_states,
+        })
     }
 }

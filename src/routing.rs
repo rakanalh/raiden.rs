@@ -162,13 +162,8 @@ pub async fn get_best_routes_pfs(
 
     let mut paths = vec![];
     for route in routes {
-        if let Some(route_state) = make_route_state(
-            route,
-            previous_address,
-            chain_state.clone(),
-            token_network_address,
-            from_address,
-        ) {
+        if let Some(route_state) = make_route_state(route, previous_address, chain_state.clone(), token_network_address)
+        {
             paths.push(route_state)
         }
     }
@@ -181,7 +176,6 @@ pub fn make_route_state(
     previous_address: Option<Address>,
     chain_state: ChainState,
     token_network_address: Address,
-    from_address: Address,
 ) -> Option<RouteState> {
     if route.nodes.len() < 2 {
         return None;

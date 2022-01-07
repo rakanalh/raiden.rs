@@ -174,23 +174,23 @@ pub struct ContractReceiveUpdateTransfer {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionInitInitiator {
-    transfer: TransferDescriptionWithSecretState,
-    routes: Vec<RouteState>,
+    pub transfer: TransferDescriptionWithSecretState,
+    pub routes: Vec<RouteState>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionInitMediator {
-    sender: Address,
-    balance_proof: BalanceProofState,
-    from_hop: HopState,
-    candidate_route_states: Vec<RouteState>,
-    from_transfer: LockedTransferSignedState,
+    pub sender: Address,
+    pub balance_proof: BalanceProofState,
+    pub from_hop: HopState,
+    pub candidate_route_states: Vec<RouteState>,
+    pub from_transfer: LockedTransferSignedState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionInitTarget {
-    sender: Address,
-    balance_proof: BalanceProofState,
-    from_hop: HopState,
-    transfer: LockedTransferSignedState,
+    pub sender: Address,
+    pub balance_proof: BalanceProofState,
+    pub from_hop: HopState,
+    pub transfer: LockedTransferSignedState,
 }
