@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use tokio::sync::RwLock;
 use web3::{
     contract::{
         Contract,
@@ -13,7 +10,6 @@ use web3::{
         U256,
     },
     Transport,
-    Web3,
 };
 
 use super::ProxyError;
@@ -22,18 +18,12 @@ type Result<T> = std::result::Result<T, ProxyError>;
 
 #[derive(Clone)]
 pub struct ServiceRegistryProxy<T: Transport> {
-    web3: Web3<T>,
     contract: Contract<T>,
-    lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> ServiceRegistryProxy<T> {
-    pub fn new(web3: Web3<T>, contract: Contract<T>) -> Self {
-        Self {
-            web3,
-            contract,
-            lock: Arc::new(RwLock::new(true)),
-        }
+    pub fn new(contract: Contract<T>) -> Self {
+        Self { contract }
     }
 
     pub async fn ever_made_deposits(&self, index: u32, block: Option<H256>) -> Result<Address> {

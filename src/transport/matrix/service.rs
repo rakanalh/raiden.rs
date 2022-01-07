@@ -74,7 +74,7 @@ impl MatrixService {
         let sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
         loop {
             select! {
-                response = self.client.sync_once(sync_settings.clone()).fuse() => {
+                _response = self.client.sync_once(sync_settings.clone()).fuse() => {
                 },
                 message = self.receiver.next() => {
                     match message {
@@ -85,7 +85,7 @@ impl MatrixService {
                                 .expect("Queue has been created before")
                                 .send(message);
                         },
-                        Some(TransportServiceMessage::Send(message)) => {
+                        Some(TransportServiceMessage::Send(_message)) => {
 
                         },
                         _ => {}

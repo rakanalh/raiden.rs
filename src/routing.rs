@@ -113,7 +113,6 @@ pub async fn get_best_routes(
     let (pfs_routes, pfs_feedback_token) = get_best_routes_pfs(
         pfs_config,
         private_key,
-        our_address_metadata,
         chain_state,
         token_network_address,
         one_to_n_address,
@@ -131,7 +130,6 @@ pub async fn get_best_routes(
 pub async fn get_best_routes_pfs(
     pfs_config: PFSConfig,
     private_key: PrivateKey,
-    our_address_metadata: AddressMetadata,
     chain_state: ChainState,
     token_network_address: Address,
     one_to_n_address: Address,
@@ -141,12 +139,7 @@ pub async fn get_best_routes_pfs(
     previous_address: Option<Address>,
     pfs_wait_for_block: BlockNumber,
 ) -> Result<(Vec<RouteState>, String), RoutingError> {
-    let pfs = PFS::new(
-        chain_state.chain_id.clone(),
-        pfs_config,
-        private_key,
-        our_address_metadata,
-    );
+    let pfs = PFS::new(chain_state.chain_id.clone(), pfs_config, private_key);
     let (routes, feedback_token) = pfs
         .query_paths(
             chain_state.our_address,

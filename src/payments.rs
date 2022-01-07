@@ -71,7 +71,7 @@ impl PaymentsRegistry {
         };
 
         if let Some(notifier) = payment.notifier.take() {
-            notifier.send(());
+            let _ = notifier.send(());
         }
     }
 }

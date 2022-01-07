@@ -119,22 +119,15 @@ pub struct PFS {
     chain_id: ChainID,
     pfs_config: PFSConfig,
     private_key: PrivateKey,
-    our_address_metadata: AddressMetadata,
     iou_creation: Mutex<()>,
 }
 
 impl PFS {
-    pub fn new(
-        chain_id: ChainID,
-        pfs_config: PFSConfig,
-        private_key: PrivateKey,
-        our_address_metadata: AddressMetadata,
-    ) -> Self {
+    pub fn new(chain_id: ChainID, pfs_config: PFSConfig, private_key: PrivateKey) -> Self {
         Self {
             chain_id,
             pfs_config,
             private_key,
-            our_address_metadata,
             iou_creation: Mutex::new(()),
         }
     }

@@ -40,6 +40,7 @@ impl MatrixClient {
         }
     }
 
+    #[allow(unused)]
     async fn init(&self) -> Result<(), TransportError> {
         let username = self.private_key.address().to_string();
         let signed_server_name = self.private_key.sign(self.server_name.as_bytes(), None).unwrap();

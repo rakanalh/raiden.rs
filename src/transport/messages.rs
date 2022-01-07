@@ -25,6 +25,7 @@ use crate::{
     state_machine::types::SendWithdrawExpired,
 };
 
+#[allow(unused)]
 enum CmdId {
     Processed = 0,
     Ping = 1,
@@ -47,6 +48,7 @@ impl Into<[u8; 1]> for CmdId {
     }
 }
 
+#[allow(unused)]
 enum MessageTypeId {
     BalanceProof = 1,
     BalanceProofUpdate = 2,

@@ -150,7 +150,7 @@ impl ProxyManager {
                 service_registry_contract.abi.as_slice(),
             )
             .map_err(ContractDefError::ABI)?;
-            let proxy = ServiceRegistryProxy::new(self.web3.clone(), service_registry_web3_contract);
+            let proxy = ServiceRegistryProxy::new(service_registry_web3_contract);
             let mut service_registries = self.service_registries.write().await;
             service_registries.insert(service_registry_address, proxy);
         }
@@ -215,7 +215,7 @@ impl ProxyManager {
 
         if !self.channels.read().await.contains_key(&channel_identifier) {
             let token_network_proxy = self.token_network(token_address, token_network_address).await?;
-            let proxy = ChannelProxy::new(token_network_proxy, self.web3.clone(), self.gas_metadata.clone());
+            let proxy = ChannelProxy::new(token_network_proxy);
             let mut channels = self.channels.write().await;
             channels.insert(channel_identifier, proxy);
         }

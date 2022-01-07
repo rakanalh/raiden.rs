@@ -61,7 +61,6 @@ impl TryInto<ethabi::Contract> for &Contract {
 
 #[derive(Clone)]
 pub struct DeployedContract {
-    inner: Contract,
     pub address: Address,
     pub block: U64,
 }
@@ -118,12 +117,6 @@ impl ContractsManager {
     }
 
     pub fn get_deployed(&self, contract_identifier: ContractIdentifier) -> Result<DeployedContract> {
-        let contract = self
-            .contracts
-            .get(&contract_identifier.to_string())
-            .map(|c| c.clone())
-            .ok_or_else(|| ContractDefError::SpecNotFound)?;
-
         let address = match self
             .deployment
             .get(&contract_identifier.to_string())
@@ -154,7 +147,6 @@ impl ContractsManager {
         let block_number = U64::from(block_number);
 
         Ok(DeployedContract {
-            inner: contract,
             address,
             block: block_number,
         })

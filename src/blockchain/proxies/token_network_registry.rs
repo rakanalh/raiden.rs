@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use parking_lot::RwLock;
 use web3::{
     contract::{
         Contract,
@@ -28,14 +25,12 @@ type Result<T> = std::result::Result<T, ProxyError>;
 #[derive(Clone)]
 pub struct TokenNetworkRegistryProxy<T: Transport> {
     contract: TokenNetworkContract<T>,
-    lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> TokenNetworkRegistryProxy<T> {
     pub fn new(contract: Contract<T>) -> Self {
         Self {
             contract: TokenNetworkContract { inner: contract },
-            lock: Arc::new(RwLock::new(true)),
         }
     }
 

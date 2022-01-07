@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use parking_lot::RwLock;
 use web3::{
     contract::{
         Contract,
@@ -23,15 +20,11 @@ type Result<T> = std::result::Result<T, ProxyError>;
 #[derive(Clone)]
 pub struct SecretRegistryProxy<T: Transport> {
     contract: Contract<T>,
-    lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> SecretRegistryProxy<T> {
     pub fn new(contract: Contract<T>) -> Self {
-        Self {
-            contract,
-            lock: Arc::new(RwLock::new(true)),
-        }
+        Self { contract }
     }
 
     pub async fn get_secret_registration_block_by_secrethash(
