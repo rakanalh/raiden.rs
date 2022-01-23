@@ -3,7 +3,10 @@ use crate::{
         common::Result,
         ProxyError,
     },
-    primitives::SettleTimeout,
+    primitives::{
+        SettleTimeout,
+        TokenAddress,
+    },
     state_machine::types::ChannelStatus,
 };
 use derive_more::Deref;
@@ -74,7 +77,7 @@ impl<T: Transport> TokenNetworkContract<T> {
 
         Ok(Some(channel_identifier))
     }
-    pub async fn address_by_token_address(&self, token_address: Address, block: H256) -> Result<Address> {
+    pub async fn address_by_token_address(&self, token_address: TokenAddress, block: H256) -> Result<Address> {
         self.inner
             .query(
                 "token_to_token_networks",

@@ -20,6 +20,7 @@ use crate::{
         ChainID,
         PrivateKey,
         QueueIdentifier,
+        TokenNetworkAddress,
         U64,
     },
     state_machine::types::SendWithdrawExpired,
@@ -87,7 +88,7 @@ pub trait SignedMessage {
 pub struct WithdrawExpired {
     message_identifier: u32,
     chain_id: ChainID,
-    token_network_address: Address,
+    token_network_address: TokenNetworkAddress,
     channel_identifier: U256,
     participant: Address,
     total_withdraw: U256,

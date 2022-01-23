@@ -1,4 +1,5 @@
 use web3::types::{
+    Address,
     Bytes,
     H256,
     U256,
@@ -16,11 +17,11 @@ pub type BlockNumber = U64;
 
 pub type BlockHash = H256;
 
-pub type BlockTimeout = u32;
+pub type BlockTimeout = U64;
 
 pub type ChannelIdentifier = U256;
 
-pub type EncodedLock = H256;
+pub type EncodedLock = Bytes;
 
 pub type FeeAmount = U256;
 
@@ -40,6 +41,8 @@ pub type MessageHash = H256;
 
 pub type Nonce = U256;
 
+pub type OneToNAddress = Address;
+
 pub type PaymentIdentifier = U64;
 
 pub type ProportionalFeeAmount = U256;
@@ -48,13 +51,21 @@ pub type RevealTimeout = U64;
 
 pub type RetryTimeout = u64;
 
-pub type Signature = H256;
-
 pub type Secret = Bytes;
 
 pub type SecretHash = H256;
 
+pub type SecretRegistryAddress = Address;
+
+pub type Signature = H256;
+
 pub type SettleTimeout = U64;
+
+pub type TokenAddress = Address;
+
+pub type TokenNetworkRegistryAddress = Address;
+
+pub type TokenNetworkAddress = Address;
 
 pub type TokenAmount = U256;
 

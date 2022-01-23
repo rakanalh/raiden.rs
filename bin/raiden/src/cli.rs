@@ -1,5 +1,4 @@
 use raiden::primitives::{
-    BlockTimeout,
     RoutingMode,
     ServicesConfig,
     TokenAmount,
@@ -127,7 +126,7 @@ pub struct CliServicesConfig {
     #[structopt(long)]
     pub pathfinding_max_fee: TokenAmount,
     #[structopt(long)]
-    pub pathfinding_iou_timeout: BlockTimeout,
+    pub pathfinding_iou_timeout: u64,
     #[structopt(long)]
     pub monitoring_enabled: bool,
 }
@@ -140,7 +139,7 @@ impl From<CliServicesConfig> for ServicesConfig {
             pathfinding_service_specific_address: s.pathfinding_service_specific_address,
             pathfinding_max_paths: s.pathfinding_max_paths,
             pathfinding_max_fee: s.pathfinding_max_fee,
-            pathfinding_iou_timeout: s.pathfinding_iou_timeout,
+            pathfinding_iou_timeout: s.pathfinding_iou_timeout.into(),
             monitoring_enabled: s.monitoring_enabled,
         }
     }

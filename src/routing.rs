@@ -16,9 +16,11 @@ use crate::{
         AddressMetadata,
         BlockNumber,
         ChannelIdentifier,
+        OneToNAddress,
         PFSConfig,
         PrivateKey,
         TokenAmount,
+        TokenNetworkAddress,
     },
     state_machine::{
         types::{
@@ -36,8 +38,8 @@ pub async fn get_best_routes(
     private_key: PrivateKey,
     chain_state: ChainState,
     our_address_metadata: AddressMetadata,
-    token_network_address: Address,
-    one_to_n_address: Option<Address>,
+    token_network_address: TokenNetworkAddress,
+    one_to_n_address: Option<OneToNAddress>,
     from_address: Address,
     to_address: Address,
     amount: U256,
@@ -131,8 +133,8 @@ pub async fn get_best_routes_pfs(
     pfs_config: PFSConfig,
     private_key: PrivateKey,
     chain_state: ChainState,
-    token_network_address: Address,
-    one_to_n_address: Address,
+    token_network_address: TokenNetworkAddress,
+    one_to_n_address: OneToNAddress,
     from_address: Address,
     to_address: Address,
     amount: TokenAmount,
@@ -168,7 +170,7 @@ pub fn make_route_state(
     route: PFSPath,
     previous_address: Option<Address>,
     chain_state: ChainState,
-    token_network_address: Address,
+    token_network_address: TokenNetworkAddress,
 ) -> Option<RouteState> {
     if route.nodes.len() < 2 {
         return None;

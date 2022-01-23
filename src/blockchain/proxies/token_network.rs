@@ -24,6 +24,7 @@ use crate::primitives::{
     BlockHash,
     ChannelIdentifier,
     SettleTimeout,
+    TokenAddress,
     TokenAmount,
 };
 
@@ -146,7 +147,7 @@ where
             .await?)
     }
 
-    pub async fn address_by_token_address(&self, token_address: Address, block: BlockHash) -> Result<Address> {
+    pub async fn address_by_token_address(&self, token_address: TokenAddress, block: BlockHash) -> Result<Address> {
         self.contract.address_by_token_address(token_address, block).await
     }
 

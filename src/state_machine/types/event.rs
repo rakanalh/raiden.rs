@@ -15,6 +15,8 @@ use crate::primitives::{
     QueueIdentifier,
     RevealTimeout,
     TokenAmount,
+    TokenNetworkAddress,
+    TokenNetworkRegistryAddress,
 };
 
 use super::BalanceProofState;

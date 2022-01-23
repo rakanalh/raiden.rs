@@ -5,6 +5,7 @@ use raiden::{
         RevealTimeout,
         SecretHash,
         SettleTimeout,
+        TokenAddress,
         TokenAmount,
     },
     state_machine::types::ChannelStatus,
@@ -19,7 +20,7 @@ use web3::types::{
 pub struct ChannelOpenParams {
     pub registry_address: Address,
     pub partner_address: Address,
-    pub token_address: Address,
+    pub token_address: TokenAddress,
     pub settle_timeout: Option<SettleTimeout>,
     pub reveal_timeout: Option<RevealTimeout>,
     pub total_deposit: Option<TokenAmount>,
@@ -28,7 +29,7 @@ pub struct ChannelOpenParams {
 #[derive(Deserialize)]
 pub struct ChannelPatchParams {
     pub registry_address: Address,
-    pub token_address: Address,
+    pub token_address: TokenAddress,
     pub partner_address: Address,
     pub total_deposit: Option<TokenAmount>,
     pub total_withdraw: Option<TokenAmount>,

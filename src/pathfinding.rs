@@ -38,12 +38,15 @@ use crate::{
         BlockExpiration,
         BlockNumber,
         ChainID,
+        OneToNAddress,
         PFSConfig,
         PFSInfo,
         PrivateKey,
         RoutingMode,
         ServicesConfig,
         TokenAmount,
+        TokenNetworkAddress,
+        TokenNetworkRegistryAddress,
         IOU,
     },
 };
@@ -86,7 +89,7 @@ pub struct PFSRequest {
 #[derive(Deserialize)]
 pub struct PFSNetworkInfo {
     chain_id: ChainID,
-    token_network_registry_address: Address,
+    token_network_registry_address: TokenNetworkRegistryAddress,
     user_deposit_address: Address,
     confirmed_block_number: BlockNumber,
 }
@@ -135,8 +138,8 @@ impl PFS {
     pub async fn query_paths(
         &self,
         our_address: Address,
-        token_network_address: Address,
-        one_to_n_address: Address,
+        token_network_address: TokenNetworkAddress,
+        one_to_n_address: OneToNAddress,
         current_block_number: BlockNumber,
         route_from: Address,
         route_to: Address,
@@ -215,7 +218,7 @@ impl PFS {
 
     pub async fn post_pfs_paths(
         &self,
-        token_network_address: Address,
+        token_network_address: TokenNetworkAddress,
         payload: PFSRequest,
     ) -> Result<PFSPathsResponse, RoutingError> {
         let client = reqwest::Client::new();
@@ -237,8 +240,8 @@ impl PFS {
 
     pub async fn create_current_iou(
         &self,
-        token_network_address: Address,
-        one_to_n_address: Address,
+        token_network_address: TokenNetworkAddress,
+        one_to_n_address: OneToNAddress,
         our_address: Address,
         block_number: BlockNumber,
         offered_fee: TokenAmount,
@@ -255,7 +258,11 @@ impl PFS {
         self.update_iou(latest_iou, offered_fee, None).await
     }
 
-    pub async fn get_last_iou(&self, token_network_address: Address, sender: Address) -> Result<IOU, RoutingError> {
+    pub async fn get_last_iou(
+        &self,
+        token_network_address: TokenNetworkAddress,
+        sender: Address,
+    ) -> Result<IOU, RoutingError> {
         let timestamp = Utc::now();
         let signature = self
             .iou_signature_data(sender, self.pfs_config.info.payment_address, timestamp)
@@ -338,7 +345,7 @@ impl PFS {
     pub async fn make_iou(
         &self,
         our_address: Address,
-        one_to_n_address: Address,
+        one_to_n_address: OneToNAddress,
         block_number: BlockNumber,
         offered_fee: TokenAmount,
     ) -> Result<IOU, RoutingError> {

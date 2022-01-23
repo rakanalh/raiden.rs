@@ -10,6 +10,7 @@ use crate::{
     errors,
     primitives::{
         ChainID,
+        TokenNetworkRegistryAddress,
         U64,
     },
     state_machine::{
@@ -40,7 +41,7 @@ impl StateManager {
         storage: Arc<Storage>,
         chain_id: ChainID,
         our_address: Address,
-        token_network_registry_address: Address,
+        token_network_registry_address: TokenNetworkRegistryAddress,
         token_network_registry_deploy_block_number: U64,
     ) -> std::result::Result<(Self, U64), errors::RaidenError> {
         let snapshot = storage.get_snapshot_before_state_change(Ulid::from(u128::MAX));
@@ -92,7 +93,7 @@ impl StateManager {
         storage: Arc<Storage>,
         chain_id: ChainID,
         our_address: Address,
-        token_network_registry_address: Address,
+        token_network_registry_address: TokenNetworkRegistryAddress,
         token_network_registry_deploy_block_number: U64,
     ) -> std::result::Result<(ChainState, Vec<StateChange>, U64), errors::RaidenError> {
         let mut state_changes = vec![];

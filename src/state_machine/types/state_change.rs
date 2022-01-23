@@ -12,7 +12,9 @@ use crate::{
         RevealTimeout,
         Secret,
         SecretHash,
+        SecretRegistryAddress,
         TokenAmount,
+        TokenNetworkRegistryAddress,
         TransactionHash,
     },
     state_machine::types::{
@@ -94,7 +96,7 @@ pub struct ContractReceiveTokenNetworkRegistry {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveTokenNetworkCreated {
     pub transaction_hash: Option<TransactionHash>,
-    pub token_network_registry_address: Address,
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub token_network: TokenNetworkState,
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,

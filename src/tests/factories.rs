@@ -53,7 +53,9 @@ pub fn empty_chain_state() -> ChainState {
     }
 }
 
-pub fn chain_state_with_token_network_registry(token_network_registry_address: Address) -> ChainState {
+pub fn chain_state_with_token_network_registry(
+    token_network_registry_address: TokenNetworkRegistryAddress,
+) -> ChainState {
     let chain_state = empty_chain_state();
     let state_change = StateChange::ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry {
         transaction_hash: Some(H256::random()),
@@ -77,9 +79,9 @@ pub fn chain_state_with_token_network_registry(token_network_registry_address: A
 }
 
 pub fn chain_state_with_token_network(
-    token_network_registry_address: Address,
-    token_address: Address,
-    token_network_address: Address,
+    token_network_registry_address: TokenNetworkRegistryAddress,
+    token_address: TokenAddress,
+    token_network_address: TokenNetworkAddress,
 ) -> ChainState {
     let chain_state = chain_state_with_token_network_registry(token_network_registry_address);
 
@@ -102,9 +104,9 @@ pub fn chain_state_with_token_network(
 
 pub fn channel_state(
     chain_state: ChainState,
-    token_network_registry_address: Address,
-    token_network_address: Address,
-    token_address: Address,
+    token_network_registry_address: TokenNetworkRegistryAddress,
+    token_network_address: TokenNetworkAddress,
+    token_address: TokenAddress,
     channel_identifier: U256,
 ) -> ChainState {
     let state_change = StateChange::ContractReceiveChannelOpened(ContractReceiveChannelOpened {

@@ -47,7 +47,10 @@ use crate::{
         SecretHash,
         SettleTimeout,
         Signature,
+        TokenAddress,
         TokenAmount,
+        TokenNetworkAddress,
+        TokenNetworkRegistryAddress,
         TransactionExecutionStatus,
         TransactionResult,
         TransferTask,
@@ -128,14 +131,14 @@ impl TokenNetworkRegistryState {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkState {
     pub address: Address,
-    pub token_address: Address,
+    pub token_address: TokenAddress,
     pub network_graph: TokenNetworkGraphState,
     pub channelidentifiers_to_channels: HashMap<U256, ChannelState>,
     pub partneraddresses_to_channelidentifiers: HashMap<Address, Vec<ChannelIdentifier>>,
 }
 
 impl TokenNetworkState {
-    pub fn new(address: Address, token_address: Address) -> TokenNetworkState {
+    pub fn new(address: Address, token_address: TokenAddress) -> TokenNetworkState {
         TokenNetworkState {
             address,
             token_address,
@@ -170,8 +173,8 @@ pub enum ChannelStatus {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelState {
     pub canonical_identifier: CanonicalIdentifier,
-    pub token_address: Address,
-    pub token_network_registry_address: Address,
+    pub token_address: TokenAddress,
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub reveal_timeout: RevealTimeout,
     pub settle_timeout: SettleTimeout,
     pub fee_schedule: FeeScheduleState,
@@ -186,8 +189,8 @@ pub struct ChannelState {
 impl ChannelState {
     pub fn new(
         canonical_identifier: CanonicalIdentifier,
-        token_address: Address,
-        token_network_registry_address: Address,
+        token_address: TokenAddress,
+        token_network_registry_address: TokenNetworkRegistryAddress,
         our_address: Address,
         partner_address: Address,
         reveal_timeout: RevealTimeout,
@@ -527,10 +530,10 @@ pub struct RouteState {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransferDescriptionWithSecretState {
-    pub token_network_registry_address: Address,
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub payment_identifier: PaymentIdentifier,
     pub amount: TokenAmount,
-    pub token_network_address: Address,
+    pub token_network_address: TokenNetworkAddress,
     pub initiator: Address,
     pub target: Address,
     pub secret: Secret,

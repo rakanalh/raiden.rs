@@ -21,6 +21,7 @@ use crate::primitives::{
 use super::{
     BlockExpiration,
     ChainID,
+    OneToNAddress,
     PrivateKey,
     TokenAmount,
 };
@@ -29,7 +30,7 @@ use super::{
 pub struct IOU {
     pub sender: Address,
     pub receiver: Address,
-    pub one_to_n_address: Address,
+    pub one_to_n_address: OneToNAddress,
     pub amount: TokenAmount,
     pub expiration_block: BlockExpiration,
     pub chain_id: ChainID,

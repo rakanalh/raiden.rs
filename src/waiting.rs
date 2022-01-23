@@ -13,6 +13,7 @@ use web3::types::{
 use crate::{
     api::ApiError,
     constants::DEFAULT_RETRY_TIMEOUT,
+    primitives::TokenAddress,
     state_machine::{
         types::ChannelState,
         views,
@@ -23,7 +24,7 @@ use crate::{
 pub async fn wait_for_new_channel(
     state_manager: Arc<RwLock<StateManager>>,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
     partner_address: Address,
     retry_timeout: Option<u64>,
 ) -> Result<(), ApiError> {
@@ -46,7 +47,7 @@ pub async fn wait_for_new_channel(
 pub async fn wait_for_participant_deposit(
     state_manager: Arc<RwLock<StateManager>>,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
     partner_address: Address,
     target_address: Address,
     target_balance: U256,

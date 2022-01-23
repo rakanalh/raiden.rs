@@ -9,6 +9,9 @@ use web3::types::{
 use crate::{
     primitives::{
         CanonicalIdentifier,
+        TokenAddress,
+        TokenNetworkAddress,
+        TokenNetworkRegistryAddress,
         TransactionResult,
         U64,
     },
@@ -49,7 +52,7 @@ pub fn get_token_network<'a>(
 
 pub fn get_token_network_registry_by_token_network_address(
     chain_state: &ChainState,
-    token_network_address: Address,
+    token_network_address: TokenNetworkAddress,
 ) -> Option<&TokenNetworkRegistryState> {
     let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
     for token_network_registry in token_network_registries.values() {
@@ -65,7 +68,7 @@ pub fn get_token_network_registry_by_token_network_address(
 
 pub fn get_token_network_by_address(
     chain_state: &ChainState,
-    token_network_address: Address,
+    token_network_address: TokenNetworkAddress,
 ) -> Option<&TokenNetworkState> {
     let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
     token_network_registries
@@ -78,7 +81,7 @@ pub fn get_token_network_by_address(
 pub fn get_token_network_by_token_address(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
 ) -> Option<&TokenNetworkState> {
     let token_network_registry = match chain_state.identifiers_to_tokennetworkregistries.get(&registry_address) {
         Some(tnr) => tnr,
@@ -118,7 +121,7 @@ pub fn get_channel_by_canonical_identifier(
 
 pub fn get_channel_by_token_network_and_partner(
     chain_state: &ChainState,
-    token_network_address: Address,
+    token_network_address: TokenNetworkAddress,
     partner_address: Address,
 ) -> Option<&ChannelState> {
     let token_network = get_token_network_by_address(chain_state, token_network_address);
@@ -134,7 +137,7 @@ pub fn get_channel_by_token_network_and_partner(
 pub fn get_channel_state_for(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
     partner_address: Address,
 ) -> Option<&ChannelState> {
     match get_token_network_by_token_address(chain_state, registry_address, token_address) {
@@ -212,8 +215,8 @@ pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address
 
 fn get_channelstate_filter(
     chain_state: &ChainState,
-    token_network_registry_address: Address,
-    token_address: Address,
+    token_network_registry_address: TokenNetworkRegistryAddress,
+    token_address: TokenAddress,
     filter_fn: fn(&ChannelState) -> bool,
 ) -> Vec<ChannelState> {
     let token_network =
@@ -236,7 +239,7 @@ fn get_channelstate_filter(
 pub fn get_channelstate_open(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
 ) -> Vec<ChannelState> {
     return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
         channel_state.status() == ChannelStatus::Opened
@@ -246,7 +249,7 @@ pub fn get_channelstate_open(
 pub fn get_channelstate_closing(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
 ) -> Vec<ChannelState> {
     return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
         channel_state.status() == ChannelStatus::Closing
@@ -256,7 +259,7 @@ pub fn get_channelstate_closing(
 pub fn get_channelstate_closed(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
 ) -> Vec<ChannelState> {
     return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
         channel_state.status() == ChannelStatus::Closed
@@ -266,7 +269,7 @@ pub fn get_channelstate_closed(
 pub fn get_channelstate_settling(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
 ) -> Vec<ChannelState> {
     return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
         channel_state.status() == ChannelStatus::Settling
@@ -276,7 +279,7 @@ pub fn get_channelstate_settling(
 pub fn get_channelstate_settled(
     chain_state: &ChainState,
     registry_address: Address,
-    token_address: Address,
+    token_address: TokenAddress,
 ) -> Vec<ChannelState> {
     return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
         channel_state.status() == ChannelStatus::Settled

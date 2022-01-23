@@ -4,7 +4,9 @@ use raiden::{
     primitives::{
         RevealTimeout,
         SettleTimeout,
+        TokenAddress,
         TokenAmount,
+        TokenNetworkAddress,
     },
     state_machine::{
         types::{
@@ -27,8 +29,8 @@ pub struct AddressResponse {
 #[derive(Serialize)]
 pub struct ChannelResponse {
     channel_identifier: U256,
-    token_network_address: Address,
-    token_address: Address,
+    token_network_address: TokenNetworkAddress,
+    token_address: TokenAddress,
     partner_address: Address,
     settle_timeout: SettleTimeout,
     reveal_timeout: RevealTimeout,
@@ -40,7 +42,7 @@ pub struct ChannelResponse {
 
 #[derive(Serialize)]
 pub struct CreateChannelResponse {
-    token_address: Address,
+    token_address: TokenAddress,
     partner_address: Address,
     reveal_timeout: RevealTimeout,
     settle_timeout: SettleTimeout,

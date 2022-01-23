@@ -217,7 +217,7 @@ async fn main() {
         pfs_config: PFSConfig {
             info: pfs_info,
             maximum_fee: cli.services_config.pathfinding_max_fee,
-            iou_timeout: cli.services_config.pathfinding_iou_timeout,
+            iou_timeout: cli.services_config.pathfinding_iou_timeout.into(),
             max_paths: cli.services_config.pathfinding_max_paths,
         },
     };

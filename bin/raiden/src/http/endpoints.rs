@@ -16,6 +16,7 @@ use raiden::{
         self,
         ContractsManager,
     },
+    primitives::TokenAddress,
     state_machine::views,
 };
 use routerify::ext::RequestExt;
@@ -151,7 +152,7 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
         .param("partner_address")
         .ok_or(Error::Uri("Missing partner address")));
 
-    let token_address: Address = Address::from_slice(token_address.as_bytes());
+    let token_address: TokenAddress = Address::from_slice(token_address.as_bytes());
     let partner_address: Address = Address::from_slice(partner_address.as_bytes());
 
     let params: InitiatePaymentParams = unwrap!(body_to_params(req).await);

@@ -28,6 +28,7 @@ use super::{
     FeeAmount,
     ProportionalFeeAmount,
     RoutingMode,
+    TokenNetworkRegistryAddress,
 };
 
 #[derive(Clone)]
@@ -53,7 +54,7 @@ pub struct PFSInfo {
     pub url: String,
     pub price: TokenAmount,
     pub chain_id: ChainID,
-    pub token_network_registry_address: Address,
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub user_deposit_address: Address,
     pub payment_address: Address,
     pub message: String,

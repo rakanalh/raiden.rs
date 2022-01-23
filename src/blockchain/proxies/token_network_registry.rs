@@ -13,6 +13,7 @@ use web3::{
 use crate::primitives::{
     BlockHash,
     SettleTimeout,
+    TokenAddress,
 };
 
 use super::{
@@ -34,7 +35,7 @@ impl<T: Transport> TokenNetworkRegistryProxy<T> {
         }
     }
 
-    pub async fn get_token_network(&self, token_address: Address, block: BlockHash) -> Result<Address> {
+    pub async fn get_token_network(&self, token_address: TokenAddress, block: BlockHash) -> Result<Address> {
         self.contract
             .query(
                 "token_to_token_networks",

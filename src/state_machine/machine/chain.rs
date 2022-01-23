@@ -1,12 +1,10 @@
-use web3::types::{
-    Address,
-    H256,
-};
+use web3::types::H256;
 
 use crate::{
     errors::StateTransitionError,
     primitives::{
         CanonicalIdentifier,
+        TokenNetworkAddress,
         U64,
     },
     state_machine::types::{
@@ -226,7 +224,7 @@ fn handle_contract_receive_token_network_created(
 
 fn handle_token_network_state_change(
     mut chain_state: ChainState,
-    token_network_address: Address,
+    token_network_address: TokenNetworkAddress,
     state_change: StateChange,
     block_number: U64,
     block_hash: H256,

@@ -23,6 +23,12 @@ use crate::{
         },
         errors::ContractDefError,
     },
+    primitives::{
+        SecretRegistryAddress,
+        TokenAddress,
+        TokenNetworkAddress,
+        TokenNetworkRegistryAddress,
+    },
     state_machine::types::ChannelState,
 };
 
@@ -75,7 +81,7 @@ impl ProxyManager {
 
     pub async fn token_network_registry(
         &self,
-        token_network_registry_address: Address,
+        token_network_registry_address: TokenNetworkRegistryAddress,
     ) -> Result<TokenNetworkRegistryProxy<Http>, ContractDefError> {
         if !self
             .token_network_registries
@@ -105,7 +111,7 @@ impl ProxyManager {
 
     pub async fn secret_registry(
         &self,
-        secret_registry_address: Address,
+        secret_registry_address: SecretRegistryAddress,
     ) -> Result<SecretRegistryProxy<Http>, ContractDefError> {
         if !self
             .secret_registries
@@ -163,7 +169,7 @@ impl ProxyManager {
             .clone())
     }
 
-    pub async fn token(&self, token_address: Address) -> Result<TokenProxy<Http>, ContractDefError> {
+    pub async fn token(&self, token_address: TokenAddress) -> Result<TokenProxy<Http>, ContractDefError> {
         if !self.tokens.read().await.contains_key(&token_address) {
             let token_contract = self.contracts_manager.get(ContractIdentifier::HumanStandardToken);
             let token_web3_contract =
@@ -178,8 +184,8 @@ impl ProxyManager {
 
     pub async fn token_network(
         &self,
-        token_address: Address,
-        token_network_address: Address,
+        token_address: TokenAddress,
+        token_network_address: TokenNetworkAddress,
     ) -> Result<TokenNetworkProxy<Http>, ContractDefError> {
         if !self.token_networks.read().await.contains_key(&token_network_address) {
             let token_proxy = self.token(token_address).await?;

@@ -120,7 +120,7 @@ impl Into<[u8; 1]> for MessageTypeId {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct CanonicalIdentifier {
     pub chain_identifier: ChainID,
-    pub token_network_address: Address,
+    pub token_network_address: TokenNetworkAddress,
     pub channel_identifier: U256,
 }
 

@@ -6,11 +6,12 @@ use web3::types::Address;
 use crate::primitives::{
     PaymentIdentifier,
     TokenAmount,
+    TokenNetworkAddress,
 };
 
 pub struct Payment {
     pub identifier: PaymentIdentifier,
-    pub token_network_address: Address,
+    pub token_network_address: TokenNetworkAddress,
     pub amount: TokenAmount,
     pub notifier: Option<oneshot::Sender<()>>,
 }
@@ -35,7 +36,7 @@ impl PaymentsRegistry {
 
     pub fn register(
         &mut self,
-        token_network_address: Address,
+        token_network_address: TokenNetworkAddress,
         target: Address,
         identifier: PaymentIdentifier,
         amount: TokenAmount,
