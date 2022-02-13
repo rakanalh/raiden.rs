@@ -280,7 +280,7 @@ fn test_channel_closed() {
         nonce: U256::from(1u64),
         transferred_amount: U256::zero(),
         locked_amount: U256::zero(),
-        locksroot: H256::default(),
+        locksroot: Bytes::default(),
         canonical_identifier: canonical_identifier.clone(),
         balance_hash: H256::zero(),
         message_hash: Some(H256::zero()),
@@ -316,7 +316,7 @@ fn test_channel_closed() {
         inner: ContractSendEvent {
             triggered_by_blockhash: H256::zero(),
         },
-        expiration: U256::from(510u64),
+        expiration: U64::from(510u64),
         balance_proof: balance_proof_state,
     });
     assert!(!result.events.is_empty());
@@ -549,9 +549,9 @@ fn test_channel_batch_unlock() {
         canonical_identifier: canonical_identifier.clone(),
         receiver: channel_state.our_state.address,
         sender: channel_state.partner_state.address,
-        locksroot: H256::zero(),
-        unlocked_amount: 100,
-        returned_tokens: 0,
+        locksroot: Bytes::default(),
+        unlocked_amount: U256::from(100u64),
+        returned_tokens: U256::zero(),
     });
     let result = chain::state_transition(chain_state, state_change).expect("Should succeeed");
 
