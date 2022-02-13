@@ -131,19 +131,6 @@ pub struct QueueIdentifier {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub enum TransferRole {
-    Initiator,
-    Mediator,
-    Target,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct TransferTask {
-    pub role: TransferRole,
-    pub token_network_address: Address,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransactionResult {
     Success,
     Failure,

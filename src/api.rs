@@ -24,6 +24,7 @@ use crate::{
         self,
         SECRET_LENGTH,
     },
+    errors::StateTransitionError,
     pathfinding::RoutingError,
     payments::PaymentsRegistry,
     primitives::{
@@ -68,6 +69,8 @@ pub enum ContractError {}
 
 #[derive(Error, Debug)]
 pub enum ApiError {
+    #[error("Transition Error: `{0}`")]
+    Transition(StateTransitionError),
     #[error("Contract definition error: `{0}`")]
     ContractSpec(ContractDefError),
     #[error("Contract error: `{0}`")]
@@ -671,11 +674,23 @@ impl Api {
             )
             .await;
 
-        if action_initiator_init.is_err() {
-            self.payments_registry
-                .write()
-                .await
-                .complete(partner_address, payment_identifier);
+        match action_initiator_init {
+            Ok(action_init_initiator) => {
+                let state_change = StateChange::ActionInitInitiator(action_init_initiator);
+                let _events = self
+                    .raiden
+                    .state_manager
+                    .write()
+                    .transition(state_change)
+                    .map_err(|e| ApiError::Transition(e))?;
+            }
+            Err(e) => {
+                self.payments_registry
+                    .write()
+                    .await
+                    .complete(partner_address, payment_identifier);
+                return Err(e);
+            }
         }
 
         let _ = payment_completed.await;

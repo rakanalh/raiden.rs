@@ -6,6 +6,16 @@ use std::{
     },
 };
 
+use ethabi::ethereum_types::H256;
+use web3::{
+    signing::keccak256,
+    types::{
+        Address,
+        Bytes,
+        U256,
+    },
+};
+
 use crate::{
     constants::{
         CHANNEL_STATES_PRIOR_TO_CLOSE,
@@ -14,12 +24,19 @@ use crate::{
     errors::StateTransitionError,
     primitives::{
         AddressMetadata,
+        BalanceHash,
+        BlockExpiration,
         BlockHash,
         BlockNumber,
         FeeAmount,
         LockTimeout,
+        LockedAmount,
         Locksroot,
+        MessageIdentifier,
+        Nonce,
+        PaymentIdentifier,
         RevealTimeout,
+        SecretHash,
         TokenAmount,
     },
     primitives::{
@@ -32,6 +49,7 @@ use crate::{
         types::{
             ActionChannelSetRevealTimeout,
             ActionChannelWithdraw,
+            BalanceProofState,
             Block,
             ChannelEndState,
             ChannelState,
@@ -51,7 +69,12 @@ use crate::{
             EventInvalidActionWithdraw,
             ExpiredWithdrawState,
             FeeScheduleState,
+            HashTimeLockState,
+            LockedTransferState,
+            PendingLocksState,
             PendingWithdrawState,
+            RouteState,
+            SendLockedTransfer,
             SendMessageEventInner,
             SendWithdrawExpired,
             SendWithdrawRequest,
@@ -68,7 +91,18 @@ pub struct ChannelTransition {
     pub events: Vec<Event>,
 }
 
-fn get_safe_initial_expiration(
+pub fn get_address_metadata(recipient_address: Address, route_states: Vec<RouteState>) -> Option<AddressMetadata> {
+    for route_state in route_states {
+        match route_state.address_to_metadata.get(&recipient_address) {
+            Some(metadata) => return Some(metadata.clone()),
+            None => continue,
+        };
+    }
+
+    None
+}
+
+pub(super) fn get_safe_initial_expiration(
     block_number: BlockNumber,
     reveal_timeout: RevealTimeout,
     lock_timeout: Option<LockTimeout>,
@@ -78,6 +112,213 @@ fn get_safe_initial_expiration(
     }
 
     block_number + (reveal_timeout * 2)
+}
+
+fn hash_balance_data(
+    transferred_amount: TokenAmount,
+    locked_amount: LockedAmount,
+    locksroot: Locksroot,
+) -> Result<BalanceHash, StateTransitionError> {
+    if locksroot == Bytes(vec![]) {
+        return Err(StateTransitionError {
+            msg: "Can't hash empty locksroot".to_string(),
+        });
+    }
+
+    if locksroot.0.len() != 32 {
+        return Err(StateTransitionError {
+            msg: "Locksroot has wrong length".to_string(),
+        });
+    }
+
+    let mut transferred_amount_in_bytes = vec![];
+    transferred_amount.to_big_endian(&mut transferred_amount_in_bytes);
+
+    let mut locked_amount_in_bytes = vec![];
+    locked_amount.to_big_endian(&mut locked_amount_in_bytes);
+
+    let hash = keccak256(
+        &[
+            &transferred_amount_in_bytes[..],
+            &locked_amount_in_bytes[..],
+            &locksroot.0[..],
+        ]
+        .concat(),
+    );
+    Ok(H256::from_slice(&hash))
+}
+
+fn get_next_nonce(end_state: &ChannelEndState) -> Nonce {
+    end_state.nonce + 1
+}
+
+fn get_amount_locked(end_state: &ChannelEndState) -> LockedAmount {
+    let total_pending: TokenAmount = end_state
+        .secrethashes_to_lockedlocks
+        .values()
+        .map(|lock| lock.amount)
+        .fold(U256::zero(), |acc, x| acc.saturating_add(x));
+    let total_unclaimed: TokenAmount = end_state
+        .secrethashes_to_unlockedlocks
+        .values()
+        .map(|lock| lock.amount)
+        .fold(U256::zero(), |acc, x| acc.saturating_add(x));
+    let total_unclaimed_onchain = end_state
+        .secrethashes_to_onchain_unlockedlocks
+        .values()
+        .map(|lock| lock.amount)
+        .fold(U256::zero(), |acc, x| acc.saturating_add(x));
+
+    total_pending + total_unclaimed + total_unclaimed_onchain
+}
+
+fn compute_locks_with(pending_locks: PendingLocksState, lock: HashTimeLockState) -> Option<PendingLocksState> {
+    if pending_locks.locks.contains(&lock.encoded) {
+        let mut locks = PendingLocksState {
+            locks: pending_locks.locks,
+        };
+        locks.locks.retain(|l| l != &lock.encoded);
+        return Some(locks);
+    }
+
+    None
+}
+
+fn compute_locksroot(locks: PendingLocksState) -> Locksroot {
+    let locks: Vec<&[u8]> = locks.locks.iter().map(|lock| lock.0.as_slice()).collect();
+    let hash = keccak256(&locks.concat());
+    return Bytes(hash.to_vec());
+}
+
+fn create_locked_transfer(
+    channel_state: &ChannelState,
+    initiator: Address,
+    target: Address,
+    amount: TokenAmount,
+    expiration: BlockExpiration,
+    secrethash: SecretHash,
+    message_identifier: MessageIdentifier,
+    payment_identifier: PaymentIdentifier,
+    route_states: Vec<RouteState>,
+    recipient_metadata: Option<AddressMetadata>,
+) -> Result<(SendLockedTransfer, PendingLocksState), StateTransitionError> {
+    if amount > channel_state.get_distributable(&channel_state.our_state, &channel_state.partner_state) {
+        return Err(StateTransitionError {
+            msg: "Caller must make sure there is enough balance".to_string(),
+        });
+    }
+
+    if channel_state.status() != ChannelStatus::Opened {
+        return Err(StateTransitionError {
+            msg: "Caller must make sure the channel is open".to_string(),
+        });
+    }
+
+    let lock = HashTimeLockState::create(amount, expiration, secrethash);
+    let pending_locks = match compute_locks_with(channel_state.our_state.pending_locks.clone(), lock.clone()) {
+        Some(pending_locks) => pending_locks,
+        None => {
+            return Err(StateTransitionError {
+                msg: "Caller must make sure the lock isn't used twice".to_string(),
+            });
+        }
+    };
+
+    let locksroot = compute_locksroot(pending_locks.clone());
+
+    let transferred_amount = if let Some(our_balance_proof) = &channel_state.our_state.balance_proof {
+        our_balance_proof.transferred_amount
+    } else {
+        TokenAmount::zero()
+    };
+
+    if transferred_amount.checked_add(amount).is_none() {
+        return Err(StateTransitionError {
+            msg: "Caller must make sure the result wont overflow".to_string(),
+        });
+    }
+
+    let token = channel_state.token_address;
+    let locked_amount = get_amount_locked(&channel_state.our_state) + amount;
+    let nonce = get_next_nonce(&channel_state.our_state);
+    let balance_hash = hash_balance_data(amount, locked_amount, locksroot.clone())?;
+    let balance_proof = BalanceProofState {
+        nonce,
+        transferred_amount,
+        locked_amount,
+        locksroot,
+        balance_hash,
+        canonical_identifier: channel_state.canonical_identifier.clone(),
+        message_hash: None,
+        signature: None,
+        sender: None,
+    };
+
+    let locked_transfer = LockedTransferState {
+        payment_identifier,
+        token,
+        lock,
+        initiator,
+        target,
+        message_identifier,
+        balance_proof,
+        route_states: route_states.clone(),
+    };
+
+    let recipient = channel_state.partner_state.address;
+    let recipient_metadata = match recipient_metadata {
+        Some(metadata) => Some(metadata),
+        None => get_address_metadata(recipient, route_states),
+    };
+    let locked_transfer_event = SendLockedTransfer {
+        inner: SendMessageEventInner {
+            recipient,
+            recipient_metadata,
+            canonical_identifier: channel_state.canonical_identifier.clone(),
+            message_identifier,
+        },
+        transfer: locked_transfer,
+    };
+
+    Ok((locked_transfer_event, pending_locks))
+}
+
+pub(super) fn send_locked_transfer(
+    mut channel_state: ChannelState,
+    initiator: Address,
+    target: Address,
+    amount: TokenAmount,
+    expiration: BlockExpiration,
+    secrethash: SecretHash,
+    message_identifier: MessageIdentifier,
+    payment_identifier: PaymentIdentifier,
+    route_states: Vec<RouteState>,
+    recipient_metadata: Option<AddressMetadata>,
+) -> Result<(ChannelState, SendLockedTransfer), StateTransitionError> {
+    let (locked_transfer, pending_locks) = create_locked_transfer(
+        &channel_state,
+        initiator,
+        target,
+        amount,
+        expiration,
+        secrethash,
+        message_identifier,
+        payment_identifier,
+        route_states,
+        recipient_metadata,
+    )?;
+
+    let transfer = locked_transfer.transfer.clone();
+    let lock = transfer.lock.clone();
+    channel_state.our_state.balance_proof = Some(transfer.balance_proof.clone());
+    channel_state.our_state.nonce = transfer.balance_proof.nonce;
+    channel_state.our_state.pending_locks = pending_locks.clone();
+    channel_state
+        .our_state
+        .secrethashes_to_lockedlocks
+        .insert(lock.secrethash, lock);
+
+    Ok((channel_state, locked_transfer))
 }
 
 fn send_expired_withdraws(

@@ -1,7 +1,6 @@
-pub(crate) mod chain;
-mod channel;
-mod token_network;
-
-pub use self::chain::*;
-pub use self::channel::*;
-pub use self::token_network::*;
+pub mod chain;
+pub mod channel;
+pub mod initiator;
+pub mod initiator_manager;
+pub mod routes;
+pub mod token_network;

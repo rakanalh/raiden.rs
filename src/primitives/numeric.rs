@@ -1,4 +1,7 @@
-use derive_more::Deref;
+use derive_more::{
+    Deref,
+    Display,
+};
 use serde::{
     Deserialize,
     Serialize,
@@ -15,18 +18,23 @@ use web3::types::{
     U64 as PrimitiveU64,
 };
 
-#[derive(Default, Copy, Clone, Debug, Deref, Eq, Ord, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
+use super::TokenAmount;
+
+#[derive(Default, Copy, Clone, Display, Debug, Deref, Eq, Ord, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct U64(PrimitiveU64);
 
 impl U64 {
     pub fn zero() -> Self {
         Self(PrimitiveU64::zero())
     }
-}
 
-impl std::fmt::Display for U64 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+    pub fn as_bytes(&self) -> &[u8] {
+        let mut bytes = vec![];
+        self.0.to_big_endian(&mut bytes);
+
+        let r: &mut [u8] = Default::default();
+        r.clone_from_slice(&bytes[..]);
+        r
     }
 }
 
@@ -95,5 +103,20 @@ impl From<u32> for U64 {
 impl From<i32> for U64 {
     fn from(n: i32) -> Self {
         Self((n as u64).into())
+    }
+}
+
+pub trait AmountToBytes {
+    fn to_bytes(&self) -> &[u8];
+}
+
+impl AmountToBytes for TokenAmount {
+    fn to_bytes(&self) -> &[u8] {
+        let mut bytes = vec![];
+        self.to_big_endian(&mut bytes);
+
+        let r: &mut [u8] = Default::default();
+        r.clone_from_slice(&bytes[..]);
+        r
     }
 }

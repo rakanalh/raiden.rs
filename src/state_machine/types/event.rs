@@ -12,6 +12,7 @@ use crate::primitives::{
     CanonicalIdentifier,
     MessageIdentifier,
     Nonce,
+    PaymentIdentifier,
     QueueIdentifier,
     RevealTimeout,
     TokenAmount,
@@ -19,17 +20,22 @@ use crate::primitives::{
     TokenNetworkRegistryAddress,
 };
 
-use super::BalanceProofState;
+use super::{
+    BalanceProofState,
+    LockedTransferState,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum Event {
     SendWithdrawExpired(SendWithdrawExpired),
     SendWithdrawRequest(SendWithdrawRequest),
+    SendLockedTransfer(SendLockedTransfer),
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
     InvalidActionWithdraw(EventInvalidActionWithdraw),
     InvalidActionSetRevealTimeout(EventInvalidActionSetRevealTimeout),
+    PaymentSentFailed(EventPaymentSentFailed),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -83,6 +89,13 @@ pub struct SendWithdrawRequest {
     pub nonce: Nonce,
 }
 
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendLockedTransfer {
+    #[deref]
+    pub inner: SendMessageEventInner,
+    pub transfer: LockedTransferState,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendEvent {
     pub triggered_by_blockhash: BlockHash,
@@ -117,5 +130,14 @@ pub struct EventInvalidActionWithdraw {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct EventInvalidActionSetRevealTimeout {
     pub reveal_timeout: RevealTimeout,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct EventPaymentSentFailed {
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
+    pub token_network_address: TokenNetworkAddress,
+    pub identifier: PaymentIdentifier,
+    pub target: Address,
     pub reason: String,
 }

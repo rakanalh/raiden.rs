@@ -8,8 +8,12 @@ use crate::{
         U64,
     },
     state_machine::types::{
+        ActionInitInitiator,
         ChainState,
+        InitiatorTask,
         TokenNetworkState,
+        TransferRole,
+        TransferTask,
     },
 };
 use crate::{
@@ -31,6 +35,8 @@ use crate::{
         views,
     },
 };
+
+use super::initiator_manager;
 
 type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
 
@@ -138,6 +144,76 @@ fn subdispatch_to_all_lockedtransfers(mut chain_state: ChainState, state_change:
     })
 }
 
+fn subdispatch_initiator_task(mut chain_state: ChainState, state_change: ActionInitInitiator) -> TransitionResult {
+    let token_network_state =
+        match views::get_token_network_by_address(&chain_state, state_change.transfer.token_network_address) {
+            Some(tn) => tn.clone(),
+            None => {
+                return Ok(ChainTransition {
+                    new_state: chain_state,
+                    events: vec![],
+                });
+            }
+        };
+
+    let manager_state = match chain_state
+        .payment_mapping
+        .secrethashes_to_task
+        .get(&state_change.transfer.secrethash)
+    {
+        Some(sub_task) => {
+            let initiator = match sub_task {
+                TransferTask::Initiator(initiator)
+                    if token_network_state.address == initiator.token_network_address =>
+                {
+                    initiator
+                }
+                _ => {
+                    return Ok(ChainTransition {
+                        new_state: chain_state,
+                        events: vec![],
+                    });
+                }
+            };
+            Some(initiator.manager_state.clone())
+        }
+        None => None,
+    };
+
+    if manager_state.is_some() {
+        return Ok(ChainTransition {
+            new_state: chain_state,
+            events: vec![],
+        });
+    }
+
+    let initiator_state = initiator_manager::initiate(chain_state.clone(), manager_state, state_change.clone())?;
+
+    match initiator_state.new_state {
+        Some(initiator_state) => {
+            chain_state.payment_mapping.secrethashes_to_task.insert(
+                state_change.transfer.secrethash,
+                TransferTask::Initiator(InitiatorTask {
+                    role: TransferRole::Initiator,
+                    token_network_address: token_network_state.address.clone(),
+                    manager_state: initiator_state,
+                }),
+            );
+        }
+        None => {
+            chain_state
+                .payment_mapping
+                .secrethashes_to_task
+                .remove(&state_change.transfer.secrethash);
+        }
+    }
+
+    Ok(ChainTransition {
+        new_state: chain_state,
+        events: initiator_state.events,
+    })
+}
+
 fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
     Ok(ChainTransition {
         new_state: ChainState::new(
@@ -148,6 +224,10 @@ fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
         ),
         events: vec![],
     })
+}
+
+fn handle_action_init_intiator(chain_state: ChainState, state_change: ActionInitInitiator) -> TransitionResult {
+    subdispatch_initiator_task(chain_state, state_change)
 }
 
 fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> TransitionResult {
@@ -292,6 +372,7 @@ fn handle_contract_receive_channel_closed(
 pub fn state_transition(mut chain_state: ChainState, state_change: StateChange) -> TransitionResult {
     match state_change {
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
+        StateChange::ActionInitInitiator(inner) => handle_action_init_intiator(chain_state, inner),
         StateChange::ActionChannelWithdraw(ref inner) => subdispatch_by_canonical_id(
             &mut chain_state,
             state_change.clone(),

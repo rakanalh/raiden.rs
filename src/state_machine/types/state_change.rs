@@ -32,7 +32,7 @@ use web3::types::Address;
 use super::{
     BalanceProofState,
     HopState,
-    LockedTransferSignedState,
+    LockedTransferState,
     RouteState,
     TransactionChannelDeposit,
     TransferDescriptionWithSecretState,
@@ -42,6 +42,7 @@ use super::{
 pub enum StateChange {
     Block(Block),
     ActionInitChain(ActionInitChain),
+    ActionInitInitiator(ActionInitInitiator),
     ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout),
     ActionChannelWithdraw(ActionChannelWithdraw),
     ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
@@ -156,7 +157,7 @@ pub struct ContractReceiveChannelBatchUnlock {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveSecretReveal {
-    pub secret_registry_address: Address,
+    pub secret_registry_address: SecretRegistryAddress,
     pub secrethash: SecretHash,
     pub secret: Secret,
 }
@@ -186,7 +187,7 @@ pub struct ActionInitMediator {
     pub balance_proof: BalanceProofState,
     pub from_hop: HopState,
     pub candidate_route_states: Vec<RouteState>,
-    pub from_transfer: LockedTransferSignedState,
+    pub from_transfer: LockedTransferState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -194,5 +195,5 @@ pub struct ActionInitTarget {
     pub sender: Address,
     pub balance_proof: BalanceProofState,
     pub from_hop: HopState,
-    pub transfer: LockedTransferSignedState,
+    pub transfer: LockedTransferState,
 }

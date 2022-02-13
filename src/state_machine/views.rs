@@ -1,4 +1,7 @@
-use std::cmp::max;
+use std::{
+    cmp::max,
+    collections::HashMap,
+};
 
 use web3::types::{
     Address,
@@ -284,4 +287,18 @@ pub fn get_channelstate_settled(
     return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
         channel_state.status() == ChannelStatus::Settled
     });
+}
+
+pub fn get_addresses_to_channels(chain_state: &ChainState) -> HashMap<(TokenNetworkAddress, Address), &ChannelState> {
+    let mut channels = HashMap::new();
+
+    for token_network_registry in chain_state.identifiers_to_tokennetworkregistries.values() {
+        for token_network in token_network_registry.tokennetworkaddresses_to_tokennetworks.values() {
+            for channel in token_network.channelidentifiers_to_channels.values() {
+                channels.insert((token_network.address, channel.partner_state.address), channel);
+            }
+        }
+    }
+
+    channels
 }

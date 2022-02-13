@@ -22,6 +22,7 @@ use crate::{
     errors::ChannelError,
     primitives::{
         AddressMetadata,
+        AmountToBytes,
         BalanceHash,
         BalanceProofData,
         BlockExpiration,
@@ -53,11 +54,58 @@ use crate::{
         TokenNetworkRegistryAddress,
         TransactionExecutionStatus,
         TransactionResult,
-        TransferTask,
     },
 };
 
 use super::SendMessageEvent;
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum TransferRole {
+    Initiator,
+    Mediator,
+    Target,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum TransferTask {
+    Initiator(InitiatorTask),
+    Mediator(MediatorTask),
+    Target(TargetTask),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct InitiatorTransferState {
+    pub route: RouteState,
+    pub transfer_description: TransferDescriptionWithSecretState,
+    pub channel_identifier: ChannelIdentifier,
+    pub transfer: LockedTransferState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct InitiatorPaymentState {
+    pub routes: Vec<RouteState>,
+    pub initiator_transfers: HashMap<SecretHash, InitiatorTransferState>,
+    pub cancelled_channels: Vec<ChannelIdentifier>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct InitiatorTask {
+    pub role: TransferRole,
+    pub token_network_address: TokenNetworkAddress,
+    pub manager_state: InitiatorPaymentState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct MediatorTask {
+    pub role: TransferRole,
+    pub token_network_address: TokenNetworkAddress,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct TargetTask {
+    pub role: TransferRole,
+    pub token_network_address: TokenNetworkAddress,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PaymentMappingState {
@@ -437,25 +485,40 @@ pub struct BalanceProofState {
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingLocksState {
-    locks: Vec<EncodedLock>,
+    pub locks: Vec<EncodedLock>,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct UnlockPartialProofState {
-    lock: HashTimeLockState,
-    secret: Secret,
-    amount: TokenAmount,
-    expiration: BlockExpiration,
-    secrethash: SecretHash,
-    encoded: EncodedLock,
+    pub lock: HashTimeLockState,
+    pub secret: Secret,
+    pub amount: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub secrethash: SecretHash,
+    pub encoded: EncodedLock,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HashTimeLockState {
-    amount: TokenAmount,
-    expiration: BlockExpiration,
-    secrethash: SecretHash,
-    encoded: EncodedLock,
+    pub amount: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub secrethash: SecretHash,
+    pub encoded: EncodedLock,
+}
+
+impl HashTimeLockState {
+    pub fn create(amount: TokenAmount, expiration: BlockExpiration, secrethash: SecretHash) -> Self {
+        let mut data = vec![];
+        data.extend_from_slice(amount.to_bytes());
+        data.extend_from_slice(expiration.as_bytes());
+        data.extend_from_slice(secrethash.as_bytes());
+        Self {
+            amount,
+            expiration,
+            secrethash,
+            encoded: Bytes(data),
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -520,7 +583,7 @@ pub struct HopState {
     pub channel_identifier: ChannelIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct RouteState {
     pub route: Vec<Address>,
     pub address_to_metadata: HashMap<Address, AddressMetadata>,
@@ -528,7 +591,16 @@ pub struct RouteState {
     pub estimated_fee: TokenAmount,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+impl RouteState {
+    pub fn next_hop_address(&self) -> Option<Address> {
+        if self.route.len() > 1 {
+            self.route[1];
+        }
+        None
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TransferDescriptionWithSecretState {
     pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub payment_identifier: PaymentIdentifier,
@@ -541,8 +613,8 @@ pub struct TransferDescriptionWithSecretState {
     pub lock_timeout: Option<BlockTimeout>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct LockedTransferSignedState {
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct LockedTransferState {
     pub payment_identifier: PaymentIdentifier,
     pub token: Address,
     pub lock: HashTimeLockState,

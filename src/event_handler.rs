@@ -51,6 +51,8 @@ impl EventHandler {
             Event::ContractSendChannelBatchUnlock(_) => todo!(),
             Event::InvalidActionWithdraw(_) => todo!(),
             Event::InvalidActionSetRevealTimeout(_) => todo!(),
+            Event::SendLockedTransfer(_) => todo!(),
+            Event::PaymentSentFailed(_) => todo!(),
         }
     }
 }
