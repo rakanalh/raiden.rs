@@ -13,6 +13,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.4.0
+
       - name: Install nightly toolchain
         uses: actions-rs/toolchain@v1.0.7
         with:
@@ -21,6 +22,7 @@ jobs:
           components: rustfmt
           override: true
           default: true
+
       - name: Check Format
         uses: actions-rs/cargo@v1.0.3
         with:
@@ -32,24 +34,55 @@ jobs:
     needs: fmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.4.0
-    - uses: Swatinem/rust-cache@v1
-    - name: Install cmake
-      run: sudo apt-get install -y cmake
-    - name: Run tests, with all features
-      run: cargo test --locked --workspace --all-features
+      - name: Checkout Code
+        uses: actions/checkout@v2.4.0
 
-  # TODO: as explained in the official repo (https://github.com/actions-rs/clippy), this action uses unstable GH actions features, but has the huge advantage of not requiring `GITHUB_TOKEN` and working on PRs from forked repositories ; should eventually replace `actions-rs/clippy@master` with a specific version
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Install cmake
+        run: sudo apt-get install -y cmake
+
+      - name: Run tests, with all features
+        run: cargo test --locked --workspace --all-features
+
+  coverage:
+    name: Coverage
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2.4.0
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo-tarpaulin
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          version: '0.15.0'
+          args: '-- --test-threads 1'
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+
   clippy:
     needs: fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
-      - uses: actions-rs/toolchain@v1.0.7
+      - name: Checkout Code
+        uses: actions/checkout@v2.4.0
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1.0.7
         with:
             toolchain: nightly
             components: clippy
             override: true
-      - uses: actions-rs/clippy@master
+
+      - name: Run clippy
+        uses: actions-rs/clippy@master
         with:
           args: --all-features --all-targets
