@@ -1,5 +1,6 @@
 # raiden-rust
 [![continuous-integration](https://github.com/rakanalh/raiden-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/rakanalh/raiden-rust/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rakanalh/raiden-rust/branch/main/graph/badge.svg?token=Jyi76olOco)](https://codecov.io/gh/rakanalh/raiden-rust)
 
 The **UNOFFICIAL** Raiden client implementation in Rust
 
