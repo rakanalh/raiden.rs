@@ -14,22 +14,23 @@ name = "raiden"
 path = "src/main.rs"
 
 [dependencies]
-ethsign = "0.8.0"
-expanduser = "1.2.1"
-futures = "0.3.12"
+ethsign = { version = "0.8.0" }
+expanduser = { version = "1.2.1", default-features = false }
+futures = { version = "0.3.12", default-features = false }
 hyper = { version = "0.14.11", features = ["server"] }
-parking_lot = "0.11.2"
+parking_lot = { version = "0.11.2", default-features = false }
+routerify = { version = "2.2.0", default-features = false }
+rpassword = { version = "5.0.1", default-features = false }
+rusqlite = { version = "0.25.3", default-features = false }
+serde = { version = "1.0.132", default-features = false }
+serde_json = { version = "1.0.59", default-features = false }
+slog = { version = "2.7.0", default-features = false }
+slog-async = { version = "2.7.0", default-features = false }
+slog-term = { version = "2.6.0", default-features = false }
+structopt = { version = "0.3.25", default-features = false }
+thiserror = { version = "1.0", default-features = false }
+tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
+url = { version = "2.2.2", default-features = false }
+web3 = { version = "0.17.0", default-features = false, features = [ "http", "signing", "ws-tokio" ] }
+
 raiden = { path = "../.." }
-routerify = "2.2.0"
-rpassword = "5.0.1"
-rusqlite = "0.25.3"
-serde = "1.0.132"
-serde_json = "1.0.59"
-slog = "2.7.0"
-slog-async = "2.7.0"
-slog-term = "2.6.0"
-structopt = "0.3.25"
-thiserror = "1.0"
-tokio = { version = "1.0" }
-url = "2.2.2"
-web3 = "0.17.0"

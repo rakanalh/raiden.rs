@@ -17,26 +17,26 @@ members = [
 ]
 
 [dependencies]
-async-trait = "0.1.51"
-chrono = "0.4.19"
-ethabi = "14.0.0"
-ethsign = "0.8.0"
-derive_more = "0.99.11"
-futures = "0.3.12"
-matrix-sdk = "0.3.0"
-parking_lot = "0.11.2"
-reqwest = { version = "0.11.4", features = ["json"] }
-rand = "0.8.4"
-rand_chacha = { version = "0.3.1", features = ["serde1"] }
-rusqlite = "0.25.3"
-serde = "1.0.132"
-serde_json = "1.0.59"
-slog = "2.7.0"
-thiserror = "1.0"
-tokio = { version = "1.0", features = ["time"] }
-web3 = "0.17.0"
-tokio-stream = "0.1.7"
-ulid = "0.4.1"
+async-trait = { version = "0.1.51", default-features = false }
+chrono = { version = "0.4.19", default-features = false }
+ethabi = { version = "14.0.0", default-features = false }
+ethsign = { version = "0.8.0", default-features = false }
+derive_more = { version = "0.99.11", default-features = false }
+futures = { version = "0.3.12", default-features = false }
+matrix-sdk = { version = "0.3.0", default-features = false, features = ["native-tls"] }
+parking_lot = { version = "0.11.2", default-features = false }
+reqwest = { version = "0.11.4", default-features = false, features = ["json"] }
+rand = { version = "0.8.4", default-features = false }
+rand_chacha = { version = "0.3.1", default-features = false, features = ["serde1"] }
+rusqlite = { version = "0.25.3", default-features = false }
+serde = { version = "1.0.132", default-features = false }
+serde_json = { version = "1.0.59", default-features = false }
+slog = { version = "2.7.0", default-features = false }
+thiserror = { version = "1.0", default-features = false }
+tokio = { version = "1.0", features = ["time"], default-features = false }
+web3 = {version = "0.17.0", default-features = false }
+tokio-stream = {version = "0.1.7", default-features = false }
+ulid = { version = "0.4.1", default-features = false }
 
 [profile.dev]
 opt-level = 2
