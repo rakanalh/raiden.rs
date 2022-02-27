@@ -11,6 +11,7 @@ use crate::{
         BlockNumber,
         FeeAmount,
         MessageIdentifier,
+        Random,
         TokenAmount,
     },
     state_machine::{
@@ -22,6 +23,7 @@ use crate::{
             InitiatorTransferState,
             RouteState,
             SendLockedTransfer,
+            StateChange,
             TransferDescriptionWithSecretState,
         },
         views,
@@ -37,23 +39,11 @@ pub(super) type TransitionResult = std::result::Result<InitiatorTransition, Stat
 
 pub struct InitiatorTransition {
     pub new_state: Option<InitiatorTransferState>,
+    pub channel_state: Option<ChannelState>,
     pub events: Vec<Event>,
 }
 
-fn calculate_fee_margin(payment_amount: TokenAmount, estimated_fee: FeeAmount) -> FeeAmount {
-    if estimated_fee.is_zero() {
-        return FeeAmount::zero();
-    }
-
-    ((estimated_fee * DEFAULT_MEDIATION_FEE_MARGIN.0) / DEFAULT_MEDIATION_FEE_MARGIN.1)
-        + ((payment_amount * PAYMENT_AMOUNT_BASED_FEE_MARGIN.0) / PAYMENT_AMOUNT_BASED_FEE_MARGIN.1)
-}
-
-fn calculate_safe_amount_with_fee(payment_amount: TokenAmount, estimated_fee: FeeAmount) -> TokenAmount {
-    payment_amount + estimated_fee + calculate_fee_margin(payment_amount, estimated_fee)
-}
-
-fn update_channel(mut chain_state: ChainState, channel_state: ChannelState) -> Result<(), StateTransitionError> {
+fn update_channel(chain_state: &mut ChainState, channel_state: ChannelState) -> Result<(), StateTransitionError> {
     let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
     let token_network_registry = match token_network_registries.get_mut(&channel_state.token_network_registry_address) {
         Some(token_network_registry) => token_network_registry,
@@ -86,6 +76,19 @@ fn update_channel(mut chain_state: ChainState, channel_state: ChannelState) -> R
         .insert(channel_state.canonical_identifier.channel_identifier, channel_state);
 
     Ok(())
+}
+
+fn calculate_fee_margin(payment_amount: TokenAmount, estimated_fee: FeeAmount) -> FeeAmount {
+    if estimated_fee.is_zero() {
+        return FeeAmount::zero();
+    }
+
+    ((estimated_fee * DEFAULT_MEDIATION_FEE_MARGIN.0) / DEFAULT_MEDIATION_FEE_MARGIN.1)
+        + ((payment_amount * PAYMENT_AMOUNT_BASED_FEE_MARGIN.0) / PAYMENT_AMOUNT_BASED_FEE_MARGIN.1)
+}
+
+fn calculate_safe_amount_with_fee(payment_amount: TokenAmount, estimated_fee: FeeAmount) -> TokenAmount {
+    payment_amount + estimated_fee + calculate_fee_margin(payment_amount, estimated_fee)
 }
 
 fn send_locked_transfer(
@@ -123,7 +126,7 @@ pub fn try_new_route(
     mut chain_state: ChainState,
     candidate_route_states: Vec<RouteState>,
     transfer_description: TransferDescriptionWithSecretState,
-) -> TransitionResult {
+) -> Result<(Option<InitiatorTransferState>, ChainState, Vec<Event>), StateTransitionError> {
     let mut route_fee_exceeds_max = false;
 
     let selected = loop {
@@ -181,7 +184,7 @@ pub fn try_new_route(
             channel_identifier: channel_state.canonical_identifier.channel_identifier,
             transfer: locked_transfer_event.transfer.clone(),
         };
-        update_channel(chain_state, channel_state)?;
+        update_channel(&mut chain_state, channel_state)?;
         (
             Some(initiator_state),
             vec![Event::SendLockedTransfer(locked_transfer_event)],
@@ -202,8 +205,19 @@ pub fn try_new_route(
         (None, vec![transfer_failed])
     };
 
+    Ok((initiator_state, chain_state, events))
+}
+
+pub fn state_transition(
+    initiator_state: InitiatorTransferState,
+    state_change: StateChange,
+    channel_state: ChannelState,
+    pseudo_random_number_generator: Random,
+    block_number: BlockNumber,
+) -> TransitionResult {
     Ok(InitiatorTransition {
-        new_state: initiator_state,
-        events,
+        new_state: Some(initiator_state),
+        channel_state: Some(channel_state),
+        events: vec![],
     })
 }

@@ -1,6 +1,7 @@
 use crate::{
     primitives::{
         AddressMetadata,
+        BlockExpiration,
         BlockHash,
         BlockNumber,
         CanonicalIdentifier,
@@ -8,7 +9,9 @@ use crate::{
         GasLimit,
         Locksroot,
         MediationFeeConfig,
+        MessageIdentifier,
         Nonce,
+        PaymentIdentifier,
         RevealTimeout,
         Secret,
         SecretHash,
@@ -34,6 +37,7 @@ use super::{
     HopState,
     LockedTransferState,
     RouteState,
+    SendSecretReveal,
     TransactionChannelDeposit,
     TransferDescriptionWithSecretState,
 };
@@ -45,6 +49,12 @@ pub enum StateChange {
     ActionInitInitiator(ActionInitInitiator),
     ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout),
     ActionChannelWithdraw(ActionChannelWithdraw),
+    ActionTransferReroute(ActionTransferReroute),
+    ActionCancelPayment(ActionCancelPayment),
+    ReceiveTransferCancelRoute(ReceiveTransferCancelRoute),
+    ReceiveSecretReveal(ReceiveSecretReveal),
+    ReceiveSecretRequest(ReceiveSecretRequest),
+    ReceiveLockExpired(ReceiveLockExpired),
     ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
     ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated),
     ContractReceiveChannelOpened(ContractReceiveChannelOpened),
@@ -196,4 +206,42 @@ pub struct ActionInitTarget {
     pub balance_proof: BalanceProofState,
     pub from_hop: HopState,
     pub transfer: LockedTransferState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionTransferReroute {
+    transfer: LockedTransferState,
+    secret: Secret,
+    secrethash: SecretHash,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionCancelPayment {
+    pub payment_identifier: PaymentIdentifier,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveTransferCancelRoute {
+    transfer: LockedTransferState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveSecretRequest {
+    payment_identifier: PaymentIdentifier,
+    amount: TokenAmount,
+    expiration: BlockExpiration,
+    secrethash: SecretHash,
+    revealsecret: Option<SendSecretReveal>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveSecretReveal {
+    secret: Secret,
+    secrethash: SecretHash,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveLockExpired {
+    secrethash: SecretHash,
+    message_identifier: MessageIdentifier,
 }

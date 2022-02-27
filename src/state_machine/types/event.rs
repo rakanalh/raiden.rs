@@ -15,6 +15,8 @@ use crate::primitives::{
     PaymentIdentifier,
     QueueIdentifier,
     RevealTimeout,
+    Secret,
+    SecretHash,
     TokenAmount,
     TokenNetworkAddress,
     TokenNetworkRegistryAddress,
@@ -94,6 +96,14 @@ pub struct SendLockedTransfer {
     #[deref]
     pub inner: SendMessageEventInner,
     pub transfer: LockedTransferState,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendSecretReveal {
+    #[deref]
+    pub inner: SendMessageEventInner,
+    pub secret: Secret,
+    pub secrethash: SecretHash,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

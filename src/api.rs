@@ -677,12 +677,7 @@ impl Api {
         match action_initiator_init {
             Ok(action_init_initiator) => {
                 let state_change = StateChange::ActionInitInitiator(action_init_initiator);
-                let _events = self
-                    .raiden
-                    .state_manager
-                    .write()
-                    .transition(state_change)
-                    .map_err(|e| ApiError::Transition(e))?;
+                self.transition_service.transition(state_change).await;
             }
             Err(e) => {
                 self.payments_registry

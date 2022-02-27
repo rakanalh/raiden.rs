@@ -187,7 +187,11 @@ fn subdispatch_initiator_task(mut chain_state: ChainState, state_change: ActionI
         });
     }
 
-    let initiator_state = initiator_manager::initiate(chain_state.clone(), manager_state, state_change.clone())?;
+    let initiator_state = initiator_manager::state_transition(
+        chain_state.clone(),
+        manager_state,
+        StateChange::ActionInitInitiator(state_change.clone()),
+    )?;
 
     match initiator_state.new_state {
         Some(initiator_state) => {
@@ -463,5 +467,11 @@ pub fn state_transition(mut chain_state: ChainState, state_change: StateChange) 
             new_state: chain_state,
             events: vec![],
         }),
+        StateChange::ActionTransferReroute(_) => todo!(),
+        StateChange::ActionCancelPayment(_) => todo!(),
+        StateChange::ReceiveTransferCancelRoute(_) => todo!(),
+        StateChange::ReceiveSecretReveal(_) => todo!(),
+        StateChange::ReceiveSecretRequest(_) => todo!(),
+        StateChange::ReceiveLockExpired(_) => todo!(),
     }
 }
