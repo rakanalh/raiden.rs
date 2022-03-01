@@ -562,13 +562,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a01317735d563b3bad2d5f90d2e1799f414165408251abb762510f40e790e69a"
 dependencies = [
  "anyhow",
- "ethereum-types",
+ "ethereum-types 0.11.0",
  "hex",
  "serde",
  "serde_json",
  "sha3",
  "thiserror",
  "uint",
+]
+
+[[package]]
+name = "ethabi"
+version = "16.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4c98847055d934070b90e806e12d3936b787d0a115068981c1d8dfd5dfef5a5"
+dependencies = [
+ "ethereum-types 0.12.1",
+ "hex",
+ "sha3",
 ]
 
 [[package]]
@@ -594,7 +605,19 @@ dependencies = [
  "fixed-hash",
  "impl-rlp",
  "impl-serde",
- "primitive-types",
+ "primitive-types 0.9.1",
+ "uint",
+]
+
+[[package]]
+name = "ethereum-types"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05136f7057fe789f06e6d41d07b34e6f70d8c86e5693b60f97aaa6553553bdaf"
+dependencies = [
+ "ethbloom",
+ "fixed-hash",
+ "primitive-types 0.10.1",
  "uint",
 ]
 
@@ -1631,6 +1654,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "primitive-types"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05e4722c697a58a99d5d06a08c30821d7c082a4632198de1eaa5a6c22ef42373"
+dependencies = [
+ "fixed-hash",
+ "uint",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1705,7 +1738,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "derive_more",
- "ethabi",
+ "ethabi 16.0.0",
  "ethsign",
  "futures",
  "matrix-sdk",
@@ -3157,8 +3190,8 @@ dependencies = [
  "base64",
  "bytes",
  "derive_more",
- "ethabi",
- "ethereum-types",
+ "ethabi 14.1.0",
+ "ethereum-types 0.11.0",
  "futures",
  "futures-timer",
  "headers",
