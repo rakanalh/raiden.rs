@@ -10,6 +10,8 @@ jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    container:
+      image: rust:1.59
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.4.0
@@ -33,6 +35,8 @@ jobs:
     name: Build and test
     needs: fmt
     runs-on: ubuntu-latest
+    container:
+      image: rust:1.59
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.4.0
@@ -50,6 +54,8 @@ jobs:
     name: Coverage
     needs: test
     runs-on: ubuntu-latest
+    container:
+      image: rust:1.59
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.4.0
@@ -71,6 +77,8 @@ jobs:
   clippy:
     needs: fmt
     runs-on: ubuntu-latest
+    container:
+      image: rust:1.59
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.4.0
