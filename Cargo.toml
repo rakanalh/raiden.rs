@@ -5,7 +5,7 @@ authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
 description = "Raiden Network implementation in Rust"
 repository = "https://github.com/rakanalh/raiden-rust"
 license = "MIT"
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
 
