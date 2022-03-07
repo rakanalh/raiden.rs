@@ -74,11 +74,20 @@ pub enum TransferTask {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum TransferState {
+    TransferPending,
+    TransferExpired,
+    TransferSecretRevealed,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct InitiatorTransferState {
     pub route: RouteState,
     pub transfer_description: TransferDescriptionWithSecretState,
     pub channel_identifier: ChannelIdentifier,
     pub transfer: LockedTransferState,
+    pub received_secret_request: bool,
+    pub transfer_state: TransferState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

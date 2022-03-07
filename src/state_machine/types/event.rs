@@ -17,6 +17,7 @@ use crate::primitives::{
     RevealTimeout,
     Secret,
     SecretHash,
+    TokenAddress,
     TokenAmount,
     TokenNetworkAddress,
     TokenNetworkRegistryAddress,
@@ -32,12 +33,20 @@ pub enum Event {
     SendWithdrawExpired(SendWithdrawExpired),
     SendWithdrawRequest(SendWithdrawRequest),
     SendLockedTransfer(SendLockedTransfer),
+    SendLockExpired(SendLockExpired),
+    SendSecretReveal(SendSecretReveal),
+    SendUnlock(SendUnlock),
+    PaymentSentSuccess(PaymentSentSuccess),
+    UnlockSuccess(UnlockSuccess),
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
-    InvalidActionWithdraw(EventInvalidActionWithdraw),
-    InvalidActionSetRevealTimeout(EventInvalidActionSetRevealTimeout),
-    PaymentSentFailed(EventPaymentSentFailed),
+    ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw),
+    ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout),
+    ErrorPaymentSentFailed(ErrorPaymentSentFailed),
+    ErrorRouteFailed(ErrorRouteFailed),
+    ErrorUnlockFailed(ErrorUnlockFailed),
+    ErrorInvalidSecretRequest(ErrorInvalidSecretRequest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -106,6 +115,42 @@ pub struct SendSecretReveal {
     pub secrethash: SecretHash,
 }
 
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendLockExpired {
+    #[deref]
+    pub inner: SendMessageEventInner,
+    pub balance_proof: BalanceProofState,
+    pub secrethash: SecretHash,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendUnlock {
+    #[deref]
+    pub inner: SendMessageEventInner,
+    pub payment_identifier: PaymentIdentifier,
+    pub token_address: TokenAddress,
+    pub balance_proof: BalanceProofState,
+    pub secret: Secret,
+    pub secrethash: SecretHash,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct PaymentSentSuccess {
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
+    pub token_network_address: TokenNetworkAddress,
+    pub identifier: PaymentIdentifier,
+    pub amount: TokenAmount,
+    pub target: Address,
+    pub secret: Secret,
+    pub route: Vec<Address>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct UnlockSuccess {
+    pub identifier: PaymentIdentifier,
+    pub secrethash: SecretHash,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendEvent {
     pub triggered_by_blockhash: BlockHash,
@@ -132,22 +177,43 @@ pub struct ContractSendChannelBatchUnlock {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct EventInvalidActionWithdraw {
+pub struct ErrorInvalidActionWithdraw {
     pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct EventInvalidActionSetRevealTimeout {
+pub struct ErrorInvalidActionSetRevealTimeout {
     pub reveal_timeout: RevealTimeout,
     pub reason: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct EventPaymentSentFailed {
+pub struct ErrorPaymentSentFailed {
     pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub token_network_address: TokenNetworkAddress,
     pub identifier: PaymentIdentifier,
     pub target: Address,
     pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorUnlockFailed {
+    pub identifier: PaymentIdentifier,
+    pub secrethash: SecretHash,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorRouteFailed {
+    pub secrethash: SecretHash,
+    pub route: Vec<Address>,
+    pub token_network_address: TokenNetworkAddress,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidSecretRequest {
+    pub payment_identifier: PaymentIdentifier,
+    pub intended_amount: TokenAmount,
+    pub actual_amount: TokenAmount,
 }

@@ -30,7 +30,7 @@ fn subdispatch_to_channel_by_id(
     state_change: StateChange,
     block_number: U64,
     block_hash: H256,
-    pseudo_random_number_generator: Random,
+    pseudo_random_number_generator: &mut Random,
 ) -> TransitionResult {
     let channel_state = match token_network_state
         .channelidentifiers_to_channels
@@ -109,7 +109,7 @@ pub fn state_transition(
     state_change: StateChange,
     block_number: U64,
     block_hash: H256,
-    pseudo_random_number_generator: Random,
+    pseudo_random_number_generator: &mut Random,
 ) -> TransitionResult {
     match state_change {
         StateChange::ActionChannelSetRevealTimeout(ref inner) => {

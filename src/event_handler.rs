@@ -49,10 +49,18 @@ impl EventHandler {
             Event::ContractSendChannelSettle(_) => todo!(),
             Event::ContractSendChannelUpdateTransfer(_) => todo!(),
             Event::ContractSendChannelBatchUnlock(_) => todo!(),
-            Event::InvalidActionWithdraw(_) => todo!(),
-            Event::InvalidActionSetRevealTimeout(_) => todo!(),
             Event::SendLockedTransfer(_) => todo!(),
-            Event::PaymentSentFailed(_) => todo!(),
+            Event::SendLockExpired(_) => todo!(),
+            Event::ErrorInvalidActionWithdraw(_) => todo!(),
+            Event::ErrorInvalidActionSetRevealTimeout(_) => todo!(),
+            Event::ErrorPaymentSentFailed(_) => todo!(),
+            Event::ErrorRouteFailed(_) => todo!(),
+            Event::ErrorUnlockFailed(_) => todo!(),
+            Event::ErrorInvalidSecretRequest(_) => todo!(),
+            Event::SendSecretReveal(_) => todo!(),
+            Event::SendUnlock(_) => todo!(),
+            Event::PaymentSentSuccess(_) => todo!(),
+            Event::UnlockSuccess(_) => todo!(),
         }
     }
 }

@@ -52,7 +52,7 @@ pub fn empty_chain_state() -> ChainState {
         payment_mapping: PaymentMappingState {
             secrethashes_to_task: HashMap::new(),
         },
-        pseudo_random_number_generator: Random::new(),
+        pseudo_random_number_generator: &mut Random::new(),
     }
 }
 

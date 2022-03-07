@@ -142,6 +142,9 @@ pub struct ContractReceiveChannelSettled {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelDeposit {
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub canonical_identifier: CanonicalIdentifier,
     pub deposit_transaction: TransactionChannelDeposit,
     pub fee_config: MediationFeeConfig,
@@ -149,6 +152,9 @@ pub struct ContractReceiveChannelDeposit {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelWithdraw {
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub canonical_identifier: CanonicalIdentifier,
     pub participant: Address,
     pub total_withdraw: TokenAmount,
@@ -157,6 +163,9 @@ pub struct ContractReceiveChannelWithdraw {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveChannelBatchUnlock {
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub canonical_identifier: CanonicalIdentifier,
     pub receiver: Address,
     pub sender: Address,
@@ -167,6 +176,9 @@ pub struct ContractReceiveChannelBatchUnlock {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveSecretReveal {
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub secret_registry_address: SecretRegistryAddress,
     pub secrethash: SecretHash,
     pub secret: Secret,
@@ -174,6 +186,9 @@ pub struct ContractReceiveSecretReveal {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveRouteNew {
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub canonical_identifier: CanonicalIdentifier,
     pub participant1: Address,
     pub participant2: Address,
@@ -181,6 +196,9 @@ pub struct ContractReceiveRouteNew {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContractReceiveUpdateTransfer {
+    pub transaction_hash: Option<TransactionHash>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub canonical_identifier: CanonicalIdentifier,
     pub nonce: Nonce,
 }
@@ -227,21 +245,24 @@ pub struct ReceiveTransferCancelRoute {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ReceiveSecretRequest {
-    payment_identifier: PaymentIdentifier,
-    amount: TokenAmount,
-    expiration: BlockExpiration,
-    secrethash: SecretHash,
-    revealsecret: Option<SendSecretReveal>,
+    pub sender: Address,
+    pub payment_identifier: PaymentIdentifier,
+    pub amount: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub secrethash: SecretHash,
+    pub revealsecret: Option<SendSecretReveal>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ReceiveSecretReveal {
-    secret: Secret,
-    secrethash: SecretHash,
+    pub sender: Address,
+    pub secret: Secret,
+    pub secrethash: SecretHash,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ReceiveLockExpired {
-    secrethash: SecretHash,
-    message_identifier: MessageIdentifier,
+    pub sender: Address,
+    pub secrethash: SecretHash,
+    pub message_identifier: MessageIdentifier,
 }

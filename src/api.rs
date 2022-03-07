@@ -22,6 +22,7 @@ use crate::{
     },
     constants::{
         self,
+        ABSENT_SECRET,
         SECRET_LENGTH,
     },
     errors::StateTransitionError,
@@ -592,17 +593,15 @@ impl Api {
         let token_network_address = token_network.address;
 
         let secret = match secret {
-            Some(secret) => secret,
+            Some(secret) => Bytes(secret.as_bytes().to_vec()),
             None => {
                 if secret_hash.is_none() {
-                    random_secret()
+                    Bytes(random_secret().as_bytes().to_vec())
                 } else {
-                    "".to_string()
+                    ABSENT_SECRET
                 }
             }
         };
-
-        let secret = Bytes(secret.as_bytes().to_vec());
 
         let secret_hash = match secret_hash {
             Some(hash) => hash,

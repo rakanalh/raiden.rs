@@ -25,16 +25,16 @@ use crate::{
     },
 };
 
-pub(super) type TransitionResult = std::result::Result<InitiatorTransition, StateTransitionError>;
+pub(super) type TransitionResult = std::result::Result<InitiatorManagerTransition, StateTransitionError>;
 
-pub struct InitiatorTransition {
+pub struct InitiatorManagerTransition {
     pub new_state: Option<InitiatorPaymentState>,
     pub chain_state: ChainState,
     pub events: Vec<Event>,
 }
 
 fn subdispatch_to_initiator_transfer(
-    chain_state: ChainState,
+    mut chain_state: ChainState,
     mut payment_state: InitiatorPaymentState,
     initiator_state: InitiatorTransferState,
     state_change: StateChange,
@@ -50,7 +50,7 @@ fn subdispatch_to_initiator_transfer(
     ) {
         Some(channel_state) => channel_state,
         None => {
-            return Ok(InitiatorTransition {
+            return Ok(InitiatorManagerTransition {
                 new_state: Some(payment_state),
                 chain_state,
                 events: vec![],
@@ -62,7 +62,7 @@ fn subdispatch_to_initiator_transfer(
         initiator_state.clone(),
         state_change,
         channel_state.clone(),
-        chain_state.pseudo_random_number_generator.clone(),
+        &mut chain_state.pseudo_random_number_generator,
         chain_state.block_number,
     )?;
 
@@ -79,7 +79,7 @@ fn subdispatch_to_initiator_transfer(
         }
     }
 
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: Some(payment_state),
         chain_state,
         events: sub_iteration.events,
@@ -92,7 +92,7 @@ fn subdispatch_to_all_initiator_transfer(
     state_change: StateChange,
 ) -> TransitionResult {
     let mut events = vec![];
-    for (secrethash, initiator_state) in &payment_state.initiator_transfers {
+    for initiator_state in payment_state.initiator_transfers.values() {
         let sub_iteration = subdispatch_to_initiator_transfer(
             chain_state.clone(),
             payment_state.clone(),
@@ -102,7 +102,7 @@ fn subdispatch_to_all_initiator_transfer(
         events.extend(sub_iteration.events);
     }
 
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: Some(payment_state),
         chain_state,
         events,
@@ -112,9 +112,9 @@ fn subdispatch_to_all_initiator_transfer(
 pub fn handle_block(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: Block,
+    _state_change: Block,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         chain_state,
         new_state: payment_state,
         events: vec![],
@@ -122,16 +122,17 @@ pub fn handle_block(
 }
 
 pub fn handle_init_initiator(
-    chain_state: ChainState,
+    mut chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
     state_change: ActionInitInitiator,
 ) -> TransitionResult {
     let mut payment_state = payment_state.clone();
     let mut events = vec![];
     if payment_state.is_none() {
-        let (new_state, chain_state, iteration_events) =
+        let (new_state, new_chain_state, iteration_events) =
             initiator::try_new_route(chain_state.clone(), state_change.routes.clone(), state_change.transfer)?;
 
+        chain_state = new_chain_state;
         events = iteration_events;
 
         if let Some(new_state) = new_state {
@@ -145,7 +146,7 @@ pub fn handle_init_initiator(
         }
     }
 
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events,
@@ -155,9 +156,9 @@ pub fn handle_init_initiator(
 pub fn handle_action_transfer_reroute(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ActionTransferReroute,
+    _state_change: ActionTransferReroute,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
@@ -167,9 +168,9 @@ pub fn handle_action_transfer_reroute(
 pub fn handle_action_cancel_payment(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ActionCancelPayment,
+    _state_change: ActionCancelPayment,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
@@ -179,9 +180,9 @@ pub fn handle_action_cancel_payment(
 pub fn handle_transfer_cancel_route(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ReceiveTransferCancelRoute,
+    _state_change: ReceiveTransferCancelRoute,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
@@ -191,9 +192,9 @@ pub fn handle_transfer_cancel_route(
 pub fn handle_secret_request(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ReceiveSecretRequest,
+    _state_change: ReceiveSecretRequest,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
@@ -203,9 +204,9 @@ pub fn handle_secret_request(
 pub fn handle_secret_reveal(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ReceiveSecretReveal,
+    _state_change: ReceiveSecretReveal,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
@@ -215,9 +216,9 @@ pub fn handle_secret_reveal(
 pub fn handle_lock_expired(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ReceiveLockExpired,
+    _state_change: ReceiveLockExpired,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
@@ -227,19 +228,19 @@ pub fn handle_lock_expired(
 pub fn handle_contract_secret_reveal(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    state_change: ContractReceiveSecretReveal,
+    _state_change: ContractReceiveSecretReveal,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
+    Ok(InitiatorManagerTransition {
         new_state: payment_state,
         chain_state,
         events: vec![],
     })
 }
 
-pub fn clear_if_finalized(transition: InitiatorTransition) -> InitiatorTransition {
+pub fn clear_if_finalized(transition: InitiatorManagerTransition) -> InitiatorManagerTransition {
     if let Some(ref new_state) = transition.new_state {
         if new_state.initiator_transfers.len() == 0 {
-            return InitiatorTransition {
+            return InitiatorManagerTransition {
                 new_state: None,
                 chain_state: transition.chain_state,
                 events: transition.events,
@@ -269,7 +270,7 @@ pub fn state_transition(
             handle_contract_secret_reveal(chain_state, manager_state, inner)
         }
         _ => {
-            return Ok(InitiatorTransition {
+            return Ok(InitiatorManagerTransition {
                 new_state: manager_state,
                 chain_state,
                 events: vec![],

@@ -222,6 +222,9 @@ impl EventDecoder {
                 deposit_block_number: event.block_number,
             },
             fee_config: self.config.mediation_config.clone(),
+            transaction_hash: Some(event.transaction_hash),
+            block_number: event.block_number,
+            block_hash: event.block_hash,
         };
         Ok(Some(StateChange::ContractReceiveChannelDeposit(channel_deposit)))
     }
@@ -259,6 +262,9 @@ impl EventDecoder {
             participant,
             total_withdraw,
             fee_config: self.config.mediation_config.clone(),
+            transaction_hash: Some(event.transaction_hash),
+            block_number: event.block_number,
+            block_hash: event.block_hash,
         };
         Ok(Some(StateChange::ContractReceiveChannelWithdraw(channel_withdraw)))
     }
@@ -323,6 +329,9 @@ impl EventDecoder {
                 channel_identifier,
             },
             nonce,
+            transaction_hash: Some(event.transaction_hash),
+            block_number: event.block_number,
+            block_hash: event.block_hash,
         };
         Ok(Some(StateChange::ContractReceiveUpdateTransfer(update_transfer)))
     }

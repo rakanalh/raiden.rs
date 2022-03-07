@@ -1,5 +1,18 @@
-use crate::state_machine::types::ChannelStatus;
+use web3::types::{
+    Address,
+    Bytes,
+};
 
+use crate::{
+    primitives::{
+        CanonicalIdentifier,
+        ChainID,
+        ChannelIdentifier,
+    },
+    state_machine::types::ChannelStatus,
+};
+
+pub const ABSENT_SECRET: Bytes = Bytes(vec![]);
 pub const SECRET_LENGTH: u8 = 32;
 
 pub const MIN_REVEAL_TIMEOUT: u32 = 1;
@@ -15,6 +28,7 @@ pub const DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE: u64 = 3000; // 0.3% in p
 pub const NUM_DISCRETISATION_POINTS: u64 = 21;
 
 pub const DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS: u64 = 5;
+pub const DEFAULT_WAIT_BEFORE_LOCK_REMOVAL: u64 = 2 * DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS;
 
 pub const TRANSACTION_GAS_LIMIT_UPPER_BOUND: u64 = 1_256_636; // int(0.4 * 3_141_592);
 pub const TRANSACTION_INTRINSIC_GAS: u64 = 21_000;
@@ -32,3 +46,9 @@ pub const MAX_MEDIATION_FEE_PERC: (u32, u32) = (2, 1000);
 pub const DEFAULT_MEDIATION_FEE_MARGIN: (u32, u32) = (3, 10000);
 // 0.0005%
 pub const PAYMENT_AMOUNT_BASED_FEE_MARGIN: (u32, u32) = (5, 100000);
+
+pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalIdentifier {
+    chain_identifier: ChainID::Mainnet,
+    token_network_address: Address::zero(),
+    channel_identifier: ChannelIdentifier::zero(),
+};

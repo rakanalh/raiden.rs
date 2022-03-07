@@ -2,7 +2,10 @@ use std::ops::Div;
 
 use crate::{
     constants::{
+        ABSENT_SECRET,
+        CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
         DEFAULT_MEDIATION_FEE_MARGIN,
+        DEFAULT_WAIT_BEFORE_LOCK_REMOVAL,
         MAX_MEDIATION_FEE_PERC,
         PAYMENT_AMOUNT_BASED_FEE_MARGIN,
     },
@@ -12,26 +15,44 @@ use crate::{
         FeeAmount,
         MessageIdentifier,
         Random,
+        Secret,
+        SecretHash,
         TokenAmount,
     },
     state_machine::{
         types::{
+            Block,
             ChainState,
             ChannelState,
+            ChannelStatus,
+            ContractReceiveSecretReveal,
+            ErrorInvalidSecretRequest,
+            ErrorPaymentSentFailed,
+            ErrorRouteFailed,
+            ErrorUnlockFailed,
             Event,
-            EventPaymentSentFailed,
             InitiatorTransferState,
+            PaymentSentSuccess,
+            ReceiveSecretRequest,
+            ReceiveSecretReveal,
             RouteState,
             SendLockedTransfer,
+            SendMessageEventInner,
+            SendSecretReveal,
             StateChange,
             TransferDescriptionWithSecretState,
+            TransferState,
+            UnlockSuccess,
         },
         views,
     },
 };
 
 use super::{
-    channel,
+    channel::{
+        self,
+        get_address_metadata,
+    },
     routes,
 };
 
@@ -89,6 +110,51 @@ fn calculate_fee_margin(payment_amount: TokenAmount, estimated_fee: FeeAmount) -
 
 fn calculate_safe_amount_with_fee(payment_amount: TokenAmount, estimated_fee: FeeAmount) -> TokenAmount {
     payment_amount + estimated_fee + calculate_fee_margin(payment_amount, estimated_fee)
+}
+
+fn events_for_unlock_lock(
+    initiator_state: &InitiatorTransferState,
+    channel_state: &mut ChannelState,
+    secret: Secret,
+    secrethash: SecretHash,
+    pseudo_random_number_generator: &mut Random,
+    block_number: BlockNumber,
+) -> Result<Vec<Event>, StateTransitionError> {
+    let transfer_description = &initiator_state.transfer_description;
+
+    let message_identifier = pseudo_random_number_generator.next();
+    let recipient_address = channel_state.partner_state.address;
+    let recipient_metadata = get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
+    let unlock_lock = channel::send_unlock(
+        channel_state,
+        message_identifier,
+        transfer_description.payment_identifier,
+        secret.clone(),
+        secrethash,
+        block_number,
+        recipient_metadata,
+    )?;
+
+    let payment_sent_success = PaymentSentSuccess {
+        secret,
+        token_network_registry_address: channel_state.token_network_registry_address,
+        token_network_address: channel_state.canonical_identifier.token_network_address,
+        identifier: transfer_description.payment_identifier,
+        amount: transfer_description.amount,
+        target: transfer_description.target,
+        route: initiator_state.route.route.clone(),
+    };
+
+    let unlock_success = UnlockSuccess {
+        identifier: transfer_description.payment_identifier,
+        secrethash,
+    };
+
+    Ok(vec![
+        Event::SendUnlock(unlock_lock),
+        Event::PaymentSentSuccess(payment_sent_success),
+        Event::UnlockSuccess(unlock_success),
+    ])
 }
 
 fn send_locked_transfer(
@@ -183,6 +249,8 @@ pub fn try_new_route(
             transfer_description,
             channel_identifier: channel_state.canonical_identifier.channel_identifier,
             transfer: locked_transfer_event.transfer.clone(),
+            received_secret_request: false,
+            transfer_state: TransferState::TransferPending,
         };
         update_channel(&mut chain_state, channel_state)?;
         (
@@ -194,7 +262,7 @@ pub fn try_new_route(
         if route_fee_exceeds_max {
             reason += " and at least one of them exceeded the maximum fee limit";
         }
-        let transfer_failed = Event::PaymentSentFailed(EventPaymentSentFailed {
+        let transfer_failed = Event::ErrorPaymentSentFailed(ErrorPaymentSentFailed {
             token_network_registry_address: transfer_description.token_network_registry_address,
             token_network_address: transfer_description.token_network_address,
             identifier: transfer_description.payment_identifier,
@@ -208,16 +276,302 @@ pub fn try_new_route(
     Ok((initiator_state, chain_state, events))
 }
 
+fn handle_block(
+    mut initiator_state: InitiatorTransferState,
+    state_change: Block,
+    channel_state: ChannelState,
+    pseudo_random_number_generator: &mut Random,
+) -> TransitionResult {
+    let secrethash = initiator_state.transfer.lock.secrethash;
+    let locked_lock = match channel_state.our_state.secrethashes_to_lockedlocks.get(&secrethash) {
+        Some(locked_lock) => locked_lock,
+        None => {
+            if channel_state
+                .partner_state
+                .secrethashes_to_lockedlocks
+                .get(&secrethash)
+                .is_some()
+            {
+                return Ok(InitiatorTransition {
+                    new_state: Some(initiator_state),
+                    channel_state: Some(channel_state),
+                    events: vec![],
+                });
+            } else {
+                return Ok(InitiatorTransition {
+                    new_state: None,
+                    channel_state: Some(channel_state),
+                    events: vec![],
+                });
+            }
+        }
+    };
+
+    let lock_expiration_threshold = locked_lock.expiration + DEFAULT_WAIT_BEFORE_LOCK_REMOVAL.into();
+    let lock_has_expired = channel::is_lock_expired(
+        &channel_state.our_state,
+        locked_lock,
+        state_change.block_number,
+        lock_expiration_threshold,
+    );
+
+    let mut events = vec![];
+    let (initiator_state, channel_state) =
+        if lock_has_expired && initiator_state.transfer_state != TransferState::TransferExpired {
+            let channel_state = if channel_state.status() == ChannelStatus::Opened {
+                let recipient_address = channel_state.partner_state.address;
+                let recipient_metadata = get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
+                let locked_lock = locked_lock.clone();
+                let (channel_state, expired_lock_events) = channel::send_lock_expired(
+                    channel_state,
+                    locked_lock,
+                    pseudo_random_number_generator,
+                    recipient_metadata,
+                )?;
+                events.extend(
+                    expired_lock_events
+                        .into_iter()
+                        .map(|event| Event::SendLockExpired(event)),
+                );
+                channel_state
+            } else {
+                channel_state
+            };
+
+            let reason = if initiator_state.received_secret_request {
+                "Lock expired, despite receiving secret request".to_owned()
+            } else {
+                "Lock expired".to_owned()
+            };
+
+            let transfer_description = &initiator_state.transfer_description;
+            let payment_identifier = transfer_description.payment_identifier;
+
+            let payment_failed = ErrorPaymentSentFailed {
+                token_network_registry_address: transfer_description.token_network_registry_address,
+                token_network_address: transfer_description.token_network_address,
+                identifier: transfer_description.payment_identifier,
+                target: transfer_description.target,
+                reason: reason.clone(),
+            };
+            let route_failed = ErrorRouteFailed {
+                secrethash,
+                route: initiator_state.route.route.clone(),
+                token_network_address: transfer_description.token_network_address,
+            };
+            let unlock_failed = ErrorUnlockFailed {
+                identifier: payment_identifier,
+                secrethash,
+                reason,
+            };
+            events.extend(vec![
+                Event::ErrorPaymentSentFailed(payment_failed),
+                Event::ErrorRouteFailed(route_failed),
+                Event::ErrorUnlockFailed(unlock_failed),
+            ]);
+            initiator_state.transfer_state = TransferState::TransferExpired;
+
+            let lock_exists = channel::lock_exists_in_either_channel_side(&channel_state, secrethash);
+            let initiator_state = if lock_exists { Some(initiator_state) } else { None };
+            (initiator_state, channel_state)
+        } else {
+            (Some(initiator_state), channel_state)
+        };
+
+    Ok(InitiatorTransition {
+        new_state: initiator_state,
+        channel_state: Some(channel_state),
+        events: vec![],
+    })
+}
+
+fn handle_receive_secret_request(
+    mut initiator_state: InitiatorTransferState,
+    state_change: ReceiveSecretRequest,
+    channel_state: ChannelState,
+    pseudo_random_number_generator: &mut Random,
+) -> TransitionResult {
+    let is_message_from_target = state_change.sender == initiator_state.transfer_description.target
+        && state_change.secrethash == initiator_state.transfer_description.secrethash
+        && state_change.payment_identifier == initiator_state.transfer_description.payment_identifier;
+
+    if !is_message_from_target {
+        return Ok(InitiatorTransition {
+            new_state: Some(initiator_state),
+            channel_state: Some(channel_state),
+            events: vec![],
+        });
+    }
+
+    let lock = match channel::get_lock(
+        &channel_state.our_state,
+        initiator_state.transfer_description.secrethash,
+    ) {
+        Some(lock) => lock,
+        None => {
+            return Err(StateTransitionError {
+                msg: "Channel does not have the transfer's lock".to_owned(),
+            });
+        }
+    };
+
+    if initiator_state.received_secret_request {
+        return Ok(InitiatorTransition {
+            new_state: Some(initiator_state),
+            channel_state: Some(channel_state),
+            events: vec![],
+        });
+    }
+
+    let is_valid_secret_request = state_change.amount >= initiator_state.transfer_description.amount
+        && state_change.expiration == lock.expiration
+        && initiator_state.transfer_description.secret != ABSENT_SECRET;
+
+    let mut events = vec![];
+    if is_valid_secret_request {
+        let message_identifier = pseudo_random_number_generator.next();
+        let transfer_description = initiator_state.transfer_description.clone();
+        let recipient = transfer_description.target;
+        let recipient_metadata = get_address_metadata(recipient, vec![initiator_state.route.clone()]);
+        let secret_reveal = SendSecretReveal {
+            inner: SendMessageEventInner {
+                recipient,
+                recipient_metadata,
+                canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                message_identifier,
+            },
+            secret: transfer_description.secret,
+            secrethash: transfer_description.secrethash,
+        };
+        initiator_state.transfer_state = TransferState::TransferSecretRevealed;
+        initiator_state.received_secret_request = true;
+        events.push(Event::SendSecretReveal(secret_reveal));
+    } else {
+        initiator_state.received_secret_request = true;
+        let invalid_request = ErrorInvalidSecretRequest {
+            payment_identifier: state_change.payment_identifier,
+            intended_amount: initiator_state.transfer_description.amount,
+            actual_amount: state_change.amount,
+        };
+        events.push(Event::ErrorInvalidSecretRequest(invalid_request));
+    }
+
+    return Ok(InitiatorTransition {
+        new_state: Some(initiator_state),
+        channel_state: Some(channel_state),
+        events,
+    });
+}
+
+fn handle_receive_offchain_secret_reveal(
+    initiator_state: InitiatorTransferState,
+    state_change: ReceiveSecretReveal,
+    mut channel_state: ChannelState,
+    pseudo_random_number_generator: &mut Random,
+    block_number: BlockNumber,
+) -> TransitionResult {
+    let valid_reveal = state_change.secrethash == initiator_state.transfer_description.secrethash;
+    let sent_by_partner = state_change.sender == channel_state.partner_state.address;
+    let is_channel_open = channel_state.status() == ChannelStatus::Opened;
+
+    let lock = initiator_state.transfer.lock.clone();
+    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration);
+
+    let mut events = vec![];
+    if valid_reveal && is_channel_open && sent_by_partner && !expired {
+        events.extend(events_for_unlock_lock(
+            &initiator_state,
+            &mut channel_state,
+            state_change.secret,
+            state_change.secrethash,
+            pseudo_random_number_generator,
+            block_number,
+        )?);
+    }
+
+    return Ok(InitiatorTransition {
+        new_state: Some(initiator_state),
+        channel_state: Some(channel_state),
+        events,
+    });
+}
+
+fn handle_receive_onchain_secret_reveal(
+    initiator_state: InitiatorTransferState,
+    state_change: ContractReceiveSecretReveal,
+    mut channel_state: ChannelState,
+    pseudo_random_number_generator: &mut Random,
+    block_number: BlockNumber,
+) -> TransitionResult {
+    let secrethash = initiator_state.transfer_description.secrethash;
+    let is_valid_secret = state_change.secrethash == secrethash;
+    let is_channel_open = channel_state.status() == ChannelStatus::Opened;
+    let is_lock_expired = state_change.block_number > initiator_state.transfer.lock.expiration;
+    let is_lock_unlocked = is_valid_secret && !is_lock_expired;
+    if is_lock_unlocked {
+        channel::register_onchain_secret(
+            &mut channel_state,
+            state_change.secret.clone(),
+            state_change.secrethash,
+            state_change.block_number,
+            true,
+        );
+    }
+
+    let lock = initiator_state.transfer.lock.clone();
+    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration);
+
+    let mut events = vec![];
+    if is_lock_unlocked && is_channel_open && !expired {
+        events.extend(events_for_unlock_lock(
+            &initiator_state,
+            &mut channel_state,
+            state_change.secret.clone(),
+            secrethash,
+            pseudo_random_number_generator,
+            block_number,
+        )?);
+    }
+
+    return Ok(InitiatorTransition {
+        new_state: Some(initiator_state),
+        channel_state: Some(channel_state),
+        events,
+    });
+}
+
 pub fn state_transition(
     initiator_state: InitiatorTransferState,
     state_change: StateChange,
     channel_state: ChannelState,
-    pseudo_random_number_generator: Random,
+    pseudo_random_number_generator: &mut Random,
     block_number: BlockNumber,
 ) -> TransitionResult {
-    Ok(InitiatorTransition {
-        new_state: Some(initiator_state),
-        channel_state: Some(channel_state),
-        events: vec![],
-    })
+    match state_change {
+        StateChange::Block(inner) => {
+            handle_block(initiator_state, inner, channel_state, pseudo_random_number_generator)
+        }
+        StateChange::ReceiveSecretReveal(inner) => handle_receive_offchain_secret_reveal(
+            initiator_state,
+            inner,
+            channel_state,
+            pseudo_random_number_generator,
+            block_number,
+        ),
+        StateChange::ReceiveSecretRequest(inner) => {
+            handle_receive_secret_request(initiator_state, inner, channel_state, pseudo_random_number_generator)
+        }
+        StateChange::ContractReceiveSecretReveal(inner) => handle_receive_onchain_secret_reveal(
+            initiator_state,
+            inner,
+            channel_state,
+            pseudo_random_number_generator,
+            block_number,
+        ),
+        _ => Ok(InitiatorTransition {
+            new_state: Some(initiator_state),
+            channel_state: Some(channel_state),
+            events: vec![],
+        }),
+    }
 }

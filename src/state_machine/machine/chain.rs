@@ -71,7 +71,7 @@ fn subdispatch_by_canonical_id(
         state_change,
         chain_state.block_number,
         chain_state.block_hash,
-        chain_state.pseudo_random_number_generator.clone(),
+        &mut chain_state.pseudo_random_number_generator,
     )?;
 
     *token_network = transition.new_state;
@@ -99,7 +99,7 @@ fn subdispatch_to_all_channels(
                     state_change.clone(),
                     block_number,
                     block_hash,
-                    chain_state.pseudo_random_number_generator.clone(),
+                    &mut chain_state.pseudo_random_number_generator,
                 )?;
 
                 if let Some(new_state) = result.new_state {
@@ -327,7 +327,7 @@ fn handle_token_network_state_change(
         state_change,
         block_number,
         block_hash,
-        chain_state.pseudo_random_number_generator.clone(),
+        &mut chain_state.pseudo_random_number_generator,
     )?;
 
     let new_state: TokenNetworkState = transition.new_state;
