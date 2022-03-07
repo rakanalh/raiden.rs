@@ -14,17 +14,15 @@ jobs:
       image: rust:1.59
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
 
       - name: Install nightly toolchain
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: nightly-2021-04-18
-          components: rustfmt
+          toolchain: nightly
           override: true
-          default: true
-
+      - name: Install rustfmt
+        run: rustup component add rustfmt
       - name: Check Format
         uses: actions-rs/cargo@v1
         with:
@@ -39,7 +37,7 @@ jobs:
       image: rust:1.59
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v1
@@ -58,7 +56,7 @@ jobs:
       image: rust:1.59
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v1
@@ -81,7 +79,7 @@ jobs:
       image: rust:1.59
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
 
       - name: Install nightly toolchain
         uses: actions-rs/toolchain@v1
