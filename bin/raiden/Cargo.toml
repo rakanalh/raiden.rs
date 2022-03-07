@@ -8,6 +8,7 @@ license = "MIT"
 edition = "2021"
 readme = "README.md"
 keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+rust-version = "1.59"
 
 [[bin]]
 name = "raiden"
