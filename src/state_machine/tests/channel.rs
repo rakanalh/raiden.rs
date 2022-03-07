@@ -16,6 +16,7 @@ use crate::{
         CanonicalIdentifier,
         MediationFeeConfig,
         TransactionExecutionStatus,
+        TransactionHash,
         TransactionResult,
         U64,
     },
@@ -35,9 +36,9 @@ use crate::{
             ContractSendChannelSettle,
             ContractSendChannelUpdateTransfer,
             ContractSendEvent,
+            ErrorInvalidActionSetRevealTimeout,
+            ErrorInvalidActionWithdraw,
             Event,
-            EventInvalidActionSetRevealTimeout,
-            EventInvalidActionWithdraw,
             PendingWithdrawState,
             SendMessageEventInner,
             SendWithdrawExpired,
@@ -357,6 +358,9 @@ fn test_channel_withdraw() {
         participant: chain_state.our_address.clone(),
         total_withdraw: U256::from(100u64),
         fee_config: MediationFeeConfig::default(),
+        transaction_hash: Some(TransactionHash::zero()),
+        block_number: U64::from(1u64),
+        block_hash: H256::zero(),
     });
     let result = chain::state_transition(chain_state, state_change).expect("Withdraw should succeed");
     let chain_state = result.new_state;
@@ -370,6 +374,9 @@ fn test_channel_withdraw() {
         participant: channel_state.partner_state.address,
         total_withdraw: U256::from(99u64),
         fee_config: MediationFeeConfig::default(),
+        transaction_hash: Some(TransactionHash::zero()),
+        block_number: U64::from(1u64),
+        block_hash: H256::zero(),
     });
     let result = chain::state_transition(chain_state, state_change).expect("Withdraw should succeed");
     let chain_state = result.new_state;
@@ -415,6 +422,9 @@ fn test_channel_deposit() {
             deposit_block_number: U64::from(10u64),
         },
         fee_config: MediationFeeConfig::default(),
+        transaction_hash: Some(TransactionHash::zero()),
+        block_number: U64::from(1u64),
+        block_hash: H256::zero(),
     });
     let result = chain::state_transition(chain_state, state_change).expect("Deposit should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
@@ -430,6 +440,9 @@ fn test_channel_deposit() {
             deposit_block_number: U64::from(10u64),
         },
         fee_config: MediationFeeConfig::default(),
+        transaction_hash: Some(TransactionHash::zero()),
+        block_number: U64::from(1u64),
+        block_hash: H256::zero(),
     });
     let result = chain::state_transition(chain_state, state_change).expect("Deposit should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier)
@@ -552,6 +565,9 @@ fn test_channel_batch_unlock() {
         locksroot: Bytes::default(),
         unlocked_amount: U256::from(100u64),
         returned_tokens: U256::zero(),
+        transaction_hash: Some(TransactionHash::zero()),
+        block_number: U64::from(1u64),
+        block_hash: H256::zero(),
     });
     let result = chain::state_transition(chain_state, state_change).expect("Should succeeed");
 
@@ -593,7 +609,7 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+        Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
             attemped_withdraw: U256::from(100u64),
             reason: format!("Insufficient balance: 0. Requested 100 for withdraw"),
         })
@@ -608,7 +624,7 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+        Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
             attemped_withdraw: U256::zero(),
             reason: format!("Total withdraw 0 did not increase"),
         })
@@ -642,7 +658,7 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::InvalidActionWithdraw(EventInvalidActionWithdraw {
+        Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
             attemped_withdraw: U256::from(100u64),
             reason: format!("Invalid withdraw, the channel is not opened"),
         })
@@ -730,7 +746,7 @@ fn test_channel_set_reveal_timeout() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::InvalidActionSetRevealTimeout(EventInvalidActionSetRevealTimeout {
+        Event::ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout {
             reveal_timeout: U64::from(6u64),
             reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
         })
