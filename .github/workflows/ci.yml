@@ -42,8 +42,8 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v1
 
-      - name: Install cmake
-        run: sudo apt-get install -y cmake
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
 
       - name: Run tests, with all features
         run: cargo test --locked --workspace --all-features
