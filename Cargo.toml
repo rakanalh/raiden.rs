@@ -24,13 +24,13 @@ ethabi = { version = "14.0.0", default-features = false }
 ethsign = { version = "0.8.0", default-features = false }
 derive_more = { version = "0.99.11", default-features = false }
 futures = { version = "0.3.12", default-features = false }
-matrix-sdk = { version = "0.3.0", default-features = false, features = ["native-tls"] }
+matrix-sdk = { version = "0.4.1", default-features = false, features = ["native-tls"] }
 parking_lot = { version = "0.11.2", default-features = false }
 reqwest = { version = "0.11.4", default-features = false, features = ["json"] }
 rand = { version = "0.8.4", default-features = false }
 rand_chacha = { version = "0.3.1", default-features = false, features = ["serde1"] }
 rusqlite = { version = "0.25.3", default-features = false }
-serde = { version = "1.0.132", default-features = false }
+serde = { version = "1.0.136", default-features = false }
 serde_json = { version = "1.0.59", default-features = false }
 slog = { version = "2.7.0", default-features = false }
 thiserror = { version = "1.0", default-features = false }
