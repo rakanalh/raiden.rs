@@ -20,7 +20,7 @@ members = [
 [dependencies]
 async-trait = { version = "0.1.51", default-features = false }
 chrono = { version = "0.4.19", default-features = false }
-ethabi = { version = "14.0.0", default-features = false }
+ethabi = { version = "17.0.0", default-features = false }
 ethsign = { version = "0.8.0", default-features = false }
 derive_more = { version = "0.99.11", default-features = false }
 futures = { version = "0.3.12", default-features = false }
