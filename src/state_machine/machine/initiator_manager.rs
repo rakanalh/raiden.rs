@@ -87,18 +87,23 @@ fn subdispatch_to_initiator_transfer(
 }
 
 fn subdispatch_to_all_initiator_transfer(
-    payment_state: InitiatorPaymentState,
-    chain_state: ChainState,
+    mut payment_state: InitiatorPaymentState,
+    mut chain_state: ChainState,
     state_change: StateChange,
 ) -> TransitionResult {
     let mut events = vec![];
-    for initiator_state in payment_state.initiator_transfers.values() {
+
+    for initiator_state in payment_state.initiator_transfers.clone().values() {
         let sub_iteration = subdispatch_to_initiator_transfer(
             chain_state.clone(),
             payment_state.clone(),
             initiator_state.clone(),
             state_change.clone(),
         )?;
+        chain_state = sub_iteration.chain_state;
+        payment_state = sub_iteration
+            .new_state
+            .expect("Subdispatch returns a correct payment_state");
         events.extend(sub_iteration.events);
     }
 
@@ -112,13 +117,17 @@ fn subdispatch_to_all_initiator_transfer(
 pub fn handle_block(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    _state_change: Block,
+    state_change: Block,
 ) -> TransitionResult {
-    Ok(InitiatorManagerTransition {
-        chain_state,
-        new_state: payment_state,
-        events: vec![],
-    })
+    let payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "Block state changes should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
+    subdispatch_to_all_initiator_transfer(payment_state, chain_state, StateChange::Block(state_change))
 }
 
 pub fn handle_init_initiator(
