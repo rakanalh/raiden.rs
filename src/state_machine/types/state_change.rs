@@ -228,9 +228,9 @@ pub struct ActionInitTarget {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ActionTransferReroute {
-    transfer: LockedTransferState,
-    secret: Secret,
-    secrethash: SecretHash,
+    pub transfer: LockedTransferState,
+    pub secret: Secret,
+    pub secrethash: SecretHash,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -240,7 +240,7 @@ pub struct ActionCancelPayment {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ReceiveTransferCancelRoute {
-    transfer: LockedTransferState,
+    pub transfer: LockedTransferState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

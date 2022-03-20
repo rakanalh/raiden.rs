@@ -68,6 +68,12 @@ pub enum ChainID {
     Kovan = 42,
 }
 
+impl Into<U256> for ChainID {
+    fn into(self) -> U256 {
+        (self as u32).into()
+    }
+}
+
 impl Into<Vec<u8>> for ChainID {
     fn into(self) -> Vec<u8> {
         (self as u8).to_be_bytes().to_vec()

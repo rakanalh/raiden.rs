@@ -75,9 +75,10 @@ pub enum TransferTask {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransferState {
-    TransferPending,
-    TransferExpired,
-    TransferSecretRevealed,
+    Pending,
+    Expired,
+    SecretRevealed,
+    Canceled,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -601,10 +602,13 @@ pub struct RouteState {
 }
 
 impl RouteState {
-    pub fn next_hop_address(&self) -> Option<Address> {
-        if self.route.len() > 1 {
-            self.route[1];
+    pub fn hop_after(&self, address: Address) -> Option<Address> {
+        if let Some(index) = self.route.iter().position(|route| route == &address) {
+            if index + 1 < self.route.len() {
+                return Some(self.route[index + 1]);
+            }
         }
+
         None
     }
 }

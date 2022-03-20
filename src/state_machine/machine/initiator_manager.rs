@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use super::initiator;
+use super::{
+    channel,
+    initiator,
+    routes,
+};
 use crate::{
     errors::StateTransitionError,
     primitives::CanonicalIdentifier,
@@ -12,6 +16,9 @@ use crate::{
             Block,
             ChainState,
             ContractReceiveSecretReveal,
+            ErrorPaymentSentFailed,
+            ErrorRouteFailed,
+            ErrorUnlockFailed,
             Event,
             InitiatorPaymentState,
             InitiatorTransferState,
@@ -19,9 +26,15 @@ use crate::{
             ReceiveSecretRequest,
             ReceiveSecretReveal,
             ReceiveTransferCancelRoute,
+            RouteState,
             StateChange,
+            TransferDescriptionWithSecretState,
+            TransferState,
         },
-        views,
+        views::{
+            self,
+            get_addresses_to_channels,
+        },
     },
 };
 
@@ -31,6 +44,39 @@ pub struct InitiatorManagerTransition {
     pub new_state: Option<InitiatorPaymentState>,
     pub chain_state: ChainState,
     pub events: Vec<Event>,
+}
+
+fn can_cancel(initiator: &InitiatorTransferState) -> bool {
+    initiator.transfer_state != TransferState::Canceled
+}
+
+fn events_for_cancel_current_route(
+    route_state: &RouteState,
+    transfer_description: &TransferDescriptionWithSecretState,
+) -> Vec<Event> {
+    vec![
+        Event::ErrorUnlockFailed(ErrorUnlockFailed {
+            identifier: transfer_description.payment_identifier,
+            secrethash: transfer_description.secrethash,
+            reason: "route was canceled".to_string(),
+        }),
+        Event::ErrorRouteFailed(ErrorRouteFailed {
+            secrethash: transfer_description.secrethash,
+            route: route_state.route.clone(),
+            token_network_address: transfer_description.token_network_address,
+        }),
+    ]
+}
+
+fn cancel_current_route(
+    payment_state: &mut InitiatorPaymentState,
+    initiator_state: &InitiatorTransferState,
+) -> Vec<Event> {
+    payment_state
+        .cancelled_channels
+        .push(initiator_state.channel_identifier);
+
+    events_for_cancel_current_route(&initiator_state.route, &initiator_state.transfer_description)
 }
 
 fn subdispatch_to_initiator_transfer(
@@ -162,39 +208,202 @@ pub fn handle_init_initiator(
     })
 }
 
-pub fn handle_action_transfer_reroute(
-    chain_state: ChainState,
-    payment_state: Option<InitiatorPaymentState>,
-    _state_change: ActionTransferReroute,
-) -> TransitionResult {
-    Ok(InitiatorManagerTransition {
-        new_state: payment_state,
-        chain_state,
-        events: vec![],
-    })
-}
-
 pub fn handle_action_cancel_payment(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
     _state_change: ActionCancelPayment,
 ) -> TransitionResult {
+    let mut payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "ActionCancelPayment state changes should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
+
+    let mut events = vec![];
+    for initiator_state in payment_state.initiator_transfers.clone().values_mut() {
+        let channel_identifier = initiator_state.channel_identifier;
+        let channel_state = match views::get_channel_by_canonical_identifier(
+            &chain_state,
+            CanonicalIdentifier {
+                chain_identifier: chain_state.chain_id,
+                token_network_address: initiator_state.transfer_description.token_network_address,
+                channel_identifier,
+            },
+        ) {
+            Some(channel_state) => channel_state,
+            None => continue,
+        };
+
+        if can_cancel(initiator_state) {
+            let transfer_description = initiator_state.transfer_description.clone();
+            let mut cancel_events = cancel_current_route(&mut payment_state, initiator_state);
+
+            initiator_state.transfer_state = TransferState::Canceled;
+
+            let cancel = Event::ErrorPaymentSentFailed(ErrorPaymentSentFailed {
+                token_network_registry_address: channel_state.token_network_registry_address,
+                token_network_address: channel_state.canonical_identifier.token_network_address,
+                identifier: transfer_description.payment_identifier,
+                target: transfer_description.target,
+                reason: "user canceled payment".to_string(),
+            });
+
+            cancel_events.push(cancel);
+            events.extend(cancel_events);
+        }
+    }
+
     Ok(InitiatorManagerTransition {
-        new_state: payment_state,
+        new_state: Some(payment_state),
         chain_state,
-        events: vec![],
+        events,
     })
 }
 
 pub fn handle_transfer_cancel_route(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    _state_change: ReceiveTransferCancelRoute,
+    state_change: ReceiveTransferCancelRoute,
 ) -> TransitionResult {
+    let mut payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "TransferCancelRoute state changes should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
+
+    let mut events = vec![];
+
+    if let Some(initiator_state) = payment_state
+        .initiator_transfers
+        .clone()
+        .get(&state_change.transfer.lock.secrethash)
+    {
+        if can_cancel(initiator_state) {
+            let cancel_events = cancel_current_route(&mut payment_state, initiator_state);
+            events.extend(cancel_events);
+        }
+    }
+
     Ok(InitiatorManagerTransition {
-        new_state: payment_state,
+        new_state: Some(payment_state),
         chain_state,
-        events: vec![],
+        events,
+    })
+}
+
+pub fn handle_action_transfer_reroute(
+    mut chain_state: ChainState,
+    payment_state: Option<InitiatorPaymentState>,
+    state_change: ActionTransferReroute,
+) -> TransitionResult {
+    let mut payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "TransferCancelRoute state changes should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
+
+    let initiator_state = match payment_state
+        .initiator_transfers
+        .get(&state_change.transfer.lock.secrethash)
+    {
+        Some(initiator_state) => initiator_state,
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+    let channel_identifier = initiator_state.channel_identifier;
+    let mut channel_state = match views::get_channel_by_canonical_identifier(
+        &chain_state,
+        CanonicalIdentifier {
+            chain_identifier: chain_state.chain_id,
+            token_network_address: initiator_state.transfer_description.token_network_address,
+            channel_identifier,
+        },
+    ) {
+        Some(channel_state) => channel_state.clone(),
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    let refund_transfer = state_change.transfer;
+    let original_transfer = &initiator_state.transfer;
+
+    let is_valid_lock = refund_transfer.lock.secrethash == original_transfer.lock.secrethash
+        && refund_transfer.lock.amount == original_transfer.lock.amount
+        && refund_transfer.lock.expiration == original_transfer.lock.expiration;
+
+    let is_valid_refund = channel::refund_transfer_matches_transfer(&refund_transfer, &original_transfer);
+
+    let recipient_address = channel_state.partner_state.address;
+    let recipient_metadata = channel::get_address_metadata(recipient_address, payment_state.routes.clone());
+    let received_locked_transfer_result =
+        channel::handle_receive_locked_transfer(&mut channel_state, refund_transfer, recipient_metadata);
+
+    if !is_valid_lock || !is_valid_refund || received_locked_transfer_result.is_err() {
+        return Ok(InitiatorManagerTransition {
+            new_state: Some(payment_state),
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    let mut events = vec![];
+    if let Ok(received_locked_transfer_event) = received_locked_transfer_result {
+        events.push(received_locked_transfer_event);
+    }
+
+    let our_address = channel_state.our_state.address;
+    initiator::update_channel(&mut chain_state, channel_state)?;
+
+    let old_description = &initiator_state.transfer_description;
+    let filtered_route_states = routes::filter_acceptable_routes(
+        payment_state.routes.clone(),
+        payment_state.cancelled_channels.clone(),
+        get_addresses_to_channels(&chain_state),
+        old_description.token_network_address,
+        our_address,
+    );
+    let transfer_description = TransferDescriptionWithSecretState {
+        token_network_registry_address: old_description.token_network_registry_address,
+        payment_identifier: old_description.payment_identifier,
+        amount: old_description.amount,
+        token_network_address: old_description.token_network_address,
+        initiator: old_description.initiator,
+        target: old_description.target,
+        secret: state_change.secret,
+        secrethash: state_change.secrethash,
+        lock_timeout: old_description.lock_timeout,
+    };
+    let (sub_iteration, chain_state, events) =
+        initiator::try_new_route(chain_state, filtered_route_states, transfer_description)?;
+
+    if let Some(new_state) = sub_iteration {
+        let secrethash = new_state.transfer.lock.secrethash;
+        payment_state.initiator_transfers.insert(secrethash, new_state);
+    }
+
+    Ok(InitiatorManagerTransition {
+        new_state: Some(payment_state),
+        chain_state,
+        events,
     })
 }
 

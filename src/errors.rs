@@ -37,6 +37,12 @@ impl error::Error for StateTransitionError {
     }
 }
 
+impl Into<StateTransitionError> for String {
+    fn into(self) -> StateTransitionError {
+        StateTransitionError { msg: self }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ChannelError {
     pub msg: String,

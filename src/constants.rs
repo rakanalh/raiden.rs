@@ -1,6 +1,10 @@
-use web3::types::{
-    Address,
-    Bytes,
+use lazy_static::lazy_static;
+use web3::{
+    signing::keccak256,
+    types::{
+        Address,
+        Bytes,
+    },
 };
 
 use crate::{
@@ -52,3 +56,7 @@ pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalI
     token_network_address: Address::zero(),
     channel_identifier: ChannelIdentifier::zero(),
 };
+
+lazy_static! {
+    pub static ref LOCKSROOT_OF_NO_LOCKS: Vec<u8> = keccak256(&[]).to_vec();
+}

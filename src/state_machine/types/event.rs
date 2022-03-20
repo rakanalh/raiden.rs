@@ -36,6 +36,7 @@ pub enum Event {
     SendLockExpired(SendLockExpired),
     SendSecretReveal(SendSecretReveal),
     SendUnlock(SendUnlock),
+    SendProcessed(SendProcessed),
     PaymentSentSuccess(PaymentSentSuccess),
     UnlockSuccess(UnlockSuccess),
     ContractSendChannelSettle(ContractSendChannelSettle),
@@ -47,6 +48,7 @@ pub enum Event {
     ErrorRouteFailed(ErrorRouteFailed),
     ErrorUnlockFailed(ErrorUnlockFailed),
     ErrorInvalidSecretRequest(ErrorInvalidSecretRequest),
+    ErrorInvalidReceivedLockedTransfer(ErrorInvalidReceivedLockedTransfer),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -134,6 +136,12 @@ pub struct SendUnlock {
     pub secrethash: SecretHash,
 }
 
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendProcessed {
+    #[deref]
+    pub inner: SendMessageEventInner,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PaymentSentSuccess {
     pub token_network_registry_address: TokenNetworkRegistryAddress,
@@ -216,4 +224,10 @@ pub struct ErrorInvalidSecretRequest {
     pub payment_identifier: PaymentIdentifier,
     pub intended_amount: TokenAmount,
     pub actual_amount: TokenAmount,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedLockedTransfer {
+    pub payment_identifier: PaymentIdentifier,
+    pub reason: String,
 }

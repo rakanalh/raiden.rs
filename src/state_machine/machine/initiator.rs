@@ -64,7 +64,10 @@ pub struct InitiatorTransition {
     pub events: Vec<Event>,
 }
 
-fn update_channel(chain_state: &mut ChainState, channel_state: ChannelState) -> Result<(), StateTransitionError> {
+pub(super) fn update_channel(
+    chain_state: &mut ChainState,
+    channel_state: ChannelState,
+) -> Result<(), StateTransitionError> {
     let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
     let token_network_registry = match token_network_registries.get_mut(&channel_state.token_network_registry_address) {
         Some(token_network_registry) => token_network_registry,
@@ -173,6 +176,7 @@ fn send_locked_transfer(
     let total_amount = calculate_safe_amount_with_fee(transfer_description.amount, route_state.estimated_fee);
     let recipient_address = channel_state.partner_state.address;
     let recipient_metadata = channel::get_address_metadata(recipient_address, route_states.clone());
+    let our_address = channel_state.our_state.address;
 
     channel::send_locked_transfer(
         channel_state,
@@ -183,7 +187,7 @@ fn send_locked_transfer(
         transfer_description.secrethash,
         message_identifier,
         transfer_description.payment_identifier,
-        routes::prune_route_table(route_states, route_state),
+        routes::prune_route_table(route_states, route_state, our_address),
         recipient_metadata,
     )
 }
@@ -195,13 +199,15 @@ pub fn try_new_route(
 ) -> Result<(Option<InitiatorTransferState>, ChainState, Vec<Event>), StateTransitionError> {
     let mut route_fee_exceeds_max = false;
 
+    let our_address = chain_state.our_address;
+
     let selected = loop {
         let route_state = match candidate_route_states.iter().next() {
             Some(route_state) => route_state,
             None => break None,
         };
 
-        let next_hop_address = match route_state.next_hop_address() {
+        let next_hop_address = match route_state.hop_after(our_address) {
             Some(next_hop_address) => next_hop_address,
             None => continue,
         };
@@ -250,7 +256,7 @@ pub fn try_new_route(
             channel_identifier: channel_state.canonical_identifier.channel_identifier,
             transfer: locked_transfer_event.transfer.clone(),
             received_secret_request: false,
-            transfer_state: TransferState::TransferPending,
+            transfer_state: TransferState::Pending,
         };
         update_channel(&mut chain_state, channel_state)?;
         (
@@ -317,7 +323,7 @@ fn handle_block(
 
     let mut events = vec![];
     let (initiator_state, channel_state) =
-        if lock_has_expired && initiator_state.transfer_state != TransferState::TransferExpired {
+        if lock_has_expired.is_ok() && initiator_state.transfer_state != TransferState::Expired {
             let channel_state = if channel_state.status() == ChannelStatus::Opened {
                 let recipient_address = channel_state.partner_state.address;
                 let recipient_metadata = get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
@@ -369,7 +375,7 @@ fn handle_block(
                 Event::ErrorRouteFailed(route_failed),
                 Event::ErrorUnlockFailed(unlock_failed),
             ]);
-            initiator_state.transfer_state = TransferState::TransferExpired;
+            initiator_state.transfer_state = TransferState::Expired;
 
             let lock_exists = channel::lock_exists_in_either_channel_side(&channel_state, secrethash);
             let initiator_state = if lock_exists { Some(initiator_state) } else { None };
@@ -443,7 +449,7 @@ fn handle_receive_secret_request(
             secret: transfer_description.secret,
             secrethash: transfer_description.secrethash,
         };
-        initiator_state.transfer_state = TransferState::TransferSecretRevealed;
+        initiator_state.transfer_state = TransferState::SecretRevealed;
         initiator_state.received_secret_request = true;
         events.push(Event::SendSecretReveal(secret_reveal));
     } else {
@@ -475,7 +481,7 @@ fn handle_receive_offchain_secret_reveal(
     let is_channel_open = channel_state.status() == ChannelStatus::Opened;
 
     let lock = initiator_state.transfer.lock.clone();
-    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration);
+    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
 
     let mut events = vec![];
     if valid_reveal && is_channel_open && sent_by_partner && !expired {
@@ -519,7 +525,7 @@ fn handle_receive_onchain_secret_reveal(
     }
 
     let lock = initiator_state.transfer.lock.clone();
-    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration);
+    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
 
     let mut events = vec![];
     if is_lock_unlocked && is_channel_open && !expired {
