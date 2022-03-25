@@ -42,6 +42,7 @@ pub enum Event {
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
+    ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
     ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw),
     ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout),
     ErrorPaymentSentFailed(ErrorPaymentSentFailed),
@@ -49,6 +50,7 @@ pub enum Event {
     ErrorUnlockFailed(ErrorUnlockFailed),
     ErrorInvalidSecretRequest(ErrorInvalidSecretRequest),
     ErrorInvalidReceivedLockedTransfer(ErrorInvalidReceivedLockedTransfer),
+    ErrorInvalidReceivedLockExpired(ErrorInvalidReceivedLockExpired),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -229,5 +231,18 @@ pub struct ErrorInvalidSecretRequest {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ErrorInvalidReceivedLockedTransfer {
     pub payment_identifier: PaymentIdentifier,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedLockExpired {
+    pub secrethash: SecretHash,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorUnlockClaimFailed {
+    pub identifier: PaymentIdentifier,
+    pub secrethash: SecretHash,
     pub reason: String,
 }

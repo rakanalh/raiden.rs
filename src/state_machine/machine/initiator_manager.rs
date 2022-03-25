@@ -1,13 +1,19 @@
 use std::collections::HashMap;
 
 use super::{
-    channel,
+    channel::{
+        self,
+        get_address_metadata,
+    },
     initiator,
     routes,
 };
 use crate::{
     errors::StateTransitionError,
-    primitives::CanonicalIdentifier,
+    primitives::{
+        CanonicalIdentifier,
+        SecretHash,
+    },
     state_machine::{
         types::{
             ActionCancelPayment,
@@ -18,6 +24,7 @@ use crate::{
             ContractReceiveSecretReveal,
             ErrorPaymentSentFailed,
             ErrorRouteFailed,
+            ErrorUnlockClaimFailed,
             ErrorUnlockFailed,
             Event,
             InitiatorPaymentState,
@@ -48,6 +55,16 @@ pub struct InitiatorManagerTransition {
 
 fn can_cancel(initiator: &InitiatorTransferState) -> bool {
     initiator.transfer_state != TransferState::Canceled
+}
+
+fn transfer_exists(payment_state: &InitiatorPaymentState, secrethash: SecretHash) -> bool {
+    payment_state.initiator_transfers.contains_key(&secrethash)
+}
+
+fn cancel_other_transfers(payment_state: &mut InitiatorPaymentState) {
+    for initiator_state in payment_state.initiator_transfers.values_mut() {
+        initiator_state.transfer_state = TransferState::Canceled;
+    }
 }
 
 fn events_for_cancel_current_route(
@@ -82,7 +99,7 @@ fn cancel_current_route(
 fn subdispatch_to_initiator_transfer(
     mut chain_state: ChainState,
     mut payment_state: InitiatorPaymentState,
-    initiator_state: InitiatorTransferState,
+    initiator_state: &InitiatorTransferState,
     state_change: StateChange,
 ) -> TransitionResult {
     let channel_identifier = initiator_state.channel_identifier;
@@ -143,7 +160,7 @@ fn subdispatch_to_all_initiator_transfer(
         let sub_iteration = subdispatch_to_initiator_transfer(
             chain_state.clone(),
             payment_state.clone(),
-            initiator_state.clone(),
+            initiator_state,
             state_change.clone(),
         )?;
         chain_state = sub_iteration.chain_state;
@@ -169,7 +186,7 @@ pub fn handle_block(
         Some(payment_state) => payment_state,
         None => {
             return Err(StateTransitionError {
-                msg: "Block state changes should be accompanied by a valid payment state".to_owned(),
+                msg: "Block state change should be accompanied by a valid payment state".to_owned(),
             });
         }
     };
@@ -217,7 +234,7 @@ pub fn handle_action_cancel_payment(
         Some(payment_state) => payment_state,
         None => {
             return Err(StateTransitionError {
-                msg: "ActionCancelPayment state changes should be accompanied by a valid payment state".to_owned(),
+                msg: "ActionCancelPayment state change should be accompanied by a valid payment state".to_owned(),
             });
         }
     };
@@ -272,7 +289,7 @@ pub fn handle_transfer_cancel_route(
         Some(payment_state) => payment_state,
         None => {
             return Err(StateTransitionError {
-                msg: "TransferCancelRoute state changes should be accompanied by a valid payment state".to_owned(),
+                msg: "TransferCancelRoute state change should be accompanied by a valid payment state".to_owned(),
             });
         }
     };
@@ -306,7 +323,7 @@ pub fn handle_action_transfer_reroute(
         Some(payment_state) => payment_state,
         None => {
             return Err(StateTransitionError {
-                msg: "TransferCancelRoute state changes should be accompanied by a valid payment state".to_owned(),
+                msg: "TransferCancelRoute state change should be accompanied by a valid payment state".to_owned(),
             });
         }
     };
@@ -407,52 +424,217 @@ pub fn handle_action_transfer_reroute(
     })
 }
 
+pub fn handle_lock_expired(
+    mut chain_state: ChainState,
+    payment_state: Option<InitiatorPaymentState>,
+    state_change: ReceiveLockExpired,
+) -> TransitionResult {
+    let payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "ReceiveLockExpired state change should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
+
+    let initiator_state = match payment_state.initiator_transfers.get(&state_change.secrethash) {
+        Some(initiator_state) => initiator_state.clone(),
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    let channel_identifier = initiator_state.channel_identifier;
+    let mut channel_state = match views::get_channel_by_canonical_identifier(
+        &chain_state,
+        CanonicalIdentifier {
+            chain_identifier: chain_state.chain_id,
+            token_network_address: initiator_state.transfer_description.token_network_address,
+            channel_identifier,
+        },
+    ) {
+        Some(channel_state) => channel_state.clone(),
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    let secrethash = initiator_state.transfer.lock.secrethash;
+    let recipient_address = channel_state.partner_state.address;
+    let recipient_metadata = get_address_metadata(recipient_address, payment_state.routes.clone());
+    let mut sub_iteration = channel::handle_receive_lock_expired(
+        &mut channel_state,
+        state_change,
+        chain_state.block_number,
+        recipient_metadata,
+    )?;
+
+    let channel_state = match sub_iteration.new_state {
+        Some(channel_state) => channel_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "handle_receive_lock_expired should not delete the task".to_owned(),
+            });
+        }
+    };
+
+    if channel::get_lock(&channel_state.partner_state, secrethash).is_none() {
+        let transfer = initiator_state.transfer;
+        let unlock_failed = Event::ErrorUnlockClaimFailed(ErrorUnlockClaimFailed {
+            identifier: transfer.payment_identifier,
+            secrethash,
+            reason: "Lock expired".to_owned(),
+        });
+        sub_iteration.events.push(unlock_failed);
+    }
+    initiator::update_channel(&mut chain_state, channel_state)?;
+
+    Ok(InitiatorManagerTransition {
+        new_state: Some(payment_state),
+        chain_state,
+        events: sub_iteration.events,
+    })
+}
+
 pub fn handle_secret_request(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    _state_change: ReceiveSecretRequest,
+    state_change: ReceiveSecretRequest,
 ) -> TransitionResult {
-    Ok(InitiatorManagerTransition {
-        new_state: payment_state,
+    let payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "ReceiveSecretRequest state change should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
+
+    let initiator_state = match payment_state.initiator_transfers.get(&state_change.secrethash) {
+        Some(initiator_state) => initiator_state.clone(),
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    if initiator_state.transfer_state == TransferState::Canceled {
+        return Ok(InitiatorManagerTransition {
+            new_state: Some(payment_state),
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    subdispatch_to_initiator_transfer(
         chain_state,
-        events: vec![],
-    })
+        payment_state,
+        &initiator_state,
+        StateChange::ReceiveSecretRequest(state_change),
+    )
 }
 
 pub fn handle_secret_reveal(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    _state_change: ReceiveSecretReveal,
+    state_change: ReceiveSecretReveal,
 ) -> TransitionResult {
-    Ok(InitiatorManagerTransition {
-        new_state: payment_state,
-        chain_state,
-        events: vec![],
-    })
-}
+    let payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "ReceiveSecretReveal state change should be accompanied by a valid payment state".to_owned(),
+            });
+        }
+    };
 
-pub fn handle_lock_expired(
-    chain_state: ChainState,
-    payment_state: Option<InitiatorPaymentState>,
-    _state_change: ReceiveLockExpired,
-) -> TransitionResult {
-    Ok(InitiatorManagerTransition {
-        new_state: payment_state,
+    let initiator_state = match payment_state.initiator_transfers.get(&state_change.secrethash) {
+        Some(initiator_state) => initiator_state.clone(),
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    let mut sub_iteration = subdispatch_to_initiator_transfer(
         chain_state,
-        events: vec![],
-    })
+        payment_state,
+        &initiator_state,
+        StateChange::ReceiveSecretReveal(state_change.clone()),
+    )?;
+
+    if let Some(ref mut new_state) = sub_iteration.new_state {
+        if !transfer_exists(&new_state, state_change.secrethash) {
+            cancel_other_transfers(new_state);
+        }
+    }
+
+    Ok(sub_iteration)
 }
 
 pub fn handle_contract_secret_reveal(
     chain_state: ChainState,
     payment_state: Option<InitiatorPaymentState>,
-    _state_change: ContractReceiveSecretReveal,
+    state_change: ContractReceiveSecretReveal,
 ) -> TransitionResult {
-    Ok(InitiatorManagerTransition {
-        new_state: payment_state,
+    let payment_state = match payment_state {
+        Some(payment_state) => payment_state,
+        None => {
+            return Err(StateTransitionError {
+                msg: "ContractReceiveSecretReveal state change should be accompanied by a valid payment state"
+                    .to_owned(),
+            });
+        }
+    };
+
+    let initiator_state = match payment_state.initiator_transfers.get(&state_change.secrethash) {
+        Some(initiator_state) => initiator_state.clone(),
+        None => {
+            return Ok(InitiatorManagerTransition {
+                new_state: Some(payment_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    if initiator_state.transfer_state == TransferState::Canceled {
+        return Ok(InitiatorManagerTransition {
+            new_state: Some(payment_state),
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    let mut sub_iteration = subdispatch_to_initiator_transfer(
         chain_state,
-        events: vec![],
-    })
+        payment_state,
+        &initiator_state,
+        StateChange::ContractReceiveSecretReveal(state_change.clone()),
+    )?;
+
+    if let Some(ref mut new_state) = sub_iteration.new_state {
+        if !transfer_exists(&new_state, state_change.secrethash) {
+            cancel_other_transfers(new_state);
+        }
+    }
+
+    Ok(sub_iteration)
 }
 
 pub fn clear_if_finalized(transition: InitiatorManagerTransition) -> InitiatorManagerTransition {

@@ -265,4 +265,5 @@ pub struct ReceiveLockExpired {
     pub sender: Address,
     pub secrethash: SecretHash,
     pub message_identifier: MessageIdentifier,
+    pub balance_proof: BalanceProofState,
 }

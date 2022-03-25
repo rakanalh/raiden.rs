@@ -28,6 +28,7 @@ use crate::{
     constants::{
         CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
         CHANNEL_STATES_PRIOR_TO_CLOSE,
+        DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
         LOCKSROOT_OF_NO_LOCKS,
         MAXIMUM_PENDING_TRANSFERS,
         NUM_DISCRETISATION_POINTS,
@@ -82,6 +83,7 @@ use crate::{
             ContractSendEvent,
             ErrorInvalidActionSetRevealTimeout,
             ErrorInvalidActionWithdraw,
+            ErrorInvalidReceivedLockExpired,
             ErrorInvalidReceivedLockedTransfer,
             Event,
             ExpiredWithdrawState,
@@ -90,6 +92,7 @@ use crate::{
             LockedTransferState,
             PendingLocksState,
             PendingWithdrawState,
+            ReceiveLockExpired,
             RouteState,
             SendLockExpired,
             SendLockedTransfer,
@@ -898,6 +901,107 @@ fn is_balance_proof_usable_onchain(
     is_valid_signature
 }
 
+// fn get_sender_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
+//     expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.mul(2).into()
+// }
+
+fn get_receiver_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
+    expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.into()
+}
+
+fn is_valid_lock_expired(
+    channel_state: &ChannelState,
+    state_change: ReceiveLockExpired,
+    sender_state: &ChannelEndState,
+    receiver_state: &ChannelEndState,
+    block_number: BlockNumber,
+) -> Result<PendingLocksState, String> {
+    let secrethash = state_change.secrethash;
+    let received_balance_proof = state_change.balance_proof;
+    let lock = channel_state
+        .partner_state
+        .secrethashes_to_lockedlocks
+        .get(&secrethash)
+        .or_else(|| {
+            channel_state
+                .partner_state
+                .secrethashes_to_unlockedlocks
+                .get(&secrethash)
+                .map(|lock| &lock.lock)
+        });
+
+    let secret_registered_on_chain = channel_state
+        .partner_state
+        .secrethashes_to_onchain_unlockedlocks
+        .contains_key(&secrethash);
+    let (_, _, current_transferred_amount, current_locked_amount) = get_current_balance_proof(sender_state);
+    let is_valid_balance_proof = is_balance_proof_usable_onchain(&received_balance_proof, channel_state, sender_state);
+
+    let (lock, expected_locked_amount) = match lock {
+        Some(lock) => {
+            let expected_locked_amount = current_locked_amount - lock.amount;
+            (lock, expected_locked_amount)
+        }
+        None => {
+            return Err(format!(
+                "Invalid LockExpired message. \
+                                Lock with secrethash {} is not known",
+                secrethash
+            ));
+        }
+    };
+    let pending_locks = match compute_locks_without(&mut sender_state.pending_locks.clone(), lock) {
+        Some(pending_locks) => pending_locks,
+        None => {
+            return Err(format!("Invalid LockExpired message. Same lock handled twice."));
+        }
+    };
+
+    if secret_registered_on_chain {
+        return Err(format!("Invalid LockExpired message. Lock was unlocked on-chain"));
+    } else if let Err(e) = is_valid_balance_proof {
+        return Err(format!("Invalid LockExpired message. {}", e));
+    }
+
+    let locksroot_without_lock = compute_locksroot(&pending_locks);
+    let check_lock_expired = is_lock_expired(
+        receiver_state,
+        lock,
+        block_number,
+        get_receiver_expiration_threshold(lock.expiration),
+    );
+
+    if let Err(e) = check_lock_expired {
+        return Err(format!("Invalid LockExpired message. {}", e));
+    } else if received_balance_proof.locksroot != locksroot_without_lock {
+        return Err(format!(
+            "Invalid LockExpired message. \
+                            Balance proof's locksroot didn't match. \
+                            expected {:?} \
+                            got {:?}",
+            locksroot_without_lock, received_balance_proof.locksroot
+        ));
+    } else if received_balance_proof.transferred_amount != current_transferred_amount {
+        return Err(format!(
+            "Invalid LockExpired message. \
+                            Balance proof's transferred amount changed. \
+                            expected {} \
+                            got {}",
+            current_transferred_amount, received_balance_proof.transferred_amount
+        ));
+    } else if received_balance_proof.locked_amount != expected_locked_amount {
+        return Err(format!(
+            "Invalid LockExpired message. \
+                            Balance proof's locked amount changed. \
+                            expected {} \
+                            got {}",
+            expected_locked_amount, received_balance_proof.locked_amount
+        ));
+    }
+
+    Ok(pending_locks)
+}
+
 fn valid_locked_transfer_check(
     channel_state: &ChannelState,
     sender_state: &mut ChannelEndState,
@@ -978,6 +1082,62 @@ fn is_valid_locked_transfer(
         transfer_state.balance_proof.clone(),
         transfer_state.lock.clone(),
     )
+}
+
+pub(super) fn handle_receive_lock_expired(
+    channel_state: &mut ChannelState,
+    state_change: ReceiveLockExpired,
+    block_number: BlockNumber,
+    recipient_metadata: Option<AddressMetadata>,
+) -> TransitionResult {
+    let sender = match state_change.balance_proof.sender {
+        Some(sender) => sender,
+        None => {
+            return Err(StateTransitionError {
+                msg: "The transfer's sender is None".to_owned(),
+            });
+        }
+    };
+    let validate_pending_locks = is_valid_lock_expired(
+        channel_state,
+        state_change.clone(),
+        &channel_state.partner_state,
+        &channel_state.our_state,
+        block_number,
+    );
+
+    let events = match validate_pending_locks {
+        Ok(pending_locks) => {
+            let nonce = state_change.balance_proof.nonce;
+            channel_state.partner_state.balance_proof = Some(state_change.balance_proof);
+            channel_state.partner_state.nonce = nonce;
+            channel_state.partner_state.pending_locks = pending_locks;
+
+            delete_unclaimed_lock(&mut channel_state.partner_state, state_change.secrethash);
+
+            let send_processed = Event::SendProcessed(SendProcessed {
+                inner: SendMessageEventInner {
+                    recipient: sender,
+                    recipient_metadata,
+                    canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                    message_identifier: state_change.message_identifier,
+                },
+            });
+            vec![send_processed]
+        }
+        Err(e) => {
+            let invalid_lock_expired = Event::ErrorInvalidReceivedLockExpired(ErrorInvalidReceivedLockExpired {
+                secrethash: state_change.secrethash,
+                reason: e,
+            });
+            vec![invalid_lock_expired]
+        }
+    };
+
+    Ok(ChannelTransition {
+        new_state: Some(channel_state.clone()),
+        events,
+    })
 }
 
 pub(super) fn handle_receive_locked_transfer(
