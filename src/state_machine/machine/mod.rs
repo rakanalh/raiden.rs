@@ -5,3 +5,4 @@ pub mod initiator_manager;
 pub mod routes;
 mod secret_registry;
 pub mod token_network;
+mod utils;

@@ -7,6 +7,7 @@ use super::{
     },
     initiator,
     routes,
+    utils,
 };
 use crate::{
     errors::StateTransitionError,
@@ -388,7 +389,7 @@ pub fn handle_action_transfer_reroute(
     }
 
     let our_address = channel_state.our_state.address;
-    initiator::update_channel(&mut chain_state, channel_state)?;
+    utils::update_channel(&mut chain_state, channel_state)?;
 
     let old_description = &initiator_state.transfer_description;
     let filtered_route_states = routes::filter_acceptable_routes(
@@ -496,7 +497,7 @@ pub fn handle_lock_expired(
         });
         sub_iteration.events.push(unlock_failed);
     }
-    initiator::update_channel(&mut chain_state, channel_state)?;
+    utils::update_channel(&mut chain_state, channel_state)?;
 
     Ok(InitiatorManagerTransition {
         new_state: Some(payment_state),
