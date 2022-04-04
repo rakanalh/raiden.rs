@@ -82,6 +82,31 @@ pub enum TransferState {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum PayeeState {
+    Pending,
+    SecretRevealed,
+    ContractUnlock,
+    BalanceProof,
+    Expired,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum PayerState {
+    Pending,
+    SecretRevealed,
+    WaitingUnlock,
+    WaitingSecretReveal,
+    BalanceProof,
+    Expired,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum WaitingTransferStatus {
+    Waiting,
+    Expired,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct InitiatorTransferState {
     pub route: RouteState,
     pub transfer_description: TransferDescriptionWithSecretState,
@@ -106,9 +131,35 @@ pub struct InitiatorTask {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct WaitingTransferState {
+    pub transfer: LockedTransferState,
+    pub status: WaitingTransferStatus,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct MediationPairState {
+    pub payer_transfer: LockedTransferState,
+    pub payee_address: Address,
+    pub payee_transfer: LockedTransferState,
+    pub payer_state: PayerState,
+    pub payee_state: PayeeState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct MediatorTransferState {
+    pub secrethash: SecretHash,
+    pub routes: Vec<RouteState>,
+    pub refunded_channels: Vec<ChannelIdentifier>,
+    pub secret: Option<Secret>,
+    pub transfers_pair: Vec<MediationPairState>,
+    pub waiting_transfer: Option<WaitingTransferState>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct MediatorTask {
     pub role: TransferRole,
     pub token_network_address: TokenNetworkAddress,
+    pub mediator_state: MediatorTransferState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -320,6 +371,22 @@ impl ChannelState {
         status
     }
 
+    pub fn our_total_deposit(&self) -> TokenAmount {
+        self.our_state.contract_balance
+    }
+
+    pub fn partner_total_deposit(&self) -> TokenAmount {
+        self.partner_state.contract_balance
+    }
+
+    pub fn our_total_withdraw(&self) -> TokenAmount {
+        self.our_state.total_withdraw()
+    }
+
+    pub fn partner_total_withdraw(&self) -> TokenAmount {
+        self.partner_state.total_withdraw()
+    }
+
     pub fn capacity(&self) -> TokenAmount {
         self.our_state.contract_balance - self.our_state.total_withdraw() + self.partner_state.contract_balance
             - self.partner_state.total_withdraw()
@@ -379,11 +446,41 @@ impl ChannelState {
         true
     }
 
+    pub fn is_usable_for_mediation(&self, transfer_amount: TokenAmount, lock_timeout: BlockTimeout) -> bool {
+        self.is_usable_for_new_transfer(transfer_amount, Some(lock_timeout))
+    }
+
     pub fn get_distributable(&self, sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
         let (_, _, transferred_amount, locked_amount) = sender.get_current_balanceproof();
         let distributable = self.balance(sender, receiver) - sender.locked_amount();
         let overflow_limit = TokenAmount::MAX - transferred_amount - locked_amount;
         TokenAmount::min(overflow_limit, distributable)
+    }
+
+    pub fn secret_known_onchain(&self, end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
+        end_state
+            .secrethashes_to_onchain_unlockedlocks
+            .contains_key(&secrethash)
+    }
+
+    pub fn is_secret_known(&self, end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
+        end_state.secrethashes_to_unlockedlocks.contains_key(&secrethash)
+            || end_state
+                .secrethashes_to_onchain_unlockedlocks
+                .contains_key(&secrethash)
+    }
+
+    pub fn get_secret(&self, end_state: &ChannelEndState, secrethash: SecretHash) -> Option<Secret> {
+        let mut partial_unlock_proof = end_state.secrethashes_to_unlockedlocks.get(&secrethash);
+        if partial_unlock_proof.is_none() {
+            partial_unlock_proof = end_state.secrethashes_to_onchain_unlockedlocks.get(&secrethash);
+        }
+
+        if let Some(partial_unlock_proof) = partial_unlock_proof {
+            return Some(partial_unlock_proof.secret.clone());
+        }
+
+        None
     }
 }
 

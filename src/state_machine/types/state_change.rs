@@ -47,6 +47,7 @@ pub enum StateChange {
     Block(Block),
     ActionInitChain(ActionInitChain),
     ActionInitInitiator(ActionInitInitiator),
+    ActionInitMediator(ActionInitMediator),
     ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout),
     ActionChannelWithdraw(ActionChannelWithdraw),
     ActionTransferReroute(ActionTransferReroute),
@@ -54,7 +55,9 @@ pub enum StateChange {
     ReceiveTransferCancelRoute(ReceiveTransferCancelRoute),
     ReceiveSecretReveal(ReceiveSecretReveal),
     ReceiveSecretRequest(ReceiveSecretRequest),
+    ReceiveTransferRefund(ReceiveTransferRefund),
     ReceiveLockExpired(ReceiveLockExpired),
+    ReceiveUnlock(ReceiveUnlock),
     ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
     ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated),
     ContractReceiveChannelOpened(ContractReceiveChannelOpened),
@@ -265,5 +268,19 @@ pub struct ReceiveLockExpired {
     pub sender: Address,
     pub secrethash: SecretHash,
     pub message_identifier: MessageIdentifier,
+    pub balance_proof: BalanceProofState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveTransferRefund {
+    pub transfer: LockedTransferState,
+    pub balance_proof: BalanceProofState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveUnlock {
+    pub message_identifier: MessageIdentifier,
+    pub secret: Secret,
+    pub secrethash: SecretHash,
     pub balance_proof: BalanceProofState,
 }

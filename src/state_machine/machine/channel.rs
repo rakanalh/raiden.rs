@@ -875,6 +875,22 @@ fn is_balance_proof_safe_for_onchain_operations(balance_proof: &BalanceProofStat
         .is_some()
 }
 
+pub(super) fn is_transfer_expired(
+    transfer: &LockedTransferState,
+    affected_channel: &ChannelState,
+    block_number: BlockNumber,
+) -> bool {
+    let lock_expiration_threshold = get_sender_expiration_threshold(transfer.lock.expiration);
+
+    is_lock_expired(
+        &affected_channel.our_state,
+        &transfer.lock,
+        block_number,
+        lock_expiration_threshold,
+    )
+    .is_ok()
+}
+
 fn is_balance_proof_usable_onchain(
     received_balance_proof: &BalanceProofState,
     channel_state: &ChannelState,
@@ -901,11 +917,11 @@ fn is_balance_proof_usable_onchain(
     is_valid_signature
 }
 
-// fn get_sender_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
-//     expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.mul(2).into()
-// }
+pub(super) fn get_sender_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
+    expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.mul(2).into()
+}
 
-fn get_receiver_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
+pub(super) fn get_receiver_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
     expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.into()
 }
 

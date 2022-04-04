@@ -473,5 +473,7 @@ pub fn state_transition(mut chain_state: ChainState, state_change: StateChange) 
         StateChange::ReceiveSecretReveal(_) => todo!(),
         StateChange::ReceiveSecretRequest(_) => todo!(),
         StateChange::ReceiveLockExpired(_) => todo!(),
+        StateChange::ReceiveTransferRefund(_) => todo!(),
+        StateChange::ReceiveUnlock(_) => todo!(),
     }
 }

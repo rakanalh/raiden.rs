@@ -42,6 +42,7 @@ pub enum Event {
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
+    ContractSendSecretReveal(ContractSendSecretReveal),
     ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
     ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw),
     ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout),
@@ -184,6 +185,13 @@ pub struct ContractSendChannelBatchUnlock {
     pub inner: ContractSendEvent,
     pub canonical_identifier: CanonicalIdentifier,
     pub sender: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContractSendSecretReveal {
+    pub inner: ContractSendEvent,
+    pub expiration: BlockExpiration,
+    pub secret: Secret,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

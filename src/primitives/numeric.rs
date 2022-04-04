@@ -10,6 +10,7 @@ use std::{
     ops::{
         Add,
         Mul,
+        Sub,
     },
     str::FromStr,
 };
@@ -63,6 +64,14 @@ impl Add<U64> for U64 {
 
     fn add(self, rhs: U64) -> Self::Output {
         U64::from(self.0 + rhs.0)
+    }
+}
+
+impl Sub<U64> for U64 {
+    type Output = U64;
+
+    fn sub(self, rhs: U64) -> Self::Output {
+        U64::from(self.0 - rhs.0)
     }
 }
 

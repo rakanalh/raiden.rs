@@ -65,6 +65,7 @@ impl EventHandler {
             Event::ErrorInvalidReceivedLockedTransfer(_) => todo!(),
             Event::ErrorUnlockClaimFailed(_) => todo!(),
             Event::ErrorInvalidReceivedLockExpired(_) => todo!(),
+            Event::ContractSendSecretReveal(_) => todo!(),
         }
     }
 }
