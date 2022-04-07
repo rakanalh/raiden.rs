@@ -52,6 +52,8 @@ pub enum Event {
     ErrorInvalidSecretRequest(ErrorInvalidSecretRequest),
     ErrorInvalidReceivedLockedTransfer(ErrorInvalidReceivedLockedTransfer),
     ErrorInvalidReceivedLockExpired(ErrorInvalidReceivedLockExpired),
+    ErrorInvalidReceivedTransferRefund(ErrorInvalidReceivedTransferRefund),
+    ErrorUnexpectedReveal(ErrorUnexpectedReveal),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -249,8 +251,20 @@ pub struct ErrorInvalidReceivedLockExpired {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedTransferRefund {
+    pub payment_identifier: PaymentIdentifier,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ErrorUnlockClaimFailed {
     pub identifier: PaymentIdentifier,
+    pub secrethash: SecretHash,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorUnexpectedReveal {
     pub secrethash: SecretHash,
     pub reason: String,
 }

@@ -85,6 +85,7 @@ use crate::{
             ErrorInvalidActionWithdraw,
             ErrorInvalidReceivedLockExpired,
             ErrorInvalidReceivedLockedTransfer,
+            ErrorInvalidReceivedTransferRefund,
             Event,
             ExpiredWithdrawState,
             FeeScheduleState,
@@ -93,6 +94,7 @@ use crate::{
             PendingLocksState,
             PendingWithdrawState,
             ReceiveLockExpired,
+            ReceiveTransferRefund,
             RouteState,
             SendLockExpired,
             SendLockedTransfer,
@@ -1023,8 +1025,8 @@ fn valid_locked_transfer_check(
     sender_state: &mut ChannelEndState,
     receiver_state: &ChannelEndState,
     message: &'static str,
-    received_balance_proof: BalanceProofState,
-    lock: HashTimeLockState,
+    received_balance_proof: &BalanceProofState,
+    lock: &HashTimeLockState,
 ) -> Result<PendingLocksState, String> {
     let (_, _, current_transferred_amount, current_locked_amount) = get_current_balance_proof(sender_state);
     let distributable = channel_state.get_distributable(sender_state, receiver_state);
@@ -1095,8 +1097,8 @@ fn is_valid_locked_transfer(
         sender_end_state,
         receiver_end_state,
         "LockedTransfer",
-        transfer_state.balance_proof.clone(),
-        transfer_state.lock.clone(),
+        &transfer_state.balance_proof,
+        &transfer_state.lock,
     )
 }
 
@@ -1199,6 +1201,49 @@ pub(super) fn handle_receive_locked_transfer(
             },
         )),
     }
+}
+
+pub(super) fn handle_refund_transfer(
+    channel_state: &mut ChannelState,
+    received_transfer: LockedTransferState,
+    refund: ReceiveTransferRefund,
+) -> Result<Event, String> {
+    let pending_locks = is_valid_refund(
+        &channel_state.clone(),
+        refund.clone(),
+        &mut channel_state.partner_state,
+        &channel_state.our_state,
+        &received_transfer,
+    );
+    let event = match pending_locks {
+        Ok(pending_locks) => {
+            channel_state.partner_state.balance_proof = Some(refund.transfer.balance_proof.clone());
+            channel_state.partner_state.nonce = refund.transfer.balance_proof.nonce;
+            channel_state.partner_state.pending_locks = pending_locks;
+
+            let lock = refund.transfer.lock;
+            channel_state
+                .partner_state
+                .secrethashes_to_lockedlocks
+                .insert(lock.secrethash, lock);
+
+            let recipient_address = channel_state.partner_state.address;
+            let recipient_metadata = get_address_metadata(recipient_address, received_transfer.route_states.clone());
+            Event::SendProcessed(SendProcessed {
+                inner: SendMessageEventInner {
+                    recipient: recipient_address,
+                    recipient_metadata,
+                    canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                    message_identifier: refund.transfer.message_identifier,
+                },
+            })
+        }
+        Err(msg) => Event::ErrorInvalidReceivedTransferRefund(ErrorInvalidReceivedTransferRefund {
+            payment_identifier: received_transfer.payment_identifier,
+            reason: msg,
+        }),
+    };
+    Ok(event)
 }
 
 fn handle_block(
@@ -1558,6 +1603,29 @@ fn handle_channel_update_transfer(
     });
 }
 
+fn is_valid_refund(
+    channel_state: &ChannelState,
+    refund: ReceiveTransferRefund,
+    sender_state: &mut ChannelEndState,
+    receiver_state: &ChannelEndState,
+    received_transfer: &LockedTransferState,
+) -> Result<PendingLocksState, String> {
+    let pending_locks = valid_locked_transfer_check(
+        channel_state,
+        sender_state,
+        receiver_state,
+        "RefundTransfer",
+        &refund.transfer.balance_proof,
+        &refund.transfer.lock,
+    )?;
+
+    if !refund_transfer_matches_transfer(&refund.transfer, received_transfer) {
+        return Err("Refund transfer did not match the received transfer".to_owned());
+    }
+
+    Ok(pending_locks)
+}
+
 fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChannelWithdraw) -> Result<(), String> {
     let balance = get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
     let (_, overflow) = withdraw
@@ -1583,6 +1651,35 @@ fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChann
     }
 
     return Ok(());
+}
+
+fn register_secret_endstate(end_state: &mut ChannelEndState, secret: Secret, secrethash: SecretHash) {
+    if is_lock_locked(end_state, secrethash) {
+        let pending_lock = match end_state.secrethashes_to_lockedlocks.get(&secrethash) {
+            Some(lock) => lock.clone(),
+            None => return,
+        };
+
+        end_state.secrethashes_to_lockedlocks.remove(&secrethash);
+
+        end_state.secrethashes_to_unlockedlocks.insert(secrethash, UnlockPartialProofState {
+            lock: pending_lock.clone(),
+            secret,
+            amount: pending_lock.amount,
+            expiration: pending_lock.expiration,
+            secrethash,
+            encoded: pending_lock.encoded,
+        });
+    }
+}
+
+pub(super) fn register_offchain_secret(
+    channel_state: &mut ChannelState,
+    secret: Secret,
+    secrethash: SecretHash,
+) {
+    register_secret_endstate(&mut channel_state.our_state, secret.clone(), secrethash);
+    register_secret_endstate(&mut channel_state.partner_state, secret, secrethash);
 }
 
 fn send_withdraw_request(

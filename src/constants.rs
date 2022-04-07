@@ -64,6 +64,16 @@ pub const PAYEE_STATE_TRANSFER_FINAL: [PayeeState; 3] = [
     PayeeState::BalanceProof,
     PayeeState::Expired,
 ];
+pub const PAYEE_STATE_SECRET_KNOWN: [PayeeState; 3] = [
+    PayeeState::SecretRevealed,
+    PayeeState::ContractUnlock,
+    PayeeState::BalanceProof,
+];
+pub const PAYER_STATE_SECRET_KNOWN: [PayerState; 3] = [
+    PayerState::SecretRevealed,
+    PayerState::WaitingUnlock,
+    PayerState::BalanceProof,
+];
 pub const PAYER_STATE_TRANSFER_FINAL: [PayerState; 2] = [PayerState::BalanceProof, PayerState::Expired];
 
 pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalIdentifier {

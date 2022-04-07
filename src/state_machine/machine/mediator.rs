@@ -1,11 +1,13 @@
 use std::iter;
 
+use web3::{types::Address, signing::keccak256};
+
 use crate::{
     constants::{
         PAYEE_STATE_TRANSFER_FINAL,
         PAYEE_STATE_TRANSFER_PAID,
         PAYER_STATE_TRANSFER_FINAL,
-        PAYER_STATE_TRANSFER_PAID,
+        PAYER_STATE_TRANSFER_PAID, PAYEE_STATE_SECRET_KNOWN, PAYER_STATE_SECRET_KNOWN, CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
     },
     errors::StateTransitionError,
     primitives::{
@@ -15,14 +17,16 @@ use crate::{
         BlockTimeout,
         CanonicalIdentifier,
         SecretHash,
-        TokenAmount,
+        TokenAmount, Secret, Random,
     },
     state_machine::{
         types::{
+            ActionInitMediator,
             Block,
             ChainState,
             ChannelState,
             ChannelStatus,
+            ContractReceiveSecretReveal,
             ErrorUnlockClaimFailed,
             ErrorUnlockFailed,
             Event,
@@ -32,9 +36,13 @@ use crate::{
             MediatorTransferState,
             PayeeState,
             PayerState,
+            ReceiveLockExpired,
+            ReceiveSecretReveal,
+            ReceiveTransferRefund,
+            ReceiveUnlock,
             StateChange,
             WaitingTransferState,
-            WaitingTransferStatus,
+            WaitingTransferStatus, ErrorUnexpectedReveal, SendSecretReveal, SendMessageEventInner, UnlockSuccess,
         },
         views::{
             self,
@@ -67,6 +75,10 @@ pub struct MediatorTransition {
 /// Returns the channel of a given transfer pair or None if it's not found.
 fn get_channel(chain_state: &ChainState, canonical_identifier: CanonicalIdentifier) -> Option<&ChannelState> {
     views::get_channel_by_canonical_identifier(chain_state, canonical_identifier)
+}
+
+fn is_valid_secret_reveal(state_change: &ReceiveSecretReveal, transfer_secrethash: SecretHash) -> bool {
+    state_change.secrethash == transfer_secrethash
 }
 
 fn is_send_transfer_almost_equal(send: &LockedTransferState, received: &LockedTransferState) -> bool {
@@ -196,7 +208,7 @@ fn forward_transfer_pair(
 fn mediate_transfer(
     mut chain_state: ChainState,
     mut mediator_state: MediatorTransferState,
-    payer_channel: ChannelState,
+    payer_channel: &ChannelState,
     payer_transfer: LockedTransferState,
     block_number: BlockNumber,
 ) -> TransitionResult {
@@ -359,6 +371,192 @@ fn events_to_remove_expired_locks(
     Ok(events)
 }
 
+/// Reveal the secret off-chain.
+///
+/// The secret is revealed off-chain even if there is a pending transaction to
+/// reveal it on-chain, this allows the unlock to happen off-chain, which is
+/// faster.
+///
+/// This node is named N, suppose there is a mediated transfer with two refund
+/// transfers, one from B and one from C:
+///
+///     A-N-B...B-N-C..C-N-D
+///
+/// Under normal operation N will first learn the secret from D, then reveal to
+/// C, wait for C to inform the secret is known before revealing it to B, and
+/// again wait for B before revealing the secret to A.
+///
+/// If B somehow sent a reveal secret before C and D, then the secret will be
+/// revealed to A, but not C and D, meaning the secret won't be propagated
+/// forward. Even if D sent a reveal secret at about the same time, the secret
+/// will only be revealed to B upon confirmation from C.
+///
+/// If the proof doesn't arrive in time and the lock's expiration is at risk, N
+/// won't lose tokens since it knows the secret can go on-chain at any time.
+fn events_for_secret_reveal(
+    transfers_pair: &mut Vec<MediationPairState>,
+    secret: Secret,
+    pseudo_random_number_generator: &mut Random,
+) -> Vec<Event> {
+    let mut events = vec![];
+
+    for pair in transfers_pair.iter_mut().rev() {
+        let payee_knows_secret = PAYEE_STATE_SECRET_KNOWN.contains(&pair.payee_state);
+        let payer_knows_secret = PAYER_STATE_SECRET_KNOWN.contains(&pair.payer_state);
+        let is_transfer_pending = pair.payer_state == PayerState::Pending;
+        let should_send_secret = payee_knows_secret && !payer_knows_secret && is_transfer_pending;
+
+        if should_send_secret {
+            let message_identifier = pseudo_random_number_generator.next();
+            pair.payer_state = PayerState::SecretRevealed;
+            let payer_transfer = &pair.payer_transfer;
+            let recipient = payer_transfer.balance_proof.sender.expect("Should be set");
+            let reveal_secret = Event::SendSecretReveal(SendSecretReveal {
+                inner: SendMessageEventInner {
+                    recipient: recipient,
+                    recipient_metadata: get_address_metadata(recipient, payer_transfer.route_states.clone()),
+                    canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                    message_identifier,
+                },
+                secret: secret.clone(),
+                secrethash: keccak256(&secret.0).into(),
+            });
+            events.push(reveal_secret);
+        }
+    }
+
+    events
+}
+
+
+fn events_for_balance_proof(
+    chain_state: &mut ChainState,
+    transfers_pair: &mut Vec<MediationPairState>,
+    secret: Secret,
+    secrethash: SecretHash,
+) -> Vec<Event> {
+    let mut events = vec![];
+
+    for pair in transfers_pair.iter_mut().rev() {
+        let payee_knows_secret = PAYEE_STATE_SECRET_KNOWN.contains(&pair.payee_state);
+        let payee_paid = PAYEE_STATE_TRANSFER_PAID.contains(&pair.payee_state);
+
+        let mut payee_channel = match get_channel(
+            chain_state,
+            pair.payee_transfer.balance_proof.canonical_identifier.clone(),
+        ) {
+            Some(payee_channel) => payee_channel.clone(),
+            None => continue,
+        };
+        let payer_channel = match get_channel(
+            chain_state,
+            pair.payer_transfer.balance_proof.canonical_identifier.clone(),
+        ) {
+            Some(payer_channel) => payer_channel,
+            None => continue,
+        };
+
+        let payee_channel_open = payee_channel.status() == ChannelStatus::Opened;
+
+        // The mediator must not send to the payee a balance proof if the lock
+        // is in the danger zone, because the payer may not do the same and the
+        // on-chain unlock may fail. If the lock is nearing it's expiration
+        // block, then on-chain unlock should be done, and if successful it can
+        // be unlocked off-chain.
+        let mut is_safe_to_send_balance_proof = false;
+        if is_safe_to_wait(pair.payer_transfer.lock.expiration, payer_channel.reveal_timeout, chain_state.block_number).is_ok() {
+            is_safe_to_send_balance_proof = true;
+        }
+
+        let should_send_balance_proof_to_payee = payee_channel_open &&
+            payee_knows_secret &&
+            !payee_paid &&
+            is_safe_to_send_balance_proof;
+
+        if should_send_balance_proof_to_payee {
+            pair.payee_state = PayeeState::BalanceProof;
+
+            let message_identifier = chain_state.pseudo_random_number_generator.next();
+            let recipient_address = pair.payee_address;
+            let recipient_metadata = get_address_metadata(recipient_address, pair.payee_transfer.route_states.clone());
+            if let Ok(unlock_lock) = channel::send_unlock(
+                &mut payee_channel,
+                message_identifier,
+                pair.payee_transfer.payment_identifier,
+                secret.clone(),
+                secrethash,
+                chain_state.block_number,
+                recipient_metadata
+            ) {
+                let _ = update_channel(chain_state, payee_channel.clone());
+                events.push(Event::SendUnlock(unlock_lock));
+                events.push(Event::UnlockSuccess(UnlockSuccess {
+                    identifier: pair.payer_transfer.payment_identifier,
+                    secrethash: pair.payer_transfer.lock.secrethash,
+                }))
+            }
+        }
+    }
+
+    events
+}
+
+fn events_for_onchain_secretreveal_if_closed(
+    chain_state: &ChainState,
+    transfers_pair: &mut Vec<MediationPairState>,
+    secret: Secret,
+    secrethash: SecretHash,
+    block_hash: BlockHash,
+) -> Vec<Event> {
+    let mut events = vec![];
+
+    let mut all_payer_channels = vec![];
+    for transfer_pair in transfers_pair.iter() {
+        if let Some(channel_state) = get_channel(
+            chain_state,
+            transfer_pair.payer_transfer.balance_proof.canonical_identifier.clone(),
+        ) {
+            all_payer_channels.push(channel_state);
+        }
+    }
+
+    let mut transaction_sent = has_secret_registration_started(all_payer_channels, transfers_pair, secrethash);
+
+    let pending_transfers = transfers_pair.iter_mut().filter(|pair| {
+        !PAYEE_STATE_TRANSFER_FINAL.contains(&pair.payee_state)
+            || !PAYER_STATE_TRANSFER_FINAL.contains(&pair.payer_state)
+    });
+    for pending_pair in pending_transfers {
+        let payer_channel = match get_channel(
+            chain_state,
+            pending_pair.payer_transfer.balance_proof.canonical_identifier.clone(),
+        ) {
+            Some(payer_channel) => payer_channel,
+            None => continue,
+        };
+
+        if payer_channel.status() == ChannelStatus::Closed {
+            pending_pair.payer_state = PayerState::WaitingSecretReveal;
+
+            if !transaction_sent {
+                if let Some(lock) = channel::get_lock(&payer_channel.partner_state, secrethash) {
+                    let reveal_events = secret_registry::events_for_onchain_secretreveal(
+                        payer_channel,
+                        secret.clone(),
+                        lock.expiration,
+                        block_hash
+                    );
+
+                    events.extend(reveal_events);
+                    transaction_sent = true;
+                }
+            }
+        }
+    }
+
+    events
+}
+
 fn events_for_onchain_secretreveal_if_dangerzone(
     chain_state: &ChainState,
     transfers_pair: &mut Vec<MediationPairState>,
@@ -488,11 +686,116 @@ fn events_for_expired_pairs(
     events
 }
 
+fn set_offchain_secret(
+    chain_state: &mut ChainState,
+    mediator_state: &mut MediatorTransferState,
+    secret: Secret,
+    secrethash: SecretHash,
+) -> Vec<Event> {
+    mediator_state.secret = Some(secret.clone());
+
+    for pair in &mediator_state.transfers_pair {
+        if let Some(payer_channel) = get_channel(&chain_state, pair.payer_transfer.balance_proof.canonical_identifier.clone()) {
+            let mut payer_channel = payer_channel.clone();
+            channel::register_offchain_secret(&mut payer_channel, secret.clone(), secrethash);
+            let _ = update_channel(chain_state, payer_channel);
+        }
+        if let Some(payee_channel) = get_channel(&chain_state, pair.payee_transfer.balance_proof.canonical_identifier.clone()) {
+            let mut payee_channel = payee_channel.clone();
+            channel::register_offchain_secret(&mut payee_channel, secret.clone(), secrethash);
+            let _ = update_channel(chain_state, payee_channel);
+        }
+    }
+    // The secret should never be revealed if `waiting_transfer` is not None.
+    // For this to happen this node must have received a transfer, which it did
+    // *not* mediate, and nevertheless the secret was revealed.
+    //
+    // This can only be possible if the initiator reveals the secret without the
+    // target's secret request, or if the node which sent the `waiting_transfer`
+    // has sent another transfer which reached the target (meaning someone along
+    // the path will lose tokens).
+    if let Some(waiting_transfer) = &mediator_state.waiting_transfer {
+        if let Some(payer_channel) = get_channel(chain_state, waiting_transfer.transfer.balance_proof.canonical_identifier.clone()) {
+            let mut payer_channel = payer_channel.clone();
+            channel::register_offchain_secret(&mut payer_channel, secret, secrethash);
+            let _ = update_channel(chain_state, payer_channel);
+
+            let unexpected_reveal = Event::ErrorUnexpectedReveal(ErrorUnexpectedReveal {
+                secrethash,
+                reason: "The mediator has a waiting transfer".to_owned(),
+            });
+
+            return vec![unexpected_reveal];
+        }
+    }
+
+    vec![]
+}
+
+fn set_offchain_reveal_state(
+    transfers_pair: &mut Vec<MediationPairState>,
+    payee_address: Address,
+) {
+    for pair in transfers_pair {
+        if pair.payee_address == payee_address {
+            pair.payee_state = PayeeState::SecretRevealed;
+        }
+    }
+}
+
+fn secret_learned(
+    mut chain_state: ChainState,
+    mut mediator_state: MediatorTransferState,
+    secret: Secret,
+    secrethash: SecretHash,
+    payee_address: Address
+) -> TransitionResult {
+    let secret_reveal_events = set_offchain_secret(&mut chain_state, &mut mediator_state, secret.clone(), secrethash);
+    set_offchain_reveal_state(&mut mediator_state.transfers_pair, payee_address);
+
+    let block_hash = chain_state.block_hash;
+    let onchain_secret_reveal = events_for_onchain_secretreveal_if_closed(
+        &chain_state,
+        &mut mediator_state.transfers_pair,
+        secret.clone(),
+        secrethash,
+        block_hash,
+    );
+
+    let offchain_secret_reveal = events_for_secret_reveal(
+        &mut mediator_state.transfers_pair,
+        secret.clone(),
+        &mut chain_state.pseudo_random_number_generator
+    );
+
+    let balance_proof = events_for_balance_proof(&mut chain_state, &mut mediator_state.transfers_pair, secret, secrethash);
+
+    let mut events = vec![];
+    events.extend(secret_reveal_events);
+    events.extend(onchain_secret_reveal);
+    events.extend(offchain_secret_reveal);
+    events.extend(balance_proof);
+
+    Ok(MediatorTransition {
+        new_state: Some(mediator_state),
+        chain_state,
+        events,
+    })
+}
+
 fn handle_block(
     chain_state: ChainState,
-    mediator_state: MediatorTransferState,
+    mediator_state: Option<MediatorTransferState>,
     state_change: Block,
 ) -> TransitionResult {
+    let mediator_state = match mediator_state {
+        Some(mediator_state) => mediator_state,
+        None => {
+            return Err("Block should be accompanied by a valid mediator state"
+                .to_owned()
+                .into())
+        }
+    };
     let mut events = vec![];
 
     let mut new_mediator_state = mediator_state;
@@ -507,7 +810,7 @@ fn handle_block(
             let mediation_attempt = mediate_transfer(
                 new_chain_state.clone(),
                 new_mediator_state.clone(),
-                payer_channel.clone(),
+                &payer_channel,
                 waiting_transfer.transfer,
                 state_change.block_number,
             )?;
@@ -556,6 +859,280 @@ fn handle_block(
         new_state: Some(new_mediator_state),
         chain_state: new_chain_state,
         events,
+    })
+}
+
+fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) -> TransitionResult {
+    let from_transfer = state_change.from_transfer;
+    let mut payer_channel = match get_channel(&chain_state, from_transfer.balance_proof.canonical_identifier.clone()) {
+        Some(channel) => channel.clone(),
+        None => {
+            return Ok(MediatorTransition {
+                new_state: None,
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    let mediator_state = MediatorTransferState {
+        secrethash: from_transfer.lock.secrethash,
+        routes: state_change.candidate_route_states,
+        refunded_channels: vec![],
+        secret: None,
+        transfers_pair: vec![],
+        waiting_transfer: None,
+    };
+
+    let mut events = vec![];
+    let payer_address_metadata = match from_transfer.balance_proof.sender {
+        Some(sender) => get_address_metadata(sender, from_transfer.route_states.clone()),
+        None => None,
+    };
+    if let Ok(locked_transfer_event) =
+        channel::handle_receive_locked_transfer(&mut payer_channel, from_transfer.clone(), payer_address_metadata)
+    {
+        utils::update_channel(&mut chain_state, payer_channel.clone())?;
+        events.push(locked_transfer_event);
+    } else {
+        return Ok(MediatorTransition {
+            new_state: None,
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    let block_number = chain_state.block_number;
+    let iteration = mediate_transfer(chain_state, mediator_state, &payer_channel, from_transfer, block_number)?;
+    events.extend(iteration.events);
+
+    Ok(MediatorTransition {
+        new_state: iteration.new_state,
+        chain_state: iteration.chain_state,
+        events,
+    })
+}
+
+/// Validate and handle a ReceiveTransferRefund mediator_state change.
+/// A node might participate in mediated transfer more than once because of
+/// refund transfers, e.g. A-B-C-B-D-T, B tried to mediate the transfer through
+/// C, which didn't have an available route to proceed and refunds B, at this
+/// point B is part of the path again and will try a new partner to proceed
+/// with the mediation through D, D finally reaches the target T.
+/// In the above scenario B has two pairs of payer and payee transfers:
+///     payer:A payee:C from the first SendLockedTransfer
+///     payer:C payee:D from the following SendRefundTransfer
+/// Args:
+///     mediator_state: Current mediator_state.
+///     mediator_state_change: The mediator_state change.
+/// Returns:
+///     TransitionResult: The resulting iteration.
+fn handle_refund_transfer(
+    mut chain_state: ChainState,
+    mediator_state: Option<MediatorTransferState>,
+    state_change: ReceiveTransferRefund,
+) -> TransitionResult {
+    let mut mediator_state = match mediator_state {
+        Some(mediator_state) => mediator_state,
+        None => {
+            return Err("ReceiveTransferRefund should be accompanied by a valid mediator state"
+                .to_owned()
+                .into())
+        }
+    };
+
+    if mediator_state.secret.is_none() {
+        return Ok(MediatorTransition {
+            new_state: Some(mediator_state),
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    if mediator_state.transfers_pair.len() == 0 {
+        return Ok(MediatorTransition {
+            new_state: Some(mediator_state),
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    // The last sent transfer is the only one that may be refunded, all the
+    // previous ones are refunded already.
+    let transfer_pair = mediator_state.transfers_pair.last().expect("Checked above");
+    let payee_transfer = transfer_pair.payee_transfer.clone();
+    let payer_transfer = transfer_pair.payer_transfer.clone();
+    let canonical_identifier = payer_transfer.balance_proof.canonical_identifier.clone();
+    let mut payer_channel = match get_channel(&chain_state, canonical_identifier) {
+        Some(channel) => channel.clone(),
+        None => {
+            return Ok(MediatorTransition {
+                new_state: Some(mediator_state),
+                chain_state,
+                events: vec![],
+            })
+        }
+    };
+
+    let refund_transfer_event = match channel::handle_refund_transfer(
+        &mut payer_channel,
+        payee_transfer,
+        state_change
+    ) {
+        Ok(event) => event,
+        Err(_) => {
+            return Ok(MediatorTransition {
+                new_state: Some(mediator_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    update_channel(&mut chain_state, payer_channel.clone())?;
+    mediator_state.refunded_channels.push(payer_channel.canonical_identifier.channel_identifier);
+
+    let block_number = chain_state.block_number;
+    let iteration = mediate_transfer(
+        chain_state,
+        mediator_state,
+        &payer_channel,
+        payer_transfer,
+        block_number
+    )?;
+
+    let mut events = vec![refund_transfer_event];
+    events.extend(iteration.events);
+
+    Ok(MediatorTransition {
+        new_state: iteration.new_state,
+        chain_state: iteration.chain_state,
+        events,
+    })
+}
+
+fn handle_offchain_secret_reveal(
+    chain_state: ChainState,
+    mediator_state: Option<MediatorTransferState>,
+    state_change: ReceiveSecretReveal,
+) -> TransitionResult {
+    let mediator_state = match mediator_state {
+        Some(mediator_state) => mediator_state,
+        None => {
+            return Err("ReceiveSecretReveal should be accompanied by a valid mediator state"
+                .to_owned()
+                .into())
+        }
+    };
+
+    let is_valid = is_valid_secret_reveal(&state_change, mediator_state.secrethash);
+    let is_secret_known = mediator_state.secret.is_none();
+
+    if mediator_state.transfers_pair.is_empty() {
+        // This will not happen during normal operation, but attackers might
+        // send weird messages.
+        return Ok(MediatorTransition {
+            new_state: Some(mediator_state),
+            chain_state,
+            events: vec![],
+        });
+    }
+
+    // a SecretReveal should be rejected if the payer transfer
+    // has expired. To check for this, we use the last
+    // transfer pair.
+    let transfer_pair = mediator_state.transfers_pair.last().expect("Should exist");
+    let payer_transfer = &transfer_pair.payer_transfer;
+    let canonical_identifier = payer_transfer.balance_proof.canonical_identifier.clone();
+    let payer_channel = match get_channel(&chain_state, canonical_identifier) {
+        Some(channel) => channel,
+        None => {
+            return Ok(MediatorTransition {
+                new_state: Some(mediator_state),
+                chain_state,
+                events: vec![],
+            });
+        }
+    };
+
+    let has_payer_transfer_expired = channel::is_transfer_expired(&payer_transfer, payer_channel, chain_state.block_number);
+
+    if is_secret_known && is_valid && !has_payer_transfer_expired {
+         return secret_learned(
+            chain_state,
+            mediator_state,
+            state_change.secret,
+            state_change.secrethash,
+            state_change.sender,
+        )
+    }
+
+    Ok(MediatorTransition {
+        new_state: Some(mediator_state),
+        chain_state,
+        events: vec![],
+    })
+}
+
+fn handle_onchain_secret_reveal(
+    chain_state: ChainState,
+    mediator_state: Option<MediatorTransferState>,
+    _state_change: ContractReceiveSecretReveal,
+) -> TransitionResult {
+    let mediator_state = match mediator_state {
+        Some(mediator_state) => mediator_state,
+        None => {
+            return Err(
+                "ContractReceiveSecretReveal should be accompanied by a valid mediator state"
+                    .to_owned()
+                    .into(),
+            )
+        }
+    };
+    Ok(MediatorTransition {
+        new_state: Some(mediator_state),
+        chain_state,
+        events: vec![],
+    })
+}
+
+fn handle_unlock(
+    chain_state: ChainState,
+    mediator_state: Option<MediatorTransferState>,
+    _state_change: ReceiveUnlock,
+) -> TransitionResult {
+    let mediator_state = match mediator_state {
+        Some(mediator_state) => mediator_state,
+        None => {
+            return Err("ReceiveUnlock should be accompanied by a valid mediator state"
+                .to_owned()
+                .into())
+        }
+    };
+    Ok(MediatorTransition {
+        new_state: Some(mediator_state),
+        chain_state,
+        events: vec![],
+    })
+}
+
+fn handle_lock_expired(
+    chain_state: ChainState,
+    mediator_state: Option<MediatorTransferState>,
+    _state_change: ReceiveLockExpired,
+) -> TransitionResult {
+    let mediator_state = match mediator_state {
+        Some(mediator_state) => mediator_state,
+        None => {
+            return Err("ReceiveLockExpired should be accompanied by a valid mediator state"
+                .to_owned()
+                .into())
+        }
+    };
+    Ok(MediatorTransition {
+        new_state: Some(mediator_state),
+        chain_state,
+        events: vec![],
     })
 }
 
@@ -685,20 +1262,22 @@ fn sanity_check(transition: MediatorTransition) -> TransitionResult {
 
 pub fn state_transition(
     chain_state: ChainState,
-    mediator_state: MediatorTransferState,
+    mediator_state: Option<MediatorTransferState>,
     state_change: StateChange,
 ) -> TransitionResult {
     let transition_result = match state_change {
         StateChange::Block(inner) => handle_block(chain_state, mediator_state, inner),
-        StateChange::ActionInitMediator(_) => todo!(),
-        StateChange::ReceiveTransferRefund(_) => todo!(),
-        StateChange::ReceiveSecretReveal(_) => todo!(),
-        StateChange::ContractReceiveSecretReveal(_) => todo!(),
-        StateChange::ReceiveUnlock(_) => todo!(),
-        StateChange::ReceiveLockExpired(_) => todo!(),
+        StateChange::ActionInitMediator(inner) => handle_init(chain_state, inner),
+        StateChange::ReceiveTransferRefund(inner) => handle_refund_transfer(chain_state, mediator_state, inner),
+        StateChange::ReceiveSecretReveal(inner) => handle_offchain_secret_reveal(chain_state, mediator_state, inner),
+        StateChange::ContractReceiveSecretReveal(inner) => {
+            handle_onchain_secret_reveal(chain_state, mediator_state, inner)
+        }
+        StateChange::ReceiveUnlock(inner) => handle_unlock(chain_state, mediator_state, inner),
+        StateChange::ReceiveLockExpired(inner) => handle_lock_expired(chain_state, mediator_state, inner),
         _ => {
             return Ok(MediatorTransition {
-                new_state: Some(mediator_state),
+                new_state: mediator_state,
                 chain_state,
                 events: vec![],
             });
