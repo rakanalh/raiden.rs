@@ -232,7 +232,7 @@ fn subdispatch_mediator_task(
 ) -> TransitionResult {
     let mediator_state = match chain_state.payment_mapping.secrethashes_to_task.get(&secrethash) {
         Some(sub_task) => match sub_task {
-            TransferTask::Mediator(mediator_task) => mediator_task.mediator_state.clone(),
+            TransferTask::Mediator(mediator_task) => Some(mediator_task.mediator_state.clone()),
             _ => {
                 return Ok(ChainTransition {
                     new_state: chain_state,
@@ -240,12 +240,7 @@ fn subdispatch_mediator_task(
                 });
             }
         },
-        None => {
-            return Ok(ChainTransition {
-                new_state: chain_state,
-                events: vec![],
-            });
-        }
+        None => None,
     };
 
     let mut events = vec![];
