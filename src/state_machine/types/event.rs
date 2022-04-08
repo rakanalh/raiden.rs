@@ -34,9 +34,11 @@ pub enum Event {
     SendWithdrawRequest(SendWithdrawRequest),
     SendLockedTransfer(SendLockedTransfer),
     SendLockExpired(SendLockExpired),
+    SendSecretRequest(SendSecretRequest),
     SendSecretReveal(SendSecretReveal),
     SendUnlock(SendUnlock),
     SendProcessed(SendProcessed),
+    PaymentReceivedSuccess(PaymentReceivedSuccess),
     PaymentSentSuccess(PaymentSentSuccess),
     UnlockSuccess(UnlockSuccess),
     UnlockClaimSuccess(UnlockClaimSuccess),
@@ -117,6 +119,16 @@ pub struct SendLockedTransfer {
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendSecretRequest {
+    #[deref]
+    pub inner: SendMessageEventInner,
+    pub payment_identifier: PaymentIdentifier,
+    pub amount: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub secrethash: SecretHash,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct SendSecretReveal {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -147,6 +159,15 @@ pub struct SendUnlock {
 pub struct SendProcessed {
     #[deref]
     pub inner: SendMessageEventInner,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct PaymentReceivedSuccess {
+    pub token_network_registry_address: TokenNetworkRegistryAddress,
+    pub token_network_address: TokenNetworkAddress,
+    pub identifier: PaymentIdentifier,
+    pub amount: TokenAmount,
+    pub initiator: Address,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

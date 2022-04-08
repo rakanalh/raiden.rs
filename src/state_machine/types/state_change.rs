@@ -48,6 +48,7 @@ pub enum StateChange {
     ActionInitChain(ActionInitChain),
     ActionInitInitiator(ActionInitInitiator),
     ActionInitMediator(ActionInitMediator),
+    ActionInitTarget(ActionInitTarget),
     ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout),
     ActionChannelWithdraw(ActionChannelWithdraw),
     ActionTransferReroute(ActionTransferReroute),
@@ -227,6 +228,7 @@ pub struct ActionInitTarget {
     pub balance_proof: BalanceProofState,
     pub from_hop: HopState,
     pub transfer: LockedTransferState,
+    pub received_valid_secret: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

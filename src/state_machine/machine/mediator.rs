@@ -90,14 +90,6 @@ fn get_channel(chain_state: &ChainState, canonical_identifier: CanonicalIdentifi
     views::get_channel_by_canonical_identifier(chain_state, canonical_identifier)
 }
 
-fn is_valid_secret_reveal(state_change: &ReceiveSecretReveal, transfer_secrethash: SecretHash) -> bool {
-    state_change.secrethash == transfer_secrethash
-}
-
-fn is_valid_onchain_secret_reveal(state_change: &ContractReceiveSecretReveal, transfer_secrethash: SecretHash) -> bool {
-    state_change.secrethash == transfer_secrethash
-}
-
 fn is_send_transfer_almost_equal(send: &LockedTransferState, received: &LockedTransferState) -> bool {
     send.payment_identifier == received.payment_identifier
         && send.token == received.token
@@ -107,7 +99,7 @@ fn is_send_transfer_almost_equal(send: &LockedTransferState, received: &LockedTr
         && send.target == received.target
 }
 
-fn is_safe_to_wait(
+pub(super) fn is_safe_to_wait(
     lock_expiration: BlockExpiration,
     reveal_timeout: BlockTimeout,
     block_number: BlockNumber,
@@ -1104,7 +1096,7 @@ fn handle_offchain_secret_reveal(
         }
     };
 
-    let is_valid = is_valid_secret_reveal(&state_change, mediator_state.secrethash);
+    let is_valid = utils::is_valid_secret_reveal(&state_change, mediator_state.secrethash);
     let is_secret_known = mediator_state.secret.is_none();
 
     if mediator_state.transfers_pair.is_empty() {
@@ -1171,7 +1163,7 @@ fn handle_onchain_secret_reveal(
     };
 
     let mut events = vec![];
-    if is_valid_onchain_secret_reveal(&state_change, mediator_state.secrethash) {
+    if utils::is_valid_onchain_secret_reveal(&state_change, mediator_state.secrethash) {
         let secret = state_change.secret;
         // Compare against the block number at which the event was emitted.
         let block_number = state_change.block_number;

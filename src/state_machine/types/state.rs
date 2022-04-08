@@ -175,6 +175,7 @@ pub struct MediatorTask {
 pub struct TargetTask {
     pub role: TransferRole,
     pub token_network_address: TokenNetworkAddress,
+    pub target_state: TargetTransferState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

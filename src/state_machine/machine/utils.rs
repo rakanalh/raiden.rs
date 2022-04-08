@@ -1,8 +1,11 @@
 use crate::{
     errors::StateTransitionError,
+    primitives::SecretHash,
     state_machine::types::{
         ChainState,
         ChannelState,
+        ContractReceiveSecretReveal,
+        ReceiveSecretReveal,
     },
 };
 
@@ -42,4 +45,15 @@ pub(super) fn update_channel(
         .insert(channel_state.canonical_identifier.channel_identifier, channel_state);
 
     Ok(())
+}
+
+pub(super) fn is_valid_secret_reveal(state_change: &ReceiveSecretReveal, transfer_secrethash: SecretHash) -> bool {
+    state_change.secrethash == transfer_secrethash
+}
+
+pub(super) fn is_valid_onchain_secret_reveal(
+    state_change: &ContractReceiveSecretReveal,
+    transfer_secrethash: SecretHash,
+) -> bool {
+    state_change.secrethash == transfer_secrethash
 }

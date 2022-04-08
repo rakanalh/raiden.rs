@@ -11,9 +11,11 @@ use crate::{
     state_machine::types::{
         ActionInitInitiator,
         ActionInitMediator,
+        ActionInitTarget,
         ChainState,
         InitiatorTask,
         MediatorTask,
+        TargetTask,
         TokenNetworkState,
         TransferRole,
         TransferTask,
@@ -42,6 +44,7 @@ use crate::{
 use super::{
     initiator_manager,
     mediator,
+    target,
 };
 
 type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
@@ -277,6 +280,55 @@ fn subdispatch_mediator_task(
     })
 }
 
+fn subdispatch_target_task(
+    chain_state: ChainState,
+    state_change: ActionInitTarget,
+    token_network_address: TokenNetworkAddress,
+    secrethash: SecretHash,
+) -> TransitionResult {
+    let target_state = match chain_state.payment_mapping.secrethashes_to_task.get(&secrethash) {
+        Some(sub_task) => match sub_task {
+            TransferTask::Target(target_task) => Some(target_task.target_state.clone()),
+            _ => {
+                return Ok(ChainTransition {
+                    new_state: chain_state,
+                    events: vec![],
+                });
+            }
+        },
+        None => None,
+    };
+
+    let mut events = vec![];
+    let iteration = target::state_transition(chain_state, target_state, StateChange::ActionInitTarget(state_change))?;
+    events.extend(iteration.events);
+
+    let mut chain_state = iteration.chain_state;
+
+    if let Some(new_state) = iteration.new_state {
+        let target_task = TargetTask {
+            role: TransferRole::Target,
+            token_network_address,
+            target_state: new_state,
+        };
+        chain_state
+            .payment_mapping
+            .secrethashes_to_task
+            .insert(secrethash, TransferTask::Target(target_task));
+    } else if chain_state
+        .payment_mapping
+        .secrethashes_to_task
+        .contains_key(&secrethash)
+    {
+        chain_state.payment_mapping.secrethashes_to_task.remove(&secrethash);
+    }
+
+    Ok(ChainTransition {
+        new_state: chain_state,
+        events,
+    })
+}
+
 fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
     Ok(ChainTransition {
         new_state: ChainState::new(
@@ -299,6 +351,14 @@ fn handle_action_init_mediator(chain_state: ChainState, state_change: ActionInit
     let token_network_address = transfer.balance_proof.canonical_identifier.token_network_address;
 
     subdispatch_mediator_task(chain_state, state_change, token_network_address, secrethash)
+}
+
+fn handle_action_init_target(chain_state: ChainState, state_change: ActionInitTarget) -> TransitionResult {
+    let transfer = &state_change.transfer;
+    let secrethash = transfer.lock.secrethash;
+    let token_network_address = transfer.balance_proof.canonical_identifier.token_network_address;
+
+    subdispatch_target_task(chain_state, state_change, token_network_address, secrethash)
 }
 
 fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> TransitionResult {
@@ -445,6 +505,7 @@ pub fn state_transition(mut chain_state: ChainState, state_change: StateChange) 
         StateChange::ActionInitChain(inner) => handle_action_init_chain(inner),
         StateChange::ActionInitInitiator(inner) => handle_action_init_intiator(chain_state, inner),
         StateChange::ActionInitMediator(inner) => handle_action_init_mediator(chain_state, inner),
+        StateChange::ActionInitTarget(inner) => handle_action_init_target(chain_state, inner),
         StateChange::ActionChannelWithdraw(ref inner) => subdispatch_by_canonical_id(
             &mut chain_state,
             state_change.clone(),

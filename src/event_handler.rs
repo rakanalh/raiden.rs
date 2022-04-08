@@ -36,6 +36,12 @@ impl EventHandler {
 
     pub async fn handle_event(&self, event: Event) {
         match event {
+            Event::ContractSendChannelSettle(_) => todo!(),
+            Event::ContractSendChannelUpdateTransfer(_) => todo!(),
+            Event::ContractSendChannelBatchUnlock(_) => todo!(),
+            Event::ContractSendSecretReveal(_) => todo!(),
+            Event::PaymentSentSuccess(_) => todo!(),
+            Event::PaymentReceivedSuccess(_) => todo!(),
             Event::SendWithdrawExpired(inner) => {
                 let queue_identifier = inner.queue_identifier();
                 let mut message: WithdrawExpired = inner.into();
@@ -46,30 +52,26 @@ impl EventHandler {
                 )));
             }
             Event::SendWithdrawRequest(_) => todo!(),
-            Event::ContractSendChannelSettle(_) => todo!(),
-            Event::ContractSendChannelUpdateTransfer(_) => todo!(),
-            Event::ContractSendChannelBatchUnlock(_) => todo!(),
             Event::SendLockedTransfer(_) => todo!(),
             Event::SendLockExpired(_) => todo!(),
+            Event::SendSecretReveal(_) => todo!(),
+            Event::SendUnlock(_) => todo!(),
+            Event::SendProcessed(_) => todo!(),
+            Event::SendSecretRequest(_) => todo!(),
+            Event::UnlockClaimSuccess(_) => todo!(),
+            Event::UnlockSuccess(_) => todo!(),
             Event::ErrorInvalidActionWithdraw(_) => todo!(),
             Event::ErrorInvalidActionSetRevealTimeout(_) => todo!(),
+            Event::ErrorInvalidReceivedUnlock(_) => todo!(),
             Event::ErrorPaymentSentFailed(_) => todo!(),
             Event::ErrorRouteFailed(_) => todo!(),
             Event::ErrorUnlockFailed(_) => todo!(),
             Event::ErrorInvalidSecretRequest(_) => todo!(),
-            Event::SendSecretReveal(_) => todo!(),
-            Event::SendUnlock(_) => todo!(),
-            Event::PaymentSentSuccess(_) => todo!(),
-            Event::UnlockSuccess(_) => todo!(),
-            Event::SendProcessed(_) => todo!(),
             Event::ErrorInvalidReceivedLockedTransfer(_) => todo!(),
-            Event::ErrorUnlockClaimFailed(_) => todo!(),
             Event::ErrorInvalidReceivedLockExpired(_) => todo!(),
-            Event::ContractSendSecretReveal(_) => todo!(),
             Event::ErrorInvalidReceivedTransferRefund(_) => todo!(),
             Event::ErrorUnexpectedReveal(_) => todo!(),
-            Event::UnlockClaimSuccess(_) => todo!(),
-            Event::ErrorInvalidReceivedUnlock(_) => todo!(),
+            Event::ErrorUnlockClaimFailed(_) => todo!(),
         }
     }
 }
