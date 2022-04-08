@@ -101,6 +101,15 @@ pub enum PayerState {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum TargetState {
+    Expired,
+    OffchainSecretReveal,
+    OnchainSecretReveal,
+    OnchainUnlock,
+    SecretRequest,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum WaitingTransferStatus {
     Waiting,
     Expired,
@@ -166,6 +175,15 @@ pub struct MediatorTask {
 pub struct TargetTask {
     pub role: TransferRole,
     pub token_network_address: TokenNetworkAddress,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct TargetTransferState {
+    pub from_hop: HopState,
+    pub transfer: LockedTransferState,
+    pub secret: Option<Secret>,
+    pub state: TargetState,
+    pub initiator_address_metadata: Option<AddressMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -684,7 +702,7 @@ pub struct TransactionChannelDeposit {
     pub deposit_block_number: BlockNumber,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HopState {
     pub node_address: Address,
     pub channel_identifier: ChannelIdentifier,
