@@ -39,6 +39,7 @@ pub enum Event {
     SendProcessed(SendProcessed),
     PaymentSentSuccess(PaymentSentSuccess),
     UnlockSuccess(UnlockSuccess),
+    UnlockClaimSuccess(UnlockClaimSuccess),
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
     ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
@@ -53,6 +54,7 @@ pub enum Event {
     ErrorInvalidReceivedLockedTransfer(ErrorInvalidReceivedLockedTransfer),
     ErrorInvalidReceivedLockExpired(ErrorInvalidReceivedLockExpired),
     ErrorInvalidReceivedTransferRefund(ErrorInvalidReceivedTransferRefund),
+    ErrorInvalidReceivedUnlock(ErrorInvalidReceivedUnlock),
     ErrorUnexpectedReveal(ErrorUnexpectedReveal),
 }
 
@@ -165,6 +167,12 @@ pub struct UnlockSuccess {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct UnlockClaimSuccess {
+    pub identifier: PaymentIdentifier,
+    pub secrethash: SecretHash,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendEvent {
     pub triggered_by_blockhash: BlockHash,
 }
@@ -253,6 +261,12 @@ pub struct ErrorInvalidReceivedLockExpired {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ErrorInvalidReceivedTransferRefund {
     pub payment_identifier: PaymentIdentifier,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedUnlock {
+    pub secrethash: SecretHash,
     pub reason: String,
 }
 

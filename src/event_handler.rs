@@ -68,6 +68,8 @@ impl EventHandler {
             Event::ContractSendSecretReveal(_) => todo!(),
             Event::ErrorInvalidReceivedTransferRefund(_) => todo!(),
             Event::ErrorUnexpectedReveal(_) => todo!(),
+            Event::UnlockClaimSuccess(_) => todo!(),
+            Event::ErrorInvalidReceivedUnlock(_) => todo!(),
         }
     }
 }

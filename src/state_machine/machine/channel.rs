@@ -86,6 +86,7 @@ use crate::{
             ErrorInvalidReceivedLockExpired,
             ErrorInvalidReceivedLockedTransfer,
             ErrorInvalidReceivedTransferRefund,
+            ErrorInvalidReceivedUnlock,
             Event,
             ExpiredWithdrawState,
             FeeScheduleState,
@@ -95,6 +96,7 @@ use crate::{
             PendingWithdrawState,
             ReceiveLockExpired,
             ReceiveTransferRefund,
+            ReceiveUnlock,
             RouteState,
             SendLockExpired,
             SendLockedTransfer,
@@ -447,6 +449,37 @@ pub(super) fn send_unlock(
     delete_lock(&mut channel_state.our_state, lock.secrethash);
 
     Ok(unlock)
+}
+
+pub(super) fn handle_unlock(
+    channel_state: &mut ChannelState,
+    unlock: ReceiveUnlock,
+    recipient_metadata: Option<AddressMetadata>,
+) -> Result<Event, String> {
+    Ok(
+        match is_valid_unlock(&channel_state.clone(), &mut channel_state.partner_state, unlock.clone()) {
+            Ok(pending_locks) => {
+                channel_state.partner_state.balance_proof = Some(unlock.balance_proof.clone());
+                channel_state.partner_state.nonce = unlock.balance_proof.nonce;
+                channel_state.partner_state.pending_locks = pending_locks;
+
+                delete_lock(&mut channel_state.partner_state, unlock.secrethash);
+
+                Event::SendProcessed(SendProcessed {
+                    inner: SendMessageEventInner {
+                        recipient: unlock.balance_proof.sender.expect("Should exist"),
+                        recipient_metadata,
+                        canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                        message_identifier: unlock.message_identifier,
+                    },
+                })
+            }
+            Err(e) => Event::ErrorInvalidReceivedUnlock(ErrorInvalidReceivedUnlock {
+                secrethash: unlock.secrethash,
+                reason: e,
+            }),
+        },
+    )
 }
 
 fn register_onchain_secret_endstate(
@@ -1603,6 +1636,74 @@ fn handle_channel_update_transfer(
     });
 }
 
+fn is_valid_unlock(
+    channel_state: &ChannelState,
+    sender_state: &mut ChannelEndState,
+    unlock: ReceiveUnlock,
+) -> Result<PendingLocksState, String> {
+    let received_balance_proof = unlock.balance_proof;
+    let (_, _, current_transferred_amount, current_locked_amount) = get_current_balance_proof(sender_state);
+    let lock = match get_lock(sender_state, unlock.secrethash) {
+        Some(lock) => lock,
+        None => {
+            return Err(format!(
+                "Invalid unlock message. There is no corresponding lock for {}",
+                unlock.secrethash
+            ));
+        }
+    };
+
+    let pending_locks = match compute_locks_without(&mut sender_state.pending_locks, &lock) {
+        Some(pending_locks) => pending_locks,
+        None => {
+            return Err(format!(
+                "Invalid unlock message. The lock is unknown {}",
+                unlock.secrethash
+            ));
+        }
+    };
+
+    let locksroot_without_lock = compute_locksroot(&pending_locks);
+
+    let expected_transferred_amount = current_transferred_amount + lock.amount;
+    let expected_locked_amount = current_locked_amount - lock.amount;
+
+    let is_valid_balance_proof = is_balance_proof_usable_onchain(&received_balance_proof, channel_state, sender_state);
+
+    if let Err(e) = is_valid_balance_proof {
+        return Err(format!("Invalid unlock message. {}", e));
+    } else if received_balance_proof.locksroot != locksroot_without_lock {
+        // Unlock messages remove a known lock, the new locksroot must have only
+        // that lock removed, otherwise the sender may be trying to remove
+        // additional locks.
+        return Err(format!(
+            "Invalid unlock message. \
+                            Balance proof's locksroot didn't match. \
+                            expected {:?} \
+                            got {:?}",
+            locksroot_without_lock, received_balance_proof.locksroot
+        ));
+    } else if received_balance_proof.transferred_amount != expected_transferred_amount {
+        return Err(format!(
+            "Invalid unlock message. \
+                            Balance proof's wrong transferred_amount. \
+                            expected {} \
+                            got {}",
+            expected_transferred_amount, received_balance_proof.transferred_amount
+        ));
+    } else if received_balance_proof.locked_amount != expected_locked_amount {
+        return Err(format!(
+            "Invalid unlock message. \
+                            Balance proof's wrong locked_amount. \
+                            expected {} \
+                            got {}",
+            expected_locked_amount, received_balance_proof.locked_amount
+        ));
+    }
+
+    Ok(pending_locks)
+}
+
 fn is_valid_refund(
     channel_state: &ChannelState,
     refund: ReceiveTransferRefund,
@@ -1653,6 +1754,10 @@ fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChann
     return Ok(());
 }
 
+/// This will register the secret and set the lock to the unlocked stated.
+///
+/// Even though the lock is unlock it is *not* claimed. The capacity will
+/// increase once the next balance proof is received.
 fn register_secret_endstate(end_state: &mut ChannelEndState, secret: Secret, secrethash: SecretHash) {
     if is_lock_locked(end_state, secrethash) {
         let pending_lock = match end_state.secrethashes_to_lockedlocks.get(&secrethash) {
@@ -1662,22 +1767,21 @@ fn register_secret_endstate(end_state: &mut ChannelEndState, secret: Secret, sec
 
         end_state.secrethashes_to_lockedlocks.remove(&secrethash);
 
-        end_state.secrethashes_to_unlockedlocks.insert(secrethash, UnlockPartialProofState {
-            lock: pending_lock.clone(),
-            secret,
-            amount: pending_lock.amount,
-            expiration: pending_lock.expiration,
+        end_state.secrethashes_to_unlockedlocks.insert(
             secrethash,
-            encoded: pending_lock.encoded,
-        });
+            UnlockPartialProofState {
+                lock: pending_lock.clone(),
+                secret,
+                amount: pending_lock.amount,
+                expiration: pending_lock.expiration,
+                secrethash,
+                encoded: pending_lock.encoded,
+            },
+        );
     }
 }
 
-pub(super) fn register_offchain_secret(
-    channel_state: &mut ChannelState,
-    secret: Secret,
-    secrethash: SecretHash,
-) {
+pub(super) fn register_offchain_secret(channel_state: &mut ChannelState, secret: Secret, secrethash: SecretHash) {
     register_secret_endstate(&mut channel_state.our_state, secret.clone(), secrethash);
     register_secret_endstate(&mut channel_state.partner_state, secret, secrethash);
 }
