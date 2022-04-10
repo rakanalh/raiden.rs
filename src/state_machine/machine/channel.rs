@@ -80,7 +80,6 @@ use crate::{
             ContractSendChannelBatchUnlock,
             ContractSendChannelSettle,
             ContractSendChannelUpdateTransfer,
-            ContractSendEvent,
             ErrorInvalidActionSetRevealTimeout,
             ErrorInvalidActionWithdraw,
             ErrorInvalidReceivedLockExpired,
@@ -106,7 +105,7 @@ use crate::{
             SendWithdrawExpired,
             SendWithdrawRequest,
             StateChange,
-            UnlockPartialProofState,
+            UnlockPartialProofState, ContractSendEventInner,
         },
         views::get_channel_balance,
     },
@@ -1339,7 +1338,7 @@ fn handle_block(
             });
 
             events.push(Event::ContractSendChannelSettle(ContractSendChannelSettle {
-                inner: ContractSendEvent {
+                inner: ContractSendEventInner {
                     triggered_by_blockhash: state_change.block_hash,
                 },
                 canonical_identifier: channel_state.canonical_identifier.clone(),
@@ -1400,7 +1399,7 @@ fn handle_channel_closed(channel_state: ChannelState, state_change: ContractRece
                 .saturating_add(*state_change.block_number)
                 .into();
             let update = Event::ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer {
-                inner: ContractSendEvent {
+                inner: ContractSendEventInner {
                     triggered_by_blockhash: state_change.block_hash,
                 },
                 balance_proof,
@@ -1461,7 +1460,7 @@ fn handle_channel_settled(
         channel_state.partner_state.onchain_locksroot = partner_locksroot;
 
         events.push(Event::ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock {
-            inner: ContractSendEvent {
+            inner: ContractSendEventInner {
                 triggered_by_blockhash: state_change.block_hash,
             },
             canonical_identifier: channel_state.canonical_identifier.clone(),

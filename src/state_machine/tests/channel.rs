@@ -35,7 +35,7 @@ use crate::{
             ContractSendChannelBatchUnlock,
             ContractSendChannelSettle,
             ContractSendChannelUpdateTransfer,
-            ContractSendEvent,
+            ContractSendEventInner,
             ErrorInvalidActionSetRevealTimeout,
             ErrorInvalidActionWithdraw,
             Event,
@@ -189,7 +189,7 @@ fn test_closed_channel_new_block() {
     assert_eq!(
         result.events[0],
         Event::ContractSendChannelSettle(ContractSendChannelSettle {
-            inner: ContractSendEvent {
+            inner: ContractSendEventInner {
                 triggered_by_blockhash: block_hash,
             },
             canonical_identifier: canonical_identifier.clone(),
@@ -314,7 +314,7 @@ fn test_channel_closed() {
     let result = chain::state_transition(chain_state.clone(), state_change.clone()).expect("Should close channel");
 
     let event = Event::ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer {
-        inner: ContractSendEvent {
+        inner: ContractSendEventInner {
             triggered_by_blockhash: H256::zero(),
         },
         expiration: U64::from(510u64),
@@ -506,7 +506,7 @@ fn test_channel_settled() {
     assert_eq!(
         result.events[0],
         Event::ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock {
-            inner: ContractSendEvent {
+            inner: ContractSendEventInner {
                 triggered_by_blockhash: block_hash,
             },
             canonical_identifier: canonical_identifier.clone(),

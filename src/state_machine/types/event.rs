@@ -17,6 +17,7 @@ use crate::primitives::{
     RevealTimeout,
     Secret,
     SecretHash,
+    Signature,
     TokenAddress,
     TokenAmount,
     TokenNetworkAddress,
@@ -30,6 +31,14 @@ use super::{
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum Event {
+    ContractSendChannelClose(ContractSendChannelClose),
+    ContractSendChannelWithdraw(ContractSendChannelWithdraw),
+    ContractSendChannelSettle(ContractSendChannelSettle),
+    ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
+    ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
+    ContractSendSecretReveal(ContractSendSecretReveal),
+    PaymentReceivedSuccess(PaymentReceivedSuccess),
+    PaymentSentSuccess(PaymentSentSuccess),
     SendWithdrawExpired(SendWithdrawExpired),
     SendWithdrawRequest(SendWithdrawRequest),
     SendLockedTransfer(SendLockedTransfer),
@@ -38,14 +47,9 @@ pub enum Event {
     SendSecretReveal(SendSecretReveal),
     SendUnlock(SendUnlock),
     SendProcessed(SendProcessed),
-    PaymentReceivedSuccess(PaymentReceivedSuccess),
-    PaymentSentSuccess(PaymentSentSuccess),
     UnlockSuccess(UnlockSuccess),
     UnlockClaimSuccess(UnlockClaimSuccess),
-    ContractSendChannelSettle(ContractSendChannelSettle),
-    ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
-    ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
-    ContractSendSecretReveal(ContractSendSecretReveal),
+    UpdatedServicesAddresses(UpdatedServicesAddresses),
     ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
     ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw),
     ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout),
@@ -62,7 +66,59 @@ pub enum Event {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum SendMessageEvent {
+    SendLockExpired(SendLockExpired),
+    SendLockedTransfer(SendLockedTransfer),
+    SendSecretReveal(SendSecretReveal),
+    SendSecretRequest(SendSecretRequest),
+    SendUnlock(SendUnlock),
+    SendWithdrawRequest(SendWithdrawRequest),
+    SendWithdrawConfirmation(SendWithdrawConfirmation),
     SendWithdrawExpired(SendWithdrawExpired),
+    SendProcessed(SendProcessed),
+}
+
+impl TryFrom<Event> for SendMessageEvent {
+    type Error = ();
+
+    fn try_from(event: Event) -> Result<Self, Self::Error> {
+        Ok(match event {
+            Event::SendWithdrawExpired(inner) => SendMessageEvent::SendWithdrawExpired(inner),
+            Event::SendWithdrawRequest(inner) => SendMessageEvent::SendWithdrawRequest(inner),
+            Event::SendLockedTransfer(inner) => SendMessageEvent::SendLockedTransfer(inner),
+            Event::SendLockExpired(inner) => SendMessageEvent::SendLockExpired(inner),
+            Event::SendSecretRequest(inner) => SendMessageEvent::SendSecretRequest(inner),
+            Event::SendSecretReveal(inner) => SendMessageEvent::SendSecretReveal(inner),
+            Event::SendUnlock(inner) => SendMessageEvent::SendUnlock(inner),
+            Event::SendProcessed(inner) => SendMessageEvent::SendProcessed(inner),
+            _ => return Err(())
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub enum ContractSendEvent {
+    ContractSendChannelClose(ContractSendChannelClose),
+    ContractSendChannelWithdraw(ContractSendChannelWithdraw),
+    ContractSendChannelSettle(ContractSendChannelSettle),
+    ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
+    ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock),
+    ContractSendSecretReveal(ContractSendSecretReveal),
+}
+
+impl TryFrom<Event> for ContractSendEvent {
+    type Error = ();
+
+    fn try_from(event: Event) -> Result<Self, Self::Error> {
+        Ok(match event {
+            Event::ContractSendChannelClose(inner) => ContractSendEvent::ContractSendChannelClose(inner),
+            Event::ContractSendChannelWithdraw(inner) => ContractSendEvent::ContractSendChannelWithdraw(inner),
+            Event::ContractSendChannelSettle(inner) => ContractSendEvent::ContractSendChannelSettle(inner),
+            Event::ContractSendChannelUpdateTransfer(inner) => ContractSendEvent::ContractSendChannelUpdateTransfer(inner),
+            Event::ContractSendChannelBatchUnlock(inner) => ContractSendEvent::ContractSendChannelBatchUnlock(inner),
+            Event::ContractSendSecretReveal(inner) => ContractSendEvent::ContractSendSecretReveal(inner),
+            _ => return Err(()),
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
@@ -93,7 +149,16 @@ impl PartialEq for SendMessageEventInner {
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct SendWithdrawExpired {
+pub struct SendWithdrawRequest {
+    #[deref]
+    pub inner: SendMessageEventInner,
+    pub participant: Address,
+    pub expiration: BlockExpiration,
+    pub nonce: Nonce,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct SendWithdrawConfirmation {
     #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
@@ -103,12 +168,13 @@ pub struct SendWithdrawExpired {
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct SendWithdrawRequest {
+pub struct SendWithdrawExpired {
     #[deref]
     pub inner: SendMessageEventInner,
     pub participant: Address,
-    pub expiration: BlockExpiration,
+    pub total_withdraw: TokenAmount,
     pub nonce: Nonce,
+    pub expiration: BlockExpiration,
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -194,33 +260,55 @@ pub struct UnlockClaimSuccess {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct ContractSendEvent {
+pub struct ContractSendEventInner {
     pub triggered_by_blockhash: BlockHash,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContractSendChannelClose {
+    #[deref]
+    pub inner: ContractSendEventInner,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub balance_proof: BalanceProofState,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContractSendChannelWithdraw {
+    #[deref]
+    pub inner: ContractSendEventInner,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub total_withdraw: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub partner_signature: Signature,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelSettle {
-    pub inner: ContractSendEvent,
+    #[deref]
+    pub inner: ContractSendEventInner,
     pub canonical_identifier: CanonicalIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelUpdateTransfer {
-    pub inner: ContractSendEvent,
+    #[deref]
+    pub inner: ContractSendEventInner,
     pub expiration: BlockExpiration,
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelBatchUnlock {
-    pub inner: ContractSendEvent,
+    #[deref]
+    pub inner: ContractSendEventInner,
     pub canonical_identifier: CanonicalIdentifier,
     pub sender: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendSecretReveal {
-    pub inner: ContractSendEvent,
+    #[deref]
+    pub inner: ContractSendEventInner,
     pub expiration: BlockExpiration,
     pub secret: Secret,
 }
@@ -302,4 +390,10 @@ pub struct ErrorUnlockClaimFailed {
 pub struct ErrorUnexpectedReveal {
     pub secrethash: SecretHash,
     pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct UpdatedServicesAddresses {
+    pub service_address: Address,
+    pub validity: u32,
 }

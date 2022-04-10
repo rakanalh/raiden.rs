@@ -7,9 +7,8 @@ use crate::{
     },
     state_machine::types::{
         ChannelState,
-        ContractSendEvent,
         ContractSendSecretReveal,
-        Event,
+        Event, ContractSendEventInner,
     },
 };
 
@@ -23,7 +22,7 @@ pub(super) fn events_for_onchain_secretreveal(
 
     if CHANNEL_STATES_UP_TO_CLOSE.contains(&channel_state.status()) {
         let reveal_event = Event::ContractSendSecretReveal(ContractSendSecretReveal {
-            inner: ContractSendEvent {
+            inner: ContractSendEventInner {
                 triggered_by_blockhash: block_hash,
             },
             expiration,
