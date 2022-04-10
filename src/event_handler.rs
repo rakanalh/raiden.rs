@@ -36,6 +36,8 @@ impl EventHandler {
 
     pub async fn handle_event(&self, event: Event) {
         match event {
+            Event::ContractSendChannelClose(_) => todo!(),
+            Event::ContractSendChannelWithdraw(_) => todo!(),
             Event::ContractSendChannelSettle(_) => todo!(),
             Event::ContractSendChannelUpdateTransfer(_) => todo!(),
             Event::ContractSendChannelBatchUnlock(_) => todo!(),
@@ -72,6 +74,7 @@ impl EventHandler {
             Event::ErrorInvalidReceivedTransferRefund(_) => todo!(),
             Event::ErrorUnexpectedReveal(_) => todo!(),
             Event::ErrorUnlockClaimFailed(_) => todo!(),
+            Event::UpdatedServicesAddresses(_) => todo!(),
         }
     }
 }

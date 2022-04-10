@@ -16,6 +16,7 @@ use crate::{
         Secret,
         SecretHash,
         SecretRegistryAddress,
+        Signature,
         TokenAmount,
         TokenNetworkRegistryAddress,
         TransactionHash,
@@ -49,16 +50,12 @@ pub enum StateChange {
     ActionInitInitiator(ActionInitInitiator),
     ActionInitMediator(ActionInitMediator),
     ActionInitTarget(ActionInitTarget),
+    ActionChannelClose(ActionChannelClose),
+    ActionChannelCoopSettle(ActionChannelCoopSettle),
     ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout),
     ActionChannelWithdraw(ActionChannelWithdraw),
     ActionTransferReroute(ActionTransferReroute),
     ActionCancelPayment(ActionCancelPayment),
-    ReceiveTransferCancelRoute(ReceiveTransferCancelRoute),
-    ReceiveSecretReveal(ReceiveSecretReveal),
-    ReceiveSecretRequest(ReceiveSecretRequest),
-    ReceiveTransferRefund(ReceiveTransferRefund),
-    ReceiveLockExpired(ReceiveLockExpired),
-    ReceiveUnlock(ReceiveUnlock),
     ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry),
     ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated),
     ContractReceiveChannelOpened(ContractReceiveChannelOpened),
@@ -70,6 +67,18 @@ pub enum StateChange {
     ContractReceiveSecretReveal(ContractReceiveSecretReveal),
     ContractReceiveRouteNew(ContractReceiveRouteNew),
     ContractReceiveUpdateTransfer(ContractReceiveUpdateTransfer),
+    ReceiveDelivered(ReceiveDelivered),
+    ReceiveProcessed(ReceiveProcessed),
+    ReceiveTransferCancelRoute(ReceiveTransferCancelRoute),
+    ReceiveSecretReveal(ReceiveSecretReveal),
+    ReceiveSecretRequest(ReceiveSecretRequest),
+    ReceiveTransferRefund(ReceiveTransferRefund),
+    ReceiveLockExpired(ReceiveLockExpired),
+    ReceiveUnlock(ReceiveUnlock),
+    ReceiveWithdrawRequest(ReceiveWithdrawRequest),
+    ReceiveWithdrawConfirmation(ReceiveWithdrawConfirmation),
+    ReceiveWithdrawExpired(ReceiveWithdrawExpired),
+    UpdateServicesAddresses(UpdateServicesAddresses),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -98,6 +107,17 @@ pub struct ActionChannelWithdraw {
     pub canonical_identifier: CanonicalIdentifier,
     pub total_withdraw: TokenAmount,
     pub recipient_metadata: Option<AddressMetadata>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionChannelCoopSettle {
+    pub canonical_identifier: CanonicalIdentifier,
+    pub recipient_metadata: Option<AddressMetadata>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ActionChannelClose {
+    pub canonical_identifier: CanonicalIdentifier,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -285,4 +305,59 @@ pub struct ReceiveUnlock {
     pub secret: Secret,
     pub secrethash: SecretHash,
     pub balance_proof: BalanceProofState,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveWithdrawRequest {
+    pub sender: Address,
+    pub message_identifier: MessageIdentifier,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub total_withdraw: TokenAmount,
+    pub nonce: Nonce,
+    pub expiration: BlockExpiration,
+    pub signature: Signature,
+    pub participant: Address,
+    pub coop_settle: bool,
+    pub sender_metadata: Option<AddressMetadata>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveWithdrawConfirmation {
+    pub sender: Address,
+    pub message_identifier: MessageIdentifier,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub total_withdraw: TokenAmount,
+    pub nonce: Nonce,
+    pub expiration: BlockExpiration,
+    pub signature: Signature,
+    pub participant: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveWithdrawExpired {
+    pub sender: Address,
+    pub message_identifier: MessageIdentifier,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub total_withdraw: TokenAmount,
+    pub nonce: Nonce,
+    pub expiration: BlockExpiration,
+    pub participant: Address,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveDelivered {
+    pub sender: Address,
+    pub message_identifier: MessageIdentifier,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReceiveProcessed {
+    pub sender: Address,
+    pub message_identifier: MessageIdentifier,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct UpdateServicesAddresses {
+    pub service: Address,
+    pub valid_til: u32,
 }

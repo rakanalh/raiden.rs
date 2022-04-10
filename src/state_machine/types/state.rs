@@ -57,7 +57,10 @@ use crate::{
     },
 };
 
-use super::SendMessageEvent;
+use super::{
+    ContractSendEvent,
+    SendMessageEvent,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransferRole {
@@ -201,6 +204,7 @@ pub struct ChainState {
     pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
     pub queueids_to_queues: HashMap<QueueIdentifier, Vec<SendMessageEvent>>,
     pub payment_mapping: PaymentMappingState,
+    pub pending_transactions: Vec<ContractSendEvent>,
     pub pseudo_random_number_generator: Random,
 }
 
@@ -221,6 +225,7 @@ impl ChainState {
             payment_mapping: PaymentMappingState {
                 secrethashes_to_task: HashMap::new(),
             },
+            pending_transactions: vec![],
             pseudo_random_number_generator: Random::new(),
         }
     }
