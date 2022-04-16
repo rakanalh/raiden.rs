@@ -125,7 +125,7 @@ fn handle_init_target(
         get_address_metadata(sender, transfer.route_states.clone()),
     );
     let reveal_timeout = channel_state.reveal_timeout;
-    update_channel(&mut chain_state, channel_state)?;
+    update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
     let mut events = vec![];
     let target_state = match handle_locked_transfer {
@@ -290,7 +290,7 @@ fn handle_offchain_secret_reveal(
 
     if valid_secret && !has_transfer_expired {
         channel::register_offchain_secret(&mut channel_state, state_change.secret.clone(), state_change.secrethash);
-        update_channel(&mut chain_state, channel_state)?;
+        update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
         let from_hop = &target_state.from_hop;
         let message_identifier = chain_state.pseudo_random_number_generator.next();
@@ -355,7 +355,7 @@ fn handle_onchain_secret_reveal(
             state_change.block_number,
             true,
         );
-        update_channel(&mut chain_state, channel_state)?;
+        update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
         target_state.state = TargetState::OffchainSecretReveal;
         target_state.secret = Some(state_change.secret.clone());
@@ -414,7 +414,7 @@ fn handle_lock_expired(
         }
     };
 
-    update_channel(&mut chain_state, channel_state.clone())?;
+    update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 
     if channel::get_lock(&channel_state.partner_state, transfer.lock.secrethash).is_none() {
         let unlock_failed = Event::ErrorUnlockClaimFailed(ErrorUnlockClaimFailed {
@@ -468,7 +468,7 @@ fn handle_unlock(
     let unlock_event =
         channel::handle_unlock(&mut channel_state, state_change, recipient_metadata).map_err(Into::into)?;
 
-    update_channel(&mut chain_state, channel_state.clone())?;
+    update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 
     let payment_received_success = Event::PaymentReceivedSuccess(PaymentReceivedSuccess {
         token_network_registry_address: channel_state.token_network_registry_address,

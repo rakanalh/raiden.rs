@@ -203,7 +203,8 @@ pub fn handle_init_initiator(
     let mut events = vec![];
     if payment_state.is_none() {
         let (new_state, new_chain_state, iteration_events) =
-            initiator::try_new_route(chain_state.clone(), state_change.routes.clone(), state_change.transfer)?;
+            initiator::try_new_route(chain_state.clone(), state_change.routes.clone(), state_change.transfer)
+                .map_err(Into::into)?;
 
         chain_state = new_chain_state;
         events = iteration_events;
@@ -389,7 +390,7 @@ pub fn handle_action_transfer_reroute(
     }
 
     let our_address = channel_state.our_state.address;
-    utils::update_channel(&mut chain_state, channel_state)?;
+    utils::update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
     let old_description = &initiator_state.transfer_description;
     let filtered_route_states = routes::filter_acceptable_routes(
@@ -411,7 +412,7 @@ pub fn handle_action_transfer_reroute(
         lock_timeout: old_description.lock_timeout,
     };
     let (sub_iteration, chain_state, events) =
-        initiator::try_new_route(chain_state, filtered_route_states, transfer_description)?;
+        initiator::try_new_route(chain_state, filtered_route_states, transfer_description).map_err(Into::into)?;
 
     if let Some(new_state) = sub_iteration {
         let secrethash = new_state.transfer.lock.secrethash;
@@ -497,7 +498,7 @@ pub fn handle_lock_expired(
         });
         sub_iteration.events.push(unlock_failed);
     }
-    utils::update_channel(&mut chain_state, channel_state)?;
+    utils::update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
     Ok(InitiatorManagerTransition {
         new_state: Some(payment_state),

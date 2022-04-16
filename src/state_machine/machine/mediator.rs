@@ -157,10 +157,8 @@ fn forward_transfer_pair(
     payer_channel: ChannelState,
     mut payee_channel: ChannelState,
     block_number: BlockNumber,
-) -> Result<(Option<MediationPairState>, Vec<Event>), StateTransitionError> {
-    let amount_after_fees = match get_amount_without_fees(payer_transfer.lock.amount, &payer_channel, &payee_channel)
-        .map_err(Into::into)?
-    {
+) -> Result<(Option<MediationPairState>, Vec<Event>), String> {
+    let amount_after_fees = match get_amount_without_fees(payer_transfer.lock.amount, &payer_channel, &payee_channel)? {
         Some(amount) => amount,
         None => return Ok((None, vec![])),
     };
@@ -172,7 +170,7 @@ fn forward_transfer_pair(
     }
 
     if payee_channel.settle_timeout < lock_timeout {
-        return Err("Settle timeout must be >= lock timeout".to_owned().into());
+        return Err("Settle timeout must be >= lock timeout".to_owned());
     }
 
     let message_identifier = chain_state.pseudo_random_number_generator.next();
@@ -266,7 +264,8 @@ fn mediate_transfer(
             payer_channel.clone(),
             payee_channel,
             block_number,
-        )?;
+        )
+        .map_err(Into::into)?;
         if let Some(mediation_transfer_pair) = mediation_transfer_pair {
             mediator_state.transfers_pair.push(mediation_transfer_pair);
             return Ok(MediatorTransition {
@@ -315,7 +314,7 @@ fn events_to_remove_expired_locks(
     chain_state: &mut ChainState,
     mediator_state: &mut MediatorTransferState,
     block_number: BlockNumber,
-) -> Result<Vec<Event>, StateTransitionError> {
+) -> Result<Vec<Event>, String> {
     let mut events = vec![];
 
     if mediator_state.transfers_pair.len() == 0 {
@@ -575,7 +574,7 @@ fn events_for_onchain_secretreveal_if_dangerzone(
     secrethash: SecretHash,
     block_number: BlockNumber,
     block_hash: BlockHash,
-) -> Result<Vec<Event>, StateTransitionError> {
+) -> Result<Vec<Event>, String> {
     let mut events = vec![];
 
     let mut all_payer_channels = vec![];
@@ -621,9 +620,7 @@ fn events_for_onchain_secretreveal_if_dangerzone(
                 let secret = match payer_channel.get_secret(&payer_channel.partner_state, lock.secrethash) {
                     Some(secret) => secret,
                     None => {
-                        return Err(StateTransitionError {
-                            msg: "The secret should be known at this point".to_owned(),
-                        })
+                        return Err("The secret should be known at this point".to_owned());
                     }
                 };
 
@@ -908,18 +905,20 @@ fn handle_block(
         }
     }
 
-    events.extend(events_to_remove_expired_locks(
-        &mut new_chain_state,
-        &mut new_mediator_state,
-        state_change.block_number,
-    )?);
-    events.extend(events_for_onchain_secretreveal_if_dangerzone(
-        &new_chain_state,
-        &mut new_mediator_state.transfers_pair,
-        new_mediator_state.secrethash,
-        state_change.block_number,
-        state_change.block_hash,
-    )?);
+    events.extend(
+        events_to_remove_expired_locks(&mut new_chain_state, &mut new_mediator_state, state_change.block_number)
+            .map_err(Into::into)?,
+    );
+    events.extend(
+        events_for_onchain_secretreveal_if_dangerzone(
+            &new_chain_state,
+            &mut new_mediator_state.transfers_pair,
+            new_mediator_state.secrethash,
+            state_change.block_number,
+            state_change.block_hash,
+        )
+        .map_err(Into::into)?,
+    );
     events.extend(events_for_expired_pairs(
         &new_chain_state,
         &mut new_mediator_state.transfers_pair,
@@ -964,7 +963,7 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
     if let Ok(locked_transfer_event) =
         channel::handle_receive_locked_transfer(&mut payer_channel, from_transfer.clone(), payer_address_metadata)
     {
-        utils::update_channel(&mut chain_state, payer_channel.clone())?;
+        utils::update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
         events.push(locked_transfer_event);
     } else {
         return Ok(MediatorTransition {
@@ -1058,7 +1057,7 @@ fn handle_refund_transfer(
         }
     };
 
-    update_channel(&mut chain_state, payer_channel.clone())?;
+    update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
     mediator_state
         .refunded_channels
         .push(payer_channel.canonical_identifier.channel_identifier);
@@ -1286,7 +1285,7 @@ fn handle_lock_expired(
             if !channel::get_lock(&channel_state.partner_state, mediator_state.secrethash).is_none() {
                 transfer_pair.payer_state = PayerState::Expired;
             }
-            update_channel(&mut chain_state, channel_state)?;
+            update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
         }
     }
 
@@ -1305,7 +1304,7 @@ fn handle_lock_expired(
                 recipient_metadata,
             )?;
             if let Some(waiting_channel_state) = result.new_state {
-                update_channel(&mut chain_state, waiting_channel_state)?;
+                update_channel(&mut chain_state, waiting_channel_state).map_err(Into::into)?;
             }
             events.extend(result.events);
         }

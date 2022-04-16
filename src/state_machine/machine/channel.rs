@@ -254,7 +254,7 @@ fn create_send_expired_lock(
     canonical_identifier: CanonicalIdentifier,
     recipient: Address,
     recipient_metadata: Option<AddressMetadata>,
-) -> Result<(Option<SendLockExpired>, Option<PendingLocksState>), StateTransitionError> {
+) -> Result<(Option<SendLockExpired>, Option<PendingLocksState>), String> {
     let locked_amount = get_amount_locked(&sender_end_state);
     let balance_proof = match &sender_end_state.balance_proof {
         Some(bp) => bp.clone(),
@@ -274,7 +274,7 @@ fn create_send_expired_lock(
 
     let nonce = get_next_nonce(&sender_end_state);
     let locksroot = compute_locksroot(&pending_locks);
-    let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot.clone()).map_err(Into::into)?;
+    let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot.clone())?;
     let balance_proof = BalanceProofState {
         nonce,
         transferred_amount,
@@ -364,7 +364,7 @@ pub(super) fn send_lock_expired(
     locked_lock: HashTimeLockState,
     pseudo_random_number_generator: &mut Random,
     recipient_metadata: Option<AddressMetadata>,
-) -> Result<(ChannelState, Vec<SendLockExpired>), StateTransitionError> {
+) -> Result<(ChannelState, Vec<SendLockExpired>), String> {
     if channel_state.status() != ChannelStatus::Opened {
         return Ok((channel_state, vec![]));
     }
@@ -402,32 +402,24 @@ fn create_unlock(
     lock: &HashTimeLockState,
     block_number: BlockNumber,
     recipient_metadata: Option<AddressMetadata>,
-) -> Result<(SendUnlock, PendingLocksState), StateTransitionError> {
+) -> Result<(SendUnlock, PendingLocksState), String> {
     if channel_state.status() == ChannelStatus::Opened {
-        return Err(StateTransitionError {
-            msg: "Channel is not open".to_owned(),
-        });
+        return Err("Channel is not open".to_owned());
     }
 
     if !is_lock_pending(&channel_state.our_state, lock.secrethash) {
-        return Err(StateTransitionError {
-            msg: "Lock expired".to_owned(),
-        });
+        return Err("Lock expired".to_owned());
     }
 
     let expired = is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
     if expired {
-        return Err(StateTransitionError {
-            msg: "Lock expired".to_owned(),
-        });
+        return Err("Lock expired".to_owned());
     }
 
     let our_balance_proof = match &channel_state.our_state.balance_proof {
         Some(balance_proof) => balance_proof,
         None => {
-            return Err(StateTransitionError {
-                msg: "No transfers exist on our state".to_owned(),
-            });
+            return Err("No transfers exist on our state".to_owned());
         }
     };
 
@@ -435,9 +427,7 @@ fn create_unlock(
     let pending_locks = match compute_locks_without(&mut channel_state.our_state.pending_locks, &lock) {
         Some(pending_locks) => pending_locks,
         None => {
-            return Err(StateTransitionError {
-                msg: "Lock is pending, it must be in the pending locks".to_owned(),
-            });
+            return Err("Lock is pending, it must be in the pending locks".to_owned());
         }
     };
 
@@ -448,7 +438,7 @@ fn create_unlock(
     let nonce = get_next_nonce(&channel_state.our_state);
     channel_state.our_state.nonce = nonce;
 
-    let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot.clone()).map_err(Into::into)?;
+    let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot.clone())?;
 
     let balance_proof = BalanceProofState {
         nonce,
@@ -487,13 +477,11 @@ pub(super) fn send_unlock(
     secrethash: SecretHash,
     block_number: BlockNumber,
     recipient_metadata: Option<AddressMetadata>,
-) -> Result<SendUnlock, StateTransitionError> {
+) -> Result<SendUnlock, String> {
     let lock = match get_lock(&channel_state.our_state, secrethash) {
         Some(lock) => lock,
         None => {
-            return Err(StateTransitionError {
-                msg: "Caller must ensure the lock exists".to_owned(),
-            })
+            return Err("Caller must ensure the lock exists".to_owned());
         }
     };
 
@@ -761,26 +749,20 @@ fn create_locked_transfer(
     payment_identifier: PaymentIdentifier,
     route_states: Vec<RouteState>,
     recipient_metadata: Option<AddressMetadata>,
-) -> Result<(SendLockedTransfer, PendingLocksState), StateTransitionError> {
+) -> Result<(SendLockedTransfer, PendingLocksState), String> {
     if amount > channel_state.get_distributable(&channel_state.our_state, &channel_state.partner_state) {
-        return Err(StateTransitionError {
-            msg: "Caller must make sure there is enough balance".to_string(),
-        });
+        return Err("Caller must make sure there is enough balance".to_string());
     }
 
     if channel_state.status() != ChannelStatus::Opened {
-        return Err(StateTransitionError {
-            msg: "Caller must make sure the channel is open".to_string(),
-        });
+        return Err("Caller must make sure the channel is open".to_string());
     }
 
     let lock = HashTimeLockState::create(amount, expiration, secrethash);
     let pending_locks = match compute_locks_with(&mut channel_state.our_state.pending_locks, lock.clone()) {
         Some(pending_locks) => pending_locks,
         None => {
-            return Err(StateTransitionError {
-                msg: "Caller must make sure the lock isn't used twice".to_string(),
-            });
+            return Err("Caller must make sure the lock isn't used twice".to_string());
         }
     };
 
@@ -793,15 +775,13 @@ fn create_locked_transfer(
     };
 
     if transferred_amount.checked_add(amount).is_none() {
-        return Err(StateTransitionError {
-            msg: "Caller must make sure the result wont overflow".to_string(),
-        });
+        return Err("Caller must make sure the result wont overflow".to_string());
     }
 
     let token = channel_state.token_address;
     let locked_amount = get_amount_locked(&channel_state.our_state) + amount;
     let nonce = get_next_nonce(&channel_state.our_state);
-    let balance_hash = hash_balance_data(amount, locked_amount, locksroot.clone()).map_err(Into::into)?;
+    let balance_hash = hash_balance_data(amount, locked_amount, locksroot.clone())?;
     let balance_proof = BalanceProofState {
         nonce,
         transferred_amount,
@@ -854,7 +834,7 @@ pub(super) fn send_locked_transfer(
     payment_identifier: PaymentIdentifier,
     route_states: Vec<RouteState>,
     recipient_metadata: Option<AddressMetadata>,
-) -> Result<(ChannelState, SendLockedTransfer), StateTransitionError> {
+) -> Result<(ChannelState, SendLockedTransfer), String> {
     let (locked_transfer, pending_locks) = create_locked_transfer(
         &mut channel_state,
         initiator,

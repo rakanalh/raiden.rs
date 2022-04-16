@@ -1,5 +1,4 @@
 use crate::{
-    errors::StateTransitionError,
     primitives::SecretHash,
     state_machine::types::{
         ChainState,
@@ -9,20 +8,15 @@ use crate::{
     },
 };
 
-pub(super) fn update_channel(
-    chain_state: &mut ChainState,
-    channel_state: ChannelState,
-) -> Result<(), StateTransitionError> {
+pub(super) fn update_channel(chain_state: &mut ChainState, channel_state: ChannelState) -> Result<(), String> {
     let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
     let token_network_registry = match token_network_registries.get_mut(&channel_state.token_network_registry_address) {
         Some(token_network_registry) => token_network_registry,
         None => {
-            return Err(StateTransitionError {
-                msg: format!(
-                    "Token network registry {} was not found",
-                    channel_state.token_network_registry_address
-                ),
-            });
+            return Err(format!(
+                "Token network registry {} was not found",
+                channel_state.token_network_registry_address
+            ));
         }
     };
     let token_network = match token_network_registry
@@ -31,12 +25,10 @@ pub(super) fn update_channel(
     {
         Some(token_network) => token_network,
         None => {
-            return Err(StateTransitionError {
-                msg: format!(
-                    "Token network {} was not found",
-                    channel_state.canonical_identifier.token_network_address
-                ),
-            });
+            return Err(format!(
+                "Token network {} was not found",
+                channel_state.canonical_identifier.token_network_address
+            ));
         }
     };
 

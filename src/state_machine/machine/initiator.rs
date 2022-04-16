@@ -85,7 +85,7 @@ fn events_for_unlock_lock(
     secrethash: SecretHash,
     pseudo_random_number_generator: &mut Random,
     block_number: BlockNumber,
-) -> Result<Vec<Event>, StateTransitionError> {
+) -> Result<Vec<Event>, String> {
     let transfer_description = &initiator_state.transfer_description;
 
     let message_identifier = pseudo_random_number_generator.next();
@@ -130,7 +130,7 @@ fn send_locked_transfer(
     route_states: Vec<RouteState>,
     message_identifier: MessageIdentifier,
     block_number: BlockNumber,
-) -> Result<(ChannelState, SendLockedTransfer), StateTransitionError> {
+) -> Result<(ChannelState, SendLockedTransfer), String> {
     let lock_expiration = channel::get_safe_initial_expiration(
         block_number,
         channel_state.reveal_timeout,
@@ -159,7 +159,7 @@ pub fn try_new_route(
     mut chain_state: ChainState,
     candidate_route_states: Vec<RouteState>,
     transfer_description: TransferDescriptionWithSecretState,
-) -> Result<(Option<InitiatorTransferState>, ChainState, Vec<Event>), StateTransitionError> {
+) -> Result<(Option<InitiatorTransferState>, ChainState, Vec<Event>), String> {
     let mut route_fee_exceeds_max = false;
 
     let our_address = chain_state.our_address;
@@ -296,7 +296,8 @@ fn handle_block(
                     locked_lock,
                     pseudo_random_number_generator,
                     recipient_metadata,
-                )?;
+                )
+                .map_err(Into::into)?;
                 events.extend(
                     expired_lock_events
                         .into_iter()
@@ -448,14 +449,17 @@ fn handle_receive_offchain_secret_reveal(
 
     let mut events = vec![];
     if valid_reveal && is_channel_open && sent_by_partner && !expired {
-        events.extend(events_for_unlock_lock(
-            &initiator_state,
-            &mut channel_state,
-            state_change.secret,
-            state_change.secrethash,
-            pseudo_random_number_generator,
-            block_number,
-        )?);
+        events.extend(
+            events_for_unlock_lock(
+                &initiator_state,
+                &mut channel_state,
+                state_change.secret,
+                state_change.secrethash,
+                pseudo_random_number_generator,
+                block_number,
+            )
+            .map_err(Into::into)?,
+        );
     }
 
     return Ok(InitiatorTransition {
@@ -492,14 +496,17 @@ fn handle_receive_onchain_secret_reveal(
 
     let mut events = vec![];
     if is_lock_unlocked && is_channel_open && !expired {
-        events.extend(events_for_unlock_lock(
-            &initiator_state,
-            &mut channel_state,
-            state_change.secret.clone(),
-            secrethash,
-            pseudo_random_number_generator,
-            block_number,
-        )?);
+        events.extend(
+            events_for_unlock_lock(
+                &initiator_state,
+                &mut channel_state,
+                state_change.secret.clone(),
+                secrethash,
+                pseudo_random_number_generator,
+                block_number,
+            )
+            .map_err(Into::into)?,
+        );
     }
 
     return Ok(InitiatorTransition {
