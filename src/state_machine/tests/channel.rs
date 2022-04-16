@@ -705,6 +705,7 @@ fn test_channel_action_withdraw() {
             participant: channel_state.our_state.address,
             nonce: channel_state.our_state.nonce,
             expiration: U64::from(101u64),
+            coop_settle: false,
         })
     )
 }

@@ -44,6 +44,8 @@ impl EventHandler {
             Event::ContractSendSecretReveal(_) => todo!(),
             Event::PaymentSentSuccess(_) => todo!(),
             Event::PaymentReceivedSuccess(_) => todo!(),
+            Event::SendWithdrawRequest(_) => todo!(),
+            Event::SendWithdrawConfirmation(_) => todo!(),
             Event::SendWithdrawExpired(inner) => {
                 let queue_identifier = inner.queue_identifier();
                 let mut message: WithdrawExpired = inner.into();
@@ -53,7 +55,6 @@ impl EventHandler {
                     Message::WithdrawExpired(message),
                 )));
             }
-            Event::SendWithdrawRequest(_) => todo!(),
             Event::SendLockedTransfer(_) => todo!(),
             Event::SendLockExpired(_) => todo!(),
             Event::SendSecretReveal(_) => todo!(),
@@ -62,6 +63,7 @@ impl EventHandler {
             Event::SendSecretRequest(_) => todo!(),
             Event::UnlockClaimSuccess(_) => todo!(),
             Event::UnlockSuccess(_) => todo!(),
+            Event::ErrorInvalidActionCoopSettle(_) => todo!(),
             Event::ErrorInvalidActionWithdraw(_) => todo!(),
             Event::ErrorInvalidActionSetRevealTimeout(_) => todo!(),
             Event::ErrorInvalidReceivedUnlock(_) => todo!(),
@@ -72,9 +74,11 @@ impl EventHandler {
             Event::ErrorInvalidReceivedLockedTransfer(_) => todo!(),
             Event::ErrorInvalidReceivedLockExpired(_) => todo!(),
             Event::ErrorInvalidReceivedTransferRefund(_) => todo!(),
+            Event::ErrorInvalidReceivedWithdrawRequest(_) => todo!(),
             Event::ErrorUnexpectedReveal(_) => todo!(),
             Event::ErrorUnlockClaimFailed(_) => todo!(),
             Event::UpdatedServicesAddresses(_) => todo!(),
+            Event::ContractSendChannelCoopSettle(_) => todo!(),
         }
     }
 }

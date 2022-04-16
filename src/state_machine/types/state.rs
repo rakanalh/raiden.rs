@@ -515,6 +515,8 @@ pub struct ChannelEndState {
     pub onchain_total_withdraw: TokenAmount,
     pub withdraws_pending: HashMap<U256, PendingWithdrawState>,
     pub withdraws_expired: Vec<ExpiredWithdrawState>,
+    pub initiated_coop_settle: Option<CoopSettleState>,
+    pub expired_coop_settles: Vec<CoopSettleState>,
     pub secrethashes_to_lockedlocks: HashMap<SecretHash, HashTimeLockState>,
     pub secrethashes_to_unlockedlocks: HashMap<SecretHash, UnlockPartialProofState>,
     pub secrethashes_to_onchain_unlockedlocks: HashMap<SecretHash, UnlockPartialProofState>,
@@ -539,6 +541,8 @@ impl ChannelEndState {
             pending_locks: PendingLocksState::default(),
             onchain_locksroot: Bytes(vec![]),
             nonce: Nonce::zero(),
+            initiated_coop_settle: None,
+            expired_coop_settles: vec![],
         }
     }
 
@@ -679,6 +683,16 @@ impl PendingWithdrawState {
         let threshold = self.expiration_threshold();
         current_block >= threshold
     }
+}
+
+#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct CoopSettleState {
+    pub total_withdraw_initiator: TokenAmount,
+    pub total_withdraw_partner: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub partner_signature_request: Option<Signature>,
+    pub partner_signature_confirmation: Option<Signature>,
+    pub transaction: Option<TransactionExecutionStatus>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

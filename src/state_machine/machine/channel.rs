@@ -1,5 +1,5 @@
 use std::{
-    cmp::min,
+    cmp::{min, max},
     ops::{
         Div,
         Mul,
@@ -105,9 +105,8 @@ use crate::{
             SendWithdrawExpired,
             SendWithdrawRequest,
             StateChange,
-            UnlockPartialProofState, ContractSendEventInner,
-        },
-        views::get_channel_balance,
+            UnlockPartialProofState, ContractSendEventInner, ActionChannelClose, ContractSendChannelClose, ActionChannelCoopSettle, CoopSettleState, ErrorInvalidActionCoopSettle, ReceiveWithdrawRequest, ReceiveWithdrawConfirmation, ReceiveWithdrawExpired, ErrorInvalidReceivedWithdrawRequest, ContractSendChannelCoopSettle, SendWithdrawConfirmation,
+        }, views,
     },
 };
 
@@ -116,6 +115,38 @@ type TransitionResult = std::result::Result<ChannelTransition, StateTransitionEr
 pub struct ChannelTransition {
     pub new_state: Option<ChannelState>,
     pub events: Vec<Event>,
+}
+
+pub fn balance(sender: &ChannelEndState, receiver: &ChannelEndState, subtract_withdraw: bool) -> TokenAmount {
+    let mut sender_transferred_amount = TokenAmount::zero();
+    let mut receiver_transferred_amount = TokenAmount::zero();
+
+    if let Some(sender_balance_proof) = &sender.balance_proof {
+        sender_transferred_amount = sender_balance_proof.transferred_amount;
+    }
+
+    if let Some(receiver_balance_proof) = &receiver.balance_proof {
+        receiver_transferred_amount = receiver_balance_proof.transferred_amount;
+    }
+
+    let max_withdraw = max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw);
+    let withdraw = if subtract_withdraw {
+        max_withdraw
+    } else {
+        TokenAmount::zero()
+    };
+
+    sender.contract_balance
+        - withdraw
+        - sender_transferred_amount
+        + receiver_transferred_amount
+}
+
+/// Calculates the maximum "total_withdraw_amount" for a channel.
+/// This will leave the channel without funds, when this is withdrawn from the contract,
+/// or pending as offchain-withdraw.
+fn get_max_withdraw_amount(sender_state: &ChannelEndState, receiver_state: &ChannelEndState) -> TokenAmount {
+    balance(sender_state, receiver_state, false)
 }
 
 pub(super) fn get_address_metadata(
@@ -607,6 +638,26 @@ fn pack_balance_proof(
     b.extend(balance_hash.as_bytes());
     b.extend(encode(&[Token::Uint(nonce)]));
     b.extend(additional_hash.as_bytes());
+
+    Bytes(b)
+}
+
+fn pack_withdraw(
+    canonical_identifier: CanonicalIdentifier,
+    participant: Address,
+    total_withdraw: TokenAmount,
+    expiration_block: BlockExpiration,
+) -> Bytes {
+    let mut b = vec![];
+
+    b.extend(encode(&[
+        Token::Address(canonical_identifier.token_network_address),
+        Token::Uint(canonical_identifier.chain_identifier.into()),
+        Token::Uint(canonical_identifier.channel_identifier),
+        Token::Address(participant),
+        Token::Uint(total_withdraw),
+        Token::Uint(expiration_block.into())
+    ]));
 
     Bytes(b)
 }
@@ -1653,6 +1704,108 @@ fn handle_channel_update_transfer(
     });
 }
 
+fn is_valid_total_withdraw(
+    channel_state: &ChannelState,
+    our_total_withdraw: TokenAmount,
+    allow_zero: bool,
+) -> Result<(), String> {
+    let balance = views::get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
+
+    if our_total_withdraw.checked_add(channel_state.partner_total_withdraw()).is_none() {
+        return Err(format!("The new total_withdraw {} will cause an overflow", our_total_withdraw));
+    }
+
+    let withdraw_amount = our_total_withdraw - channel_state.our_total_withdraw();
+
+    if channel_state.status() != ChannelStatus::Opened {
+        return Err(format!("Invalid withdraw, the channel is not opened"));
+    } else if withdraw_amount < TokenAmount::zero() {
+        return Err(format!("Total withdraw {} decreased", our_total_withdraw));
+    } else if !allow_zero && withdraw_amount == TokenAmount::zero() {
+        return Err(format!("Total withdraw {} did not increase", our_total_withdraw));
+    } else if balance < withdraw_amount {
+        return Err(format!("Insufficient balance: {}. Request {} for withdraw", balance, our_total_withdraw));
+    }
+
+    return Ok(())
+}
+
+fn is_valid_withdraw_signature(
+    canonical_identifier: CanonicalIdentifier,
+    sender: Address,
+    participant: Address,
+    total_withdraw: TokenAmount,
+    expiration_block: BlockExpiration,
+    withdraw_signature: Signature,
+) -> Result<(), String> {
+    let packed = pack_withdraw(canonical_identifier, participant, total_withdraw, expiration_block);
+    is_valid_signature(packed, withdraw_signature, sender)
+}
+
+fn is_valid_withdraw_request(
+    channel_state: &ChannelState,
+    withdraw_request: &ReceiveWithdrawRequest
+) -> Result<(), String> {
+    let expected_nonce = get_next_nonce(&channel_state.partner_state);
+    let balance = views::get_channel_balance(&channel_state.partner_state, &channel_state.our_state);
+
+    let is_valid = is_valid_withdraw_signature(
+        withdraw_request.canonical_identifier.clone(),
+        withdraw_request.sender,
+        withdraw_request.participant,
+        withdraw_request.total_withdraw,
+        withdraw_request.expiration,
+        withdraw_request.signature,
+    );
+
+    let withdraw_amount = withdraw_request.total_withdraw - channel_state.partner_total_withdraw();
+
+    if withdraw_request.total_withdraw.checked_add(channel_state.our_total_withdraw()).is_none() {
+        return Err(format!("The new total_withdraw {} will cause an overflow", withdraw_request.total_withdraw));
+    }
+
+    // The confirming node must accept an expired withdraw request. This is
+    // necessary to clear the requesting node's queue. This is not a security
+    // flaw because the smart contract will not allow the withdraw to happen.
+    if channel_state.canonical_identifier != withdraw_request.canonical_identifier {
+        return Err(format!("Invalid canonical identifier provided in withdraw request"));
+    } else if withdraw_request.participant != channel_state.partner_state.address {
+        return Err(format!("Invalid participant. It must be the partner's address"));
+    } else if withdraw_request.sender != channel_state.partner_state.address {
+        return Err(format!("Invalid sender. Request must be sent by the partner"));
+    } else if withdraw_amount < TokenAmount::zero() {
+        return Err(format!("Total withdraw {} decreased", withdraw_request.total_withdraw));
+    } else if balance < withdraw_amount {
+        return Err(format!("Insufficient balance: {}. Request {} for withdraw", balance, withdraw_amount));
+    } else if withdraw_request.nonce != expected_nonce {
+        return Err(format!("Nonce did not change sequentially. Expected: {}, got {}", expected_nonce, withdraw_request.nonce));
+    }
+
+    is_valid
+}
+
+fn is_valid_action_coop_settle(
+    channel_state: &ChannelState,
+    total_withdraw: TokenAmount,
+) -> Result<(), String> {
+    is_valid_total_withdraw(channel_state, total_withdraw, true)?;
+
+    if channel_state.our_state.pending_locks.locks.len() > 0 {
+        return Err(format!("Coop-Settle not allowed: we still have pending locks"));
+    }
+    if channel_state.partner_state.pending_locks.locks.len() > 0 {
+        return Err(format!("Coop-Settle not allowed: partner still has pending locks"));
+    }
+    if channel_state.our_state.offchain_total_withdraw() > TokenAmount::zero() {
+        return Err(format!("Coop-Settle not allowed: We still have pending withdraws"));
+    }
+    if channel_state.partner_state.offchain_total_withdraw() > TokenAmount::zero() {
+        return Err(format!("Coop-Settle not allowed: partner still has pending withdraws"));
+    }
+
+    Ok(())
+}
+
 fn is_valid_unlock(
     channel_state: &ChannelState,
     sender_state: &mut ChannelEndState,
@@ -1745,7 +1898,7 @@ fn is_valid_refund(
 }
 
 fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChannelWithdraw) -> Result<(), String> {
-    let balance = get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
+    let balance = views::get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
     let (_, overflow) = withdraw
         .total_withdraw
         .overflowing_add(channel_state.partner_state.total_withdraw());
@@ -1809,6 +1962,7 @@ fn send_withdraw_request(
     block_number: BlockNumber,
     pseudo_random_number_generator: &mut Random,
     recipient_metadata: Option<AddressMetadata>,
+    coop_settle: bool,
 ) -> Vec<Event> {
     let good_channel = CHANNEL_STATES_PRIOR_TO_CLOSE
         .to_vec()
@@ -1846,7 +2000,98 @@ fn send_withdraw_request(
         participant: channel_state.our_state.address,
         nonce: channel_state.our_state.nonce,
         expiration: withdraw_state.expiration,
+        coop_settle,
     })]
+}
+
+fn events_for_close(
+    channel_state: &mut ChannelState,
+    block_number: BlockNumber,
+    block_hash: BlockHash,
+) -> Result<Vec<Event>, String> {
+    if !CHANNEL_STATES_PRIOR_TO_CLOSE.contains(&channel_state.status()) {
+        return Ok(vec![]);
+    }
+
+    channel_state.close_transaction = Some(TransactionExecutionStatus {
+        started_block_number: Some(block_number),
+        finished_block_number: None,
+        result: None,
+    });
+
+    let balance_proof = match &channel_state.partner_state.balance_proof {
+        Some(balance_proof) => {
+            if balance_proof.signature.is_none() {
+                return Err("Balance proof is not signed".to_owned().into());
+            }
+            balance_proof
+        },
+        None => {
+            return Err("No Balance proof found".to_owned().into());
+        }
+    };
+
+    let close_event = Event::ContractSendChannelClose(ContractSendChannelClose {
+        inner: ContractSendEventInner {
+            triggered_by_blockhash: block_hash,
+        },
+        canonical_identifier: channel_state.canonical_identifier.clone(),
+        balance_proof: balance_proof.clone(),
+    });
+
+    Ok(vec![close_event])
+}
+
+fn events_for_coop_settle(
+    channel_state: &ChannelState,
+    coop_settle_state: &mut CoopSettleState,
+    block_number: BlockNumber,
+    block_hash: BlockHash,
+) -> Vec<Event> {
+    if let Some(partner_signature_request) = coop_settle_state.partner_signature_request {
+        if let Some(partner_signature_confirmation) = coop_settle_state.partner_signature_confirmation {
+            if coop_settle_state.expiration >= block_number - channel_state.reveal_timeout {
+                let send_coop_settle = Event::ContractSendChannelCoopSettle(ContractSendChannelCoopSettle {
+                    inner: ContractSendEventInner {
+                        triggered_by_blockhash: block_hash,
+                    },
+                    canonical_identifier: channel_state.canonical_identifier.clone(),
+                    our_total_withdraw: coop_settle_state.total_withdraw_initiator,
+                    partner_total_withdraw: coop_settle_state.total_withdraw_partner,
+                    expiration: coop_settle_state.expiration,
+                    signature_our_withdraw: partner_signature_confirmation,
+                    signature_partner_withdraw: partner_signature_request,
+                });
+
+                coop_settle_state.transaction = Some(TransactionExecutionStatus {
+                    started_block_number: Some(block_number),
+                    finished_block_number: None,
+                    result: None,
+                });
+
+                return vec![send_coop_settle];
+            }
+        }
+    }
+    vec![]
+}
+
+fn handle_action_close(
+    mut channel_state: ChannelState,
+    state_change: ActionChannelClose,
+    block_number: BlockNumber,
+    block_hash: BlockHash,
+) -> TransitionResult {
+    if channel_state.canonical_identifier != state_change.canonical_identifier {
+        return Err("Caller must ensure the canonical IDs match".to_owned().into());
+    }
+
+    let events = events_for_close(&mut channel_state, block_number, block_hash).map_err(Into::into)?;
+
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events,
+    })
 }
 
 fn handle_action_withdraw(
@@ -1864,6 +2109,7 @@ fn handle_action_withdraw(
                 block_number,
                 pseudo_random_number_generator,
                 state_change.recipient_metadata,
+                false,
             );
         }
         Err(e) => {
@@ -1905,14 +2151,246 @@ fn handle_action_set_channel_reveal_timeout(
     })
 }
 
+fn handle_action_coop_settle(
+    mut channel_state: ChannelState,
+    state_change: ActionChannelCoopSettle,
+    block_number: BlockNumber,
+    pseudo_random_number_generator: &mut Random,
+) -> TransitionResult {
+    let our_max_total_withdraw = get_max_withdraw_amount(&channel_state.our_state, &channel_state.partner_state);
+    let partner_max_total_withdraw = get_max_withdraw_amount(&channel_state.partner_state, &channel_state.our_state);
+
+    let mut events = vec![];
+    match is_valid_action_coop_settle(&channel_state, our_max_total_withdraw) {
+        Ok(_) => {
+            let expiration = get_safe_initial_expiration(block_number, channel_state.reveal_timeout, None);
+            let coop_settle = CoopSettleState {
+                total_withdraw_initiator: our_max_total_withdraw,
+                total_withdraw_partner: partner_max_total_withdraw,
+                expiration,
+                partner_signature_request: None,
+                partner_signature_confirmation: None,
+                transaction: None,
+            };
+
+            channel_state.our_state.initiated_coop_settle = Some(coop_settle);
+
+            let withdraw_request_events = send_withdraw_request(
+                &mut channel_state,
+                our_max_total_withdraw,
+                block_number,
+                pseudo_random_number_generator,
+                state_change.recipient_metadata,
+                false,
+            );
+            events.extend(withdraw_request_events);
+        },
+        Err(e) => {
+            events.push(Event::ErrorInvalidActionCoopSettle(ErrorInvalidActionCoopSettle {
+                attempted_withdraw: our_max_total_withdraw,
+                reason: e,
+            }))
+        }
+    };
+
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events,
+    })
+}
+
+fn handle_receive_withdraw_request(
+    mut channel_state: ChannelState,
+    state_change: ReceiveWithdrawRequest,
+    block_number: BlockNumber,
+    block_hash: BlockHash,
+    pseudo_random_number_generator: &mut Random,
+) -> TransitionResult {
+    let mut events = vec![];
+    if let Err(msg) = is_valid_withdraw_request(&channel_state, &state_change) {
+        return Ok(ChannelTransition {
+            new_state: Some(channel_state),
+            events: vec![
+                Event::ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest{
+                    attemped_withdraw: state_change.total_withdraw,
+                    reason: msg,
+                }),
+            ],
+        });
+    }
+
+    let withdraw_state = PendingWithdrawState {
+        total_withdraw: state_change.total_withdraw,
+        expiration: state_change.expiration,
+        nonce: state_change.nonce,
+        recipient_metadata: state_change.sender_metadata.clone(),
+    };
+    channel_state.partner_state.withdraws_pending.insert(withdraw_state.total_withdraw, withdraw_state);
+    channel_state.partner_state.nonce = state_change.nonce;
+
+    if channel_state.our_state.initiated_coop_settle.is_none() || state_change.coop_settle {
+        let partner_max_total_withdraw = get_max_withdraw_amount(&channel_state.partner_state, &channel_state.our_state);
+        if partner_max_total_withdraw != state_change.total_withdraw {
+            return Ok(ChannelTransition {
+                new_state: Some(channel_state),
+                events: vec![
+                    Event::ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest{
+                        attemped_withdraw: state_change.total_withdraw,
+                        reason: format!("Partner did not withdraw with maximum balance. Should be {}", partner_max_total_withdraw),
+                    }),
+                ],
+            });
+        }
+
+        if channel_state.partner_state.pending_locks.locks.len() > 0 {
+            return Ok(ChannelTransition {
+                new_state: Some(channel_state),
+                events: vec![
+                    Event::ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest{
+                        attemped_withdraw: state_change.total_withdraw,
+                        reason: format!("Partner has pending transfers"),
+                    }),
+                ],
+            });
+        }
+
+        if let Some(our_initiated_coop_settle) = channel_state.our_state.initiated_coop_settle.clone().as_mut() {
+            // There is a coop-settle inplace that we initiated
+            // and partner is communicating their total withdraw with us
+            if our_initiated_coop_settle.expiration != state_change.expiration {
+                return Ok(ChannelTransition {
+                    new_state: Some(channel_state),
+                    events: vec![
+                        Event::ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest{
+                            attemped_withdraw: state_change.total_withdraw,
+                            reason: format!("Partner requested withdraw while we initiated a coop-settle: \
+                                             Partner's withdraw has differing expiration."),
+                        }),
+                    ],
+                });
+            }
+
+            if our_initiated_coop_settle.total_withdraw_partner != state_change.total_withdraw {
+                return Ok(ChannelTransition {
+                    new_state: Some(channel_state),
+                    events: vec![
+                        Event::ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest{
+                            attemped_withdraw: state_change.total_withdraw,
+                            reason: format!("The expected total withdraw of the partner does not match the withdraw request"),
+                        }),
+                    ],
+                });
+            }
+
+            our_initiated_coop_settle.partner_signature_request = Some(state_change.signature);
+            let coop_settle_events = events_for_coop_settle(&channel_state, our_initiated_coop_settle, block_number, block_hash);
+            channel_state.our_state.initiated_coop_settle = Some(our_initiated_coop_settle.clone());
+            events.extend(coop_settle_events);
+        } else {
+            let our_max_total_withdraw = get_max_withdraw_amount(&channel_state.our_state, &channel_state.partner_state);
+
+            if channel_state.our_state.pending_locks.locks.len() > 0 {
+                return Ok(ChannelTransition {
+                    new_state: Some(channel_state),
+                    events: vec![
+                        Event::ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest{
+                            attemped_withdraw: state_change.total_withdraw,
+                            reason: format!("Partner initiated coop-settle but we have pending transfers"),
+                        }),
+                    ],
+                });
+            }
+
+            let partner_initiated_coop_settle = CoopSettleState {
+                total_withdraw_initiator: state_change.total_withdraw,
+                total_withdraw_partner: our_max_total_withdraw,
+                expiration: state_change.expiration,
+                partner_signature_request: Some(state_change.signature),
+                partner_signature_confirmation: None,
+                transaction: None,
+            };
+            channel_state.partner_state.initiated_coop_settle = Some(partner_initiated_coop_settle);
+            let send_withdraw_request_events = send_withdraw_request(
+                &mut channel_state,
+                our_max_total_withdraw,
+                state_change.expiration,
+                pseudo_random_number_generator,
+                state_change.sender_metadata.clone(),
+                false,
+            );
+            events.extend(send_withdraw_request_events);
+        }
+    }
+
+    channel_state.our_state.nonce = get_next_nonce(&channel_state.our_state);
+    let send_withdraw = Event::SendWithdrawConfirmation(SendWithdrawConfirmation {
+        inner: SendMessageEventInner {
+            recipient: channel_state.partner_state.address,
+            recipient_metadata: state_change.sender_metadata,
+            canonical_identifier: channel_state.canonical_identifier.clone(),
+            message_identifier: state_change.message_identifier,
+        },
+        participant: channel_state.partner_state.address,
+        total_withdraw: state_change.total_withdraw,
+        nonce: channel_state.our_state.nonce,
+        expiration: state_change.expiration,
+    });
+    events.push(send_withdraw);
+
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events,
+    })
+}
+
+fn handle_receive_withdraw_confirmation(
+    channel_state: ChannelState,
+    state_change: ReceiveWithdrawConfirmation,
+    block_number: BlockNumber,
+    pseudo_random_number_generator: &mut Random,
+) -> TransitionResult {
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events: vec![],
+    })
+}
+
+fn handle_receive_withdraw_expired(
+    channel_state: ChannelState,
+    state_change: ReceiveWithdrawExpired,
+    block_number: BlockNumber,
+    pseudo_random_number_generator: &mut Random,
+) -> TransitionResult {
+    Ok(ChannelTransition {
+        new_state: Some(channel_state),
+        events: vec![],
+    })
+}
+
+fn sanity_check(new_state: &Option<ChannelState>) {
+
+}
+
 pub fn state_transition(
     channel_state: ChannelState,
     state_change: StateChange,
     block_number: BlockNumber,
-    _block_hash: BlockHash,
+    block_hash: BlockHash,
     pseudo_random_number_generator: &mut Random,
 ) -> TransitionResult {
-    match state_change {
+    let transition = match state_change {
+        StateChange::ActionChannelClose(inner) => {
+            handle_action_close(channel_state, inner, block_number, block_hash)
+        },
+        StateChange::ActionChannelWithdraw(inner) => {
+            handle_action_withdraw(channel_state, inner, block_number, pseudo_random_number_generator)
+        },
+        StateChange::ActionChannelCoopSettle(inner) => {
+            handle_action_coop_settle(channel_state, inner, block_number, pseudo_random_number_generator)
+        },
+        StateChange::ActionChannelSetRevealTimeout(inner) => {
+            handle_action_set_channel_reveal_timeout(channel_state, inner)
+        },
         StateChange::Block(inner) => handle_block(channel_state, inner, block_number, pseudo_random_number_generator),
         StateChange::ContractReceiveChannelClosed(inner) => handle_channel_closed(channel_state, inner),
         StateChange::ContractReceiveChannelSettled(inner) => handle_channel_settled(channel_state, inner),
@@ -1921,15 +2399,22 @@ pub fn state_transition(
         StateChange::ContractReceiveChannelBatchUnlock(inner) => handle_channel_batch_unlock(channel_state, inner),
         StateChange::ContractReceiveUpdateTransfer(inner) => {
             handle_channel_update_transfer(channel_state, inner, block_number)
-        }
-        StateChange::ActionChannelWithdraw(inner) => {
-            handle_action_withdraw(channel_state, inner, block_number, pseudo_random_number_generator)
-        }
-        StateChange::ActionChannelSetRevealTimeout(inner) => {
-            handle_action_set_channel_reveal_timeout(channel_state, inner)
-        }
+        },
+        StateChange::ReceiveWithdrawRequest(inner) => {
+            handle_receive_withdraw_request(channel_state, inner, block_number, block_hash, pseudo_random_number_generator)
+        },
+        StateChange::ReceiveWithdrawConfirmation(inner) => {
+            handle_receive_withdraw_confirmation(channel_state, inner, block_number, pseudo_random_number_generator)
+        },
+        StateChange::ReceiveWithdrawExpired(inner) => {
+            handle_receive_withdraw_expired(channel_state, inner, block_number, pseudo_random_number_generator)
+        },
         _ => Err(StateTransitionError {
             msg: String::from("Could not transition channel"),
         }),
-    }
+    }?;
+
+    sanity_check(&transition.new_state);
+
+    Ok(transition)
 }

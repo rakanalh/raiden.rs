@@ -32,6 +32,7 @@ use super::{
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum Event {
     ContractSendChannelClose(ContractSendChannelClose),
+    ContractSendChannelCoopSettle(ContractSendChannelCoopSettle),
     ContractSendChannelWithdraw(ContractSendChannelWithdraw),
     ContractSendChannelSettle(ContractSendChannelSettle),
     ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer),
@@ -41,6 +42,7 @@ pub enum Event {
     PaymentSentSuccess(PaymentSentSuccess),
     SendWithdrawExpired(SendWithdrawExpired),
     SendWithdrawRequest(SendWithdrawRequest),
+    SendWithdrawConfirmation(SendWithdrawConfirmation),
     SendLockedTransfer(SendLockedTransfer),
     SendLockExpired(SendLockExpired),
     SendSecretRequest(SendSecretRequest),
@@ -50,17 +52,19 @@ pub enum Event {
     UnlockSuccess(UnlockSuccess),
     UnlockClaimSuccess(UnlockClaimSuccess),
     UpdatedServicesAddresses(UpdatedServicesAddresses),
-    ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
     ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw),
+    ErrorInvalidActionCoopSettle(ErrorInvalidActionCoopSettle),
     ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout),
-    ErrorPaymentSentFailed(ErrorPaymentSentFailed),
-    ErrorRouteFailed(ErrorRouteFailed),
-    ErrorUnlockFailed(ErrorUnlockFailed),
     ErrorInvalidSecretRequest(ErrorInvalidSecretRequest),
     ErrorInvalidReceivedLockedTransfer(ErrorInvalidReceivedLockedTransfer),
     ErrorInvalidReceivedLockExpired(ErrorInvalidReceivedLockExpired),
     ErrorInvalidReceivedTransferRefund(ErrorInvalidReceivedTransferRefund),
     ErrorInvalidReceivedUnlock(ErrorInvalidReceivedUnlock),
+    ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest),
+    ErrorPaymentSentFailed(ErrorPaymentSentFailed),
+    ErrorRouteFailed(ErrorRouteFailed),
+    ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
+    ErrorUnlockFailed(ErrorUnlockFailed),
     ErrorUnexpectedReveal(ErrorUnexpectedReveal),
 }
 
@@ -155,6 +159,7 @@ pub struct SendWithdrawRequest {
     pub participant: Address,
     pub expiration: BlockExpiration,
     pub nonce: Nonce,
+    pub coop_settle: bool,
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -273,6 +278,18 @@ pub struct ContractSendChannelClose {
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContractSendChannelCoopSettle {
+    #[deref]
+    pub inner: ContractSendEventInner,
+    pub canonical_identifier: CanonicalIdentifier,
+    pub our_total_withdraw: TokenAmount,
+    pub partner_total_withdraw: TokenAmount,
+    pub expiration: BlockExpiration,
+    pub signature_our_withdraw: Signature,
+    pub signature_partner_withdraw: Signature,
+}
+
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContractSendChannelWithdraw {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -320,6 +337,12 @@ pub struct ErrorInvalidActionWithdraw {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedWithdrawRequest {
+    pub attemped_withdraw: TokenAmount,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ErrorInvalidActionSetRevealTimeout {
     pub reveal_timeout: RevealTimeout,
     pub reason: String,
@@ -346,6 +369,12 @@ pub struct ErrorRouteFailed {
     pub secrethash: SecretHash,
     pub route: Vec<Address>,
     pub token_network_address: TokenNetworkAddress,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidActionCoopSettle {
+    pub attempted_withdraw: TokenAmount,
+    pub reason: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
