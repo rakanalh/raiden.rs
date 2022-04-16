@@ -7,8 +7,9 @@ use crate::{
     },
     state_machine::types::{
         ChannelState,
+        ContractSendEventInner,
         ContractSendSecretReveal,
-        Event, ContractSendEventInner,
+        Event,
     },
 };
 

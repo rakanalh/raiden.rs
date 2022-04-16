@@ -61,6 +61,8 @@ pub enum Event {
     ErrorInvalidReceivedTransferRefund(ErrorInvalidReceivedTransferRefund),
     ErrorInvalidReceivedUnlock(ErrorInvalidReceivedUnlock),
     ErrorInvalidReceivedWithdrawRequest(ErrorInvalidReceivedWithdrawRequest),
+    ErrorInvalidReceivedWithdrawConfirmation(ErrorInvalidReceivedWithdrawConfirmation),
+    ErrorInvalidReceivedWithdrawExpired(ErrorInvalidReceivedWithdrawExpired),
     ErrorPaymentSentFailed(ErrorPaymentSentFailed),
     ErrorRouteFailed(ErrorRouteFailed),
     ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
@@ -94,7 +96,7 @@ impl TryFrom<Event> for SendMessageEvent {
             Event::SendSecretReveal(inner) => SendMessageEvent::SendSecretReveal(inner),
             Event::SendUnlock(inner) => SendMessageEvent::SendUnlock(inner),
             Event::SendProcessed(inner) => SendMessageEvent::SendProcessed(inner),
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
@@ -117,7 +119,9 @@ impl TryFrom<Event> for ContractSendEvent {
             Event::ContractSendChannelClose(inner) => ContractSendEvent::ContractSendChannelClose(inner),
             Event::ContractSendChannelWithdraw(inner) => ContractSendEvent::ContractSendChannelWithdraw(inner),
             Event::ContractSendChannelSettle(inner) => ContractSendEvent::ContractSendChannelSettle(inner),
-            Event::ContractSendChannelUpdateTransfer(inner) => ContractSendEvent::ContractSendChannelUpdateTransfer(inner),
+            Event::ContractSendChannelUpdateTransfer(inner) => {
+                ContractSendEvent::ContractSendChannelUpdateTransfer(inner)
+            }
             Event::ContractSendChannelBatchUnlock(inner) => ContractSendEvent::ContractSendChannelBatchUnlock(inner),
             Event::ContractSendSecretReveal(inner) => ContractSendEvent::ContractSendSecretReveal(inner),
             _ => return Err(()),
@@ -338,6 +342,18 @@ pub struct ErrorInvalidActionWithdraw {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ErrorInvalidReceivedWithdrawRequest {
+    pub attemped_withdraw: TokenAmount,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedWithdrawConfirmation {
+    pub attemped_withdraw: TokenAmount,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ErrorInvalidReceivedWithdrawExpired {
     pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }

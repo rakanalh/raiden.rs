@@ -75,6 +75,8 @@ impl EventHandler {
             Event::ErrorInvalidReceivedLockExpired(_) => todo!(),
             Event::ErrorInvalidReceivedTransferRefund(_) => todo!(),
             Event::ErrorInvalidReceivedWithdrawRequest(_) => todo!(),
+            Event::ErrorInvalidReceivedWithdrawConfirmation(_) => todo!(),
+            Event::ErrorInvalidReceivedWithdrawExpired(_) => todo!(),
             Event::ErrorUnexpectedReveal(_) => todo!(),
             Event::ErrorUnlockClaimFailed(_) => todo!(),
             Event::UpdatedServicesAddresses(_) => todo!(),

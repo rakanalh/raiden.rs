@@ -122,7 +122,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ActionChannelWithdraw(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -133,7 +133,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ActionChannelCoopSettle(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -144,7 +144,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ActionChannelSetRevealTimeout(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -155,10 +155,10 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ContractReceiveChannelOpened(inner) => {
             handle_contract_receive_channel_opened(token_network_state, inner)
-        },
+        }
         StateChange::ContractReceiveChannelClosed(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -169,7 +169,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ContractReceiveChannelDeposit(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -180,7 +180,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ContractReceiveChannelWithdraw(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -191,7 +191,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ContractReceiveChannelSettled(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -202,7 +202,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ContractReceiveUpdateTransfer(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -213,7 +213,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ContractReceiveChannelBatchUnlock(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -224,7 +224,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ReceiveWithdrawRequest(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -235,7 +235,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ReceiveWithdrawConfirmation(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -246,7 +246,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         StateChange::ReceiveWithdrawExpired(ref inner) => {
             let channel_identifier = inner.canonical_identifier.channel_identifier;
             subdispatch_to_channel_by_id(
@@ -257,7 +257,7 @@ pub fn state_transition(
                 block_hash,
                 pseudo_random_number_generator,
             )
-        },
+        }
         _ => Err(StateTransitionError {
             msg: String::from("Could not transition token network"),
         }),

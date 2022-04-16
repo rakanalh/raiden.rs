@@ -864,7 +864,7 @@ fn is_transaction_effect_satisfied(
                 let channel_state = views::get_channel_by_token_network_and_partner(
                     chain_state,
                     batch_unlock_state_change.canonical_identifier.token_network_address,
-                    partner_address
+                    partner_address,
                 );
                 if channel_state.is_none() {
                     return true;
@@ -872,7 +872,6 @@ fn is_transaction_effect_satisfied(
             }
         }
     }
-
 
     false
 }
@@ -913,7 +912,11 @@ fn is_transaction_expired(transaction: &ContractSendEvent, block_number: BlockNu
     false
 }
 
-fn is_transaction_pending(chain_state: &ChainState, transaction: &ContractSendEvent, state_change: &StateChange) -> bool {
+fn is_transaction_pending(
+    chain_state: &ChainState,
+    transaction: &ContractSendEvent,
+    state_change: &StateChange,
+) -> bool {
     !(is_transaction_effect_satisfied(chain_state, transaction, state_change)
         || is_transaction_invalidated(transaction, state_change)
         || is_transaction_expired(transaction, chain_state.block_number))
@@ -922,15 +925,15 @@ fn is_transaction_pending(chain_state: &ChainState, transaction: &ContractSendEv
 fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
     let chain_state = &mut iteration.new_state;
     match state_change {
-        StateChange::ContractReceiveChannelOpened(_) |
-        StateChange::ContractReceiveChannelClosed(_) |
-        StateChange::ContractReceiveChannelSettled(_) |
-        StateChange::ContractReceiveChannelDeposit(_) |
-        StateChange::ContractReceiveChannelWithdraw(_) |
-        StateChange::ContractReceiveChannelBatchUnlock(_) |
-        StateChange::ContractReceiveSecretReveal(_) |
-        StateChange::ContractReceiveRouteNew(_) |
-        StateChange::ContractReceiveUpdateTransfer(_) => {
+        StateChange::ContractReceiveChannelOpened(_)
+        | StateChange::ContractReceiveChannelClosed(_)
+        | StateChange::ContractReceiveChannelSettled(_)
+        | StateChange::ContractReceiveChannelDeposit(_)
+        | StateChange::ContractReceiveChannelWithdraw(_)
+        | StateChange::ContractReceiveChannelBatchUnlock(_)
+        | StateChange::ContractReceiveSecretReveal(_)
+        | StateChange::ContractReceiveRouteNew(_)
+        | StateChange::ContractReceiveUpdateTransfer(_) => {
             let mut pending_transactions = chain_state.pending_transactions.clone();
             pending_transactions.retain(|transaction| is_transaction_pending(chain_state, transaction, &state_change));
             chain_state.pending_transactions = pending_transactions;
@@ -940,15 +943,17 @@ fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
 
     for event in &iteration.events {
         match event {
-            Event::ContractSendChannelClose(_) |
-            Event::ContractSendChannelWithdraw(_) |
-            Event::ContractSendChannelSettle(_) |
-            Event::ContractSendChannelUpdateTransfer(_) |
-            Event::ContractSendChannelBatchUnlock(_) |
-            Event::ContractSendSecretReveal(_) => {
-                chain_state.pending_transactions.push(event.clone().try_into().expect("Should work"));
+            Event::ContractSendChannelClose(_)
+            | Event::ContractSendChannelWithdraw(_)
+            | Event::ContractSendChannelSettle(_)
+            | Event::ContractSendChannelUpdateTransfer(_)
+            | Event::ContractSendChannelBatchUnlock(_)
+            | Event::ContractSendSecretReveal(_) => {
+                chain_state
+                    .pending_transactions
+                    .push(event.clone().try_into().expect("Should work"));
             }
-            _ => {},
+            _ => {}
         }
 
         let queue_identifier = match event {
@@ -962,7 +967,10 @@ fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
             Event::SendProcessed(inner) => inner.inner.queue_identifier(),
             _ => continue,
         };
-        let queue = chain_state.queueids_to_queues.entry(queue_identifier).or_insert_with(|| vec![]);
+        let queue = chain_state
+            .queueids_to_queues
+            .entry(queue_identifier)
+            .or_insert_with(|| vec![]);
         queue.push(event.clone().try_into().expect("Should work"));
     }
 }
