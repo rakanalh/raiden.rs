@@ -209,14 +209,72 @@ fn subdispatch_to_all_channels(
 }
 
 fn subdispatch_to_payment_task(
-    chain_state: ChainState,
-    _state_change: StateChange,
-    _secrethash: H256,
+    mut chain_state: ChainState,
+    state_change: StateChange,
+    secrethash: H256,
 ) -> TransitionResult {
-    // @TODO: Implement this
+    let mut events = vec![];
+
+    if let Some(sub_task) = chain_state
+        .payment_mapping
+        .secrethashes_to_task
+        .get(&secrethash)
+        .cloned()
+    {
+        match sub_task {
+            TransferTask::Initiator(mut initiator) => {
+                let sub_iteration = initiator_manager::state_transition(
+                    chain_state,
+                    Some(initiator.manager_state.clone()),
+                    state_change,
+                )?;
+                chain_state = sub_iteration.chain_state;
+                if let Some(new_state) = sub_iteration.new_state {
+                    initiator.manager_state = new_state;
+                    chain_state
+                        .payment_mapping
+                        .secrethashes_to_task
+                        .insert(secrethash, TransferTask::Initiator(initiator));
+                } else {
+                    chain_state.payment_mapping.secrethashes_to_task.remove(&secrethash);
+                }
+                events.extend(sub_iteration.events);
+            }
+            TransferTask::Mediator(mut mediator) => {
+                let sub_iteration =
+                    mediator::state_transition(chain_state, Some(mediator.mediator_state.clone()), state_change)?;
+                chain_state = sub_iteration.chain_state;
+                if let Some(new_state) = sub_iteration.new_state {
+                    mediator.mediator_state = new_state;
+                    chain_state
+                        .payment_mapping
+                        .secrethashes_to_task
+                        .insert(secrethash, TransferTask::Mediator(mediator));
+                } else {
+                    chain_state.payment_mapping.secrethashes_to_task.remove(&secrethash);
+                }
+                events.extend(sub_iteration.events);
+            }
+            TransferTask::Target(mut target) => {
+                let sub_iteration = target::state_transition(chain_state, Some(target.target_state), state_change)?;
+                chain_state = sub_iteration.chain_state;
+                if let Some(new_state) = sub_iteration.new_state {
+                    target.target_state = new_state;
+                    chain_state
+                        .payment_mapping
+                        .secrethashes_to_task
+                        .insert(secrethash, TransferTask::Target(target));
+                } else {
+                    chain_state.payment_mapping.secrethashes_to_task.remove(&secrethash);
+                }
+                events.extend(sub_iteration.events);
+            }
+        }
+    }
+
     Ok(ChainTransition {
         new_state: chain_state,
-        events: vec![],
+        events,
     })
 }
 
@@ -383,6 +441,7 @@ fn subdispatch_target_task(
     };
 
     let mut events = vec![];
+
     let iteration = target::state_transition(chain_state, target_state, StateChange::ActionInitTarget(state_change))?;
     events.extend(iteration.events);
 
