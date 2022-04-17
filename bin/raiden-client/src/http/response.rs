@@ -60,7 +60,7 @@ impl From<ChannelState> for ChannelResponse {
             reveal_timeout: channel.reveal_timeout,
             total_deposit: channel.our_state.contract_balance,
             total_withdraw: channel.our_state.total_withdraw(),
-            state: views::get_channel_status(&channel),
+            state: channel.status(),
             balance: views::channel_balance(&channel.our_state, &channel.partner_state),
         }
     }
