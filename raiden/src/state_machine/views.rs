@@ -10,6 +10,7 @@ use web3::types::{
 
 use crate::{
     primitives::{
+        AddressMetadata,
         CanonicalIdentifier,
         TokenAddress,
         TokenAmount,
@@ -24,6 +25,7 @@ use super::types::{
     ChannelEndState,
     ChannelState,
     ChannelStatus,
+    RouteState,
     TokenNetworkRegistryState,
     TokenNetworkState,
 };
@@ -263,4 +265,15 @@ pub fn get_addresses_to_channels(chain_state: &ChainState) -> HashMap<(TokenNetw
     }
 
     channels
+}
+
+pub fn get_address_metadata(recipient_address: Address, route_states: Vec<RouteState>) -> Option<AddressMetadata> {
+    for route_state in route_states {
+        match route_state.address_to_metadata.get(&recipient_address) {
+            Some(metadata) => return Some(metadata.clone()),
+            None => continue,
+        };
+    }
+
+    None
 }

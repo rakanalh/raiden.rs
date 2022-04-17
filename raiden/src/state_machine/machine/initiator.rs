@@ -49,10 +49,7 @@ use crate::{
 };
 
 use super::{
-    channel::{
-        self,
-        get_address_metadata,
-    },
+    channel,
     routes,
     utils,
 };
@@ -90,7 +87,7 @@ fn events_for_unlock_lock(
 
     let message_identifier = pseudo_random_number_generator.next();
     let recipient_address = channel_state.partner_state.address;
-    let recipient_metadata = get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
+    let recipient_metadata = views::get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
     let unlock_lock = channel::send_unlock(
         channel_state,
         message_identifier,
@@ -131,14 +128,14 @@ fn send_locked_transfer(
     message_identifier: MessageIdentifier,
     block_number: BlockNumber,
 ) -> Result<(ChannelState, SendLockedTransfer), String> {
-    let lock_expiration = channel::get_safe_initial_expiration(
+    let lock_expiration = channel::views::get_safe_initial_expiration(
         block_number,
         channel_state.reveal_timeout,
         transfer_description.lock_timeout,
     );
     let total_amount = calculate_safe_amount_with_fee(transfer_description.amount, route_state.estimated_fee);
     let recipient_address = channel_state.partner_state.address;
-    let recipient_metadata = channel::get_address_metadata(recipient_address, route_states.clone());
+    let recipient_metadata = views::get_address_metadata(recipient_address, route_states.clone());
     let our_address = channel_state.our_state.address;
 
     channel::send_locked_transfer(
@@ -274,7 +271,7 @@ fn handle_block(
     };
 
     let lock_expiration_threshold = locked_lock.expiration + DEFAULT_WAIT_BEFORE_LOCK_REMOVAL.into();
-    let lock_has_expired = channel::is_lock_expired(
+    let lock_has_expired = channel::validators::is_lock_expired(
         &channel_state.our_state,
         locked_lock,
         state_change.block_number,
@@ -286,7 +283,8 @@ fn handle_block(
         if lock_has_expired.is_ok() && initiator_state.transfer_state != TransferState::Expired {
             let channel_state = if channel_state.status() == ChannelStatus::Opened {
                 let recipient_address = channel_state.partner_state.address;
-                let recipient_metadata = get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
+                let recipient_metadata =
+                    views::get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
                 let locked_lock = locked_lock.clone();
                 let (channel_state, expired_lock_events) = channel::send_lock_expired(
                     channel_state,
@@ -362,7 +360,7 @@ fn handle_receive_secret_request(
         });
     }
 
-    let lock = match channel::get_lock(
+    let lock = match channel::views::get_lock(
         &channel_state.our_state,
         initiator_state.transfer_description.secrethash,
     ) {
@@ -391,7 +389,7 @@ fn handle_receive_secret_request(
         let message_identifier = pseudo_random_number_generator.next();
         let transfer_description = initiator_state.transfer_description.clone();
         let recipient = transfer_description.target;
-        let recipient_metadata = get_address_metadata(recipient, vec![initiator_state.route.clone()]);
+        let recipient_metadata = views::get_address_metadata(recipient, vec![initiator_state.route.clone()]);
         let secret_reveal = SendSecretReveal {
             inner: SendMessageEventInner {
                 recipient,
@@ -434,7 +432,8 @@ fn handle_receive_offchain_secret_reveal(
     let is_channel_open = channel_state.status() == ChannelStatus::Opened;
 
     let lock = initiator_state.transfer.lock.clone();
-    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
+    let expired =
+        channel::validators::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
 
     let mut events = vec![];
     if valid_reveal && is_channel_open && sent_by_partner && !expired {
@@ -481,7 +480,8 @@ fn handle_receive_onchain_secret_reveal(
     }
 
     let lock = initiator_state.transfer.lock.clone();
-    let expired = channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
+    let expired =
+        channel::validators::is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
 
     let mut events = vec![];
     if is_lock_unlocked && is_channel_open && !expired {

@@ -65,10 +65,7 @@ use crate::{
 };
 
 use super::{
-    channel::{
-        self,
-        get_address_metadata,
-    },
+    channel,
     routes,
     secret_registry,
     utils::{
@@ -175,7 +172,7 @@ fn forward_transfer_pair(
 
     let message_identifier = chain_state.pseudo_random_number_generator.next();
     let recipient_address = payee_channel.partner_state.address;
-    let recipient_metadata = get_address_metadata(recipient_address, payer_transfer.route_states.clone());
+    let recipient_metadata = views::get_address_metadata(recipient_address, payer_transfer.route_states.clone());
     let (new_payee_channel, locked_transfer_event) = channel::send_locked_transfer(
         payee_channel.clone(),
         payer_transfer.initiator,
@@ -345,13 +342,17 @@ fn events_to_remove_expired_locks(
         }
 
         if let Some(lock) = lock {
-            let lock_expiration_threshold = channel::get_sender_expiration_threshold(lock.expiration);
-            let has_lock_expired =
-                channel::is_lock_expired(&channel_state.our_state, &lock, block_number, lock_expiration_threshold)
-                    .is_ok();
+            let lock_expiration_threshold = channel::views::get_sender_expiration_threshold(lock.expiration);
+            let has_lock_expired = channel::validators::is_lock_expired(
+                &channel_state.our_state,
+                &lock,
+                block_number,
+                lock_expiration_threshold,
+            )
+            .is_ok();
             let is_channel_open = channel_state.status() == ChannelStatus::Opened;
             let payee_address_metadata =
-                get_address_metadata(transfer_pair.payee_address, initial_payer_transfer.route_states.clone());
+                views::get_address_metadata(transfer_pair.payee_address, initial_payer_transfer.route_states.clone());
 
             if has_lock_expired && is_channel_open {
                 transfer_pair.payee_state = PayeeState::Expired;
@@ -425,7 +426,7 @@ fn events_for_secret_reveal(
             let reveal_secret = SendSecretReveal {
                 inner: SendMessageEventInner {
                     recipient,
-                    recipient_metadata: get_address_metadata(recipient, payer_transfer.route_states.clone()),
+                    recipient_metadata: views::get_address_metadata(recipient, payer_transfer.route_states.clone()),
                     canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                     message_identifier,
                 },
@@ -492,7 +493,8 @@ fn events_for_balance_proof(
 
             let message_identifier = chain_state.pseudo_random_number_generator.next();
             let recipient_address = pair.payee_address;
-            let recipient_metadata = get_address_metadata(recipient_address, pair.payee_transfer.route_states.clone());
+            let recipient_metadata =
+                views::get_address_metadata(recipient_address, pair.payee_transfer.route_states.clone());
             if let Ok(unlock_lock) = channel::send_unlock(
                 &mut payee_channel,
                 message_identifier,
@@ -556,7 +558,7 @@ fn events_for_onchain_secretreveal_if_closed(
             pending_pair.payer_state = PayerState::WaitingSecretReveal;
 
             if !transaction_sent {
-                if let Some(lock) = channel::get_lock(&payer_channel.partner_state, secrethash) {
+                if let Some(lock) = channel::views::get_lock(&payer_channel.partner_state, secrethash) {
                     let reveal_events = secret_registry::events_for_onchain_secretreveal(
                         payer_channel,
                         secret.clone(),
@@ -669,7 +671,7 @@ fn events_for_expired_pairs(
             None => continue,
         };
         let has_payer_transfer_expired =
-            channel::is_transfer_expired(&pair.payer_transfer, &payer_channel, block_number);
+            channel::validators::is_transfer_expired(&pair.payer_transfer, &payer_channel, block_number);
 
         if has_payer_transfer_expired {
             pair.payer_state = PayerState::Expired;
@@ -684,7 +686,7 @@ fn events_for_expired_pairs(
 
     if let Some(waiting_transfer) = waiting_transfer {
         let expiration_threshold =
-            channel::get_receiver_expiration_threshold(waiting_transfer.transfer.lock.expiration);
+            channel::views::get_receiver_expiration_threshold(waiting_transfer.transfer.lock.expiration);
         let should_waiting_transfer_expire =
             waiting_transfer.status != WaitingTransferStatus::Expired && expiration_threshold <= block_number;
         if should_waiting_transfer_expire {
@@ -964,7 +966,7 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
 
     let mut events = vec![];
     let payer_address_metadata = match from_transfer.balance_proof.sender {
-        Some(sender) => get_address_metadata(sender, from_transfer.route_states.clone()),
+        Some(sender) => views::get_address_metadata(sender, from_transfer.route_states.clone()),
         None => None,
     };
     if let Ok(locked_transfer_event) =
@@ -1133,7 +1135,7 @@ fn handle_offchain_secret_reveal(
     };
 
     let has_payer_transfer_expired =
-        channel::is_transfer_expired(&payer_transfer, payer_channel, chain_state.block_number);
+        channel::validators::is_transfer_expired(&payer_transfer, payer_channel, chain_state.block_number);
 
     if is_secret_known && is_valid && !has_payer_transfer_expired {
         return secret_learned(
@@ -1223,7 +1225,8 @@ fn handle_unlock(
     for mut pair in mediator_state.transfers_pair.iter_mut() {
         if pair.payer_transfer.balance_proof.sender == Some(balance_proof_sender) {
             if let Some(channel_state) = get_channel(&chain_state, canonical_identifier.clone()) {
-                let recipient_metadata = get_address_metadata(balance_proof_sender, mediator_state.routes.clone());
+                let recipient_metadata =
+                    views::get_address_metadata(balance_proof_sender, mediator_state.routes.clone());
                 let mut channel_state = channel_state.clone();
                 if let Ok(handle_unlock_events) =
                     channel::handle_unlock(&mut channel_state, state_change.clone(), recipient_metadata)
@@ -1283,7 +1286,7 @@ fn handle_lock_expired(
         };
 
         let recipient_address = channel_state.partner_state.address;
-        let recipient_metadata = get_address_metadata(recipient_address, mediator_state.routes.clone());
+        let recipient_metadata = views::get_address_metadata(recipient_address, mediator_state.routes.clone());
         let result = channel::handle_receive_lock_expired(
             &mut channel_state,
             state_change.clone(),
@@ -1292,7 +1295,7 @@ fn handle_lock_expired(
         )?;
         events.extend(result.events);
         if let Some(channel_state) = result.new_state {
-            if !channel::get_lock(&channel_state.partner_state, mediator_state.secrethash).is_none() {
+            if !channel::views::get_lock(&channel_state.partner_state, mediator_state.secrethash).is_none() {
                 transfer_pair.payer_state = PayerState::Expired;
             }
             update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
@@ -1306,7 +1309,7 @@ fn handle_lock_expired(
         ) {
             let mut waiting_channel = waiting_channel.clone();
             let recipient_address = waiting_channel.partner_state.address;
-            let recipient_metadata = get_address_metadata(recipient_address, mediator_state.routes.clone());
+            let recipient_metadata = views::get_address_metadata(recipient_address, mediator_state.routes.clone());
             let result = channel::handle_receive_lock_expired(
                 &mut waiting_channel,
                 state_change,
@@ -1341,7 +1344,7 @@ pub fn clear_if_finalized(transition: MediatorTransition) -> MediatorTransition 
             &transition.chain_state,
             pair.payer_transfer.balance_proof.canonical_identifier.clone(),
         ) {
-            if channel::is_lock_pending(&payer_channel.partner_state, secrethash) {
+            if channel::validators::is_lock_pending(&payer_channel.partner_state, secrethash) {
                 return transition;
             }
         }
@@ -1350,7 +1353,7 @@ pub fn clear_if_finalized(transition: MediatorTransition) -> MediatorTransition 
             &transition.chain_state,
             pair.payee_transfer.balance_proof.canonical_identifier.clone(),
         ) {
-            if channel::is_lock_pending(&payee_channel.our_state, secrethash) {
+            if channel::validators::is_lock_pending(&payee_channel.our_state, secrethash) {
                 return transition;
             }
         }
@@ -1361,7 +1364,7 @@ pub fn clear_if_finalized(transition: MediatorTransition) -> MediatorTransition 
             if let Some(waiting_channel) =
                 views::get_channel_by_canonical_identifier(&transition.chain_state, waiting_channel_identifier)
             {
-                if channel::is_lock_pending(&waiting_channel.partner_state, secrethash) {
+                if channel::validators::is_lock_pending(&waiting_channel.partner_state, secrethash) {
                     return transition;
                 }
             }

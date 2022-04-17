@@ -30,10 +30,7 @@ use crate::{
 };
 
 use super::{
-    channel::{
-        self,
-        get_address_metadata,
-    },
+    channel,
     mediator,
     secret_registry,
     utils::{
@@ -123,7 +120,7 @@ fn handle_init_target(
     let handle_locked_transfer = channel::handle_receive_locked_transfer(
         &mut channel_state,
         transfer.clone(),
-        get_address_metadata(sender, transfer.route_states.clone()),
+        views::get_address_metadata(sender, transfer.route_states.clone()),
     );
     let reveal_timeout = channel_state.reveal_timeout;
     update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
@@ -163,7 +160,7 @@ fn handle_init_target(
                 let secret_request = SendSecretRequest {
                     inner: SendMessageEventInner {
                         recipient,
-                        recipient_metadata: get_address_metadata(recipient, transfer.route_states.clone()),
+                        recipient_metadata: views::get_address_metadata(recipient, transfer.route_states.clone()),
                         canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                         message_identifier,
                     },
@@ -224,11 +221,11 @@ fn handle_block(
     };
 
     let secret_known = channel_state.partner_state.is_secret_known(lock.secrethash);
-    let lock_has_expired = channel::is_lock_expired(
+    let lock_has_expired = channel::validators::is_lock_expired(
         &channel_state.our_state,
         lock,
         chain_state.block_number,
-        channel::get_receiver_expiration_threshold(lock.expiration),
+        channel::views::get_receiver_expiration_threshold(lock.expiration),
     )
     .is_ok();
 
@@ -290,7 +287,8 @@ fn handle_offchain_secret_reveal(
     };
 
     let valid_secret = utils::is_valid_secret_reveal(&state_change, transfer.lock.secrethash);
-    let has_transfer_expired = channel::is_transfer_expired(transfer, &channel_state, chain_state.block_number);
+    let has_transfer_expired =
+        channel::validators::is_transfer_expired(transfer, &channel_state, chain_state.block_number);
 
     if valid_secret && !has_transfer_expired {
         channel::register_offchain_secret(&mut channel_state, state_change.secret.clone(), state_change.secrethash);
@@ -305,7 +303,7 @@ fn handle_offchain_secret_reveal(
         let reveal = SendSecretReveal {
             inner: SendMessageEventInner {
                 recipient,
-                recipient_metadata: get_address_metadata(recipient, transfer.route_states.clone()),
+                recipient_metadata: views::get_address_metadata(recipient, transfer.route_states.clone()),
                 canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                 message_identifier,
             },
@@ -402,7 +400,7 @@ fn handle_lock_expired(
         Some(sender) => sender,
         None => return Err("Transfer sender should be set".to_owned().into()),
     };
-    let recipient_metadata = get_address_metadata(sender, transfer.route_states.clone());
+    let recipient_metadata = views::get_address_metadata(sender, transfer.route_states.clone());
     let mut result = channel::handle_receive_lock_expired(
         &mut channel_state,
         state_change,
@@ -420,7 +418,7 @@ fn handle_lock_expired(
 
     update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 
-    if channel::get_lock(&channel_state.partner_state, transfer.lock.secrethash).is_none() {
+    if channel::views::get_lock(&channel_state.partner_state, transfer.lock.secrethash).is_none() {
         let unlock_failed = ErrorUnlockClaimFailed {
             identifier: transfer.payment_identifier,
             secrethash: transfer.lock.secrethash,
@@ -467,7 +465,7 @@ fn handle_unlock(
         Some(sender) => sender,
         None => return Err("Transfer sender should be set".to_owned().into()),
     };
-    let recipient_metadata = get_address_metadata(sender, transfer.route_states.clone());
+    let recipient_metadata = views::get_address_metadata(sender, transfer.route_states.clone());
 
     let unlock_event =
         channel::handle_unlock(&mut channel_state, state_change, recipient_metadata).map_err(Into::into)?;

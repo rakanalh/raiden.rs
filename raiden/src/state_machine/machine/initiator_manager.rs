@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use super::{
-    channel::{
-        self,
-        get_address_metadata,
-    },
+    channel,
     initiator,
     routes,
     utils,
@@ -371,10 +368,10 @@ pub fn handle_action_transfer_reroute(
         && refund_transfer.lock.amount == original_transfer.lock.amount
         && refund_transfer.lock.expiration == original_transfer.lock.expiration;
 
-    let is_valid_refund = channel::refund_transfer_matches_transfer(&refund_transfer, &original_transfer);
+    let is_valid_refund = channel::validators::refund_transfer_matches_transfer(&refund_transfer, &original_transfer);
 
     let recipient_address = channel_state.partner_state.address;
-    let recipient_metadata = channel::get_address_metadata(recipient_address, payment_state.routes.clone());
+    let recipient_metadata = views::get_address_metadata(recipient_address, payment_state.routes.clone());
     let received_locked_transfer_result =
         channel::handle_receive_locked_transfer(&mut channel_state, refund_transfer, recipient_metadata);
 
@@ -474,7 +471,7 @@ pub fn handle_lock_expired(
 
     let secrethash = initiator_state.transfer.lock.secrethash;
     let recipient_address = channel_state.partner_state.address;
-    let recipient_metadata = get_address_metadata(recipient_address, payment_state.routes.clone());
+    let recipient_metadata = views::get_address_metadata(recipient_address, payment_state.routes.clone());
     let mut sub_iteration = channel::handle_receive_lock_expired(
         &mut channel_state,
         state_change,
@@ -491,7 +488,7 @@ pub fn handle_lock_expired(
         }
     };
 
-    if channel::get_lock(&channel_state.partner_state, secrethash).is_none() {
+    if channel::views::get_lock(&channel_state.partner_state, secrethash).is_none() {
         let transfer = initiator_state.transfer;
         let unlock_failed = ErrorUnlockClaimFailed {
             identifier: transfer.payment_identifier,
