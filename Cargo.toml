@@ -2,12 +2,12 @@
 default-members = [
     "raiden",
     "macros",
-    "bin/raiden"
+    "bin/raiden-client"
 ]
 members = [
     "raiden",
     "macros",
-    "bin/raiden",
+    "bin/raiden-client",
 ]
 
 

@@ -1,5 +1,5 @@
 [package]
-name = "raiden-full-node"
+name = "raiden-client"
 version = "0.0.1"
 authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
 description = "Raiden executable"

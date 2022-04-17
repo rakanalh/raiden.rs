@@ -1751,7 +1751,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "raiden-full-node"
+name = "raiden-client"
 version = "0.0.1"
 dependencies = [
  "ethsign",
