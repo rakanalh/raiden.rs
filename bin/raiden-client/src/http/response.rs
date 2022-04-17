@@ -61,7 +61,7 @@ impl From<ChannelState> for ChannelResponse {
             total_deposit: channel.our_state.contract_balance,
             total_withdraw: channel.our_state.total_withdraw(),
             state: views::get_channel_status(&channel),
-            balance: views::get_channel_balance(&channel.our_state, &channel.partner_state),
+            balance: views::channel_balance(&channel.our_state, &channel.partner_state),
         }
     }
 }

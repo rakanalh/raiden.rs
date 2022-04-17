@@ -134,7 +134,7 @@ impl Api {
 
         self.check_invalid_channel_timeouts(settle_timeout, reveal_timeout)?;
 
-        let confirmed_block_identifier = views::confirmed_block_hash(&current_state);
+        let confirmed_block_identifier = current_state.block_hash;
         let registry = self
             .raiden
             .proxy_manager
@@ -393,12 +393,12 @@ impl Api {
             total_deposit,
         );
 
-        if views::get_channel_status(channel_state) != ChannelStatus::Opened {
+        if channel_state.status() != ChannelStatus::Opened {
             return Err(ApiError::State(format!("Can't set total deposit on a closed channel")));
         }
 
         let chain_state = &self.raiden.state_manager.read().current_state.clone();
-        let confirmed_block_identifier = views::confirmed_block_hash(chain_state);
+        let confirmed_block_identifier = chain_state.block_hash;
         let token = self
             .raiden
             .proxy_manager

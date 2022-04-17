@@ -2,10 +2,7 @@ use crate::{
     primitives::U64,
     state_machine::{
         machine::chain,
-        types::{
-            Block,
-            StateChange,
-        },
+        types::Block,
     },
     tests::factories::empty_chain_state,
 };

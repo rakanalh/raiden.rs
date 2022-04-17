@@ -27,7 +27,6 @@ use crate::{
             ContractReceiveTokenNetworkRegistry,
             FeeScheduleState,
             PaymentMappingState,
-            StateChange,
             TokenNetworkGraphState,
             TokenNetworkRegistryState,
             TokenNetworkState,

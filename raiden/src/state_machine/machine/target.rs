@@ -66,7 +66,7 @@ fn events_for_onchain_secretrevea(
 
     if !safe_to_wait && secret_known_offchain && !has_onchain_reveal_started {
         target_state.state = TargetState::OnchainSecretReveal;
-        let secret = match channel_state.get_secret(&channel_state.partner_state, transfer.lock.secrethash) {
+        let secret = match channel_state.partner_state.get_secret(transfer.lock.secrethash) {
             Some(secret) => secret,
             None => {
                 return Err("Secret should be known at this point".to_owned());

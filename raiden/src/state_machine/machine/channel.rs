@@ -752,7 +752,7 @@ fn create_locked_transfer(
     route_states: Vec<RouteState>,
     recipient_metadata: Option<AddressMetadata>,
 ) -> Result<(SendLockedTransfer, PendingLocksState), String> {
-    if amount > channel_state.get_distributable(&channel_state.our_state, &channel_state.partner_state) {
+    if amount > views::channel_distributable(&channel_state.our_state, &channel_state.partner_state) {
         return Err("Caller must make sure there is enough balance".to_string());
     }
 
@@ -1131,7 +1131,7 @@ fn valid_locked_transfer_check(
     lock: &HashTimeLockState,
 ) -> Result<PendingLocksState, String> {
     let (_, _, current_transferred_amount, current_locked_amount) = get_current_balance_proof(sender_state);
-    let distributable = channel_state.get_distributable(sender_state, receiver_state);
+    let distributable = views::channel_distributable(sender_state, receiver_state);
     let expected_locked_amount = current_locked_amount + lock.amount;
 
     if let Err(e) = is_balance_proof_usable_onchain(&received_balance_proof, channel_state, sender_state) {
@@ -1718,7 +1718,7 @@ fn is_valid_total_withdraw(
     our_total_withdraw: TokenAmount,
     allow_zero: bool,
 ) -> Result<(), String> {
-    let balance = views::get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
+    let balance = views::channel_balance(&channel_state.our_state, &channel_state.partner_state);
 
     if our_total_withdraw
         .checked_add(channel_state.partner_total_withdraw())
@@ -1810,7 +1810,7 @@ fn is_valid_withdraw_request(
     withdraw_request: &ReceiveWithdrawRequest,
 ) -> Result<(), String> {
     let expected_nonce = get_next_nonce(&channel_state.partner_state);
-    let balance = views::get_channel_balance(&channel_state.partner_state, &channel_state.our_state);
+    let balance = views::channel_balance(&channel_state.partner_state, &channel_state.our_state);
 
     let is_valid = is_valid_withdraw_signature(
         withdraw_request.canonical_identifier.clone(),
@@ -2054,7 +2054,7 @@ fn is_valid_refund(
 }
 
 fn is_valid_action_withdraw(channel_state: &ChannelState, withdraw: &ActionChannelWithdraw) -> Result<(), String> {
-    let balance = views::get_channel_balance(&channel_state.our_state, &channel_state.partner_state);
+    let balance = views::channel_balance(&channel_state.our_state, &channel_state.partner_state);
     let (_, overflow) = withdraw
         .total_withdraw
         .overflowing_add(channel_state.partner_state.total_withdraw());
@@ -2698,8 +2698,8 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
         }
     }
 
-    let our_balance = views::get_channel_balance(&our_state, &partner_state);
-    let partner_balance = views::get_channel_balance(&partner_state, &our_state);
+    let our_balance = views::channel_balance(&our_state, &partner_state);
+    let partner_balance = views::channel_balance(&partner_state, &our_state);
 
     let channel_capacity = channel_state.capacity();
     if our_balance + partner_balance != channel_capacity {
@@ -2724,8 +2724,8 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
         return Err(message.into());
     }
 
-    let our_distributable = channel_state.get_distributable(&our_state, &partner_state);
-    let partner_distributable = channel_state.get_distributable(&partner_state, &our_state);
+    let our_distributable = views::channel_distributable(&our_state, &partner_state);
+    let partner_distributable = views::channel_distributable(&partner_state, &our_state);
 
     // Because of overflow checks, it is possible for the distributable amount
     // to be lower than the available balance, therefore the sanity check has to

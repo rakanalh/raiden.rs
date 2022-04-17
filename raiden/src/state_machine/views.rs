@@ -5,7 +5,6 @@ use std::{
 
 use web3::types::{
     Address,
-    H256,
     U256,
 };
 
@@ -13,10 +12,9 @@ use crate::{
     primitives::{
         CanonicalIdentifier,
         TokenAddress,
+        TokenAmount,
         TokenNetworkAddress,
         TokenNetworkRegistryAddress,
-        TransactionResult,
-        U64,
     },
     state_machine::views,
 };
@@ -29,14 +27,6 @@ use super::types::{
     TokenNetworkRegistryState,
     TokenNetworkState,
 };
-
-pub fn block_number(chain_state: &ChainState) -> U64 {
-    chain_state.block_number
-}
-
-pub fn confirmed_block_hash(chain_state: &ChainState) -> H256 {
-    chain_state.block_hash
-}
 
 pub fn get_token_network<'a>(
     chain_state: &'a ChainState,
@@ -153,42 +143,14 @@ pub fn get_channel_state_for(
     }
 }
 
-pub fn get_channel_status(channel_state: &ChannelState) -> ChannelStatus {
-    let mut result = ChannelStatus::Opened;
-    if let Some(settle_transaction) = &channel_state.settle_transaction {
-        let finished_successfully = match &settle_transaction.result {
-            Some(r) => *r == TransactionResult::Success,
-            None => false,
-        };
-        let running = settle_transaction.finished_block_number.is_none();
-
-        if finished_successfully {
-            result = ChannelStatus::Settled;
-        } else if running {
-            result = ChannelStatus::Settling;
-        } else {
-            result = ChannelStatus::Unusable;
-        }
-    } else if let Some(close_transaction) = &channel_state.close_transaction {
-        let finished_successfully = match &close_transaction.result {
-            Some(r) => *r == TransactionResult::Success,
-            None => false,
-        };
-        let running = close_transaction.finished_block_number.is_none();
-
-        if finished_successfully {
-            result = ChannelStatus::Closed;
-        } else if running {
-            result = ChannelStatus::Closing;
-        } else {
-            result = ChannelStatus::Unusable;
-        }
-    }
-
-    result
+pub fn channel_distributable(sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
+    let (_, _, transferred_amount, locked_amount) = sender.get_current_balanceproof();
+    let distributable = channel_balance(sender, receiver) - sender.locked_amount();
+    let overflow_limit = TokenAmount::MAX - transferred_amount - locked_amount;
+    TokenAmount::min(overflow_limit, distributable)
 }
 
-pub fn get_channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> U256 {
+pub fn channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> U256 {
     let mut sender_transferred_amount = U256::zero();
     let mut receiver_transferred_amount = U256::zero();
 

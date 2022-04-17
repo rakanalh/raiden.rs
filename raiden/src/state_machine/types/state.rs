@@ -55,6 +55,7 @@ use crate::{
         TransactionExecutionStatus,
         TransactionResult,
     },
+    state_machine::views,
 };
 
 use super::{
@@ -416,27 +417,9 @@ impl ChannelState {
             - self.partner_state.total_withdraw()
     }
 
-    pub fn balance(&self, sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
-        let mut sender_transferred_amount = TokenAmount::zero();
-        let mut receiver_transferred_amount = TokenAmount::zero();
-
-        if let Some(sender_balance_proof) = &sender.balance_proof {
-            sender_transferred_amount = sender_balance_proof.transferred_amount;
-        }
-
-        if let Some(receiver_balance_proof) = &receiver.balance_proof {
-            receiver_transferred_amount = receiver_balance_proof.transferred_amount;
-        }
-
-        sender.contract_balance
-            - TokenAmount::max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw)
-            - sender_transferred_amount
-            + receiver_transferred_amount
-    }
-
     pub fn is_usable_for_new_transfer(&self, amount: TokenAmount, lock_timeout: Option<LockTimeout>) -> bool {
         let pending_transfers = self.our_state.count_pending_transfers();
-        let distributable = self.get_distributable(&self.our_state, &self.partner_state);
+        let distributable = views::channel_distributable(&self.our_state, &self.partner_state);
         let lock_timeout_valid = match lock_timeout {
             Some(lock_timeout) => lock_timeout <= self.settle_timeout && lock_timeout > self.reveal_timeout,
             None => true,
@@ -472,39 +455,6 @@ impl ChannelState {
 
     pub fn is_usable_for_mediation(&self, transfer_amount: TokenAmount, lock_timeout: BlockTimeout) -> bool {
         self.is_usable_for_new_transfer(transfer_amount, Some(lock_timeout))
-    }
-
-    pub fn get_distributable(&self, sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
-        let (_, _, transferred_amount, locked_amount) = sender.get_current_balanceproof();
-        let distributable = self.balance(sender, receiver) - sender.locked_amount();
-        let overflow_limit = TokenAmount::MAX - transferred_amount - locked_amount;
-        TokenAmount::min(overflow_limit, distributable)
-    }
-
-    pub fn secret_known_onchain(&self, end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
-        end_state
-            .secrethashes_to_onchain_unlockedlocks
-            .contains_key(&secrethash)
-    }
-
-    pub fn is_secret_known(&self, end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
-        end_state.secrethashes_to_unlockedlocks.contains_key(&secrethash)
-            || end_state
-                .secrethashes_to_onchain_unlockedlocks
-                .contains_key(&secrethash)
-    }
-
-    pub fn get_secret(&self, end_state: &ChannelEndState, secrethash: SecretHash) -> Option<Secret> {
-        let mut partial_unlock_proof = end_state.secrethashes_to_unlockedlocks.get(&secrethash);
-        if partial_unlock_proof.is_none() {
-            partial_unlock_proof = end_state.secrethashes_to_onchain_unlockedlocks.get(&secrethash);
-        }
-
-        if let Some(partial_unlock_proof) = partial_unlock_proof {
-            return Some(partial_unlock_proof.secret.clone());
-        }
-
-        None
     }
 }
 
@@ -602,6 +552,28 @@ impl ChannelEndState {
             .checked_add(locked_amount)
             .map(|r| r.saturating_add(amount));
         transferred_amount_after_unlock.is_some()
+    }
+
+    pub fn secret_known_onchain(&self, secrethash: SecretHash) -> bool {
+        self.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
+    }
+
+    pub fn is_secret_known(&self, secrethash: SecretHash) -> bool {
+        self.secrethashes_to_unlockedlocks.contains_key(&secrethash)
+            || self.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
+    }
+
+    pub fn get_secret(&self, secrethash: SecretHash) -> Option<Secret> {
+        let mut partial_unlock_proof = self.secrethashes_to_unlockedlocks.get(&secrethash);
+        if partial_unlock_proof.is_none() {
+            partial_unlock_proof = self.secrethashes_to_onchain_unlockedlocks.get(&secrethash);
+        }
+
+        if let Some(partial_unlock_proof) = partial_unlock_proof {
+            return Some(partial_unlock_proof.secret.clone());
+        }
+
+        None
     }
 }
 

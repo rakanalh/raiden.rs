@@ -126,8 +126,8 @@ fn get_amount_without_fees(
     channel_in: &ChannelState,
     channel_out: &ChannelState,
 ) -> Result<Option<TokenAmount>, String> {
-    let balance_in = views::get_channel_balance(&channel_in.our_state, &channel_in.partner_state);
-    let _balance_out = views::get_channel_balance(&channel_out.our_state, &channel_out.partner_state);
+    let balance_in = views::channel_balance(&channel_in.our_state, &channel_in.partner_state);
+    let _balance_out = views::channel_balance(&channel_out.our_state, &channel_out.partner_state);
     let _receivable = channel_in.our_total_deposit() + channel_in.partner_total_deposit() - balance_in;
 
     if channel_in.fee_schedule.cap_fees != channel_out.fee_schedule.cap_fees {
@@ -302,7 +302,7 @@ fn has_secret_registration_started(
 ) -> bool {
     let is_secret_registered_onchain = channel_states
         .iter()
-        .any(|channel_state| channel_state.secret_known_onchain(&channel_state.partner_state, secrethash));
+        .any(|channel_state| channel_state.partner_state.secret_known_onchain(secrethash));
     let has_pending_transaction = transfers_pair
         .iter()
         .any(|pair| pair.payer_state == PayerState::WaitingSecretReveal);
@@ -616,14 +616,15 @@ fn events_for_onchain_secretreveal_if_dangerzone(
 
         let lock = &pair.payer_transfer.lock;
         let safe_to_wait = is_safe_to_wait(lock.expiration, payer_channel.reveal_timeout, block_number).is_ok();
-        let secret_known =
-            payer_channel.is_secret_known(&payer_channel.partner_state, pair.payer_transfer.lock.secrethash);
+        let secret_known = payer_channel
+            .partner_state
+            .is_secret_known(pair.payer_transfer.lock.secrethash);
 
         if !safe_to_wait && secret_known {
             pair.payer_state = PayerState::WaitingSecretReveal;
 
             if !transaction_sent {
-                let secret = match payer_channel.get_secret(&payer_channel.partner_state, lock.secrethash) {
+                let secret = match payer_channel.partner_state.get_secret(lock.secrethash) {
                     Some(secret) => secret,
                     None => {
                         return Err("The secret should be known at this point".to_owned());

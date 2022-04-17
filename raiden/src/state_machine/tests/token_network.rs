@@ -11,7 +11,6 @@ use crate::{
         machine::chain,
         types::{
             ContractReceiveTokenNetworkCreated,
-            StateChange,
             TokenNetworkGraphState,
             TokenNetworkState,
         },
