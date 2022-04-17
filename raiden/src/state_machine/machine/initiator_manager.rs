@@ -542,12 +542,7 @@ pub fn handle_secret_request(
         });
     }
 
-    subdispatch_to_initiator_transfer(
-        chain_state,
-        payment_state,
-        &initiator_state,
-        StateChange::ReceiveSecretRequest(state_change),
-    )
+    subdispatch_to_initiator_transfer(chain_state, payment_state, &initiator_state, state_change.into())
 }
 
 pub fn handle_secret_reveal(
@@ -579,7 +574,7 @@ pub fn handle_secret_reveal(
         chain_state,
         payment_state,
         &initiator_state,
-        StateChange::ReceiveSecretReveal(state_change.clone()),
+        state_change.clone().into(),
     )?;
 
     if let Some(ref mut new_state) = sub_iteration.new_state {
@@ -629,7 +624,7 @@ pub fn handle_contract_secret_reveal(
         chain_state,
         payment_state,
         &initiator_state,
-        StateChange::ContractReceiveSecretReveal(state_change.clone()),
+        state_change.clone().into(),
     )?;
 
     if let Some(ref mut new_state) = sub_iteration.new_state {

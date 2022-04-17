@@ -96,16 +96,19 @@ impl StateManager {
         token_network_registry_address: TokenNetworkRegistryAddress,
         token_network_registry_deploy_block_number: U64,
     ) -> std::result::Result<(ChainState, Vec<StateChange>, U64), errors::RaidenError> {
-        let mut state_changes = vec![];
+        let mut state_changes: Vec<StateChange> = vec![];
 
         let chain_state = ChainState::new(chain_id.clone(), U64::from(0), H256::zero(), our_address);
 
-        state_changes.push(StateChange::ActionInitChain(ActionInitChain {
-            chain_id,
-            our_address,
-            block_number: U64::from(1),
-            block_hash: H256::zero(),
-        }));
+        state_changes.push(
+            ActionInitChain {
+                chain_id,
+                our_address,
+                block_number: U64::from(1),
+                block_hash: H256::zero(),
+            }
+            .into(),
+        );
 
         let token_network_registry_state = TokenNetworkRegistryState::new(token_network_registry_address, vec![]);
         let new_network_registry_state_change = ContractReceiveTokenNetworkRegistry {
@@ -114,9 +117,7 @@ impl StateManager {
             block_number: token_network_registry_deploy_block_number,
             block_hash: H256::zero(),
         };
-        state_changes.push(StateChange::ContractReceiveTokenNetworkRegistry(
-            new_network_registry_state_change,
-        ));
+        state_changes.push(new_network_registry_state_change.into());
 
         for record in storage.state_changes()? {
             let state_change =

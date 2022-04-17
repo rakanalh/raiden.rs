@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
+use raiden::state_machine::types::Block;
 use raiden::{
     raiden::Raiden,
     services::Transitioner,
-    state_machine::types::{
-        Block,
-        StateChange,
-    },
 };
 use web3::{
     transports::WebSocket,
@@ -65,9 +62,7 @@ impl BlockMonitorService {
                     block_hash,
                     gas_limit: header.gas_limit,
                 };
-                self.transition_service
-                    .transition(StateChange::Block(block_state_change))
-                    .await;
+                self.transition_service.transition(block_state_change.into()).await;
                 self.sync_service.sync(current_block_number, block_number.into()).await;
             }
         }

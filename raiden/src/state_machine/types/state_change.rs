@@ -1,3 +1,12 @@
+use super::{
+    BalanceProofState,
+    HopState,
+    LockedTransferState,
+    RouteState,
+    SendSecretReveal,
+    TransactionChannelDeposit,
+    TransferDescriptionWithSecretState,
+};
 use crate::{
     primitives::{
         AddressMetadata,
@@ -27,21 +36,12 @@ use crate::{
         TokenNetworkState,
     },
 };
+use raiden_macros::IntoStateChange;
 use serde::{
     Deserialize,
     Serialize,
 };
 use web3::types::Address;
-
-use super::{
-    BalanceProofState,
-    HopState,
-    LockedTransferState,
-    RouteState,
-    SendSecretReveal,
-    TransactionChannelDeposit,
-    TransferDescriptionWithSecretState,
-};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StateChange {
@@ -81,14 +81,14 @@ pub enum StateChange {
     UpdateServicesAddresses(UpdateServicesAddresses),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct Block {
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,
     pub gas_limit: GasLimit,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitChain {
     pub chain_id: ChainID,
     pub block_number: BlockNumber,
@@ -96,31 +96,31 @@ pub struct ActionInitChain {
     pub our_address: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelSetRevealTimeout {
     pub canonical_identifier: CanonicalIdentifier,
     pub reveal_timeout: RevealTimeout,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelWithdraw {
     pub canonical_identifier: CanonicalIdentifier,
     pub total_withdraw: TokenAmount,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelCoopSettle {
     pub canonical_identifier: CanonicalIdentifier,
     pub recipient_metadata: Option<AddressMetadata>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelClose {
     pub canonical_identifier: CanonicalIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveTokenNetworkRegistry {
     pub transaction_hash: Option<TransactionHash>,
     pub token_network_registry: TokenNetworkRegistryState,
@@ -128,7 +128,7 @@ pub struct ContractReceiveTokenNetworkRegistry {
     pub block_hash: BlockHash,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveTokenNetworkCreated {
     pub transaction_hash: Option<TransactionHash>,
     pub token_network_registry_address: TokenNetworkRegistryAddress,
@@ -137,7 +137,7 @@ pub struct ContractReceiveTokenNetworkCreated {
     pub block_hash: BlockHash,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelOpened {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -145,7 +145,7 @@ pub struct ContractReceiveChannelOpened {
     pub channel_state: ChannelState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelClosed {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -154,7 +154,7 @@ pub struct ContractReceiveChannelClosed {
     pub canonical_identifier: CanonicalIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelSettled {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -164,7 +164,7 @@ pub struct ContractReceiveChannelSettled {
     pub partner_onchain_locksroot: Locksroot,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelDeposit {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -174,7 +174,7 @@ pub struct ContractReceiveChannelDeposit {
     pub fee_config: MediationFeeConfig,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelWithdraw {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -185,7 +185,7 @@ pub struct ContractReceiveChannelWithdraw {
     pub fee_config: MediationFeeConfig,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelBatchUnlock {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -198,7 +198,7 @@ pub struct ContractReceiveChannelBatchUnlock {
     pub returned_tokens: TokenAmount,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveSecretReveal {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -208,7 +208,7 @@ pub struct ContractReceiveSecretReveal {
     pub secret: Secret,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveRouteNew {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -218,7 +218,7 @@ pub struct ContractReceiveRouteNew {
     pub participant2: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveUpdateTransfer {
     pub transaction_hash: Option<TransactionHash>,
     pub block_number: BlockNumber,
@@ -227,13 +227,13 @@ pub struct ContractReceiveUpdateTransfer {
     pub nonce: Nonce,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitInitiator {
     pub transfer: TransferDescriptionWithSecretState,
     pub routes: Vec<RouteState>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitMediator {
     pub sender: Address,
     pub balance_proof: BalanceProofState,
@@ -242,7 +242,7 @@ pub struct ActionInitMediator {
     pub from_transfer: LockedTransferState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitTarget {
     pub sender: Address,
     pub balance_proof: BalanceProofState,
@@ -251,24 +251,24 @@ pub struct ActionInitTarget {
     pub received_valid_secret: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionTransferReroute {
     pub transfer: LockedTransferState,
     pub secret: Secret,
     pub secrethash: SecretHash,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionCancelPayment {
     pub payment_identifier: PaymentIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveTransferCancelRoute {
     pub transfer: LockedTransferState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveSecretRequest {
     pub sender: Address,
     pub payment_identifier: PaymentIdentifier,
@@ -278,14 +278,14 @@ pub struct ReceiveSecretRequest {
     pub revealsecret: Option<SendSecretReveal>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveSecretReveal {
     pub sender: Address,
     pub secret: Secret,
     pub secrethash: SecretHash,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveLockExpired {
     pub sender: Address,
     pub secrethash: SecretHash,
@@ -293,13 +293,13 @@ pub struct ReceiveLockExpired {
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveTransferRefund {
     pub transfer: LockedTransferState,
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveUnlock {
     pub message_identifier: MessageIdentifier,
     pub secret: Secret,
@@ -307,7 +307,7 @@ pub struct ReceiveUnlock {
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveWithdrawRequest {
     pub sender: Address,
     pub message_identifier: MessageIdentifier,
@@ -321,7 +321,7 @@ pub struct ReceiveWithdrawRequest {
     pub sender_metadata: Option<AddressMetadata>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveWithdrawConfirmation {
     pub sender: Address,
     pub message_identifier: MessageIdentifier,
@@ -333,7 +333,7 @@ pub struct ReceiveWithdrawConfirmation {
     pub participant: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveWithdrawExpired {
     pub sender: Address,
     pub message_identifier: MessageIdentifier,
@@ -344,19 +344,19 @@ pub struct ReceiveWithdrawExpired {
     pub participant: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveDelivered {
     pub sender: Address,
     pub message_identifier: MessageIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveProcessed {
     pub sender: Address,
     pub message_identifier: MessageIdentifier,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct UpdateServicesAddresses {
     pub service: Address,
     pub valid_til: u32,

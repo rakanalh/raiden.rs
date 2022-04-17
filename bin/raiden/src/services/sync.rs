@@ -17,10 +17,7 @@ use raiden::{
     primitives::U64,
     raiden::Raiden,
     services::Transitioner,
-    state_machine::types::{
-        Block,
-        StateChange,
-    },
+    state_machine::types::Block,
 };
 
 struct BlockBatchSizeConfig {
@@ -179,12 +176,12 @@ impl SyncService {
                 }
             };
 
-            let block_state_change = StateChange::Block(Block {
+            let block_state_change = Block {
                 block_number: to_block,
                 block_hash: block.hash.unwrap(),
                 gas_limit: block.gas_limit,
-            });
-            self.transition_service.transition(block_state_change).await;
+            };
+            self.transition_service.transition(block_state_change.into()).await;
 
             from_block = to_block + 1u64.into();
             self.block_batch_size_adjuster.increase();

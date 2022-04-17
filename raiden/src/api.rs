@@ -53,7 +53,6 @@ use crate::{
             ChannelState,
             ChannelStatus,
             RouteState,
-            StateChange,
             TransferDescriptionWithSecretState,
         },
         views,
@@ -255,12 +254,13 @@ impl Api {
                 None => return Err(ApiError::State(format!("Channel was not found"))),
             };
         self.transition_service
-            .transition(StateChange::ActionChannelSetRevealTimeout(
+            .transition(
                 ActionChannelSetRevealTimeout {
                     canonical_identifier: channel_state.canonical_identifier.clone(),
                     reveal_timeout,
-                },
-            ))
+                }
+                .into(),
+            )
             .await;
 
         Ok(channel_details)
@@ -675,8 +675,7 @@ impl Api {
 
         match action_initiator_init {
             Ok(action_init_initiator) => {
-                let state_change = StateChange::ActionInitInitiator(action_init_initiator);
-                self.transition_service.transition(state_change).await;
+                self.transition_service.transition(action_init_initiator.into()).await;
             }
             Err(e) => {
                 self.payments_registry

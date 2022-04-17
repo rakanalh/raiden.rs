@@ -114,12 +114,12 @@ fn test_open_channel_new_block_with_expired_withdraws() {
         expiration: U64::from(50u64),
         total_withdraw: U256::from(100u64),
     };
-    let state_change = StateChange::Block(Block {
+    let state_change = Block {
         block_number: U64::from(511u64),
         block_hash: H256::random(),
         gas_limit: U256::zero(),
-    });
-    let result = chain::state_transition(chain_state.clone(), state_change).expect("Block should succeed");
+    };
+    let result = chain::state_transition(chain_state.clone(), state_change.into()).expect("Block should succeed");
 
     assert!(!result.events.is_empty());
     assert_eq!(result.events[0], expected_event.into())
@@ -178,12 +178,12 @@ fn test_closed_channel_new_block() {
     });
 
     let block_hash = H256::random();
-    let state_change = StateChange::Block(Block {
+    let state_change = Block {
         block_number: U64::from(511u64),
         block_hash,
         gas_limit: U256::zero(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Block should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Block should succeed");
 
     assert!(!result.events.is_empty());
     assert_eq!(
@@ -253,15 +253,16 @@ fn test_channel_closed() {
         token_network_address,
         channel_identifier,
     };
-    let state_change = StateChange::ContractReceiveChannelClosed(ContractReceiveChannelClosed {
+    let state_change = ContractReceiveChannelClosed {
         transaction_hash: Some(H256::random()),
         block_number: U64::from(10u64),
         block_hash: H256::random(),
         transaction_from: Address::random(),
         canonical_identifier: canonical_identifier.clone(),
-    });
+    };
 
-    let result = chain::state_transition(chain_state.clone(), state_change.clone()).expect("Should close channel");
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.clone().into()).expect("Should close channel");
     assert!(result.events.is_empty());
 
     let channel_identifier = U256::from(2u64);
@@ -304,15 +305,16 @@ fn test_channel_closed() {
         .expect("Channel should exist");
     channel_state.partner_state.balance_proof = Some(balance_proof_state.clone());
 
-    let state_change = StateChange::ContractReceiveChannelClosed(ContractReceiveChannelClosed {
+    let state_change = ContractReceiveChannelClosed {
         transaction_hash: Some(H256::random()),
         block_number: U64::from(10u64),
         block_hash: H256::zero(),
         transaction_from: Address::random(),
         canonical_identifier: canonical_identifier.clone(),
-    });
+    };
 
-    let result = chain::state_transition(chain_state.clone(), state_change.clone()).expect("Should close channel");
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.clone().into()).expect("Should close channel");
 
     let event = ContractSendChannelUpdateTransfer {
         inner: ContractSendEventInner {
@@ -354,7 +356,7 @@ fn test_channel_withdraw() {
 
     assert_eq!(channel_state.our_state.contract_balance, U256::zero());
 
-    let state_change = StateChange::ContractReceiveChannelWithdraw(ContractReceiveChannelWithdraw {
+    let state_change = ContractReceiveChannelWithdraw {
         canonical_identifier: canonical_identifier.clone(),
         participant: chain_state.our_address.clone(),
         total_withdraw: U256::from(100u64),
@@ -362,15 +364,15 @@ fn test_channel_withdraw() {
         transaction_hash: Some(TransactionHash::zero()),
         block_number: U64::from(1u64),
         block_hash: H256::zero(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Withdraw should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Withdraw should succeed");
     let chain_state = result.new_state;
     let channel_state = views::get_channel_by_canonical_identifier(&chain_state.clone(), canonical_identifier.clone())
         .expect("Channel should exist")
         .clone();
     assert_eq!(channel_state.our_state.onchain_total_withdraw, U256::from(100u64));
 
-    let state_change = StateChange::ContractReceiveChannelWithdraw(ContractReceiveChannelWithdraw {
+    let state_change = ContractReceiveChannelWithdraw {
         canonical_identifier: canonical_identifier.clone(),
         participant: channel_state.partner_state.address,
         total_withdraw: U256::from(99u64),
@@ -378,8 +380,8 @@ fn test_channel_withdraw() {
         transaction_hash: Some(TransactionHash::zero()),
         block_number: U64::from(1u64),
         block_hash: H256::zero(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Withdraw should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Withdraw should succeed");
     let chain_state = result.new_state;
     let channel_state = views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
         .expect("Channel should exist");
@@ -415,7 +417,7 @@ fn test_channel_deposit() {
 
     assert_eq!(channel_state.our_state.contract_balance, U256::zero());
 
-    let state_change = StateChange::ContractReceiveChannelDeposit(ContractReceiveChannelDeposit {
+    let state_change = ContractReceiveChannelDeposit {
         canonical_identifier: canonical_identifier.clone(),
         deposit_transaction: TransactionChannelDeposit {
             participant_address: chain_state.our_address.clone(),
@@ -426,14 +428,14 @@ fn test_channel_deposit() {
         transaction_hash: Some(TransactionHash::zero()),
         block_number: U64::from(1u64),
         block_hash: H256::zero(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Deposit should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Deposit should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
         .expect("Channel should exist");
     assert_eq!(channel_state.our_state.contract_balance, U256::from(100u64));
 
     let chain_state = result.new_state;
-    let state_change = StateChange::ContractReceiveChannelDeposit(ContractReceiveChannelDeposit {
+    let state_change = ContractReceiveChannelDeposit {
         canonical_identifier: canonical_identifier.clone(),
         deposit_transaction: TransactionChannelDeposit {
             participant_address: chain_state.our_address.clone(),
@@ -444,8 +446,8 @@ fn test_channel_deposit() {
         transaction_hash: Some(TransactionHash::zero()),
         block_number: U64::from(1u64),
         block_hash: H256::zero(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Deposit should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Deposit should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier)
         .expect("Channel should exist");
     assert_eq!(channel_state.our_state.contract_balance, U256::from(100u64));
@@ -478,27 +480,29 @@ fn test_channel_settled() {
     let block_hash = H256::random();
     let our_locksroot = Bytes(vec![1u8; 32]);
 
-    let state_change = StateChange::ContractReceiveChannelSettled(ContractReceiveChannelSettled {
+    let state_change = ContractReceiveChannelSettled {
         transaction_hash: Some(H256::random()),
         block_number: U64::from(1u64),
         block_hash,
         canonical_identifier: canonical_identifier.clone(),
         our_onchain_locksroot: Bytes::default(),
         partner_onchain_locksroot: Bytes::default(),
-    });
-    let result = chain::state_transition(chain_state.clone(), state_change).expect("Channel settled should succeed");
+    };
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.into()).expect("Channel settled should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone());
     assert_eq!(channel_state, None);
 
-    let state_change = StateChange::ContractReceiveChannelSettled(ContractReceiveChannelSettled {
+    let state_change = ContractReceiveChannelSettled {
         transaction_hash: Some(H256::random()),
         block_number: U64::from(1u64),
         block_hash,
         canonical_identifier: canonical_identifier.clone(),
         our_onchain_locksroot: our_locksroot.clone(),
         partner_onchain_locksroot: Bytes::default(),
-    });
-    let result = chain::state_transition(chain_state.clone(), state_change).expect("Channel settled should succeed");
+    };
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.into()).expect("Channel settled should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
         .expect("channel should exist");
 
@@ -560,7 +564,7 @@ fn test_channel_batch_unlock() {
         result: Some(TransactionResult::Success),
     });
 
-    let state_change = StateChange::ContractReceiveChannelBatchUnlock(ContractReceiveChannelBatchUnlock {
+    let state_change = ContractReceiveChannelBatchUnlock {
         canonical_identifier: canonical_identifier.clone(),
         receiver: channel_state.our_state.address,
         sender: channel_state.partner_state.address,
@@ -570,8 +574,8 @@ fn test_channel_batch_unlock() {
         transaction_hash: Some(TransactionHash::zero()),
         block_number: U64::from(1u64),
         block_hash: H256::zero(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Should succeeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Should succeeed");
 
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone());
     assert_eq!(channel_state, None);
@@ -602,12 +606,13 @@ fn test_channel_action_withdraw() {
     );
 
     // Withdraw with insufficient onchain balance
-    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+    let state_change = ActionChannelWithdraw {
         canonical_identifier: canonical_identifier.clone(),
         total_withdraw: U256::from(100u64),
         recipient_metadata: None,
-    });
-    let result = chain::state_transition(chain_state.clone(), state_change).expect("action withdraw should succeed");
+    };
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.into()).expect("action withdraw should succeed");
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
@@ -618,12 +623,13 @@ fn test_channel_action_withdraw() {
         .into()
     );
     // Withdraw a zero amount
-    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+    let state_change = ActionChannelWithdraw {
         canonical_identifier: canonical_identifier.clone(),
         total_withdraw: U256::zero(),
         recipient_metadata: None,
-    });
-    let result = chain::state_transition(chain_state.clone(), state_change).expect("action withdraw should succeed");
+    };
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.into()).expect("action withdraw should succeed");
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
@@ -653,12 +659,12 @@ fn test_channel_action_withdraw() {
         result: Some(TransactionResult::Success),
     });
     // Withdraw on a closed channel
-    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+    let state_change = ActionChannelWithdraw {
         canonical_identifier: canonical_identifier.clone(),
         total_withdraw: U256::from(100u64),
         recipient_metadata: None,
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("action withdraw should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("action withdraw should succeed");
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
@@ -687,12 +693,12 @@ fn test_channel_action_withdraw() {
     channel_state.close_transaction = None;
     channel_state.our_state.contract_balance = U256::from(200u64);
 
-    let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
+    let state_change = ActionChannelWithdraw {
         canonical_identifier: canonical_identifier.clone(),
         total_withdraw: U256::from(100u64),
         recipient_metadata: None,
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("action withdraw should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("action withdraw should succeed");
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
         .expect("Channel should exist");
 
@@ -745,11 +751,12 @@ fn test_channel_set_reveal_timeout() {
 
     assert_eq!(channel_state.reveal_timeout, U64::from(DEFAULT_REVEAL_TIMEOUT));
 
-    let state_change = StateChange::ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout {
+    let state_change = ActionChannelSetRevealTimeout {
         canonical_identifier: canonical_identifier.clone(),
         reveal_timeout: U64::from(6u64),
-    });
-    let result = chain::state_transition(chain_state.clone(), state_change).expect("Set reveal timeout should succeed");
+    };
+    let result =
+        chain::state_transition(chain_state.clone(), state_change.into()).expect("Set reveal timeout should succeed");
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
@@ -762,11 +769,11 @@ fn test_channel_set_reveal_timeout() {
 
     let reveal_timeout = channel_state.settle_timeout.div(2).sub(1).as_u64();
     println!("Reveal timeout {}", reveal_timeout);
-    let state_change = StateChange::ActionChannelSetRevealTimeout(ActionChannelSetRevealTimeout {
+    let state_change = ActionChannelSetRevealTimeout {
         canonical_identifier: canonical_identifier.clone(),
         reveal_timeout: U64::from(reveal_timeout),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("Set reveal timeout should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("Set reveal timeout should succeed");
     assert!(result.events.is_empty());
     let channel_state = views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
         .expect("Channel state should exist");

@@ -99,15 +99,16 @@ impl EventDecoder {
         };
         let token_network = TokenNetworkState::new(token_network_address, token_address);
         let token_network_registry_address = event.address;
-        Ok(Some(StateChange::ContractReceiveTokenNetworkCreated(
+        Ok(Some(
             ContractReceiveTokenNetworkCreated {
                 transaction_hash: Some(event.transaction_hash),
                 block_number: event.block_number,
                 block_hash: event.block_hash,
                 token_network_registry_address,
                 token_network,
-            },
-        )))
+            }
+            .into(),
+        ))
     }
 
     fn channel_opened(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
@@ -176,14 +177,15 @@ impl EventDecoder {
         )
         .map_err(|e| DecodeError(format!("{:?}", e)))?;
 
-        Ok(Some(StateChange::ContractReceiveChannelOpened(
+        Ok(Some(
             ContractReceiveChannelOpened {
                 transaction_hash: Some(event.transaction_hash),
                 block_number: event.block_number,
                 block_hash: event.block_hash,
                 channel_state,
-            },
-        )))
+            }
+            .into(),
+        ))
     }
 
     fn channel_deposit(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
@@ -226,7 +228,7 @@ impl EventDecoder {
             block_number: event.block_number,
             block_hash: event.block_hash,
         };
-        Ok(Some(StateChange::ContractReceiveChannelDeposit(channel_deposit)))
+        Ok(Some(channel_deposit.into()))
     }
 
     fn channel_withdraw(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
@@ -266,7 +268,7 @@ impl EventDecoder {
             block_number: event.block_number,
             block_hash: event.block_hash,
         };
-        Ok(Some(StateChange::ContractReceiveChannelWithdraw(channel_withdraw)))
+        Ok(Some(channel_withdraw.into()))
     }
 
     fn channel_closed(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
@@ -300,7 +302,7 @@ impl EventDecoder {
                 channel_identifier,
             },
         };
-        Ok(Some(StateChange::ContractReceiveChannelClosed(channel_closed)))
+        Ok(Some(channel_closed.into()))
     }
 
     fn channel_non_closing_balance_proof_updated(
@@ -333,7 +335,7 @@ impl EventDecoder {
             block_number: event.block_number,
             block_hash: event.block_hash,
         };
-        Ok(Some(StateChange::ContractReceiveUpdateTransfer(update_transfer)))
+        Ok(Some(update_transfer.into()))
     }
 
     async fn channel_settled(&self, chain_state: &ChainState, event: Event) -> Result<Option<StateChange>> {
@@ -376,7 +378,7 @@ impl EventDecoder {
             our_onchain_locksroot,
             partner_onchain_locksroot,
         };
-        Ok(Some(StateChange::ContractReceiveChannelSettled(channel_settled)))
+        Ok(Some(channel_settled.into()))
     }
 
     // async fn channel_unlocked(&self, chain_state: &ChainState, event: Event, storage: Arc<Storage>) -> Result<Option<StateChange>> {

@@ -61,7 +61,7 @@ pub fn chain_state_with_token_network_registry(
     token_network_registry_address: TokenNetworkRegistryAddress,
 ) -> ChainState {
     let chain_state = empty_chain_state();
-    let state_change = StateChange::ContractReceiveTokenNetworkRegistry(ContractReceiveTokenNetworkRegistry {
+    let state_change = ContractReceiveTokenNetworkRegistry {
         transaction_hash: Some(H256::random()),
         token_network_registry: TokenNetworkRegistryState {
             address: token_network_registry_address,
@@ -70,9 +70,9 @@ pub fn chain_state_with_token_network_registry(
         },
         block_number: U64::from(1u64),
         block_hash: H256::random(),
-    });
+    };
 
-    let result = chain::state_transition(chain_state, state_change).expect("State transition should succeed");
+    let result = chain::state_transition(chain_state, state_change.into()).expect("State transition should succeed");
     assert!(result
         .new_state
         .identifiers_to_tokennetworkregistries
@@ -89,7 +89,7 @@ pub fn chain_state_with_token_network(
 ) -> ChainState {
     let chain_state = chain_state_with_token_network_registry(token_network_registry_address);
 
-    let state_change = StateChange::ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated {
+    let state_change = ContractReceiveTokenNetworkCreated {
         transaction_hash: Some(H256::random()),
         token_network_registry_address,
         token_network: TokenNetworkState {
@@ -101,8 +101,8 @@ pub fn chain_state_with_token_network(
         },
         block_number: U64::from(1u64),
         block_hash: H256::random(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("State transition should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("State transition should succeed");
     result.new_state
 }
 
@@ -113,7 +113,7 @@ pub fn channel_state(
     token_address: TokenAddress,
     channel_identifier: U256,
 ) -> ChainState {
-    let state_change = StateChange::ContractReceiveChannelOpened(ContractReceiveChannelOpened {
+    let state_change = ContractReceiveChannelOpened {
         transaction_hash: Some(H256::random()),
         block_number: U64::from(1u64),
         block_hash: H256::random(),
@@ -139,8 +139,8 @@ pub fn channel_state(
             settle_transaction: None,
             update_transaction: None,
         },
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("channel creation should work");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("channel creation should work");
     result.new_state
 }
 

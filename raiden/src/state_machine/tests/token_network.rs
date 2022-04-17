@@ -27,7 +27,7 @@ fn create_token_network() {
     let token_address = Address::random();
     let chain_state = chain_state_with_token_network_registry(token_network_registry_address);
 
-    let state_change = StateChange::ContractReceiveTokenNetworkCreated(ContractReceiveTokenNetworkCreated {
+    let state_change = ContractReceiveTokenNetworkCreated {
         transaction_hash: Some(H256::random()),
         token_network_registry_address,
         token_network: TokenNetworkState {
@@ -39,8 +39,8 @@ fn create_token_network() {
         },
         block_number: U64::from(1u64),
         block_hash: H256::random(),
-    });
-    let result = chain::state_transition(chain_state, state_change).expect("State transition should succeed");
+    };
+    let result = chain::state_transition(chain_state, state_change.into()).expect("State transition should succeed");
 
     let token_network = views::get_token_network_by_address(&result.new_state, token_network_address);
     assert!(token_network.is_some());

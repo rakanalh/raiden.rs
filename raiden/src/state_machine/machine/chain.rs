@@ -337,11 +337,8 @@ fn subdispatch_initiator_task(mut chain_state: ChainState, state_change: ActionI
         });
     }
 
-    let initiator_state = initiator_manager::state_transition(
-        chain_state.clone(),
-        manager_state,
-        StateChange::ActionInitInitiator(state_change.clone()),
-    )?;
+    let initiator_state =
+        initiator_manager::state_transition(chain_state.clone(), manager_state, state_change.clone().into())?;
 
     match initiator_state.new_state {
         Some(initiator_state) => {
@@ -388,11 +385,7 @@ fn subdispatch_mediator_task(
     };
 
     let mut events = vec![];
-    let iteration = mediator::state_transition(
-        chain_state,
-        mediator_state,
-        StateChange::ActionInitMediator(state_change),
-    )?;
+    let iteration = mediator::state_transition(chain_state, mediator_state, state_change.into())?;
     events.extend(iteration.events);
 
     let mut chain_state = iteration.chain_state;
@@ -442,7 +435,7 @@ fn subdispatch_target_task(
 
     let mut events = vec![];
 
-    let iteration = target::state_transition(chain_state, target_state, StateChange::ActionInitTarget(state_change))?;
+    let iteration = target::state_transition(chain_state, target_state, state_change.into())?;
     events.extend(iteration.events);
 
     let mut chain_state = iteration.chain_state;
@@ -521,11 +514,7 @@ fn handle_action_transfer_reroute(
             .insert(new_secrethash, current_payment_task.clone());
     }
 
-    subdispatch_to_payment_task(
-        chain_state,
-        StateChange::ActionTransferReroute(state_change),
-        new_secrethash,
-    )
+    subdispatch_to_payment_task(chain_state, state_change.into(), new_secrethash)
 }
 
 fn handle_action_cancel_payment(chain_state: ChainState, _state_change: ActionCancelPayment) -> TransitionResult {
@@ -541,7 +530,7 @@ fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Transit
 
     let channels_result = subdispatch_to_all_channels(
         chain_state.clone(),
-        StateChange::Block(state_change.clone()),
+        state_change.clone().into(),
         chain_state.block_number,
         chain_state.block_hash,
     )?;
@@ -550,7 +539,7 @@ fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Transit
 
     chain_state = channels_result.new_state;
 
-    let transfers_result = subdispatch_to_all_lockedtransfers(chain_state, StateChange::Block(state_change))?;
+    let transfers_result = subdispatch_to_all_lockedtransfers(chain_state, state_change.into())?;
     events.extend(transfers_result.events);
 
     chain_state = transfers_result.new_state;
@@ -668,7 +657,7 @@ fn handle_contract_receive_channel_closed(
     handle_token_network_state_change(
         chain_state,
         token_network_address,
-        StateChange::ContractReceiveChannelClosed(state_change),
+        state_change.into(),
         block_number,
         block_hash,
     )
@@ -679,40 +668,32 @@ fn handle_receive_transfer_cancel_route(
     state_change: ReceiveTransferCancelRoute,
 ) -> TransitionResult {
     let secrethash = state_change.transfer.lock.secrethash;
-    subdispatch_to_payment_task(
-        chain_state,
-        StateChange::ReceiveTransferCancelRoute(state_change),
-        secrethash,
-    )
+    subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
 fn handle_receive_secret_reveal(chain_state: ChainState, state_change: ReceiveSecretReveal) -> TransitionResult {
     let secrethash = state_change.secrethash;
-    subdispatch_to_payment_task(chain_state, StateChange::ReceiveSecretReveal(state_change), secrethash)
+    subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
 fn handle_receive_secret_request(chain_state: ChainState, state_change: ReceiveSecretRequest) -> TransitionResult {
     let secrethash = state_change.secrethash;
-    subdispatch_to_payment_task(chain_state, StateChange::ReceiveSecretRequest(state_change), secrethash)
+    subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
 fn handle_receive_lock_expired(chain_state: ChainState, state_change: ReceiveLockExpired) -> TransitionResult {
     let secrethash = state_change.secrethash;
-    subdispatch_to_payment_task(chain_state, StateChange::ReceiveLockExpired(state_change), secrethash)
+    subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
 fn handle_receive_transfer_refund(chain_state: ChainState, state_change: ReceiveTransferRefund) -> TransitionResult {
     let secrethash = state_change.transfer.lock.secrethash;
-    subdispatch_to_payment_task(
-        chain_state,
-        StateChange::ReceiveTransferRefund(state_change),
-        secrethash,
-    )
+    subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
 fn handle_receive_unlock(chain_state: ChainState, state_change: ReceiveUnlock) -> TransitionResult {
     let secrethash = state_change.secrethash;
-    subdispatch_to_payment_task(chain_state, StateChange::ReceiveUnlock(state_change), secrethash)
+    subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
 fn handle_receive_withdraw_request(
@@ -720,11 +701,7 @@ fn handle_receive_withdraw_request(
     state_change: ReceiveWithdrawRequest,
 ) -> TransitionResult {
     let canonical_identifier = state_change.canonical_identifier.clone();
-    subdispatch_by_canonical_id(
-        &mut chain_state,
-        StateChange::ReceiveWithdrawRequest(state_change),
-        canonical_identifier,
-    )
+    subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
 fn handle_receive_withdraw_confirmation(
@@ -732,19 +709,11 @@ fn handle_receive_withdraw_confirmation(
     state_change: ReceiveWithdrawConfirmation,
 ) -> TransitionResult {
     let canonical_identifier = state_change.canonical_identifier.clone();
-    let iteration = subdispatch_by_canonical_id(
-        &mut chain_state,
-        StateChange::ReceiveWithdrawConfirmation(state_change.clone()),
-        canonical_identifier,
-    )?;
+    let iteration = subdispatch_by_canonical_id(&mut chain_state, state_change.clone().into(), canonical_identifier)?;
 
     let mut chain_state = iteration.new_state;
     for queue_id in chain_state.queueids_to_queues.clone().keys() {
-        inplace_delete_message_queue(
-            &mut chain_state,
-            &StateChange::ReceiveWithdrawConfirmation(state_change.clone()),
-            queue_id,
-        );
+        inplace_delete_message_queue(&mut chain_state, &state_change.clone().into(), queue_id);
     }
 
     Ok(ChainTransition {
@@ -758,11 +727,7 @@ fn handle_receive_withdraw_expired(
     state_change: ReceiveWithdrawExpired,
 ) -> TransitionResult {
     let canonical_identifier = state_change.canonical_identifier.clone();
-    subdispatch_by_canonical_id(
-        &mut chain_state,
-        StateChange::ReceiveWithdrawExpired(state_change),
-        canonical_identifier,
-    )
+    subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
 fn handle_receive_delivered(mut chain_state: ChainState, state_change: ReceiveDelivered) -> TransitionResult {
@@ -770,11 +735,7 @@ fn handle_receive_delivered(mut chain_state: ChainState, state_change: ReceiveDe
         recipient: state_change.sender,
         canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
     };
-    inplace_delete_message_queue(
-        &mut chain_state,
-        &StateChange::ReceiveDelivered(state_change),
-        &queue_id,
-    );
+    inplace_delete_message_queue(&mut chain_state, &state_change.into(), &queue_id);
     Ok(ChainTransition {
         new_state: chain_state,
         events: vec![],
@@ -783,11 +744,7 @@ fn handle_receive_delivered(mut chain_state: ChainState, state_change: ReceiveDe
 
 fn handle_receive_processed(mut chain_state: ChainState, state_change: ReceiveProcessed) -> TransitionResult {
     for queue_id in chain_state.queueids_to_queues.clone().keys() {
-        inplace_delete_message_queue(
-            &mut chain_state,
-            &StateChange::ReceiveProcessed(state_change.clone()),
-            queue_id,
-        );
+        inplace_delete_message_queue(&mut chain_state, &state_change.clone().into(), queue_id);
     }
 
     Ok(ChainTransition {
