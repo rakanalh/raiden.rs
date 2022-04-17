@@ -517,19 +517,21 @@ pub(super) fn handle_unlock(
 
                 delete_lock(&mut channel_state.partner_state, unlock.secrethash);
 
-                Event::SendProcessed(SendProcessed {
+                SendProcessed {
                     inner: SendMessageEventInner {
                         recipient: unlock.balance_proof.sender.expect("Should exist"),
                         recipient_metadata,
                         canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                         message_identifier: unlock.message_identifier,
                     },
-                })
+                }
+                .into()
             }
-            Err(e) => Event::ErrorInvalidReceivedUnlock(ErrorInvalidReceivedUnlock {
+            Err(e) => ErrorInvalidReceivedUnlock {
                 secrethash: unlock.secrethash,
                 reason: e,
-            }),
+            }
+            .into(),
         },
     )
 }
@@ -889,18 +891,21 @@ fn send_expired_withdraws(
             .withdraws_pending
             .remove(&withdraw_state.total_withdraw);
 
-        events.push(Event::SendWithdrawExpired(SendWithdrawExpired {
-            inner: SendMessageEventInner {
-                recipient: channel_state.partner_state.address,
-                recipient_metadata: withdraw_state.recipient_metadata.clone(),
-                canonical_identifier: channel_state.canonical_identifier.clone(),
-                message_identifier: pseudo_random_number_generator.next(),
-            },
-            participant: channel_state.our_state.address,
-            total_withdraw: withdraw_state.total_withdraw,
-            nonce: channel_state.our_state.nonce,
-            expiration: withdraw_state.expiration,
-        }));
+        events.push(
+            SendWithdrawExpired {
+                inner: SendMessageEventInner {
+                    recipient: channel_state.partner_state.address,
+                    recipient_metadata: withdraw_state.recipient_metadata.clone(),
+                    canonical_identifier: channel_state.canonical_identifier.clone(),
+                    message_identifier: pseudo_random_number_generator.next(),
+                },
+                participant: channel_state.our_state.address,
+                total_withdraw: withdraw_state.total_withdraw,
+                nonce: channel_state.our_state.nonce,
+                expiration: withdraw_state.expiration,
+            }
+            .into(),
+        );
     }
 
     events
@@ -1230,22 +1235,22 @@ pub(super) fn handle_receive_lock_expired(
 
             delete_unclaimed_lock(&mut channel_state.partner_state, state_change.secrethash);
 
-            let send_processed = Event::SendProcessed(SendProcessed {
+            let send_processed = SendProcessed {
                 inner: SendMessageEventInner {
                     recipient: sender,
                     recipient_metadata,
                     canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                     message_identifier: state_change.message_identifier,
                 },
-            });
-            vec![send_processed]
+            };
+            vec![send_processed.into()]
         }
         Err(e) => {
-            let invalid_lock_expired = Event::ErrorInvalidReceivedLockExpired(ErrorInvalidReceivedLockExpired {
+            let invalid_lock_expired = ErrorInvalidReceivedLockExpired {
                 secrethash: state_change.secrethash,
                 reason: e,
-            });
-            vec![invalid_lock_expired]
+            };
+            vec![invalid_lock_expired.into()]
         }
     };
 
@@ -1282,21 +1287,21 @@ pub(super) fn handle_receive_locked_transfer(
                 .secrethashes_to_lockedlocks
                 .insert(lock.secrethash, lock);
 
-            Ok(Event::SendProcessed(SendProcessed {
+            Ok(SendProcessed {
                 inner: SendMessageEventInner {
                     recipient: sender,
                     recipient_metadata,
                     canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                     message_identifier: mediated_transfer.message_identifier,
                 },
-            }))
+            }
+            .into())
         }
-        Err(e) => Ok(Event::ErrorInvalidReceivedLockedTransfer(
-            ErrorInvalidReceivedLockedTransfer {
-                payment_identifier: mediated_transfer.payment_identifier,
-                reason: e,
-            },
-        )),
+        Err(e) => Ok(ErrorInvalidReceivedLockedTransfer {
+            payment_identifier: mediated_transfer.payment_identifier,
+            reason: e,
+        }
+        .into()),
     }
 }
 
@@ -1326,19 +1331,21 @@ pub(super) fn handle_refund_transfer(
 
             let recipient_address = channel_state.partner_state.address;
             let recipient_metadata = get_address_metadata(recipient_address, received_transfer.route_states.clone());
-            Event::SendProcessed(SendProcessed {
+            SendProcessed {
                 inner: SendMessageEventInner {
                     recipient: recipient_address,
                     recipient_metadata,
                     canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                     message_identifier: refund.transfer.message_identifier,
                 },
-            })
+            }
+            .into()
         }
-        Err(msg) => Event::ErrorInvalidReceivedTransferRefund(ErrorInvalidReceivedTransferRefund {
+        Err(msg) => ErrorInvalidReceivedTransferRefund {
             payment_identifier: received_transfer.payment_identifier,
             reason: msg,
-        }),
+        }
+        .into(),
     };
     Ok(event)
 }
@@ -1384,12 +1391,15 @@ fn handle_block(
                 result: None,
             });
 
-            events.push(Event::ContractSendChannelSettle(ContractSendChannelSettle {
-                inner: ContractSendEventInner {
-                    triggered_by_blockhash: state_change.block_hash,
-                },
-                canonical_identifier: channel_state.canonical_identifier.clone(),
-            }));
+            events.push(
+                ContractSendChannelSettle {
+                    inner: ContractSendEventInner {
+                        triggered_by_blockhash: state_change.block_hash,
+                    },
+                    canonical_identifier: channel_state.canonical_identifier.clone(),
+                }
+                .into(),
+            );
         }
     }
 
@@ -1445,19 +1455,19 @@ fn handle_channel_closed(channel_state: ChannelState, state_change: ContractRece
                 .settle_timeout
                 .saturating_add(*state_change.block_number)
                 .into();
-            let update = Event::ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer {
+            let update = ContractSendChannelUpdateTransfer {
                 inner: ContractSendEventInner {
                     triggered_by_blockhash: state_change.block_hash,
                 },
                 balance_proof,
                 expiration,
-            });
+            };
             channel_state.update_transaction = Some(TransactionExecutionStatus {
                 started_block_number: Some(state_change.block_number),
                 finished_block_number: None,
                 result: None,
             });
-            events.push(update);
+            events.push(update.into());
         }
     }
 
@@ -1506,13 +1516,16 @@ fn handle_channel_settled(
         channel_state.our_state.onchain_locksroot = our_locksroot;
         channel_state.partner_state.onchain_locksroot = partner_locksroot;
 
-        events.push(Event::ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock {
-            inner: ContractSendEventInner {
-                triggered_by_blockhash: state_change.block_hash,
-            },
-            canonical_identifier: channel_state.canonical_identifier.clone(),
-            sender: channel_state.partner_state.address,
-        }));
+        events.push(
+            ContractSendChannelBatchUnlock {
+                inner: ContractSendEventInner {
+                    triggered_by_blockhash: state_change.block_hash,
+                },
+                canonical_identifier: channel_state.canonical_identifier.clone(),
+                sender: channel_state.partner_state.address,
+            }
+            .into(),
+        );
     }
 
     Ok(ChannelTransition {
@@ -2133,7 +2146,7 @@ fn send_withdraw_request(
         .withdraws_pending
         .insert(withdraw_state.total_withdraw, withdraw_state.clone());
 
-    vec![Event::SendWithdrawRequest(SendWithdrawRequest {
+    vec![SendWithdrawRequest {
         inner: SendMessageEventInner {
             recipient: channel_state.partner_state.address,
             recipient_metadata: withdraw_state.recipient_metadata.clone(),
@@ -2144,7 +2157,8 @@ fn send_withdraw_request(
         nonce: channel_state.our_state.nonce,
         expiration: withdraw_state.expiration,
         coop_settle,
-    })]
+    }
+    .into()]
 }
 
 fn events_for_close(
@@ -2174,15 +2188,15 @@ fn events_for_close(
         }
     };
 
-    let close_event = Event::ContractSendChannelClose(ContractSendChannelClose {
+    let close_event = ContractSendChannelClose {
         inner: ContractSendEventInner {
             triggered_by_blockhash: block_hash,
         },
         canonical_identifier: channel_state.canonical_identifier.clone(),
         balance_proof: balance_proof.clone(),
-    });
+    };
 
-    Ok(vec![close_event])
+    Ok(vec![close_event.into()])
 }
 
 fn events_for_coop_settle(
@@ -2194,7 +2208,7 @@ fn events_for_coop_settle(
     if let Some(partner_signature_request) = coop_settle_state.partner_signature_request {
         if let Some(partner_signature_confirmation) = coop_settle_state.partner_signature_confirmation {
             if coop_settle_state.expiration >= block_number - channel_state.reveal_timeout {
-                let send_coop_settle = Event::ContractSendChannelCoopSettle(ContractSendChannelCoopSettle {
+                let send_coop_settle = ContractSendChannelCoopSettle {
                     inner: ContractSendEventInner {
                         triggered_by_blockhash: block_hash,
                     },
@@ -2204,7 +2218,7 @@ fn events_for_coop_settle(
                     expiration: coop_settle_state.expiration,
                     signature_our_withdraw: partner_signature_confirmation,
                     signature_partner_withdraw: partner_signature_request,
-                });
+                };
 
                 coop_settle_state.transaction = Some(TransactionExecutionStatus {
                     started_block_number: Some(block_number),
@@ -2212,7 +2226,7 @@ fn events_for_coop_settle(
                     result: None,
                 });
 
-                return vec![send_coop_settle];
+                return vec![send_coop_settle.into()];
             }
         }
     }
@@ -2256,10 +2270,13 @@ fn handle_action_withdraw(
             );
         }
         Err(e) => {
-            events.push(Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
-                attemped_withdraw: state_change.total_withdraw,
-                reason: e,
-            }));
+            events.push(
+                ErrorInvalidActionWithdraw {
+                    attemped_withdraw: state_change.total_withdraw,
+                    reason: e,
+                }
+                .into(),
+            );
         }
     };
     Ok(ChannelTransition {
@@ -2278,12 +2295,11 @@ fn handle_action_set_channel_reveal_timeout(
     if !is_valid_reveal_timeout {
         return Ok(ChannelTransition {
             new_state: Some(channel_state),
-            events: vec![Event::ErrorInvalidActionSetRevealTimeout(
-                ErrorInvalidActionSetRevealTimeout {
-                    reveal_timeout: state_change.reveal_timeout,
-                    reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
-                },
-            )],
+            events: vec![ErrorInvalidActionSetRevealTimeout {
+                reveal_timeout: state_change.reveal_timeout,
+                reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
+            }
+            .into()],
         });
     }
 
@@ -2328,10 +2344,13 @@ fn handle_action_coop_settle(
             );
             events.extend(withdraw_request_events);
         }
-        Err(e) => events.push(Event::ErrorInvalidActionCoopSettle(ErrorInvalidActionCoopSettle {
-            attempted_withdraw: our_max_total_withdraw,
-            reason: e,
-        })),
+        Err(e) => events.push(
+            ErrorInvalidActionCoopSettle {
+                attempted_withdraw: our_max_total_withdraw,
+                reason: e,
+            }
+            .into(),
+        ),
     };
 
     Ok(ChannelTransition {
@@ -2351,12 +2370,11 @@ fn handle_receive_withdraw_request(
     if let Err(msg) = is_valid_withdraw_request(&channel_state, &state_change) {
         return Ok(ChannelTransition {
             new_state: Some(channel_state),
-            events: vec![Event::ErrorInvalidReceivedWithdrawRequest(
-                ErrorInvalidReceivedWithdrawRequest {
-                    attemped_withdraw: state_change.total_withdraw,
-                    reason: msg,
-                },
-            )],
+            events: vec![ErrorInvalidReceivedWithdrawRequest {
+                attemped_withdraw: state_change.total_withdraw,
+                reason: msg,
+            }
+            .into()],
         });
     }
 
@@ -2378,27 +2396,25 @@ fn handle_receive_withdraw_request(
         if partner_max_total_withdraw != state_change.total_withdraw {
             return Ok(ChannelTransition {
                 new_state: Some(channel_state),
-                events: vec![Event::ErrorInvalidReceivedWithdrawRequest(
-                    ErrorInvalidReceivedWithdrawRequest {
-                        attemped_withdraw: state_change.total_withdraw,
-                        reason: format!(
-                            "Partner did not withdraw with maximum balance. Should be {}",
-                            partner_max_total_withdraw
-                        ),
-                    },
-                )],
+                events: vec![ErrorInvalidReceivedWithdrawRequest {
+                    attemped_withdraw: state_change.total_withdraw,
+                    reason: format!(
+                        "Partner did not withdraw with maximum balance. Should be {}",
+                        partner_max_total_withdraw
+                    ),
+                }
+                .into()],
             });
         }
 
         if channel_state.partner_state.pending_locks.locks.len() > 0 {
             return Ok(ChannelTransition {
                 new_state: Some(channel_state),
-                events: vec![Event::ErrorInvalidReceivedWithdrawRequest(
-                    ErrorInvalidReceivedWithdrawRequest {
-                        attemped_withdraw: state_change.total_withdraw,
-                        reason: format!("Partner has pending transfers"),
-                    },
-                )],
+                events: vec![ErrorInvalidReceivedWithdrawRequest {
+                    attemped_withdraw: state_change.total_withdraw,
+                    reason: format!("Partner has pending transfers"),
+                }
+                .into()],
             });
         }
 
@@ -2408,29 +2424,27 @@ fn handle_receive_withdraw_request(
             if our_initiated_coop_settle.expiration != state_change.expiration {
                 return Ok(ChannelTransition {
                     new_state: Some(channel_state),
-                    events: vec![Event::ErrorInvalidReceivedWithdrawRequest(
-                        ErrorInvalidReceivedWithdrawRequest {
-                            attemped_withdraw: state_change.total_withdraw,
-                            reason: format!(
-                                "Partner requested withdraw while we initiated a coop-settle: \
+                    events: vec![ErrorInvalidReceivedWithdrawRequest {
+                        attemped_withdraw: state_change.total_withdraw,
+                        reason: format!(
+                            "Partner requested withdraw while we initiated a coop-settle: \
                                              Partner's withdraw has differing expiration."
-                            ),
-                        },
-                    )],
+                        ),
+                    }
+                    .into()],
                 });
             }
 
             if our_initiated_coop_settle.total_withdraw_partner != state_change.total_withdraw {
                 return Ok(ChannelTransition {
                     new_state: Some(channel_state),
-                    events: vec![Event::ErrorInvalidReceivedWithdrawRequest(
-                        ErrorInvalidReceivedWithdrawRequest {
-                            attemped_withdraw: state_change.total_withdraw,
-                            reason: format!(
-                                "The expected total withdraw of the partner does not match the withdraw request"
-                            ),
-                        },
-                    )],
+                    events: vec![ErrorInvalidReceivedWithdrawRequest {
+                        attemped_withdraw: state_change.total_withdraw,
+                        reason: format!(
+                            "The expected total withdraw of the partner does not match the withdraw request"
+                        ),
+                    }
+                    .into()],
                 });
             }
 
@@ -2446,12 +2460,11 @@ fn handle_receive_withdraw_request(
             if channel_state.our_state.pending_locks.locks.len() > 0 {
                 return Ok(ChannelTransition {
                     new_state: Some(channel_state),
-                    events: vec![Event::ErrorInvalidReceivedWithdrawRequest(
-                        ErrorInvalidReceivedWithdrawRequest {
-                            attemped_withdraw: state_change.total_withdraw,
-                            reason: format!("Partner initiated coop-settle but we have pending transfers"),
-                        },
-                    )],
+                    events: vec![ErrorInvalidReceivedWithdrawRequest {
+                        attemped_withdraw: state_change.total_withdraw,
+                        reason: format!("Partner initiated coop-settle but we have pending transfers"),
+                    }
+                    .into()],
                 });
             }
 
@@ -2477,7 +2490,7 @@ fn handle_receive_withdraw_request(
     }
 
     channel_state.our_state.nonce = get_next_nonce(&channel_state.our_state);
-    let send_withdraw = Event::SendWithdrawConfirmation(SendWithdrawConfirmation {
+    let send_withdraw = SendWithdrawConfirmation {
         inner: SendMessageEventInner {
             recipient: channel_state.partner_state.address,
             recipient_metadata: state_change.sender_metadata,
@@ -2488,8 +2501,8 @@ fn handle_receive_withdraw_request(
         total_withdraw: state_change.total_withdraw,
         nonce: channel_state.our_state.nonce,
         expiration: state_change.expiration,
-    });
-    events.push(send_withdraw);
+    };
+    events.push(send_withdraw.into());
 
     Ok(ChannelTransition {
         new_state: Some(channel_state),
@@ -2518,14 +2531,17 @@ fn handle_receive_withdraw_confirmation(
     match is_valid {
         Ok(_) => {
             channel_state.partner_state.nonce = state_change.nonce;
-            events.push(Event::SendProcessed(SendProcessed {
-                inner: SendMessageEventInner {
-                    recipient: channel_state.partner_state.address,
-                    recipient_metadata,
-                    canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-                    message_identifier: state_change.message_identifier,
-                },
-            }));
+            events.push(
+                SendProcessed {
+                    inner: SendMessageEventInner {
+                        recipient: channel_state.partner_state.address,
+                        recipient_metadata,
+                        canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                        message_identifier: state_change.message_identifier,
+                    },
+                }
+                .into(),
+            );
 
             let partner_initiated_coop_settle = &channel_state.partner_state.initiated_coop_settle;
             if let Some(our_initiated_coop_settle) = channel_state.our_state.initiated_coop_settle.clone().as_mut() {
@@ -2545,7 +2561,7 @@ fn handle_receive_withdraw_confirmation(
                 // withdraw transaction to be mined
                 if partner_initiated_coop_settle.is_none() {
                     if state_change.expiration >= block_number - channel_state.reveal_timeout {
-                        let withdraw_onchain = Event::ContractSendChannelWithdraw(ContractSendChannelWithdraw {
+                        let withdraw_onchain = ContractSendChannelWithdraw {
                             inner: ContractSendEventInner {
                                 triggered_by_blockhash: block_hash,
                             },
@@ -2553,21 +2569,20 @@ fn handle_receive_withdraw_confirmation(
                             total_withdraw: state_change.total_withdraw,
                             expiration: state_change.expiration,
                             partner_signature: state_change.signature,
-                        });
+                        };
 
-                        events.push(withdraw_onchain);
+                        events.push(withdraw_onchain.into());
                     }
                 }
             }
         }
         Err(e) => {
-            let invalid_withdraw =
-                Event::ErrorInvalidReceivedWithdrawConfirmation(ErrorInvalidReceivedWithdrawConfirmation {
-                    attemped_withdraw: state_change.total_withdraw,
-                    reason: e,
-                });
+            let invalid_withdraw = ErrorInvalidReceivedWithdrawConfirmation {
+                attemped_withdraw: state_change.total_withdraw,
+                reason: e,
+            };
 
-            events.push(invalid_withdraw);
+            events.push(invalid_withdraw.into());
         }
     }
 
@@ -2593,15 +2608,14 @@ fn handle_receive_withdraw_expired(
         None => {
             return Ok(ChannelTransition {
                 new_state: Some(channel_state),
-                events: vec![Event::ErrorInvalidReceivedWithdrawExpired(
-                    ErrorInvalidReceivedWithdrawExpired {
-                        attemped_withdraw: state_change.total_withdraw,
-                        reason: format!(
-                            "Withdraw expired of {} did not correspond to a previous withdraw request",
-                            state_change.total_withdraw
-                        ),
-                    },
-                )],
+                events: vec![ErrorInvalidReceivedWithdrawExpired {
+                    attemped_withdraw: state_change.total_withdraw,
+                    reason: format!(
+                        "Withdraw expired of {} did not correspond to a previous withdraw request",
+                        state_change.total_withdraw
+                    ),
+                }
+                .into()],
             });
         }
     };
@@ -2627,22 +2641,26 @@ fn handle_receive_withdraw_expired(
                 }
             }
 
-            events.push(Event::SendProcessed(SendProcessed {
-                inner: SendMessageEventInner {
-                    recipient: channel_state.partner_state.address,
-                    recipient_metadata: withdraw_state.recipient_metadata.clone(),
-                    canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-                    message_identifier: state_change.message_identifier,
-                },
-            }))
+            events.push(
+                SendProcessed {
+                    inner: SendMessageEventInner {
+                        recipient: channel_state.partner_state.address,
+                        recipient_metadata: withdraw_state.recipient_metadata.clone(),
+                        canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+                        message_identifier: state_change.message_identifier,
+                    },
+                }
+                .into(),
+            )
         }
         Err(e) => {
-            events.push(Event::ErrorInvalidReceivedWithdrawExpired(
+            events.push(
                 ErrorInvalidReceivedWithdrawExpired {
                     attemped_withdraw: state_change.total_withdraw,
                     reason: e,
-                },
-            ));
+                }
+                .into(),
+            );
         }
     }
 

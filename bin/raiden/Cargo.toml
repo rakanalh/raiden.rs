@@ -34,4 +34,4 @@ tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
 url = { version = "2.2.2", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tokio" ] }
 
-raiden = { path = "../.." }
+raiden = { path = "../../raiden" }

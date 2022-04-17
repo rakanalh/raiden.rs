@@ -171,17 +171,17 @@ fn handle_init_target(
                     expiration: transfer.lock.expiration,
                     secrethash: transfer.lock.secrethash,
                 };
-                events.push(Event::SendSecretRequest(secret_request));
+                events.push(secret_request.into());
             }
             Some(target_state)
         }
         Err(e) => {
-            let unlock_failed = Event::ErrorUnlockClaimFailed(ErrorUnlockClaimFailed {
+            let unlock_failed = ErrorUnlockClaimFailed {
                 identifier: transfer.payment_identifier,
                 secrethash: transfer.lock.secrethash,
                 reason: e,
-            });
-            events.push(unlock_failed);
+            };
+            events.push(unlock_failed.into());
             None
         }
     };
@@ -233,11 +233,14 @@ fn handle_block(
 
     if lock_has_expired && target_state.state != TargetState::Expired {
         target_state.state = TargetState::Expired;
-        events.push(Event::ErrorUnlockClaimFailed(ErrorUnlockClaimFailed {
-            identifier: transfer.payment_identifier,
-            secrethash: transfer.lock.secrethash,
-            reason: "Lock expired".to_owned(),
-        }));
+        events.push(
+            ErrorUnlockClaimFailed {
+                identifier: transfer.payment_identifier,
+                secrethash: transfer.lock.secrethash,
+                reason: "Lock expired".to_owned(),
+            }
+            .into(),
+        );
     } else if secret_known {
         events.extend(
             events_for_onchain_secretrevea(
@@ -309,7 +312,7 @@ fn handle_offchain_secret_reveal(
             secrethash: state_change.secrethash,
         };
 
-        events.push(Event::SendSecretReveal(reveal));
+        events.push(reveal.into());
     }
 
     Ok(TargetTransition {
@@ -417,12 +420,12 @@ fn handle_lock_expired(
     update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 
     if channel::get_lock(&channel_state.partner_state, transfer.lock.secrethash).is_none() {
-        let unlock_failed = Event::ErrorUnlockClaimFailed(ErrorUnlockClaimFailed {
+        let unlock_failed = ErrorUnlockClaimFailed {
             identifier: transfer.payment_identifier,
             secrethash: transfer.lock.secrethash,
             reason: "Lock expired".to_owned(),
-        });
-        result.events.push(unlock_failed);
+        };
+        result.events.push(unlock_failed.into());
     }
 
     Ok(TargetTransition {
@@ -470,15 +473,15 @@ fn handle_unlock(
 
     update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 
-    let payment_received_success = Event::PaymentReceivedSuccess(PaymentReceivedSuccess {
+    let payment_received_success = PaymentReceivedSuccess {
         token_network_registry_address: channel_state.token_network_registry_address,
         token_network_address: channel_state.canonical_identifier.token_network_address,
         identifier: transfer.payment_identifier,
         amount: transfer.lock.amount,
         initiator: transfer.initiator,
-    });
+    };
     events.push(unlock_event);
-    events.push(payment_received_success);
+    events.push(payment_received_success.into());
 
     Ok(TargetTransition {
         new_state: None,

@@ -192,7 +192,7 @@ fn forward_transfer_pair(
     update_channel(chain_state, payee_channel.clone())?;
 
     let locked_transfer = locked_transfer_event.transfer.clone();
-    let mediated_events = vec![Event::SendLockedTransfer(locked_transfer_event)];
+    let mediated_events = vec![locked_transfer_event.into()];
 
     let transfer_pair = MediationPairState {
         payer_transfer: payer_transfer.clone(),
@@ -367,11 +367,14 @@ fn events_to_remove_expired_locks(
                         .into_iter()
                         .map(|event| Event::SendLockExpired(event)),
                 );
-                events.push(Event::ErrorUnlockFailed(ErrorUnlockFailed {
-                    identifier: transfer_pair.payee_transfer.payment_identifier,
-                    secrethash,
-                    reason: "Lock expired".to_owned(),
-                }))
+                events.push(
+                    ErrorUnlockFailed {
+                        identifier: transfer_pair.payee_transfer.payment_identifier,
+                        secrethash,
+                        reason: "Lock expired".to_owned(),
+                    }
+                    .into(),
+                )
             }
         }
     }
@@ -419,17 +422,17 @@ fn events_for_secret_reveal(
             pair.payer_state = PayerState::SecretRevealed;
             let payer_transfer = &pair.payer_transfer;
             let recipient = payer_transfer.balance_proof.sender.expect("Should be set");
-            let reveal_secret = Event::SendSecretReveal(SendSecretReveal {
+            let reveal_secret = SendSecretReveal {
                 inner: SendMessageEventInner {
-                    recipient: recipient,
+                    recipient,
                     recipient_metadata: get_address_metadata(recipient, payer_transfer.route_states.clone()),
                     canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
                     message_identifier,
                 },
                 secret: secret.clone(),
                 secrethash: keccak256(&secret.0).into(),
-            });
-            events.push(reveal_secret);
+            };
+            events.push(reveal_secret.into());
         }
     }
 
@@ -500,11 +503,14 @@ fn events_for_balance_proof(
                 recipient_metadata,
             ) {
                 let _ = update_channel(chain_state, payee_channel.clone());
-                events.push(Event::SendUnlock(unlock_lock));
-                events.push(Event::UnlockSuccess(UnlockSuccess {
-                    identifier: pair.payer_transfer.payment_identifier,
-                    secrethash: pair.payer_transfer.lock.secrethash,
-                }))
+                events.push(unlock_lock.into());
+                events.push(
+                    UnlockSuccess {
+                        identifier: pair.payer_transfer.payment_identifier,
+                        secrethash: pair.payer_transfer.lock.secrethash,
+                    }
+                    .into(),
+                )
             }
         }
     }
@@ -671,7 +677,7 @@ fn events_for_expired_pairs(
                 secrethash: pair.payer_transfer.lock.secrethash,
                 reason: "Lock expired".to_owned(),
             };
-            events.push(Event::ErrorUnlockClaimFailed(unlock_claim_failed));
+            events.push(unlock_claim_failed.into());
         }
     }
 
@@ -688,7 +694,7 @@ fn events_for_expired_pairs(
                 secrethash: waiting_transfer.transfer.lock.secrethash,
                 reason: "Lock expired".to_owned(),
             };
-            events.push(Event::ErrorUnlockClaimFailed(unlock_claim_failed));
+            events.push(unlock_claim_failed.into());
         }
     }
 
@@ -738,12 +744,12 @@ fn set_offchain_secret(
             channel::register_offchain_secret(&mut payer_channel, secret, secrethash);
             let _ = update_channel(chain_state, payer_channel);
 
-            let unexpected_reveal = Event::ErrorUnexpectedReveal(ErrorUnexpectedReveal {
+            let unexpected_reveal = ErrorUnexpectedReveal {
                 secrethash,
                 reason: "The mediator has a waiting transfer".to_owned(),
-            });
+            };
 
-            return vec![unexpected_reveal];
+            return vec![unexpected_reveal.into()];
         }
     }
 
@@ -799,12 +805,12 @@ fn set_onchain_secret(
             channel::register_onchain_secret(&mut payer_channel, secret, secrethash, block_number, true);
             let _ = update_channel(chain_state, payer_channel);
 
-            let unexpected_reveal = Event::ErrorUnexpectedReveal(ErrorUnexpectedReveal {
+            let unexpected_reveal = ErrorUnexpectedReveal {
                 secrethash,
                 reason: "The mediator has a waiting transfer".to_owned(),
-            });
+            };
 
-            return vec![unexpected_reveal];
+            return vec![unexpected_reveal.into()];
         }
     }
 
@@ -1225,10 +1231,13 @@ fn handle_unlock(
 
                     events.push(handle_unlock_events);
 
-                    events.push(Event::UnlockClaimSuccess(UnlockClaimSuccess {
-                        identifier: pair.payee_transfer.payment_identifier,
-                        secrethash: pair.payee_transfer.lock.secrethash,
-                    }));
+                    events.push(
+                        UnlockClaimSuccess {
+                            identifier: pair.payee_transfer.payment_identifier,
+                            secrethash: pair.payee_transfer.lock.secrethash,
+                        }
+                        .into(),
+                    );
 
                     pair.payer_state = PayerState::BalanceProof;
                 }

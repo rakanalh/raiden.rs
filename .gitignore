@@ -11,4 +11,5 @@ Cargo.lock
 
 raiden.db
 debug.el
+.dir-locals.el
 *.org

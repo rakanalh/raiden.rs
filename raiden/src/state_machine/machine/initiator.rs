@@ -117,9 +117,9 @@ fn events_for_unlock_lock(
     };
 
     Ok(vec![
-        Event::SendUnlock(unlock_lock),
-        Event::PaymentSentSuccess(payment_sent_success),
-        Event::UnlockSuccess(unlock_success),
+        unlock_lock.into(),
+        payment_sent_success.into(),
+        unlock_success.into(),
     ])
 }
 
@@ -222,24 +222,21 @@ pub fn try_new_route(
             transfer_state: TransferState::Pending,
         };
         utils::update_channel(&mut chain_state, channel_state)?;
-        (
-            Some(initiator_state),
-            vec![Event::SendLockedTransfer(locked_transfer_event)],
-        )
+        (Some(initiator_state), vec![locked_transfer_event.into()])
     } else {
         let mut reason = "None of the available routes could be used".to_owned();
         if route_fee_exceeds_max {
             reason += " and at least one of them exceeded the maximum fee limit";
         }
-        let transfer_failed = Event::ErrorPaymentSentFailed(ErrorPaymentSentFailed {
+        let transfer_failed = ErrorPaymentSentFailed {
             token_network_registry_address: transfer_description.token_network_registry_address,
             token_network_address: transfer_description.token_network_address,
             identifier: transfer_description.payment_identifier,
             target: transfer_description.target,
             reason,
-        });
+        };
 
-        (None, vec![transfer_failed])
+        (None, vec![transfer_failed.into()])
     };
 
     Ok((initiator_state, chain_state, events))
@@ -284,7 +281,7 @@ fn handle_block(
         lock_expiration_threshold,
     );
 
-    let mut events = vec![];
+    let mut events: Vec<Event> = vec![];
     let (initiator_state, channel_state) =
         if lock_has_expired.is_ok() && initiator_state.transfer_state != TransferState::Expired {
             let channel_state = if channel_state.status() == ChannelStatus::Opened {
@@ -298,11 +295,7 @@ fn handle_block(
                     recipient_metadata,
                 )
                 .map_err(Into::into)?;
-                events.extend(
-                    expired_lock_events
-                        .into_iter()
-                        .map(|event| Event::SendLockExpired(event)),
-                );
+                events.extend(expired_lock_events.into_iter().map(|event| event.into()));
                 channel_state
             } else {
                 channel_state
@@ -334,11 +327,7 @@ fn handle_block(
                 secrethash,
                 reason,
             };
-            events.extend(vec![
-                Event::ErrorPaymentSentFailed(payment_failed),
-                Event::ErrorRouteFailed(route_failed),
-                Event::ErrorUnlockFailed(unlock_failed),
-            ]);
+            events.extend(vec![payment_failed.into(), route_failed.into(), unlock_failed.into()]);
             initiator_state.transfer_state = TransferState::Expired;
 
             let lock_exists = channel::lock_exists_in_either_channel_side(&channel_state, secrethash);
@@ -415,7 +404,7 @@ fn handle_receive_secret_request(
         };
         initiator_state.transfer_state = TransferState::SecretRevealed;
         initiator_state.received_secret_request = true;
-        events.push(Event::SendSecretReveal(secret_reveal));
+        events.push(secret_reveal.into());
     } else {
         initiator_state.received_secret_request = true;
         let invalid_request = ErrorInvalidSecretRequest {
@@ -423,7 +412,7 @@ fn handle_receive_secret_request(
             intended_amount: initiator_state.transfer_description.amount,
             actual_amount: state_change.amount,
         };
-        events.push(Event::ErrorInvalidSecretRequest(invalid_request));
+        events.push(invalid_request.into());
     }
 
     return Ok(InitiatorTransition {

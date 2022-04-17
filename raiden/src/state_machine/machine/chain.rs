@@ -800,13 +800,13 @@ fn handle_update_services_addresses(
     chain_state: ChainState,
     state_change: UpdateServicesAddresses,
 ) -> TransitionResult {
-    let event = Event::UpdatedServicesAddresses(UpdatedServicesAddresses {
+    let event = UpdatedServicesAddresses {
         service_address: state_change.service,
         validity: state_change.valid_til,
-    });
+    };
     Ok(ChainTransition {
         new_state: chain_state,
-        events: vec![event],
+        events: vec![event.into()],
     })
 }
 

@@ -24,6 +24,8 @@ use crate::primitives::{
     TokenNetworkRegistryAddress,
 };
 
+use raiden_macros::IntoEvent;
+
 use super::{
     BalanceProofState,
     LockedTransferState,
@@ -156,7 +158,7 @@ impl PartialEq for SendMessageEventInner {
     }
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendWithdrawRequest {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -166,7 +168,7 @@ pub struct SendWithdrawRequest {
     pub coop_settle: bool,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendWithdrawConfirmation {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -176,7 +178,7 @@ pub struct SendWithdrawConfirmation {
     pub expiration: BlockExpiration,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendWithdrawExpired {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -186,14 +188,14 @@ pub struct SendWithdrawExpired {
     pub expiration: BlockExpiration,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendLockedTransfer {
     #[deref]
     pub inner: SendMessageEventInner,
     pub transfer: LockedTransferState,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendSecretRequest {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -203,7 +205,7 @@ pub struct SendSecretRequest {
     pub secrethash: SecretHash,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendSecretReveal {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -211,7 +213,7 @@ pub struct SendSecretReveal {
     pub secrethash: SecretHash,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendLockExpired {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -219,7 +221,7 @@ pub struct SendLockExpired {
     pub secrethash: SecretHash,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendUnlock {
     #[deref]
     pub inner: SendMessageEventInner,
@@ -230,13 +232,13 @@ pub struct SendUnlock {
     pub secrethash: SecretHash,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendProcessed {
     #[deref]
     pub inner: SendMessageEventInner,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct PaymentReceivedSuccess {
     pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub token_network_address: TokenNetworkAddress,
@@ -245,7 +247,7 @@ pub struct PaymentReceivedSuccess {
     pub initiator: Address,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct PaymentSentSuccess {
     pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub token_network_address: TokenNetworkAddress,
@@ -256,13 +258,13 @@ pub struct PaymentSentSuccess {
     pub route: Vec<Address>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct UnlockSuccess {
     pub identifier: PaymentIdentifier,
     pub secrethash: SecretHash,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct UnlockClaimSuccess {
     pub identifier: PaymentIdentifier,
     pub secrethash: SecretHash,
@@ -273,7 +275,7 @@ pub struct ContractSendEventInner {
     pub triggered_by_blockhash: BlockHash,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendChannelClose {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -281,7 +283,7 @@ pub struct ContractSendChannelClose {
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendChannelCoopSettle {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -293,7 +295,7 @@ pub struct ContractSendChannelCoopSettle {
     pub signature_partner_withdraw: Signature,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendChannelWithdraw {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -303,14 +305,14 @@ pub struct ContractSendChannelWithdraw {
     pub partner_signature: Signature,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendChannelSettle {
     #[deref]
     pub inner: ContractSendEventInner,
     pub canonical_identifier: CanonicalIdentifier,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendChannelUpdateTransfer {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -318,7 +320,7 @@ pub struct ContractSendChannelUpdateTransfer {
     pub balance_proof: BalanceProofState,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendChannelBatchUnlock {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -326,7 +328,7 @@ pub struct ContractSendChannelBatchUnlock {
     pub sender: Address,
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ContractSendSecretReveal {
     #[deref]
     pub inner: ContractSendEventInner,
@@ -334,37 +336,37 @@ pub struct ContractSendSecretReveal {
     pub secret: Secret,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidActionWithdraw {
     pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedWithdrawRequest {
     pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedWithdrawConfirmation {
     pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedWithdrawExpired {
     pub attemped_withdraw: TokenAmount,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidActionSetRevealTimeout {
     pub reveal_timeout: RevealTimeout,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorPaymentSentFailed {
     pub token_network_registry_address: TokenNetworkRegistryAddress,
     pub token_network_address: TokenNetworkAddress,
@@ -373,71 +375,71 @@ pub struct ErrorPaymentSentFailed {
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorUnlockFailed {
     pub identifier: PaymentIdentifier,
     pub secrethash: SecretHash,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorRouteFailed {
     pub secrethash: SecretHash,
     pub route: Vec<Address>,
     pub token_network_address: TokenNetworkAddress,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidActionCoopSettle {
     pub attempted_withdraw: TokenAmount,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidSecretRequest {
     pub payment_identifier: PaymentIdentifier,
     pub intended_amount: TokenAmount,
     pub actual_amount: TokenAmount,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedLockedTransfer {
     pub payment_identifier: PaymentIdentifier,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedLockExpired {
     pub secrethash: SecretHash,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedTransferRefund {
     pub payment_identifier: PaymentIdentifier,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorInvalidReceivedUnlock {
     pub secrethash: SecretHash,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorUnlockClaimFailed {
     pub identifier: PaymentIdentifier,
     pub secrethash: SecretHash,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct ErrorUnexpectedReveal {
     pub secrethash: SecretHash,
     pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct UpdatedServicesAddresses {
     pub service_address: Address,
     pub validity: u32,

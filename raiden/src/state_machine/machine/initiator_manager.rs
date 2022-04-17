@@ -73,16 +73,18 @@ fn events_for_cancel_current_route(
     transfer_description: &TransferDescriptionWithSecretState,
 ) -> Vec<Event> {
     vec![
-        Event::ErrorUnlockFailed(ErrorUnlockFailed {
+        ErrorUnlockFailed {
             identifier: transfer_description.payment_identifier,
             secrethash: transfer_description.secrethash,
             reason: "route was canceled".to_string(),
-        }),
-        Event::ErrorRouteFailed(ErrorRouteFailed {
+        }
+        .into(),
+        ErrorRouteFailed {
             secrethash: transfer_description.secrethash,
             route: route_state.route.clone(),
             token_network_address: transfer_description.token_network_address,
-        }),
+        }
+        .into(),
     ]
 }
 
@@ -262,15 +264,15 @@ pub fn handle_action_cancel_payment(
 
             initiator_state.transfer_state = TransferState::Canceled;
 
-            let cancel = Event::ErrorPaymentSentFailed(ErrorPaymentSentFailed {
+            let cancel = ErrorPaymentSentFailed {
                 token_network_registry_address: channel_state.token_network_registry_address,
                 token_network_address: channel_state.canonical_identifier.token_network_address,
                 identifier: transfer_description.payment_identifier,
                 target: transfer_description.target,
                 reason: "user canceled payment".to_string(),
-            });
+            };
 
-            cancel_events.push(cancel);
+            cancel_events.push(cancel.into());
             events.extend(cancel_events);
         }
     }
@@ -491,12 +493,12 @@ pub fn handle_lock_expired(
 
     if channel::get_lock(&channel_state.partner_state, secrethash).is_none() {
         let transfer = initiator_state.transfer;
-        let unlock_failed = Event::ErrorUnlockClaimFailed(ErrorUnlockClaimFailed {
+        let unlock_failed = ErrorUnlockClaimFailed {
             identifier: transfer.payment_identifier,
             secrethash,
             reason: "Lock expired".to_owned(),
-        });
-        sub_iteration.events.push(unlock_failed);
+        };
+        sub_iteration.events.push(unlock_failed.into());
     }
     utils::update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 

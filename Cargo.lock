@@ -1735,6 +1735,7 @@ dependencies = [
  "lazy_static",
  "matrix-sdk",
  "parking_lot 0.11.2",
+ "raiden-macros",
  "rand 0.8.4",
  "rand_chacha 0.3.1",
  "reqwest",
@@ -1772,6 +1773,14 @@ dependencies = [
  "tokio",
  "url",
  "web3",
+]
+
+[[package]]
+name = "raiden-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

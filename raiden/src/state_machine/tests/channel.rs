@@ -102,7 +102,7 @@ fn test_open_channel_new_block_with_expired_withdraws() {
         },
     );
 
-    let expected_event = Event::SendWithdrawExpired(SendWithdrawExpired {
+    let expected_event = SendWithdrawExpired {
         inner: SendMessageEventInner {
             recipient: channel_state.partner_state.address.clone(),
             recipient_metadata: None,
@@ -113,7 +113,7 @@ fn test_open_channel_new_block_with_expired_withdraws() {
         nonce: U256::from(1u64),
         expiration: U64::from(50u64),
         total_withdraw: U256::from(100u64),
-    });
+    };
     let state_change = StateChange::Block(Block {
         block_number: U64::from(511u64),
         block_hash: H256::random(),
@@ -122,7 +122,7 @@ fn test_open_channel_new_block_with_expired_withdraws() {
     let result = chain::state_transition(chain_state.clone(), state_change).expect("Block should succeed");
 
     assert!(!result.events.is_empty());
-    assert_eq!(result.events[0], expected_event,)
+    assert_eq!(result.events[0], expected_event.into())
 }
 
 #[test]
@@ -188,12 +188,13 @@ fn test_closed_channel_new_block() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::ContractSendChannelSettle(ContractSendChannelSettle {
+        ContractSendChannelSettle {
             inner: ContractSendEventInner {
                 triggered_by_blockhash: block_hash,
             },
             canonical_identifier: canonical_identifier.clone(),
-        })
+        }
+        .into()
     );
 }
 
@@ -313,15 +314,15 @@ fn test_channel_closed() {
 
     let result = chain::state_transition(chain_state.clone(), state_change.clone()).expect("Should close channel");
 
-    let event = Event::ContractSendChannelUpdateTransfer(ContractSendChannelUpdateTransfer {
+    let event = ContractSendChannelUpdateTransfer {
         inner: ContractSendEventInner {
             triggered_by_blockhash: H256::zero(),
         },
         expiration: U64::from(510u64),
         balance_proof: balance_proof_state,
-    });
+    };
     assert!(!result.events.is_empty());
-    assert_eq!(result.events[0], event);
+    assert_eq!(result.events[0], event.into());
 }
 
 #[test]
@@ -505,13 +506,14 @@ fn test_channel_settled() {
     assert_eq!(channel_state.our_state.onchain_locksroot, our_locksroot);
     assert_eq!(
         result.events[0],
-        Event::ContractSendChannelBatchUnlock(ContractSendChannelBatchUnlock {
+        ContractSendChannelBatchUnlock {
             inner: ContractSendEventInner {
                 triggered_by_blockhash: block_hash,
             },
             canonical_identifier: canonical_identifier.clone(),
             sender: channel_state.partner_state.address,
-        })
+        }
+        .into()
     )
 }
 
@@ -609,10 +611,11 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
+        ErrorInvalidActionWithdraw {
             attemped_withdraw: U256::from(100u64),
             reason: format!("Insufficient balance: 0. Requested 100 for withdraw"),
-        })
+        }
+        .into()
     );
     // Withdraw a zero amount
     let state_change = StateChange::ActionChannelWithdraw(ActionChannelWithdraw {
@@ -624,10 +627,11 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
+        ErrorInvalidActionWithdraw {
             attemped_withdraw: U256::zero(),
             reason: format!("Total withdraw 0 did not increase"),
-        })
+        }
+        .into()
     );
 
     let token_network_registry_state = chain_state
@@ -658,10 +662,11 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::ErrorInvalidActionWithdraw(ErrorInvalidActionWithdraw {
+        ErrorInvalidActionWithdraw {
             attemped_withdraw: U256::from(100u64),
             reason: format!("Invalid withdraw, the channel is not opened"),
-        })
+        }
+        .into()
     );
 
     let mut chain_state = result.new_state;
@@ -695,7 +700,7 @@ fn test_channel_action_withdraw() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::SendWithdrawRequest(SendWithdrawRequest {
+        SendWithdrawRequest {
             inner: SendMessageEventInner {
                 recipient: channel_state.partner_state.address,
                 recipient_metadata: None,
@@ -706,7 +711,8 @@ fn test_channel_action_withdraw() {
             nonce: channel_state.our_state.nonce,
             expiration: U64::from(101u64),
             coop_settle: false,
-        })
+        }
+        .into()
     )
 }
 
@@ -747,10 +753,11 @@ fn test_channel_set_reveal_timeout() {
     assert!(!result.events.is_empty());
     assert_eq!(
         result.events[0],
-        Event::ErrorInvalidActionSetRevealTimeout(ErrorInvalidActionSetRevealTimeout {
+        ErrorInvalidActionSetRevealTimeout {
             reveal_timeout: U64::from(6u64),
             reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
-        })
+        }
+        .into()
     );
 
     let reveal_timeout = channel_state.settle_timeout.div(2).sub(1).as_u64();
