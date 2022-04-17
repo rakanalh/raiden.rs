@@ -554,11 +554,15 @@ impl ChannelEndState {
         transferred_amount_after_unlock.is_some()
     }
 
+    pub fn is_secret_known(&self, secrethash: SecretHash) -> bool {
+        self.is_secret_known_offchain(secrethash) || self.secret_known_onchain(secrethash)
+    }
+
     pub fn secret_known_onchain(&self, secrethash: SecretHash) -> bool {
         self.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
     }
 
-    pub fn is_secret_known(&self, secrethash: SecretHash) -> bool {
+    pub fn is_secret_known_offchain(&self, secrethash: SecretHash) -> bool {
         self.secrethashes_to_unlockedlocks.contains_key(&secrethash)
             || self.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
     }

@@ -60,8 +60,9 @@ fn events_for_onchain_secretrevea(
     let expiration = transfer.lock.expiration;
 
     let safe_to_wait = mediator::is_safe_to_wait(expiration, channel_state.reveal_timeout, block_number).is_ok();
-    let secret_known_offchain =
-        channel::is_secret_known_offchain(&channel_state.partner_state, transfer.lock.secrethash);
+    let secret_known_offchain = channel_state
+        .partner_state
+        .is_secret_known_offchain(transfer.lock.secrethash);
     let has_onchain_reveal_started = target_state.state == TargetState::OnchainSecretReveal;
 
     if !safe_to_wait && secret_known_offchain && !has_onchain_reveal_started {
@@ -222,7 +223,7 @@ fn handle_block(
         }
     };
 
-    let secret_known = channel::is_secret_known(&channel_state.partner_state, lock.secrethash);
+    let secret_known = channel_state.partner_state.is_secret_known(lock.secrethash);
     let lock_has_expired = channel::is_lock_expired(
         &channel_state.our_state,
         lock,

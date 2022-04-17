@@ -191,24 +191,6 @@ pub(super) fn get_safe_initial_expiration(
     block_number + (reveal_timeout * 2)
 }
 
-pub(super) fn is_secret_known(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
-    end_state.secrethashes_to_unlockedlocks.contains_key(&secrethash)
-        || end_state
-            .secrethashes_to_onchain_unlockedlocks
-            .contains_key(&secrethash)
-}
-
-pub(super) fn is_secret_known_offchain(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
-    end_state.secrethashes_to_unlockedlocks.contains_key(&secrethash)
-}
-
-#[allow(dead_code)]
-pub(super) fn is_secret_known_onchain(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
-    end_state
-        .secrethashes_to_onchain_unlockedlocks
-        .contains_key(&secrethash)
-}
-
 pub(super) fn is_lock_expired(
     end_state: &ChannelEndState,
     lock: &HashTimeLockState,
