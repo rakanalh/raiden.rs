@@ -28,7 +28,7 @@ serde = { version = "1.0.136", default-features = false }
 serde_json = { version = "1.0.59", default-features = false }
 slog = { version = "2.7.0", default-features = false }
 thiserror = { version = "1.0", default-features = false }
-tokio = { version = "1.0", features = ["macros", "time"], default-features = false }
+tokio = { version = "1.16", features = ["macros", "time"], default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = ["http", "signing"] }
 tokio-stream = { version = "0.1.7", default-features = false }
 ulid = { version = "0.4.1", default-features = false }
