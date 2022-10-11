@@ -43,7 +43,7 @@ jobs:
         uses: Swatinem/rust-cache@v1
 
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.12
+        uses: jwlawson/actions-setup-cmake@v1.13
 
       - name: Run tests, with all features
         run: cargo test --locked --workspace --all-features
