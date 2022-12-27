@@ -1,10 +1,6 @@
 use ethsign::SecretKey;
 use std::collections::HashMap;
-use std::io::{
-    stdin,
-    stdout,
-    Write,
-};
+use std::io::{stdin, stdout, Write};
 use web3::types::Address;
 
 use crate::accounts;

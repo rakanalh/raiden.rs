@@ -1,44 +1,26 @@
-use crate::services::{
-    BlockMonitorService,
-    SyncService,
-};
+use crate::services::{BlockMonitorService, SyncService};
 use parking_lot::RwLock as SyncRwLock;
 use raiden::{
     api::Api,
     blockchain::{
-        contracts::{
-            self,
-            ContractsManager,
-        },
+        contracts::{self, ContractsManager},
         proxies::ProxyManager,
     },
     event_handler::EventHandler,
     payments::PaymentsRegistry,
-    primitives::{
-        RaidenConfig,
-        U64,
-    },
-    raiden::{
-        DefaultAddresses,
-        Raiden,
-    },
+    primitives::{RaidenConfig, U64},
+    raiden::{DefaultAddresses, Raiden},
     services::TransitionService,
     state_manager::StateManager,
     storage::Storage,
-    transport::matrix::{
-        MatrixClient,
-        MatrixService,
-    },
+    transport::matrix::{MatrixClient, MatrixService},
 };
 use rusqlite::Connection;
 use slog::Logger;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use web3::{
-    transports::{
-        Http,
-        WebSocket,
-    },
+    transports::{Http, WebSocket},
     Web3,
 };
 
@@ -53,6 +35,7 @@ impl RaidenApp {
     pub fn new(
         config: RaidenConfig,
         web3: Web3<Http>,
+        matrix_client: MatrixClient,
         contracts_manager: Arc<ContractsManager>,
         proxy_manager: Arc<ProxyManager>,
         logger: Logger,
@@ -98,10 +81,7 @@ impl RaidenApp {
             }
         };
 
-        let transport = Arc::new(MatrixClient::new(
-            config.transport_config.homeserver_url.clone(),
-            config.account.private_key(),
-        ));
+        let transport = Arc::new(matrix_client);
 
         let raiden = Arc::new(Raiden {
             web3,
@@ -134,7 +114,10 @@ impl RaidenApp {
         let sm = self.raiden.state_manager.clone();
         let account = self.raiden.config.account.clone();
 
-        let (transport_service, sender) = MatrixService::new(self.raiden.transport.clone());
+        let (transport_service, sender) = MatrixService::new(
+            self.raiden.config.transport_config.clone(),
+            self.raiden.transport.clone(),
+        );
 
         let transition_service = Arc::new(TransitionService::new(
             self.raiden.state_manager.clone(),

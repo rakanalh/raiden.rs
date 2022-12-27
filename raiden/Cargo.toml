@@ -18,7 +18,7 @@ ethsign = { version = "0.8.0", default-features = true }
 derive_more = { version = "0.99.11", default-features = false }
 futures = { version = "0.3.21", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false }
-matrix-sdk = { version = "0.4.1", default-features = false, features = ["native-tls"] }
+matrix-sdk = { version = "0.5.0", default-features = false, features = ["native-tls", "e2e-encryption"] }
 parking_lot = { version = "0.11.2", default-features = false }
 reqwest = { version = "0.11.4", default-features = false, features = ["json"] }
 rand = { version = "0.8.4", default-features = false }
@@ -29,8 +29,9 @@ serde_json = { version = "1.0.59", default-features = false }
 slog = { version = "2.7.0", default-features = false }
 thiserror = { version = "1.0", default-features = false }
 tokio = { version = "1.0", features = ["macros", "time"], default-features = false }
-web3 = { version = "0.18.0", default-features = false, features = ["http", "signing"] }
-tokio-stream = { version = "0.1.7", default-features = false }
+tokio-stream = { version = "0.1.7", features = ["time"], default-features = false }
 ulid = { version = "0.4.1", default-features = false }
+web3 = { version = "0.18.0", default-features = false, features = ["http", "signing"] }
+webrtc = { version = "0.4.0", default-features = false }
 
 raiden-macros = { path = "../macros" }

@@ -11,7 +11,7 @@ use futures::{
     FutureExt,
     StreamExt,
 };
-use matrix_sdk::SyncSettings;
+use matrix_sdk::config::SyncSettings;
 use tokio::{
     select,
     sync::mpsc::{
@@ -23,7 +23,10 @@ use tokio::{
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{
-    primitives::QueueIdentifier,
+    primitives::{
+        QueueIdentifier,
+        TransportConfig,
+    },
     transport::messages::{
         Message,
         TransportServiceMessage,
@@ -38,19 +41,21 @@ use super::{
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 
 pub struct MatrixService {
+    config: TransportConfig,
     client: Arc<MatrixClient>,
     sender: UnboundedSender<TransportServiceMessage>,
     receiver: UnboundedReceiverStream<TransportServiceMessage>,
-    message_queues: HashMap<QueueIdentifier, UnboundedSender<Message>>,
+    message_queues: HashMap<QueueIdentifier, UnboundedSender<(QueueIdentifier, Message)>>,
     running_futures: FuturesUnordered<BoxFuture<'static, ()>>,
 }
 
 impl MatrixService {
-    pub fn new(client: Arc<MatrixClient>) -> (Self, UnboundedSender<TransportServiceMessage>) {
+    pub fn new(config: TransportConfig, client: Arc<MatrixClient>) -> (Self, UnboundedSender<TransportServiceMessage>) {
         let (sender, receiver) = mpsc::unbounded_channel();
 
         (
             Self {
+                config,
                 client,
                 sender: sender.clone(),
                 receiver: UnboundedReceiverStream::new(receiver),
@@ -63,7 +68,8 @@ impl MatrixService {
 
     async fn create_message_queue_if_not_exists(&mut self, queue_identifier: QueueIdentifier) {
         if let None = self.message_queues.get(&queue_identifier) {
-            let (queue, sender) = RetryMessageQueue::new(queue_identifier.clone(), self.sender.clone());
+            let (queue, sender) =
+                RetryMessageQueue::new(queue_identifier.recipient, self.sender.clone(), self.config.clone());
             self.running_futures.push(Box::pin(queue.run()));
 
             self.message_queues.insert(queue_identifier, sender);
@@ -82,11 +88,11 @@ impl MatrixService {
                             self.create_message_queue_if_not_exists(queue_identifier.clone()).await;
                             let _ = self.message_queues
                                 .get(&queue_identifier)
-                                .expect("Queue has been created before")
-                                .send(message);
+                                .expect("Queue should have been created before.")
+                                .send((queue_identifier, message));
                         },
                         Some(TransportServiceMessage::Send(_message)) => {
-
+                            //self.client.send();
                         },
                         _ => {}
                     }

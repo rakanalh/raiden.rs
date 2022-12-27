@@ -1,14 +1,7 @@
 use ethsign::SecretKey;
 use web3::{
-    signing::{
-        self,
-        Key,
-        Signature,
-    },
-    types::{
-        Address,
-        H256,
-    },
+    signing::{self, Key, Signature},
+    types::{Address, H256},
 };
 
 #[derive(Clone)]

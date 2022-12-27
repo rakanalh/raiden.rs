@@ -13,29 +13,15 @@ pub use types::*;
 
 use derive_more::Display;
 use rand_chacha::{
-    rand_core::{
-        RngCore,
-        SeedableRng,
-    },
+    rand_core::{RngCore, SeedableRng},
     ChaChaRng,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use std::{
-    collections::HashMap,
-    str::FromStr,
-};
-use web3::types::{
-    Address,
-    U256,
-};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, str::FromStr};
+use web3::types::{Address, U256};
 
 use crate::constants::{
-    DEFAULT_MEDIATION_FLAT_FEE,
-    DEFAULT_MEDIATION_PROPORTIONAL_FEE,
-    DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
+    DEFAULT_MEDIATION_FLAT_FEE, DEFAULT_MEDIATION_PROPORTIONAL_FEE, DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -65,7 +51,6 @@ pub enum ChainID {
     Ropsten = 3,
     Rinkeby = 4,
     Goerli = 5,
-    Kovan = 42,
 }
 
 impl Into<U256> for ChainID {
@@ -89,7 +74,6 @@ impl FromStr for ChainID {
             "ropsten" => Ok(ChainID::Ropsten),
             "rinkeby" => Ok(ChainID::Rinkeby),
             "goerli" => Ok(ChainID::Goerli),
-            "kovan" => Ok(ChainID::Kovan),
             _ => Err(()),
         }
     }

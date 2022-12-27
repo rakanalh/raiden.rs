@@ -8,6 +8,8 @@ pub enum ContractDefError {
     ABI(ethabi::Error),
     #[error("Contract with identifier not found")]
     SpecNotFound,
+    #[error("`{0}`")]
+    Other(&'static str),
 }
 
 impl From<serde_json::Error> for ContractDefError {

@@ -1,25 +1,13 @@
 use serde::Serialize;
 
 use raiden::{
-    primitives::{
-        RevealTimeout,
-        SettleTimeout,
-        TokenAddress,
-        TokenAmount,
-        TokenNetworkAddress,
-    },
+    primitives::{RevealTimeout, SettleTimeout, TokenAddress, TokenAmount, TokenNetworkAddress},
     state_machine::{
-        types::{
-            ChannelState,
-            ChannelStatus,
-        },
+        types::{ChannelState, ChannelStatus},
         views,
     },
 };
-use web3::types::{
-    Address,
-    U256,
-};
+use web3::types::{Address, U256};
 
 #[derive(Serialize)]
 pub struct AddressResponse {

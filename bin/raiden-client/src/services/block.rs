@@ -2,14 +2,8 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use raiden::state_machine::types::Block;
-use raiden::{
-    raiden::Raiden,
-    services::Transitioner,
-};
-use web3::{
-    transports::WebSocket,
-    Web3,
-};
+use raiden::{raiden::Raiden, services::Transitioner};
+use web3::{transports::WebSocket, Web3};
 
 use super::SyncService;
 

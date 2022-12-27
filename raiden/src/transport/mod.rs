@@ -1,3 +1,4 @@
+use matrix_sdk::HttpError;
 use thiserror::Error;
 
 use crate::primitives::QueueIdentifier;
@@ -13,6 +14,8 @@ pub enum TransportError {
     Init(String),
     #[error("Could to sync events: `{0}`")]
     Sync(String),
+    #[error("Could to send messages: `{0}`")]
+    Send(HttpError),
 }
 
 #[async_trait::async_trait]

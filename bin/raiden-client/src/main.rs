@@ -4,50 +4,31 @@ use cli::RaidenApp;
 use raiden::{
     blockchain::{
         contracts,
-        proxies::{
-            Account,
-            ProxyManager,
-        },
+        proxies::{Account, ProxyManager},
     },
     pathfinding,
     primitives::{
-        ChainID,
-        MatrixTransportConfig,
-        MediationFeeConfig,
-        PFSConfig,
-        PrivateKey,
-        RaidenConfig,
+        ChainID, MatrixTransportConfig, MediationFeeConfig, PFSConfig, PrivateKey, RaidenConfig, TransportConfig,
     },
     transport::matrix::{
         constants::MATRIX_AUTO_SELECT_SERVER,
-        utils::{
-            get_default_matrix_servers,
-            select_best_server,
-        },
+        utils::{get_default_matrix_servers, select_best_server},
+        MatrixClient,
     },
 };
 use slog::Drain;
 use std::{
     fs,
-    path::{
-        Path,
-        PathBuf,
-    },
+    path::{Path, PathBuf},
     process,
     sync::Arc,
 };
 use structopt::StructOpt;
-use web3::{
-    signing::Key,
-    types::Address,
-};
+use web3::{signing::Key, types::Address};
 
 use crate::{
     cli::Opt,
-    traits::{
-        ToHTTPEndpoint,
-        ToSocketEndpoint,
-    },
+    traits::{ToHTTPEndpoint, ToSocketEndpoint},
 };
 
 mod accounts;
@@ -158,7 +139,12 @@ async fn main() {
         cli.matrix_transport_config.matrix_server
     };
 
-    let transport_config = MatrixTransportConfig { homeserver_url };
+    let transport_config = TransportConfig {
+        retry_timeout: cli.matrix_transport_config.retry_timeout,
+        retry_timeout_max: cli.matrix_transport_config.retry_timeout_max,
+        retry_count: cli.matrix_transport_config.retry_count,
+        matrix: MatrixTransportConfig { homeserver_url },
+    };
 
     let contracts_manager = match contracts::ContractsManager::new(chain_id.clone()) {
         Ok(contracts_manager) => Arc::new(contracts_manager),
@@ -222,7 +208,19 @@ async fn main() {
         },
     };
 
-    let raiden_app = match RaidenApp::new(config, web3, contracts_manager, proxy_manager, logger.clone()) {
+    let matrix_client = MatrixClient::new(
+        config.transport_config.matrix.homeserver_url.clone(),
+        config.account.private_key(),
+    )
+    .await;
+    let raiden_app = match RaidenApp::new(
+        config,
+        web3,
+        matrix_client,
+        contracts_manager,
+        proxy_manager,
+        logger.clone(),
+    ) {
         Ok(app) => app,
         Err(e) => {
             eprintln!("Error initializing app: {}", e);

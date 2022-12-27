@@ -1,31 +1,19 @@
-use std::{
-    collections::HashMap,
-    convert::TryInto,
-};
+use std::{collections::HashMap, convert::TryInto};
 
 use crate::{
     blockchain::errors::ContractDefError,
-    primitives::{
-        ChainID,
-        U64,
-    },
+    primitives::{ChainID, U64},
 };
 
 use ethabi::Event;
-use serde_json::{
-    Map,
-    Value,
-};
+use serde_json::{Map, Value};
 use web3::types::Address;
 
 use super::{
     consts::{
-        CONTRACTS,
-        DEPLOYMENT_GOERLI,
-        DEPLOYMENT_KOVAN,
-        DEPLOYMENT_MAINNET,
-        DEPLOYMENT_RINKEBY,
-        DEPLOYMENT_ROPSTEN,
+        CONTRACTS, DEPLOYMENT_GOERLI, DEPLOYMENT_MAINNET, DEPLOYMENT_RINKEBY, DEPLOYMENT_ROPSTEN,
+        DEPLOYMENT_SERVICES_GOERLI, DEPLOYMENT_SERVICES_MAINNET, DEPLOYMENT_SERVICES_RINKEBY,
+        DEPLOYMENT_SERVICES_ROPSTEN,
     },
     ContractIdentifier,
 };
@@ -68,6 +56,7 @@ pub struct DeployedContract {
 pub struct ContractsManager {
     contracts: HashMap<String, Contract>,
     deployment: Map<String, Value>,
+    deployment_services: Map<String, Value>,
 }
 
 impl ContractsManager {
@@ -76,11 +65,17 @@ impl ContractsManager {
             ChainID::Mainnet => DEPLOYMENT_MAINNET,
             ChainID::Ropsten => DEPLOYMENT_ROPSTEN,
             ChainID::Goerli => DEPLOYMENT_GOERLI,
-            ChainID::Kovan => DEPLOYMENT_KOVAN,
             ChainID::Rinkeby => DEPLOYMENT_RINKEBY,
+        };
+        let chain_deployment_services = match chain_id {
+            ChainID::Mainnet => DEPLOYMENT_SERVICES_MAINNET,
+            ChainID::Ropsten => DEPLOYMENT_SERVICES_ROPSTEN,
+            ChainID::Goerli => DEPLOYMENT_SERVICES_GOERLI,
+            ChainID::Rinkeby => DEPLOYMENT_SERVICES_RINKEBY,
         };
         let contracts_specs: serde_json::Value = serde_json::from_str(CONTRACTS)?;
         let contracts_deployment: serde_json::Value = serde_json::from_str(chain_deployment)?;
+        let contracts_deployment_services: serde_json::Value = serde_json::from_str(chain_deployment_services)?;
 
         let specs_map = contracts_specs
             .get("contracts")
@@ -93,10 +88,18 @@ impl ContractsManager {
             .ok_or(ContractDefError::SpecNotFound)?
             .as_object()
             .ok_or(ContractDefError::SpecNotFound)?;
+        let deployment_services = contracts_deployment_services
+            .get("contracts")
+            .ok_or(ContractDefError::SpecNotFound)?
+            .as_object()
+            .ok_or(ContractDefError::SpecNotFound)?;
+
+        println!("{:?}", deployment_services);
 
         let mut manager = Self {
             contracts: HashMap::new(),
             deployment: deployment.clone(),
+            deployment_services: deployment_services.clone(),
         };
 
         for (contract_name, contract_data) in specs_map.iter() {
@@ -117,16 +120,24 @@ impl ContractsManager {
     }
 
     pub fn get_deployed(&self, contract_identifier: ContractIdentifier) -> Result<DeployedContract> {
+        println!(
+            "{:?}: {:?}",
+            contract_identifier.to_string(),
+            self.deployment
+                .get(&contract_identifier.to_string())
+                .or(self.deployment_services.get(&contract_identifier.to_string()))
+        );
         let address = match self
             .deployment
             .get(&contract_identifier.to_string())
-            .unwrap()
+            .or(self.deployment_services.get(&contract_identifier.to_string()))
+            .ok_or(ContractDefError::SpecNotFound)?
             .as_object()
-            .unwrap()
+            .ok_or(ContractDefError::Other("Invalid object"))?
             .get("address")
-            .unwrap()
+            .ok_or(ContractDefError::Other("No address found"))?
             .as_str()
-            .unwrap()
+            .ok_or(ContractDefError::Other("Address not a string"))?
             .trim_start_matches("0x")
             .parse()
         {
@@ -137,12 +148,13 @@ impl ContractsManager {
         let block_number = self
             .deployment
             .get(&contract_identifier.to_string())
-            .unwrap()
+            .or(self.deployment_services.get(&contract_identifier.to_string()))
+            .ok_or(ContractDefError::SpecNotFound)?
             .as_object()
-            .unwrap()
+            .ok_or(ContractDefError::Other("Invalid object"))?
             .get("block_number")
             .map(|v| v.as_u64().unwrap())
-            .unwrap();
+            .ok_or(ContractDefError::Other("No deployment block number found"))?;
 
         let block_number = U64::from(block_number);
 

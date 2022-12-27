@@ -1,24 +1,14 @@
-use raiden::primitives::{
-    RoutingMode,
-    ServicesConfig,
-    TokenAmount,
-};
+use raiden::primitives::{RoutingMode, ServicesConfig, TokenAmount};
 use std::error::Error;
 use std::path::PathBuf;
-use structopt::{
-    clap::arg_enum,
-    StructOpt,
-};
+use structopt::{clap::arg_enum, StructOpt};
 
 mod app;
 mod helpers;
 pub use self::app::*;
 pub use self::helpers::*;
 use raiden::{
-    primitives::{
-        ChainID,
-        EnvironmentType,
-    },
+    primitives::{ChainID, EnvironmentType},
     transport::matrix::constants::MATRIX_AUTO_SELECT_SERVER,
 };
 
@@ -43,7 +33,6 @@ arg_enum! {
         Ropsten = 3,
         Rinkeby = 4,
         Goerli = 5,
-        Kovan = 42,
     }
 }
 
@@ -51,7 +40,6 @@ impl From<ArgChainID> for ChainID {
     fn from(c: ArgChainID) -> Self {
         match c {
             ArgChainID::Goerli => ChainID::Goerli,
-            ArgChainID::Kovan => ChainID::Kovan,
             ArgChainID::Mainnet => ChainID::Mainnet,
             ArgChainID::Rinkeby => ChainID::Rinkeby,
             ArgChainID::Ropsten => ChainID::Ropsten,
@@ -112,20 +100,20 @@ pub struct CliMediationConfig {
 pub struct CliServicesConfig {
     #[structopt(
 		possible_values = &ArgRoutingMode::variants(),
-		default_value = "pfs",
+		default_value = "PFS",
 		required = false,
 		takes_value = true
 	)]
     pub routing_mode: ArgRoutingMode,
     #[structopt(long)]
     pub pathfinding_service_random_address: bool,
-    #[structopt(long)]
+    #[structopt(long, required = false, default_value = "")]
     pub pathfinding_service_specific_address: String,
-    #[structopt(long)]
+    #[structopt(long, required = false, default_value = "0")]
     pub pathfinding_max_paths: usize,
-    #[structopt(long)]
+    #[structopt(long, required = false, default_value = "0")]
     pub pathfinding_max_fee: TokenAmount,
-    #[structopt(long)]
+    #[structopt(long, required = false, default_value = "0")]
     pub pathfinding_iou_timeout: u64,
     #[structopt(long)]
     pub monitoring_enabled: bool,
@@ -149,6 +137,12 @@ impl From<CliServicesConfig> for ServicesConfig {
 pub struct CliMatrixTransportConfig {
     #[structopt(long, default_value = MATRIX_AUTO_SELECT_SERVER)]
     pub matrix_server: String,
+    #[structopt(long, default_value = "1")]
+    pub retry_count: u32,
+    #[structopt(long, default_value = "5")]
+    pub retry_timeout: u8,
+    #[structopt(long, default_value = "60")]
+    pub retry_timeout_max: u8,
 }
 
 #[derive(StructOpt, Debug)]
@@ -168,7 +162,7 @@ pub struct Opt {
 		possible_values = &ArgEnvironmentType::variants(),
         short("e"),
         long,
-        default_value = "production",
+        default_value = "Production",
         required = true,
         takes_value = true
     )]

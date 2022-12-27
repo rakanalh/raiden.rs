@@ -1,9 +1,4 @@
-use web3::types::{
-    Address,
-    Bytes,
-    H256,
-    U256,
-};
+use web3::types::{Address, Bytes, H256, U256};
 
 use crate::primitives::U64;
 

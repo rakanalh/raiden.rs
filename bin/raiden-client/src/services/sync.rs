@@ -1,19 +1,9 @@
-use std::{
-    cmp,
-    sync::Arc,
-};
+use std::{cmp, sync::Arc};
 
-use web3::types::{
-    BlockId,
-    BlockNumber,
-};
+use web3::types::{BlockId, BlockNumber};
 
 use raiden::{
-    blockchain::{
-        decode::EventDecoder,
-        events::Event,
-        filters::filters_from_chain_state,
-    },
+    blockchain::{decode::EventDecoder, events::Event, filters::filters_from_chain_state},
     primitives::U64,
     raiden::Raiden,
     services::Transitioner,

@@ -1,23 +1,10 @@
-use derive_more::{
-    Deref,
-    Display,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use derive_more::{Deref, Display};
+use serde::{Deserialize, Serialize};
 use std::{
-    ops::{
-        Add,
-        Mul,
-        Sub,
-    },
+    ops::{Add, Mul, Sub},
     str::FromStr,
 };
-use web3::types::{
-    U256,
-    U64 as PrimitiveU64,
-};
+use web3::types::{U256, U64 as PrimitiveU64};
 
 use super::TokenAmount;
 

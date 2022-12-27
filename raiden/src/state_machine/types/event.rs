@@ -161,6 +161,7 @@ impl PartialEq for SendMessageEventInner {
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct SendWithdrawRequest {
     #[deref]
+    #[serde(flatten)]
     pub inner: SendMessageEventInner,
     pub participant: Address,
     pub expiration: BlockExpiration,

@@ -17,7 +17,9 @@ use web3::{
 use crate::{
     primitives::{
         signature_to_bytes,
+        AddressMetadata,
         ChainID,
+        MessageIdentifier,
         PrivateKey,
         QueueIdentifier,
         TokenNetworkAddress,
@@ -71,8 +73,17 @@ pub enum TransportServiceMessage {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub enum Message {
+#[serde(untagged)]
+pub enum MessageInner {
     WithdrawExpired(WithdrawExpired),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Message {
+    pub message_identifier: MessageIdentifier,
+    pub recipient: Address,
+    pub recipient_metadata: AddressMetadata,
+    pub inner: MessageInner,
 }
 
 pub trait SignedMessage {
@@ -82,6 +93,27 @@ pub trait SignedMessage {
         let bytes = self.bytes();
         key.sign(&bytes, None)
     }
+}
+
+#[macro_export]
+macro_rules! to_message {
+    ( $send_message_event:ident, $private_key:ident, $message_type:tt ) => {{
+        let message_identifier = $send_message_event.inner.message_identifier;
+        let recipient = $send_message_event.inner.recipient;
+        let address_metadata = $send_message_event
+            .inner
+            .recipient_metadata
+            .clone()
+            .expect("Address metadata should be set at this point");
+        let mut message: $message_type = $send_message_event.into();
+        let _ = message.sign($private_key);
+        Message {
+            message_identifier,
+            recipient,
+            recipient_metadata: address_metadata,
+            inner: MessageInner::$message_type(message),
+        }
+    }};
 }
 
 #[derive(Clone, Serialize, Deserialize)]

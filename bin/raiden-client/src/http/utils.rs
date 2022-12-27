@@ -1,16 +1,10 @@
 use std::sync::Arc;
 
-use hyper::{
-    Body,
-    Request,
-};
+use hyper::{Body, Request};
 use parking_lot::RwLock;
 use raiden::{
     api::Api,
-    blockchain::{
-        contracts::ContractsManager,
-        proxies::Account,
-    },
+    blockchain::{contracts::ContractsManager, proxies::Account},
     state_manager::StateManager,
 };
 use routerify::ext::RequestExt;

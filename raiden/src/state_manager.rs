@@ -144,8 +144,6 @@ impl StateManager {
     }
 
     pub fn transition(&mut self, state_change: StateChange) -> Result<Vec<Event>> {
-        let events = self.dispatch(state_change.clone())?;
-
         let state_change_id = match self.storage.store_state_change(state_change.clone()) {
             Ok(id) => Ok(id),
             Err(e) => Err(errors::StateTransitionError {
@@ -153,13 +151,15 @@ impl StateManager {
             }),
         }?;
 
+        let events = self.dispatch(state_change.clone())?;
+
         self.state_change_last_id = Some(state_change_id);
 
         if !events.is_empty() {
             match self.storage.store_events(state_change_id, events.clone()) {
                 Ok(id) => Ok(id),
                 Err(e) => Err(errors::StateTransitionError {
-                    msg: format!("Could not store state change: {}", e),
+                    msg: format!("Could not store event: {}", e),
                 }),
             }?;
         }

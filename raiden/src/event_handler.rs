@@ -1,17 +1,18 @@
-use std::sync::Arc;
-
 use crate::{
     blockchain::proxies::Account,
     state_machine::types::Event,
     state_manager::StateManager,
+    to_message,
     transport::messages::{
         Message,
+        MessageInner,
         SignedMessage,
         TransportServiceMessage,
         WithdrawExpired,
     },
 };
 use parking_lot::RwLock;
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;
 
@@ -35,10 +36,12 @@ impl EventHandler {
     }
 
     pub async fn handle_event(&self, event: Event) {
+        let private_key = self.account.private_key();
         match event {
             Event::ContractSendChannelClose(_) => todo!(),
             Event::ContractSendChannelWithdraw(_) => todo!(),
             Event::ContractSendChannelSettle(_) => todo!(),
+            Event::ContractSendChannelCoopSettle(_) => todo!(),
             Event::ContractSendChannelUpdateTransfer(_) => todo!(),
             Event::ContractSendChannelBatchUnlock(_) => todo!(),
             Event::ContractSendSecretReveal(_) => todo!(),
@@ -48,12 +51,10 @@ impl EventHandler {
             Event::SendWithdrawConfirmation(_) => todo!(),
             Event::SendWithdrawExpired(inner) => {
                 let queue_identifier = inner.queue_identifier();
-                let mut message: WithdrawExpired = inner.into();
-                let _ = message.sign(self.account.private_key());
-                let _ = self.transport.send(TransportServiceMessage::Enqueue((
-                    queue_identifier,
-                    Message::WithdrawExpired(message),
-                )));
+                let message = to_message!(inner, private_key, WithdrawExpired);
+                let _ = self
+                    .transport
+                    .send(TransportServiceMessage::Enqueue((queue_identifier, message)));
             }
             Event::SendLockedTransfer(_) => todo!(),
             Event::SendLockExpired(_) => todo!(),
@@ -63,6 +64,7 @@ impl EventHandler {
             Event::SendSecretRequest(_) => todo!(),
             Event::UnlockClaimSuccess(_) => todo!(),
             Event::UnlockSuccess(_) => todo!(),
+            Event::UpdatedServicesAddresses(_) => todo!(),
             Event::ErrorInvalidActionCoopSettle(_) => todo!(),
             Event::ErrorInvalidActionWithdraw(_) => todo!(),
             Event::ErrorInvalidActionSetRevealTimeout(_) => todo!(),
@@ -79,8 +81,6 @@ impl EventHandler {
             Event::ErrorInvalidReceivedWithdrawExpired(_) => todo!(),
             Event::ErrorUnexpectedReveal(_) => todo!(),
             Event::ErrorUnlockClaimFailed(_) => todo!(),
-            Event::UpdatedServicesAddresses(_) => todo!(),
-            Event::ContractSendChannelCoopSettle(_) => todo!(),
         }
     }
 }

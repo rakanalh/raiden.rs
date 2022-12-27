@@ -1,5 +1,14 @@
-use std::time::Duration;
-
+use chrono::{
+    DateTime,
+    Duration,
+    Local,
+};
+use futures::StreamExt;
+use serde_json::json;
+use std::{
+    cmp::min,
+    time::Duration as StdDuration,
+};
 use tokio::{
     select,
     sync::mpsc::{
@@ -7,59 +16,160 @@ use tokio::{
         UnboundedReceiver,
         UnboundedSender,
     },
-    time::sleep,
+    time::interval,
 };
+use tokio_stream::wrappers::IntervalStream;
+use web3::types::Address;
 
 use crate::{
-    primitives::QueueIdentifier,
+    primitives::{
+        AddressMetadata,
+        QueueIdentifier,
+        TransportConfig,
+    },
     transport::messages::{
         Message,
         TransportServiceMessage,
     },
 };
 
+#[derive(Clone)]
+struct TimeoutGenerator {
+    retries_count: u32,
+    timeout: u8,
+    timeout_max: u8,
+    next: Option<DateTime<Local>>,
+    tries: u32,
+}
+
+impl TimeoutGenerator {
+    fn new(retries_count: u32, timeout: u8, timeout_max: u8) -> Self {
+        Self {
+            retries_count,
+            timeout,
+            timeout_max,
+            next: None,
+            tries: 1,
+        }
+    }
+
+    fn ready(&mut self) -> bool {
+        match self.next {
+            Some(next) => {
+                let now = Local::now();
+                let reached_max_retries = self.tries >= self.retries_count;
+
+                // Waited for `timeout` and reached `retries_count`.
+                if next <= now && !reached_max_retries {
+                    self.next = Some(now + Duration::seconds(self.timeout as i64));
+                    self.tries += 1;
+                    return true;
+                }
+
+                // At this point, we know that we have reached the `retries_count`,
+                // so we start exponentially increasing the timeout.
+                if next <= now && reached_max_retries {
+                    let timeout = min(self.timeout * 2, self.timeout_max);
+
+                    let set_timeout = if timeout < self.timeout_max {
+                        timeout
+                    } else {
+                        self.timeout_max
+                    };
+                    self.timeout = set_timeout;
+                    self.next = Some(now + Duration::seconds(self.timeout as i64));
+                    return true;
+                }
+
+                false
+            }
+            None => {
+                self.next = Some(Local::now() + Duration::seconds(self.timeout as i64));
+                false
+            }
+        }
+    }
+}
+
+struct MessageData {
+    pub(self) queue_identifier: QueueIdentifier,
+    pub(self) message: Message,
+    pub(self) text: String,
+    pub(self) timeout_generator: TimeoutGenerator,
+    pub(self) address_metadata: AddressMetadata,
+}
+
+type MessageInfo = (QueueIdentifier, Message);
+
 pub struct RetryMessageQueue {
-    pub identifier: QueueIdentifier,
-    queue: Vec<Message>,
     transport_sender: UnboundedSender<TransportServiceMessage>,
-    receiver: UnboundedReceiver<Message>,
+    recipient: Address,
+    queue: Vec<MessageData>,
+    channel_receiver: UnboundedReceiver<MessageInfo>,
+    retry_timeout: u8,
+    retry_timeout_max: u8,
+    retry_count: u32,
 }
 
 impl RetryMessageQueue {
     pub fn new(
-        identifier: QueueIdentifier,
+        recipient: Address,
         transport_sender: UnboundedSender<TransportServiceMessage>,
-    ) -> (Self, UnboundedSender<Message>) {
-        let (sender, receiver) = mpsc::unbounded_channel();
+        transport_config: TransportConfig,
+    ) -> (Self, UnboundedSender<MessageInfo>) {
+        let (channel_sender, channel_receiver) = mpsc::unbounded_channel();
         (
             Self {
-                queue: vec![],
-                identifier,
-                receiver,
+                recipient,
+                channel_receiver,
                 transport_sender,
+                queue: vec![],
+                retry_timeout: transport_config.retry_timeout,
+                retry_timeout_max: transport_config.retry_timeout_max,
+                retry_count: transport_config.retry_count,
             },
-            sender,
+            channel_sender,
         )
     }
 
-    pub fn enqueue(&mut self, message: Message) {
-        self.queue.push(message);
+    pub fn enqueue(&mut self, queue_identifier: QueueIdentifier, message: Message) {
+        if self
+            .queue
+            .iter()
+            .any(|m| m.message.message_identifier == message.message_identifier)
+        {
+            return;
+        }
+
+        let message_text = json!(message).to_string();
+        let address_metadata = message.recipient_metadata.clone();
+        self.queue.push(MessageData {
+            queue_identifier,
+            message,
+            address_metadata,
+            text: message_text,
+            timeout_generator: TimeoutGenerator::new(self.retry_count, self.retry_timeout, self.retry_timeout_max),
+        });
     }
 
     pub async fn run(mut self) {
-        let delay = sleep(Duration::from_millis(1000));
+        let delay = IntervalStream::new(interval(StdDuration::from_millis(1000)));
         tokio::pin!(delay);
 
         loop {
             select! {
-                Some(message) = self.receiver.recv() => {
-                    self.queue.push(message);
+                Some((queue_identifier, message)) = self.channel_receiver.recv() => {
+                    self.enqueue(queue_identifier, message);
                 }
-                _ = &mut delay => {
-                    if !self.queue.is_empty() {
-                        let message = self.queue.first().expect("should have a message").clone();
-                        let _ = self.transport_sender.send(TransportServiceMessage::Send(message));
+                _ = &mut delay.next() => {
+                    if self.queue.is_empty() {
+                        continue;
                     }
+                    for message_data in self.queue.iter_mut().next() {
+                        if message_data.timeout_generator.ready() {
+                            let _ = self.transport_sender.send(TransportServiceMessage::Send(message_data.message.clone()));
+                        }
+                    };
                 }
             }
         }

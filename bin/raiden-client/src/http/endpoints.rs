@@ -1,21 +1,8 @@
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
-use hyper::{
-    header,
-    Body,
-    Error as HttpError,
-    Request,
-    Response,
-    StatusCode,
-};
+use hyper::{header, Body, Error as HttpError, Request, Response, StatusCode};
 use raiden::{
-    blockchain::contracts::{
-        self,
-        ContractsManager,
-    },
+    blockchain::contracts::{self, ContractsManager},
     primitives::TokenAddress,
     state_machine::views,
 };
@@ -25,22 +12,12 @@ use web3::types::Address;
 use super::{
     error::Error,
     request::InitiatePaymentParams,
-    utils::{
-        api,
-        body_to_params,
-        contracts_manager,
-        state_manager,
-    },
+    utils::{api, body_to_params, contracts_manager, state_manager},
 };
 use crate::{
     http::request::ChannelOpenParams,
-    http::{
-        request::ChannelPatchParams,
-        response,
-        utils::account,
-    },
-    json_response,
-    unwrap,
+    http::{request::ChannelPatchParams, response, utils::account},
+    json_response, unwrap,
 };
 
 pub async fn address(req: Request<Body>) -> Result<Response<Body>, HttpError> {

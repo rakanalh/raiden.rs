@@ -1,30 +1,12 @@
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 use web3::{
-    signing::{
-        self,
-        Key,
-    },
-    types::{
-        Address,
-        H256,
-    },
+    signing::{self, Key},
+    types::{Address, H256},
 };
 
-use crate::primitives::{
-    signature::SignatureUtils,
-    MessageTypeId,
-};
+use crate::primitives::{signature::SignatureUtils, MessageTypeId};
 
-use super::{
-    BlockExpiration,
-    ChainID,
-    OneToNAddress,
-    PrivateKey,
-    TokenAmount,
-};
+use super::{BlockExpiration, ChainID, OneToNAddress, PrivateKey, TokenAmount};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IOU {

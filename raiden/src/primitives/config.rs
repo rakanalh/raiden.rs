@@ -1,35 +1,26 @@
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-};
-use web3::{
-    transports::Http,
-    types::Address,
-};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::PathBuf};
+use web3::{transports::Http, types::Address};
 
 use crate::{
     blockchain::proxies::Account,
     primitives::{
-        TokenAmount,
-        DEFAULT_MEDIATION_FLAT_FEE,
-        DEFAULT_MEDIATION_PROPORTIONAL_FEE,
+        TokenAmount, DEFAULT_MEDIATION_FLAT_FEE, DEFAULT_MEDIATION_PROPORTIONAL_FEE,
         DEFAULT_MEDIATION_PROPORTIONAL_IMBALANCE_FEE,
     },
 };
 
 use super::{
-    BlockNumber,
-    BlockTimeout,
-    ChainID,
-    FeeAmount,
-    ProportionalFeeAmount,
-    RoutingMode,
-    TokenNetworkRegistryAddress,
+    BlockNumber, BlockTimeout, ChainID, FeeAmount, ProportionalFeeAmount, RoutingMode, TokenNetworkRegistryAddress,
 };
+
+#[derive(Clone)]
+pub struct TransportConfig {
+    pub retry_timeout: u8,
+    pub retry_timeout_max: u8,
+    pub retry_count: u32,
+    pub matrix: MatrixTransportConfig,
+}
 
 #[derive(Clone)]
 pub struct MatrixTransportConfig {
@@ -45,7 +36,7 @@ pub struct RaidenConfig {
     pub eth_http_rpc_endpoint: String,
     pub eth_socket_rpc_endpoint: String,
     pub mediation_config: MediationFeeConfig,
-    pub transport_config: MatrixTransportConfig,
+    pub transport_config: TransportConfig,
     pub pfs_config: PFSConfig,
 }
 

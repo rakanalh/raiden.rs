@@ -1,20 +1,11 @@
 use raiden::{
     primitives::{
-        BlockTimeout,
-        PaymentIdentifier,
-        RevealTimeout,
-        SecretHash,
-        SettleTimeout,
-        TokenAddress,
-        TokenAmount,
+        BlockTimeout, PaymentIdentifier, RevealTimeout, SecretHash, SettleTimeout, TokenAddress, TokenAmount,
     },
     state_machine::types::ChannelStatus,
 };
 use serde::Deserialize;
-use web3::types::{
-    Address,
-    U256,
-};
+use web3::types::{Address, U256};
 
 #[derive(Deserialize)]
 pub struct ChannelOpenParams {
