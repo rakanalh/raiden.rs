@@ -32,6 +32,6 @@ structopt = { version = "0.3.25", default-features = false }
 thiserror = { version = "1.0", default-features = false }
 tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
 url = { version = "2.2.2", default-features = false }
-web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tokio" ] }
+web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
 
 raiden = { path = "../../raiden" }

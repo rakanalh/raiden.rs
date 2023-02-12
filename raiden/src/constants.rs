@@ -1,23 +1,12 @@
 use lazy_static::lazy_static;
 use web3::{
-    signing::keccak256,
-    types::{
-        Address,
-        Bytes,
-    },
+	signing::keccak256,
+	types::{Address, Bytes},
 };
 
 use crate::{
-    primitives::{
-        CanonicalIdentifier,
-        ChainID,
-        ChannelIdentifier,
-    },
-    state_machine::types::{
-        ChannelStatus,
-        PayeeState,
-        PayerState,
-    },
+	primitives::{CanonicalIdentifier, ChainID, ChannelIdentifier},
+	state_machine::types::{ChannelStatus, PayeeState, PayerState},
 };
 
 pub const ABSENT_SECRET: Bytes = Bytes(vec![]);
@@ -53,35 +42,29 @@ pub const DEFAULT_MEDIATION_FEE_MARGIN: (u32, u32) = (3, 10000);
 // 0.0005%
 pub const PAYMENT_AMOUNT_BASED_FEE_MARGIN: (u32, u32) = (5, 100000);
 
-pub const CHANNEL_STATES_PRIOR_TO_CLOSE: [ChannelStatus; 2] = [ChannelStatus::Opened, ChannelStatus::Closing];
+pub const CHANNEL_STATES_PRIOR_TO_CLOSE: [ChannelStatus; 2] =
+	[ChannelStatus::Opened, ChannelStatus::Closing];
 pub const CHANNEL_STATES_UP_TO_CLOSE: [ChannelStatus; 3] =
-    [ChannelStatus::Opened, ChannelStatus::Closing, ChannelStatus::Closed];
-pub const PAYEE_STATE_TRANSFER_PAID: [PayeeState; 2] = [PayeeState::BalanceProof, PayeeState::ContractUnlock];
+	[ChannelStatus::Opened, ChannelStatus::Closing, ChannelStatus::Closed];
+pub const PAYEE_STATE_TRANSFER_PAID: [PayeeState; 2] =
+	[PayeeState::BalanceProof, PayeeState::ContractUnlock];
 pub const PAYER_STATE_TRANSFER_PAID: [PayerState; 1] = [PayerState::BalanceProof];
 
-pub const PAYEE_STATE_TRANSFER_FINAL: [PayeeState; 3] = [
-    PayeeState::ContractUnlock,
-    PayeeState::BalanceProof,
-    PayeeState::Expired,
-];
-pub const PAYEE_STATE_SECRET_KNOWN: [PayeeState; 3] = [
-    PayeeState::SecretRevealed,
-    PayeeState::ContractUnlock,
-    PayeeState::BalanceProof,
-];
-pub const PAYER_STATE_SECRET_KNOWN: [PayerState; 3] = [
-    PayerState::SecretRevealed,
-    PayerState::WaitingUnlock,
-    PayerState::BalanceProof,
-];
-pub const PAYER_STATE_TRANSFER_FINAL: [PayerState; 2] = [PayerState::BalanceProof, PayerState::Expired];
+pub const PAYEE_STATE_TRANSFER_FINAL: [PayeeState; 3] =
+	[PayeeState::ContractUnlock, PayeeState::BalanceProof, PayeeState::Expired];
+pub const PAYEE_STATE_SECRET_KNOWN: [PayeeState; 3] =
+	[PayeeState::SecretRevealed, PayeeState::ContractUnlock, PayeeState::BalanceProof];
+pub const PAYER_STATE_SECRET_KNOWN: [PayerState; 3] =
+	[PayerState::SecretRevealed, PayerState::WaitingUnlock, PayerState::BalanceProof];
+pub const PAYER_STATE_TRANSFER_FINAL: [PayerState; 2] =
+	[PayerState::BalanceProof, PayerState::Expired];
 
 pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalIdentifier {
-    chain_identifier: ChainID::Mainnet,
-    token_network_address: Address::zero(),
-    channel_identifier: ChannelIdentifier::zero(),
+	chain_identifier: ChainID::Mainnet,
+	token_network_address: Address::zero(),
+	channel_identifier: ChannelIdentifier::zero(),
 };
 
 lazy_static! {
-    pub static ref LOCKSROOT_OF_NO_LOCKS: Vec<u8> = keccak256(&[]).to_vec();
+	pub static ref LOCKSROOT_OF_NO_LOCKS: Vec<u8> = keccak256(&[]).to_vec();
 }

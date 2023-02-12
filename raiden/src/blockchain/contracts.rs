@@ -16,8 +16,8 @@ pub use types::*;
 // }
 
 // impl Contract {
-//     fn new(name: &'static str, address: Address, deploy_block_number: U64, abi: String) -> Result<Self, ethabi::Error> {
-//         Ok(Self {
+//     fn new(name: &'static str, address: Address, deploy_block_number: U64, abi: String) ->
+// Result<Self, ethabi::Error> {         Ok(Self {
 //             name,
 //             address,
 //             deploy_block_number,
