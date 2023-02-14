@@ -1,8 +1,29 @@
-use hyper::{server::conn::AddrIncoming, Body, Error, Request, Response, Server, StatusCode};
-use raiden::{api::Api, raiden::Raiden};
-use routerify::{ext::RequestExt, Middleware, RequestInfo, Router, RouterService};
+use std::{
+	net::SocketAddr,
+	sync::Arc,
+};
+
+use hyper::{
+	server::conn::AddrIncoming,
+	Body,
+	Error,
+	Request,
+	Response,
+	Server,
+	StatusCode,
+};
+use raiden_api::{
+	api::Api,
+	raiden::Raiden,
+};
+use routerify::{
+	ext::RequestExt,
+	Middleware,
+	RequestInfo,
+	Router,
+	RouterService,
+};
 use slog::Logger;
-use std::{net::SocketAddr, sync::Arc};
 
 use super::endpoints;
 

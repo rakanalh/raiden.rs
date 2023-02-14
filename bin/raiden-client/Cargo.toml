@@ -15,6 +15,7 @@ name = "raiden"
 path = "src/main.rs"
 
 [dependencies]
+# 3rd Party
 ethsign = { version = "0.8.0" }
 expanduser = { version = "1.2.1", default-features = false }
 futures = { version = "0.3.21", default-features = false }
@@ -34,4 +35,10 @@ tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
 url = { version = "2.2.2", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
 
-raiden = { path = "../../raiden" }
+# Raiden
+raiden-api= { path = "../../raiden/api" }
+raiden-blockchain = { path = "../../raiden/blockchain" }
+raiden-state-machine = { path = "../../raiden/state-machine" }
+raiden-pathfinding = { path = "../../raiden/pathfinding" }
+raiden-storage = { path = "../../raiden/storage" }
+raiden-transport = { path = "../../raiden/transport" }

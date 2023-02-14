@@ -1,35 +1,60 @@
 #[macro_use]
 extern crate slog;
-use cli::RaidenApp;
-use raiden::{
-	blockchain::{
-		contracts,
-		proxies::{Account, ProxyManager},
+use std::{
+	fs,
+	path::{
+		Path,
+		PathBuf,
 	},
-	pathfinding,
-	primitives::{
-		ChainID, MatrixTransportConfig, MediationFeeConfig, PFSConfig, PrivateKey, RaidenConfig,
+	process,
+	sync::Arc,
+};
+
+use cli::RaidenApp;
+use raiden_api::raiden::RaidenConfig;
+use raiden_blockchain::{
+	contracts,
+	keys::PrivateKey,
+	proxies::{
+		Account,
+		ProxyManager,
+	},
+};
+use raiden_pathfinding::{
+	self,
+	config::PFSConfig,
+};
+use raiden_state_machine::types::{
+	ChainID,
+	MediationFeeConfig,
+};
+use raiden_transport::{
+	config::{
+		MatrixTransportConfig,
 		TransportConfig,
 	},
-	transport::matrix::{
+	matrix::{
 		constants::MATRIX_AUTO_SELECT_SERVER,
-		utils::{get_default_matrix_servers, select_best_server},
+		utils::{
+			get_default_matrix_servers,
+			select_best_server,
+		},
 		MatrixClient,
 	},
 };
 use slog::Drain;
-use std::{
-	fs,
-	path::{Path, PathBuf},
-	process,
-	sync::Arc,
-};
 use structopt::StructOpt;
-use web3::{signing::Key, types::Address};
+use web3::{
+	signing::Key,
+	types::Address,
+};
 
 use crate::{
 	cli::Opt,
-	traits::{ToHTTPEndpoint, ToSocketEndpoint},
+	traits::{
+		ToHTTPEndpoint,
+		ToSocketEndpoint,
+	},
 };
 
 mod accounts;
@@ -181,7 +206,7 @@ async fn main() {
 			},
 		};
 
-	let pfs_info = match pathfinding::configure_pfs(
+	let pfs_info = match raiden_pathfinding::configure_pfs(
 		cli.services_config.clone().into(),
 		service_registry.clone(),
 	)

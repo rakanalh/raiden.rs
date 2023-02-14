@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
-use hyper::{Body, Request};
-use parking_lot::RwLock;
-use raiden::{
-	api::Api,
-	blockchain::{contracts::ContractsManager, proxies::Account},
-	state_manager::StateManager,
+use hyper::{
+	Body,
+	Request,
 };
+use parking_lot::RwLock;
+use raiden_api::api::Api;
+use raiden_blockchain::{
+	contracts::ContractsManager,
+	proxies::Account,
+};
+use raiden_storage::state_manager::StateManager;
 use routerify::ext::RequestExt;
 use serde::de::DeserializeOwned;
 use web3::transports::Http;

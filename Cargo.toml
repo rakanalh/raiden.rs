@@ -1,13 +1,12 @@
 [workspace]
-default-members = [
-    "raiden",
-    "macros",
-    "bin/raiden-client"
-]
 members = [
-    "raiden",
-    "macros",
     "bin/raiden-client",
+    "raiden/api",
+    "raiden/blockchain",
+    "raiden/macros",
+    "raiden/state-machine",
+    "raiden/storage",
+    "raiden/transport",
 ]
 
 

@@ -1,0 +1,1 @@
+pub const SNAPSHOT_STATE_CHANGE_COUNT: u16 = 500;

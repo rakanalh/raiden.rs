@@ -1,11 +1,20 @@
-use ethsign::{KeyFile, Protected, SecretKey};
-use serde_json;
 use std::{
 	collections::HashMap,
-	fs::{self, DirEntry, File},
+	fs::{
+		self,
+		DirEntry,
+		File,
+	},
 	io,
 	path::Path,
 };
+
+use ethsign::{
+	KeyFile,
+	Protected,
+	SecretKey,
+};
+use serde_json;
 use web3::types::Address;
 
 pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {

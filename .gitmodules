@@ -1,4 +1,4 @@
-[submodule "raiden/src/blockchain/contracts/raiden-contracts"]
-	path = raiden/src/blockchain/contracts/raiden-contracts
+[submodule "raiden/blockchain/src/contracts/raiden-contracts"]
+	path = raiden/blockchain/src/contracts/raiden-contracts
 	url = https://github.com/raiden-network/raiden-contracts.git
     tag = 0.40.3

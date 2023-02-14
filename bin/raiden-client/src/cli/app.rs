@@ -1,27 +1,47 @@
-use crate::services::{BlockMonitorService, SyncService};
+use std::sync::Arc;
+
 use parking_lot::RwLock as SyncRwLock;
-use raiden::{
+use raiden_api::{
 	api::Api,
-	blockchain::{
-		contracts::{self, ContractsManager},
-		proxies::ProxyManager,
-	},
 	event_handler::EventHandler,
 	payments::PaymentsRegistry,
-	primitives::{RaidenConfig, U64},
-	raiden::{DefaultAddresses, Raiden},
-	services::TransitionService,
+	raiden::{
+		DefaultAddresses,
+		Raiden,
+		RaidenConfig,
+	},
+};
+use raiden_blockchain::{
+	contracts::{
+		self,
+		ContractsManager,
+	},
+	proxies::ProxyManager,
+};
+use raiden_state_machine::types::U64;
+use raiden_storage::{
 	state_manager::StateManager,
-	storage::Storage,
-	transport::matrix::{MatrixClient, MatrixService},
+	state_transition::TransitionService,
+	Storage,
+};
+use raiden_transport::matrix::{
+	MatrixClient,
+	MatrixService,
 };
 use rusqlite::Connection;
 use slog::Logger;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use web3::{
-	transports::{Http, WebSocket},
+	transports::{
+		Http,
+		WebSocket,
+	},
 	Web3,
+};
+
+use crate::services::{
+	BlockMonitorService,
+	SyncService,
 };
 
 type Result<T> = std::result::Result<T, String>;

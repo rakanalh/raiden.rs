@@ -1,4 +1,7 @@
 mod block;
 mod sync;
 
-pub use self::{block::*, sync::*};
+pub use self::{
+	block::*,
+	sync::*,
+};

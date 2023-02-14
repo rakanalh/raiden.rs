@@ -1,13 +1,22 @@
-use std::{cmp, sync::Arc};
+use std::{
+	cmp,
+	sync::Arc,
+};
 
-use web3::types::{BlockId, BlockNumber};
-
-use raiden::{
-	blockchain::{decode::EventDecoder, events::Event, filters::filters_from_chain_state},
-	primitives::U64,
-	raiden::Raiden,
-	services::Transitioner,
-	state_machine::types::Block,
+use raiden_api::raiden::Raiden;
+use raiden_blockchain::{
+	decode::EventDecoder,
+	events::Event,
+	filters::filters_from_chain_state,
+};
+use raiden_state_machine::types::{
+	Block,
+	U64,
+};
+use raiden_storage::state_transition::Transitioner;
+use web3::types::{
+	BlockId,
+	BlockNumber,
 };
 
 struct BlockBatchSizeConfig {
@@ -119,7 +128,7 @@ impl SyncService {
 
 				current_state = self.raiden.state_manager.read().current_state.clone();
 				let decoder = EventDecoder::new(
-					self.raiden.config.clone(),
+					self.raiden.config.mediation_config.clone(),
 					self.raiden.proxy_manager.clone(),
 				);
 				let storage = self.raiden.state_manager.read().storage.clone();

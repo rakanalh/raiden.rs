@@ -1,0 +1,29 @@
+[package]
+name = "raiden-api"
+version = "0.1.0"
+authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden Network implementation in Rust"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
+edition = "2021"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+rust-version = "1.59"
+
+[dependencies]
+# 3rd-Party
+parking_lot = { version = "0.11.2", default-features = false }
+rand = { version = "0.8.4", default-features = false }
+rand_chacha = { version = "0.3.1", default-features = false, features = ["serde1"] }
+slog = { version = "2.7.0", default-features = false }
+thiserror = { version = "1.0", default-features = false }
+tokio = { version = "1.0", features = ["macros", "time"], default-features = false }
+ulid = { version = "0.4.1", default-features = false }
+web3 = { version = "0.18.0", default-features = false, features = ["http", "signing"] }
+
+# Raiden
+raiden-blockchain = { path = "../blockchain" }
+raiden-pathfinding = { path = "../pathfinding" }
+raiden-state-machine = { path = "../state-machine" }
+raiden-storage = { path = "../storage" }
+raiden-transport = { path = "../transport" }

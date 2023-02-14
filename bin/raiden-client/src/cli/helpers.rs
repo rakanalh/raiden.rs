@@ -1,8 +1,13 @@
-use ethsign::SecretKey;
 use std::{
 	collections::HashMap,
-	io::{stdin, stdout, Write},
+	io::{
+		stdin,
+		stdout,
+		Write,
+	},
 };
+
+use ethsign::SecretKey;
 use web3::types::Address;
 
 use crate::accounts;
