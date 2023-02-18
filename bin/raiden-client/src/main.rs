@@ -242,6 +242,12 @@ async fn main() {
 		config.account.private_key(),
 	)
 	.await;
+
+	if let Err(e) = matrix_client.init().await {
+		eprintln!("Failed to initialize Matrix client: {}", e);
+		process::exit(1);
+	};
+
 	let raiden_app = match RaidenApp::new(
 		config,
 		web3,

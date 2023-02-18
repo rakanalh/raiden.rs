@@ -2206,11 +2206,13 @@ dependencies = [
  "derive_more",
  "ethabi",
  "ethsign",
+ "hex",
  "raiden-state-machine",
  "raiden-storage",
  "serde",
  "serde_json",
  "thiserror",
+ "tiny-keccak",
  "tokio",
  "web3",
 ]
