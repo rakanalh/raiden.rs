@@ -44,23 +44,26 @@ impl MatrixClient {
 	pub async fn new(homeserver_url: String, private_key: PrivateKey) -> Self {
 		let homeserver_url =
 			Url::parse(&homeserver_url).expect("Couldn't parse the homeserver URL");
-		let server_name =
+		let mut server_name =
 			homeserver_url.host_str().expect("homeserver URL has no hostname").to_string();
+		if let Some(port) = homeserver_url.port() {
+			server_name = format!("{}:{}", server_name, port);
+		}
 		let client = Client::new(homeserver_url.clone()).await.unwrap();
 
 		Self { client, private_key, server_name }
 	}
 
-	#[allow(unused)]
-	async fn init(&self) -> Result<(), TransportError> {
-		let username = self.private_key.address().to_string();
-		let signed_server_name = self.private_key.sign(self.server_name.as_bytes(), None).unwrap();
+	pub async fn init(&self) -> Result<(), TransportError> {
+		let username = format!("{:#x}", self.private_key.address());
+		let signed_server_name =
+			self.private_key.sign_message(self.server_name.as_bytes()).unwrap();
 		let password = signature_to_str(signed_server_name);
 		self.client
-			.login(&username, &password, None, Some("RIR"))
+			.login(&username, &password, Some("RAIDEN"), None)
 			.await
 			.map_err(|e| TransportError::Init(format!("{}", e)))?;
-		self.client.sync(SyncSettings::new()).await;
+		//self.client.sync(SyncSettings::new()).await;
 		Ok(())
 	}
 
