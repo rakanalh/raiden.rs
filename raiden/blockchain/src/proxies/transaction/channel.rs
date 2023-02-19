@@ -575,7 +575,7 @@ where
 
 		let allowance = self
 			.token
-			.allowance(self.contract.address(), self.account.address(), failed_at_blockhash)
+			.allowance(self.contract.address(), self.account.address(), Some(failed_at_blockhash))
 			.await?;
 
 		if allowance < data.amount_to_deposit {

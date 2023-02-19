@@ -35,15 +35,15 @@ impl<T: Transport> TokenProxy<T> {
 		Self { web3, contract, lock: Arc::new(RwLock::new(true)) }
 	}
 
-	pub async fn allowance(&self, owner: Address, spender: Address, block: H256) -> Result<U256> {
+	pub async fn allowance(
+		&self,
+		address: Address,
+		spender: Address,
+		block: Option<H256>,
+	) -> Result<U256> {
+		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
-			.query(
-				"allowance",
-				(owner, spender),
-				None,
-				Options::default(),
-				Some(BlockId::Hash(block)),
-			)
+			.query("allowance", (address, spender), address, Options::default(), block)
 			.await
 			.map_err(Into::into)
 	}
