@@ -795,7 +795,6 @@ fn test_channel_set_reveal_timeout() {
 	);
 
 	let reveal_timeout = channel_state.settle_timeout.div(2).sub(1).as_u64();
-	println!("Reveal timeout {}", reveal_timeout);
 	let state_change = ActionChannelSetRevealTimeout {
 		canonical_identifier: canonical_identifier.clone(),
 		reveal_timeout: U64::from(reveal_timeout),
