@@ -9,7 +9,6 @@ use structopt::{
 };
 
 mod app;
-mod helpers;
 use raiden_pathfinding::{
 	config::ServicesConfig,
 	types::RoutingMode,
@@ -23,10 +22,7 @@ use raiden_transport::{
 	types::EnvironmentType,
 };
 
-pub use self::{
-	app::*,
-	helpers::*,
-};
+pub use self::app::*;
 
 /// Parse a single key-value pair
 fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>

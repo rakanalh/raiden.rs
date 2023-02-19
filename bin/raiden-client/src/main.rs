@@ -14,12 +14,12 @@ use cli::RaidenApp;
 use raiden_api::raiden::RaidenConfig;
 use raiden_blockchain::{
 	contracts,
-	keys::PrivateKey,
 	proxies::{
 		Account,
 		ProxyManager,
 	},
 };
+use raiden_cli::utils::get_private_key;
 use raiden_pathfinding::{
 	self,
 	config::PFSConfig,
@@ -57,7 +57,6 @@ use crate::{
 	},
 };
 
-mod accounts;
 mod cli;
 mod http;
 mod services;
@@ -80,7 +79,7 @@ async fn main() {
 		_ => {},
 	};
 
-	let private_key = match prompt_key(cli.keystore_path.clone()) {
+	let private_key = match get_private_key(cli.keystore_path.clone()) {
 		Ok(result) => result,
 		Err(e) => {
 			eprintln!("{}", e);
@@ -283,13 +282,4 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 		}
 	}
 	Ok(path.to_path_buf())
-}
-
-fn prompt_key(keystore_path: PathBuf) -> Result<PrivateKey, String> {
-	let keys = accounts::list_keys(keystore_path.as_path())
-		.map_err(|e| format!("Error listing accounts: {}", e))?;
-	let selected_key_filename = crate::cli::prompt_key(&keys);
-	let secret_key = crate::cli::prompt_password(selected_key_filename);
-
-	Ok(PrivateKey::new(secret_key))
 }

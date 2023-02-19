@@ -38,6 +38,7 @@ web3 = { version = "0.18.0", default-features = false, features = [ "http", "sig
 # Raiden
 raiden-api= { path = "../../raiden/api" }
 raiden-blockchain = { path = "../../raiden/blockchain" }
+raiden-cli = { path = "../../raiden/cli" }
 raiden-state-machine = { path = "../../raiden/state-machine" }
 raiden-pathfinding = { path = "../../raiden/pathfinding" }
 raiden-storage = { path = "../../raiden/storage" }

@@ -2228,6 +2228,7 @@ dependencies = [
  "parking_lot 0.11.2",
  "raiden-api",
  "raiden-blockchain",
+ "raiden-cli",
  "raiden-pathfinding",
  "raiden-state-machine",
  "raiden-storage",

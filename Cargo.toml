@@ -3,6 +3,7 @@ members = [
     "bin/raiden-client",
     "raiden/api",
     "raiden/blockchain",
+    "raiden/cli",
     "raiden/macros",
     "raiden/state-machine",
     "raiden/storage",
