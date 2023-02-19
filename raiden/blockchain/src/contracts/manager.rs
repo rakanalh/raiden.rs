@@ -4,7 +4,7 @@ use std::{
 };
 
 use ethabi::Event;
-use raiden_state_machine::types::{
+pub use raiden_state_machine::types::{
 	ChainID,
 	U64,
 };

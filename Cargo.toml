@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin/raiden-client",
+    "bin/token-ops",
     "raiden/api",
     "raiden/blockchain",
     "raiden/cli",

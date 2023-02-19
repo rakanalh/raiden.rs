@@ -2218,6 +2218,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "raiden-cli"
+version = "0.1.0"
+dependencies = [
+ "ethsign",
+ "raiden-blockchain",
+ "rpassword",
+ "serde_json",
+ "web3",
+]
+
+[[package]]
 name = "raiden-client"
 version = "0.0.1"
 dependencies = [
@@ -3333,6 +3344,24 @@ name = "tinyvec_macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
+
+[[package]]
+name = "token-ops"
+version = "0.0.1"
+dependencies = [
+ "ethsign",
+ "expanduser",
+ "futures",
+ "raiden-blockchain",
+ "raiden-cli",
+ "rpassword",
+ "slog",
+ "slog-async",
+ "slog-term",
+ "structopt",
+ "tokio",
+ "web3",
+]
 
 [[package]]
 name = "tokio"
