@@ -29,6 +29,7 @@ use super::{
 	TokenNetworkProxy,
 	TokenNetworkRegistryProxy,
 	TokenProxy,
+	UserDeposit,
 };
 use crate::{
 	contracts::{
@@ -48,6 +49,7 @@ pub struct ProxyManager {
 	pub token_network_registries: RwLock<HashMap<Address, TokenNetworkRegistryProxy<Http>>>,
 	pub secret_registries: RwLock<HashMap<Address, SecretRegistryProxy<Http>>>,
 	pub service_registries: RwLock<HashMap<Address, ServiceRegistryProxy<Http>>>,
+	pub user_deposit: RwLock<HashMap<Address, UserDeposit<Http>>>,
 	channels: RwLock<HashMap<U256, ChannelProxy<Http>>>,
 }
 
@@ -67,6 +69,7 @@ impl ProxyManager {
 			token_network_registries: RwLock::new(HashMap::new()),
 			secret_registries: RwLock::new(HashMap::new()),
 			service_registries: RwLock::new(HashMap::new()),
+			user_deposit: RwLock::new(HashMap::new()),
 			channels: RwLock::new(HashMap::new()),
 		})
 	}
@@ -160,6 +163,25 @@ impl ProxyManager {
 			.get(&service_registry_address)
 			.unwrap()
 			.clone())
+	}
+
+	pub async fn user_deposit(
+		&self,
+		user_deposit_address: Address,
+	) -> Result<UserDeposit<Http>, ContractDefError> {
+		if !self.user_deposit.read().await.contains_key(&user_deposit_address) {
+			let user_deposit_contract = self.contracts_manager.get(ContractIdentifier::UserDeposit);
+			let user_deposit_web3_contract = Contract::from_json(
+				self.web3.eth(),
+				user_deposit_address,
+				user_deposit_contract.abi.as_slice(),
+			)
+			.map_err(ContractDefError::ABI)?;
+			let proxy = UserDeposit::new(self.web3.clone(), user_deposit_web3_contract);
+			let mut user_deposit = self.user_deposit.write().await;
+			user_deposit.insert(user_deposit_address, proxy);
+		}
+		Ok(self.user_deposit.read().await.get(&user_deposit_address).unwrap().clone())
 	}
 
 	pub async fn token(

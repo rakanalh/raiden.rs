@@ -10,6 +10,7 @@ mod token;
 mod token_network;
 mod token_network_registry;
 mod transaction;
+mod user_deposit;
 
 pub use common::*;
 pub use error::*;
@@ -20,3 +21,4 @@ pub use services::*;
 pub use token::*;
 pub use token_network::*;
 pub use token_network_registry::*;
+pub use user_deposit::*;
