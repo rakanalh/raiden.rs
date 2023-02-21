@@ -53,8 +53,9 @@ pub trait Transaction {
 		at_block_hash: H256,
 	) -> Result<Self::Output, ProxyError> {
 		let data = self.onchain_data(params.clone(), at_block_hash).await?;
-
-		if let Ok(_) = self.validate_postconditions(params.clone(), at_block_hash).await {
+		if let Ok(_) =
+			self.validate_preconditions(params.clone(), data.clone(), at_block_hash).await
+		{
 			if let Ok((gas_estimate, gas_price)) =
 				self.estimate_gas(params.clone(), data.clone()).await
 			{
