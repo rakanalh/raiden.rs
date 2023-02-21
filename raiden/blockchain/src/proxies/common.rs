@@ -76,7 +76,7 @@ impl<T: Transport> Account<T> {
 			.await?;
 		let gas_price = self.web3.eth().gas_price().await?;
 		let required_balance = required_gas * gas_price;
-		if required_balance < actual_balance {
+		if actual_balance < required_balance {
 			return Err(ProxyError::InsufficientEth(format!(
 				"Balance is not enough to execute transaction. Current: {}, required: {}",
 				actual_balance, required_balance,
