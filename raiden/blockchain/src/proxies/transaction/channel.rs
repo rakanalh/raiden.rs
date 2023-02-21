@@ -86,11 +86,10 @@ where
 		let channel_identifier = self
 			.contract
 			.get_channel_identifier(self.account.address(), params.partner, at_block_hash)
-			.await?
-			.ok_or(ProxyError::BrokenPrecondition("Block not found".to_string()))?;
+			.await?;
 
 		Ok(ChannelOpenTransactionData {
-			channel_identifier: Some(channel_identifier),
+			channel_identifier,
 			settle_timeout_min,
 			settle_timeout_max,
 			token_network_deposit_limit,
