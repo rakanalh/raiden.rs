@@ -1184,6 +1184,7 @@ fn send_withdraw_request(
 			canonical_identifier: channel_state.canonical_identifier.clone(),
 			message_identifier: pseudo_random_number_generator.next(),
 		},
+		total_withdraw: withdraw_state.total_withdraw,
 		participant: channel_state.our_state.address,
 		nonce: channel_state.our_state.nonce,
 		expiration: withdraw_state.expiration,

@@ -165,6 +165,7 @@ pub struct SendWithdrawRequest {
 	#[deref]
 	#[serde(flatten)]
 	pub inner: SendMessageEventInner,
+	pub total_withdraw: TokenAmount,
 	pub participant: Address,
 	pub expiration: BlockExpiration,
 	pub nonce: Nonce,

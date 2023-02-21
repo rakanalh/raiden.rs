@@ -736,6 +736,7 @@ fn test_channel_action_withdraw() {
 				canonical_identifier: canonical_identifier.clone(),
 				message_identifier: 1, // Doesn't matter
 			},
+			total_withdraw: U256::from(100u64),
 			participant: channel_state.our_state.address,
 			nonce: channel_state.our_state.nonce,
 			expiration: U64::from(101u64),
