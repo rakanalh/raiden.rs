@@ -63,7 +63,7 @@ impl Key for PrivateKey {
 		Ok(signing::Signature {
 			r: H256::from(signature.r),
 			s: H256::from(signature.s),
-			v: signature.v as u64,
+			v: signature.v as u64 + 27,
 		})
 	}
 
@@ -75,11 +75,13 @@ impl Key for PrivateKey {
 pub fn signature_to_bytes(s: Signature) -> Vec<u8> {
 	let rb = s.r.to_fixed_bytes();
 	let sb = s.s.to_fixed_bytes();
+	let sv = s.v.to_be_bytes();
 
 	let mut b = vec![];
 	b.extend(&rb);
 	b.extend(&sb);
-	b.extend(&[27]);
+	b.push(sv[sv.len() - 1]);
+
 	b
 }
 
