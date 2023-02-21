@@ -57,7 +57,10 @@ impl MatrixClient {
 	pub async fn init(&self) -> Result<(), TransportError> {
 		let username = format!("{:#x}", self.private_key.address());
 		let signed_server_name =
-			self.private_key.sign_message(self.server_name.as_bytes()).unwrap();
+			self.private_key.sign_message(self.server_name.as_bytes()).map_err(|e| {
+				TransportError::Init(format!("Could not generate server password: {}", e))
+			})?;
+
 		let password = signature_to_str(signed_server_name);
 		let user_info = self
 			.client
