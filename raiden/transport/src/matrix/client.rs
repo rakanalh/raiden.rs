@@ -59,11 +59,25 @@ impl MatrixClient {
 		let signed_server_name =
 			self.private_key.sign_message(self.server_name.as_bytes()).unwrap();
 		let password = signature_to_str(signed_server_name);
-		self.client
-			.login(&username, &password, Some("RAIDEN"), None)
+		let user_info = self
+			.client
+			.login_username(&username, &password)
+			.device_id("RAIDEN")
+			.send()
 			.await
-			.map_err(|e| TransportError::Init(format!("{}", e)))?;
-		//self.client.sync(SyncSettings::new()).await;
+			.map_err(|e| TransportError::Init(format!("Error fetching matrix user info: {}", e)))?;
+
+		let display_name = self
+			.private_key
+			.sign_message(user_info.user_id.as_bytes())
+			.map_err(|e| TransportError::Init(format!("Error generating displayname: {}", e)))?;
+
+		self.client
+			.account()
+			.set_display_name(Some(&signature_to_str(display_name)))
+			.await
+			.map_err(|e| TransportError::Init(format!("Error setting displayname: {}", e)))?;
+
 		Ok(())
 	}
 
