@@ -6,11 +6,19 @@ use raiden_state_machine::types::Event;
 use raiden_storage::state_manager::StateManager;
 use raiden_transport::{
 	messages::{
+		LockExpired,
+		LockedTransfer,
 		Message,
 		MessageInner,
+		Processed,
+		SecretRequest,
+		SecretReveal,
 		SignedMessage,
 		TransportServiceMessage,
+		Unlock,
+		WithdrawConfirmation,
 		WithdrawExpired,
+		WithdrawRequest,
 	},
 	to_message,
 };
@@ -44,8 +52,20 @@ impl EventHandler {
 			Event::ContractSendSecretReveal(_) => todo!(),
 			Event::PaymentSentSuccess(_) => todo!(),
 			Event::PaymentReceivedSuccess(_) => todo!(),
-			Event::SendWithdrawRequest(_) => todo!(),
-			Event::SendWithdrawConfirmation(_) => todo!(),
+			Event::SendWithdrawRequest(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, WithdrawRequest);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
+			Event::SendWithdrawConfirmation(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, WithdrawConfirmation);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
 			Event::SendWithdrawExpired(inner) => {
 				let queue_identifier = inner.queue_identifier();
 				let message = to_message!(inner, private_key, WithdrawExpired);
@@ -53,12 +73,48 @@ impl EventHandler {
 					.transport
 					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
 			},
-			Event::SendLockedTransfer(_) => todo!(),
-			Event::SendLockExpired(_) => todo!(),
-			Event::SendSecretReveal(_) => todo!(),
-			Event::SendUnlock(_) => todo!(),
-			Event::SendProcessed(_) => todo!(),
-			Event::SendSecretRequest(_) => todo!(),
+			Event::SendLockedTransfer(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, LockedTransfer);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
+			Event::SendLockExpired(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, LockExpired);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
+			Event::SendSecretReveal(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, SecretReveal);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
+			Event::SendUnlock(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, Unlock);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
+			Event::SendProcessed(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, Processed);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
+			Event::SendSecretRequest(inner) => {
+				let queue_identifier = inner.queue_identifier();
+				let message = to_message!(inner, private_key, SecretRequest);
+				let _ = self
+					.transport
+					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
+			},
 			Event::UnlockClaimSuccess(_) => todo!(),
 			Event::UnlockSuccess(_) => todo!(),
 			Event::UpdatedServicesAddresses(_) => todo!(),
