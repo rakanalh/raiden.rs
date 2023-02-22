@@ -189,6 +189,7 @@ fn forward_transfer_pair(
 		payer_transfer.target,
 		amount_after_fees,
 		payer_transfer.lock.expiration,
+		payer_transfer.secret.clone(),
 		payer_transfer.lock.secrethash,
 		message_identifier,
 		payer_transfer.payment_identifier,

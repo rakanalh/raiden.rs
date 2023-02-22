@@ -788,4 +788,5 @@ pub struct LockedTransferState {
 	pub message_identifier: MessageIdentifier,
 	pub route_states: Vec<RouteState>,
 	pub balance_proof: BalanceProofState,
+	pub secret: Option<Secret>,
 }

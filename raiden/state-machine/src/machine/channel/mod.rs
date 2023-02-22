@@ -466,6 +466,7 @@ fn create_locked_transfer(
 	target: Address,
 	amount: TokenAmount,
 	expiration: BlockExpiration,
+	secret: Option<Secret>,
 	secrethash: SecretHash,
 	message_identifier: MessageIdentifier,
 	payment_identifier: PaymentIdentifier,
@@ -528,6 +529,7 @@ fn create_locked_transfer(
 		target,
 		message_identifier,
 		balance_proof,
+		secret,
 		route_states: route_states.clone(),
 	};
 
@@ -555,6 +557,7 @@ pub(super) fn send_locked_transfer(
 	target: Address,
 	amount: TokenAmount,
 	expiration: BlockExpiration,
+	secret: Option<Secret>,
 	secrethash: SecretHash,
 	message_identifier: MessageIdentifier,
 	payment_identifier: PaymentIdentifier,
@@ -567,6 +570,7 @@ pub(super) fn send_locked_transfer(
 		target,
 		amount,
 		expiration,
+		secret,
 		secrethash,
 		message_identifier,
 		payment_identifier,

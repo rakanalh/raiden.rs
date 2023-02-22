@@ -138,6 +138,7 @@ fn send_locked_transfer(
 		transfer_description.target,
 		total_amount,
 		lock_expiration,
+		Some(transfer_description.secret),
 		transfer_description.secrethash,
 		message_identifier,
 		transfer_description.payment_identifier,
