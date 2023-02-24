@@ -10701,6 +10701,6 @@
         "UserDeposit.sol": "a0eac2515b15076822b1734b7e02ae1c751cb7a7e5bbaa28a0d452eedd874998",
         "Utils.sol": "c591abb8fe59e5a011856f3d45144a442209a605fd21c79f11f514d9ba6c39ca"
     },
-    "contracts_version": null,
+    "contracts_version": "0.40.0",
     "overall_checksum": "65d66ddf7a9e557e4511ed2902464d6307a526a36c8351397fbeb78e55624eb6"
 }

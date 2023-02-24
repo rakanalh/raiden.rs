@@ -5,14 +5,14 @@
     "SecretRegistry": {
       "address": "0x41E52aaE6BF3E3175EFe774E69f60Cb299820E2b",
       "transaction_hash": "0x2fc97c43461556a1e2d616974f88e8d4ecbbe25703a3c540b76384d45c66aa17",
-      "block_number": 139,
+      "block_number": 36,
       "gas_cost": 298378,
       "constructor_arguments": []
     },
     "TokenNetworkRegistry": {
       "address": "0xc08a9135Ef69fcf22Bff4ede67EA8e9D1d63F467",
       "transaction_hash": "0x184cb175aeb0cdc12390971ad0823b57d0fe67ed5eb9ccde7e1b6cec9273d79e",
-      "block_number": 142,
+      "block_number": 43,
       "gas_cost": 5589417,
       "constructor_arguments": [
         "0x41E52aaE6BF3E3175EFe774E69f60Cb299820E2b",
