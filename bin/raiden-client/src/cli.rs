@@ -35,26 +35,16 @@ where
 	Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
-arg_enum! {
-	#[derive(Debug, PartialEq)]
-	pub enum ArgChainID {
-		Mainnet = 1,
-		Ropsten = 3,
-		Rinkeby = 4,
-		Goerli = 5,
-		Private = 6,
-	}
-}
-
-impl From<ArgChainID> for ChainID {
-	fn from(c: ArgChainID) -> Self {
-		match c {
-			ArgChainID::Goerli => ChainID::Goerli,
-			ArgChainID::Mainnet => ChainID::Mainnet,
-			ArgChainID::Rinkeby => ChainID::Rinkeby,
-			ArgChainID::Ropsten => ChainID::Ropsten,
-			ArgChainID::Private => ChainID::Private,
-		}
+fn parse_chain_id(src: &str) -> Result<u64, Box<dyn Error + Send + Sync + 'static>> {
+	match src {
+		"mainnet" => Ok(1),
+		"ropsten" => Ok(3),
+		"rinkeby" => Ok(4),
+		"goerli" => Ok(5),
+		value => {
+			let id: u64 = value.parse().map_err(|e| format!("Invalid chain ID: {:?}", e))?;
+			Ok(id)
+		},
 	}
 }
 
@@ -161,13 +151,14 @@ pub struct CliMatrixTransportConfig {
 pub struct Opt {
 	/// Specify the blockchain to run Raiden on.
 	#[structopt(
-		possible_values = &ArgChainID::variants(),
-		short("c"), long,
-		default_value = "Mainnet",
+		short("c"),
+		long,
+		parse(try_from_str = parse_chain_id),
+		default_value = "1",
 		required = true,
 		takes_value = true
 	)]
-	pub chain_id: ArgChainID,
+	pub chain_id: u64,
 
 	#[structopt(
 		possible_values = &ArgEnvironmentType::variants(),

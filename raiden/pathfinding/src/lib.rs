@@ -349,11 +349,13 @@ impl PFS {
 		timestamp: DateTime<Utc>,
 	) -> Result<H256, SigningError> {
 		let timestamp = format!("{}", timestamp.format("%+"));
+		let chain_id = self.chain_id.clone().into();
+
 		let mut data = vec![];
 		data.extend_from_slice(sender.as_bytes());
 		data.extend_from_slice(receiver.as_bytes());
 		data.extend_from_slice(timestamp.as_bytes());
-		Ok(self.private_key.sign(&data, Some(self.chain_id.clone() as u64))?.to_h256())
+		Ok(self.private_key.sign(&data, Some(chain_id))?.to_h256())
 	}
 }
 

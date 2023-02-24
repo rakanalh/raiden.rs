@@ -84,14 +84,14 @@ impl ContractsManager {
 			ChainID::Ropsten => DEPLOYMENT_ROPSTEN,
 			ChainID::Goerli => DEPLOYMENT_GOERLI,
 			ChainID::Rinkeby => DEPLOYMENT_RINKEBY,
-			ChainID::Private => DEPLOYMENT_PRIVATE,
+			ChainID::Private(_) => DEPLOYMENT_PRIVATE,
 		};
 		let chain_deployment_services = match chain_id {
 			ChainID::Mainnet => DEPLOYMENT_SERVICES_MAINNET,
 			ChainID::Ropsten => DEPLOYMENT_SERVICES_ROPSTEN,
 			ChainID::Goerli => DEPLOYMENT_SERVICES_GOERLI,
 			ChainID::Rinkeby => DEPLOYMENT_SERVICES_RINKEBY,
-			ChainID::Private => DEPLOYMENT_SERVICES_PRIVATE,
+			ChainID::Private(_) => DEPLOYMENT_SERVICES_PRIVATE,
 		};
 		let contracts_specs: serde_json::Value = serde_json::from_str(CONTRACTS)?;
 		let contracts_deployment: serde_json::Value = serde_json::from_str(chain_deployment)?;

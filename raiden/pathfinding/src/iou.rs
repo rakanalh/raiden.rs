@@ -39,15 +39,18 @@ impl IOU {
 		let mut expiration_block = [];
 		self.expiration_block.to_big_endian(&mut expiration_block);
 
+		let chain_id: u64 = self.chain_id.clone().into();
+		let chain_id_bytes: Vec<u8> = self.chain_id.clone().into();
+
 		let mut message = vec![];
 		message.extend_from_slice(self.one_to_n_address.as_bytes());
-		message.push(self.chain_id.clone() as u8);
+		message.extend(chain_id_bytes);
 		message.push(IOU_MESSAGE_TYPE_ID);
 		message.extend_from_slice(self.sender.as_bytes());
 		message.extend_from_slice(self.receiver.as_bytes());
 		message.extend(amount);
 		message.extend(expiration_block);
-		let signature = private_key.sign(&message, Some(self.chain_id.clone() as u64))?;
+		let signature = private_key.sign(&message, Some(chain_id))?;
 		self.signature = Some(signature.to_h256());
 		Ok(())
 	}
