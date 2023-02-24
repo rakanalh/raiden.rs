@@ -2,26 +2,24 @@ use ethabi::{
 	encode,
 	Token,
 };
-use web3::{
-	signing::keccak256,
-	types::{
-		Address,
-		Bytes,
-		H256,
-	},
-};
-
-use crate::types::{
+use raiden_primitives::types::{
+	Address,
 	BalanceHash,
 	BlockExpiration,
-	CanonicalIdentifier,
-	HashTimeLockState,
+	Bytes,
 	LockedAmount,
 	Locksroot,
 	MessageHash,
 	Nonce,
-	PendingLocksState,
 	TokenAmount,
+	H256,
+};
+use web3::signing::keccak256;
+
+use crate::types::{
+	CanonicalIdentifier,
+	HashTimeLockState,
+	PendingLocksState,
 };
 
 pub(super) fn compute_locks_with(

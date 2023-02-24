@@ -3,17 +3,15 @@ use std::{
 	sync::Arc,
 };
 
+use raiden_primitives::types::{
+	Address,
+	U256,
+};
 use raiden_state_machine::{
 	types::ChainState,
 	views,
 };
-use web3::{
-	types::{
-		Address,
-		U256,
-	},
-	Transport,
-};
+use web3::Transport;
 
 use super::{
 	common::{

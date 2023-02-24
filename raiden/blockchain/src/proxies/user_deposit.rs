@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
+use raiden_primitives::types::{
+	Address,
+	BlockId,
+	H256,
+	U256,
+};
 use tokio::sync::RwLock;
 use web3::{
 	contract::{
 		Contract,
 		Options,
-	},
-	types::{
-		Address,
-		BlockId,
-		H256,
-		U256,
 	},
 	Transport,
 	Web3,

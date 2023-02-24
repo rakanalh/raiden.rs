@@ -1,5 +1,14 @@
 use std::ops::Div;
 
+use raiden_primitives::types::{
+	BlockNumber,
+	FeeAmount,
+	MessageIdentifier,
+	Secret,
+	SecretHash,
+	TokenAmount,
+};
+
 use super::{
 	channel,
 	routes,
@@ -17,7 +26,6 @@ use crate::{
 	errors::StateTransitionError,
 	types::{
 		Block,
-		BlockNumber,
 		ChainState,
 		ChannelState,
 		ChannelStatus,
@@ -27,21 +35,16 @@ use crate::{
 		ErrorRouteFailed,
 		ErrorUnlockFailed,
 		Event,
-		FeeAmount,
 		InitiatorTransferState,
-		MessageIdentifier,
 		PaymentSentSuccess,
 		Random,
 		ReceiveSecretRequest,
 		ReceiveSecretReveal,
 		RouteState,
-		Secret,
-		SecretHash,
 		SendLockedTransfer,
 		SendMessageEventInner,
 		SendSecretReveal,
 		StateChange,
-		TokenAmount,
 		TransferDescriptionWithSecretState,
 		TransferState,
 		UnlockSuccess,

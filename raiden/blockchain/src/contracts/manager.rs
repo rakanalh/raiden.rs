@@ -4,7 +4,8 @@ use std::{
 };
 
 use ethabi::Event;
-pub use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	ChainID,
 	U64,
 };
@@ -12,7 +13,6 @@ use serde_json::{
 	Map,
 	Value,
 };
-use web3::types::Address;
 
 use super::{
 	consts::{

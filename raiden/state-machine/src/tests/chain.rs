@@ -1,15 +1,13 @@
-use web3::types::{
+use raiden_primitives::types::{
+	Block,
 	H256,
 	U256,
+	U64,
 };
 
 use crate::{
 	machine::chain,
 	tests::factories::empty_chain_state,
-	types::{
-		Block,
-		U64,
-	},
 };
 
 #[test]

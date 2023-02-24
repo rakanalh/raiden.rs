@@ -1,10 +1,16 @@
+use raiden_primitives::types::{
+	Address,
+	BlockExpiration,
+	BlockNumber,
+	Bytes,
+	MessageHash,
+	SecretHash,
+	Signature,
+	TokenAmount,
+};
 use web3::{
 	signing::recover,
-	types::{
-		Address,
-		Bytes,
-		Recovery,
-	},
+	types::Recovery,
 };
 
 use super::{
@@ -29,15 +35,12 @@ use crate::{
 	types::{
 		ActionChannelWithdraw,
 		BalanceProofState,
-		BlockExpiration,
-		BlockNumber,
 		CanonicalIdentifier,
 		ChannelEndState,
 		ChannelState,
 		ChannelStatus,
 		HashTimeLockState,
 		LockedTransferState,
-		MessageHash,
 		PendingLocksState,
 		PendingWithdrawState,
 		ReceiveLockExpired,
@@ -46,9 +49,6 @@ use crate::{
 		ReceiveWithdrawConfirmation,
 		ReceiveWithdrawExpired,
 		ReceiveWithdrawRequest,
-		SecretHash,
-		Signature,
-		TokenAmount,
 	},
 	views,
 };

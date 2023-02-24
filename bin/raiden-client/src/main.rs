@@ -24,10 +24,8 @@ use raiden_pathfinding::{
 	self,
 	config::PFSConfig,
 };
-use raiden_state_machine::types::{
-	ChainID,
-	MediationFeeConfig,
-};
+use raiden_primitives::types::ChainID;
+use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transport::{
 	config::{
 		MatrixTransportConfig,

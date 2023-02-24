@@ -1,23 +1,21 @@
 use raiden_blockchain::keys::PrivateKey;
+use raiden_primitives::types::{
+	Address,
+	MessageIdentifier,
+	H256,
+};
 use raiden_state_machine::types::{
 	AddressMetadata,
-	MessageIdentifier,
 	QueueIdentifier,
 };
 use serde::{
 	Deserialize,
 	Serialize,
 };
-use web3::{
-	signing::{
-		Key,
-		Signature,
-		SigningError,
-	},
-	types::{
-		Address,
-		H256,
-	},
+use web3::signing::{
+	Key,
+	Signature,
+	SigningError,
 };
 
 mod metadata;

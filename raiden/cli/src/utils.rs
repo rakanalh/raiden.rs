@@ -23,7 +23,7 @@ use ethsign::{
 	SecretKey,
 };
 use raiden_blockchain::keys::PrivateKey;
-use web3::types::Address;
+use raiden_primitives::types::Address;
 
 pub fn get_private_key(keystore_path: PathBuf) -> Result<PrivateKey, String> {
 	let keys =

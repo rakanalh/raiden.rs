@@ -1,3 +1,8 @@
+use raiden_primitives::types::{
+	BlockHash,
+	BlockNumber,
+};
+
 use super::{
 	channel,
 	mediator,
@@ -13,8 +18,6 @@ use crate::{
 	types::{
 		ActionInitTarget,
 		Block,
-		BlockHash,
-		BlockNumber,
 		ChainState,
 		ChannelState,
 		ContractReceiveSecretReveal,

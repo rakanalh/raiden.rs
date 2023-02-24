@@ -3,21 +3,19 @@ use std::{
 	sync::Arc,
 };
 
-use raiden_state_machine::types::{
-	ChannelState,
+use raiden_primitives::types::{
+	Address,
 	SecretRegistryAddress,
 	TokenAddress,
 	TokenNetworkAddress,
 	TokenNetworkRegistryAddress,
+	U256,
 };
+use raiden_state_machine::types::ChannelState;
 use tokio::sync::RwLock;
 use web3::{
 	contract::Contract,
 	transports::Http,
-	types::{
-		Address,
-		U256,
-	},
 	Web3,
 };
 

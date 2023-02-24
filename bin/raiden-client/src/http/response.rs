@@ -1,12 +1,14 @@
+use raiden_primitives::types::{
+	RevealTimeout,
+	SettleTimeout,
+	TokenAddress,
+	TokenAmount,
+	TokenNetworkAddress,
+};
 use raiden_state_machine::{
 	types::{
 		ChannelState,
 		ChannelStatus,
-		RevealTimeout,
-		SettleTimeout,
-		TokenAddress,
-		TokenAmount,
-		TokenNetworkAddress,
 	},
 	views,
 };

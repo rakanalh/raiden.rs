@@ -1,11 +1,9 @@
-use web3::{
-	types::{
-		Address,
-		H256,
-		U256,
-	},
-	Transport,
+use raiden_primitives::types::{
+	Address,
+	H256,
+	U256,
 };
+use web3::Transport;
 
 use super::{
 	common::{

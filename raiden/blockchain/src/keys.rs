@@ -1,18 +1,16 @@
 use ethsign::SecretKey;
+use raiden_primitives::types::{
+	Address,
+	H256,
+};
 use tiny_keccak::{
 	Hasher,
 	Keccak,
 };
-use web3::{
-	signing::{
-		self,
-		Key,
-		Signature,
-	},
-	types::{
-		Address,
-		H256,
-	},
+use web3::signing::{
+	self,
+	Key,
+	Signature,
 };
 
 #[derive(Clone)]
@@ -67,7 +65,7 @@ impl Key for PrivateKey {
 		})
 	}
 
-	fn address(&self) -> web3::types::Address {
+	fn address(&self) -> Address {
 		Address::from(self.inner.public().address())
 	}
 }

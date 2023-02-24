@@ -12,10 +12,11 @@ use raiden_blockchain::{
 	},
 };
 use raiden_pathfinding::config::PFSConfig;
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	ChainID,
-	MediationFeeConfig,
 };
+use raiden_state_machine::types::MediationFeeConfig;
 use raiden_storage::state_manager::StateManager;
 use raiden_transport::{
 	config::TransportConfig,
@@ -24,7 +25,6 @@ use raiden_transport::{
 use slog::Logger;
 use web3::{
 	transports::Http,
-	types::Address,
 	Web3,
 };
 

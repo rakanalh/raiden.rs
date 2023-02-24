@@ -1,13 +1,16 @@
+use raiden_primitives::types::{
+	BlockExpiration,
+	BlockHash,
+	Secret,
+};
+
 use crate::{
 	constants::CHANNEL_STATES_UP_TO_CLOSE,
 	types::{
-		BlockExpiration,
-		BlockHash,
 		ChannelState,
 		ContractSendEventInner,
 		ContractSendSecretReveal,
 		Event,
-		Secret,
 	},
 };
 

@@ -1,20 +1,18 @@
 use derive_more::Deref;
-use raiden_state_machine::types::{
-	ChannelStatus,
+use raiden_primitives::types::{
+	Address,
+	BlockId,
+	Bytes,
 	SettleTimeout,
 	TokenAddress,
+	H256,
+	U256,
 };
+use raiden_state_machine::types::ChannelStatus;
 use web3::{
 	contract::{
 		Contract,
 		Options,
-	},
-	types::{
-		Address,
-		BlockId,
-		Bytes,
-		H256,
-		U256,
 	},
 	Transport,
 };

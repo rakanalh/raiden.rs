@@ -1,5 +1,7 @@
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	BlockHash,
+	BlockId,
 	SettleTimeout,
 	TokenAddress,
 };
@@ -7,10 +9,6 @@ use web3::{
 	contract::{
 		Contract,
 		Options,
-	},
-	types::{
-		Address,
-		BlockId,
 	},
 	Transport,
 };

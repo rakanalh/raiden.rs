@@ -3,11 +3,12 @@ use std::ops::{
 	Sub,
 };
 
-use web3::types::{
+use raiden_primitives::types::{
 	Address,
 	Bytes,
 	H256,
 	U256,
+	U64,
 };
 
 use crate::{
@@ -43,7 +44,6 @@ use crate::{
 		TransactionExecutionStatus,
 		TransactionHash,
 		TransactionResult,
-		U64,
 	},
 	views,
 };

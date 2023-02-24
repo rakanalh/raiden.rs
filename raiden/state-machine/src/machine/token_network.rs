@@ -1,6 +1,7 @@
-use web3::types::{
+use raiden_primitives::types::{
 	H256,
 	U256,
+	U64,
 };
 
 use super::channel;
@@ -12,7 +13,6 @@ use crate::{
 		Random,
 		StateChange,
 		TokenNetworkState,
-		U64,
 	},
 };
 

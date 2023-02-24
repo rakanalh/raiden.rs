@@ -12,6 +12,23 @@ use raiden_pathfinding::{
 	routing,
 	RoutingError,
 };
+use raiden_primitives::types::{
+	Address,
+	BlockTimeout,
+	Bytes,
+	ChannelIdentifier,
+	PaymentIdentifier,
+	RetryTimeout,
+	RevealTimeout,
+	Secret,
+	SecretHash,
+	SecretRegistryAddress,
+	SettleTimeout,
+	TokenAddress,
+	TokenAmount,
+	TokenNetworkAddress,
+	TokenNetworkRegistryAddress,
+};
 use raiden_state_machine::{
 	constants::{
 		ABSENT_SECRET,
@@ -24,22 +41,9 @@ use raiden_state_machine::{
 	types::{
 		ActionChannelSetRevealTimeout,
 		ActionInitInitiator,
-		BlockTimeout,
-		ChannelIdentifier,
 		ChannelState,
 		ChannelStatus,
-		PaymentIdentifier,
-		RetryTimeout,
-		RevealTimeout,
 		RouteState,
-		Secret,
-		SecretHash,
-		SecretRegistryAddress,
-		SettleTimeout,
-		TokenAddress,
-		TokenAmount,
-		TokenNetworkAddress,
-		TokenNetworkRegistryAddress,
 		TransferDescriptionWithSecretState,
 	},
 	views,
@@ -51,10 +55,6 @@ use tokio::sync::RwLock;
 use web3::{
 	signing::keccak256,
 	transports::Http,
-	types::{
-		Address,
-		Bytes,
-	},
 };
 
 use crate::{

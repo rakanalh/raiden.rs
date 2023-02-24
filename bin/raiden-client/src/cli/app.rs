@@ -18,7 +18,7 @@ use raiden_blockchain::{
 	},
 	proxies::ProxyManager,
 };
-use raiden_state_machine::types::U64;
+use raiden_primitives::types::U64;
 use raiden_storage::{
 	state_manager::StateManager,
 	state_transition::TransitionService,

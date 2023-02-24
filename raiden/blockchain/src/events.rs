@@ -3,12 +3,12 @@ use std::{
 	sync::Arc,
 };
 
-use raiden_state_machine::types::U64;
-use web3::types::{
+use raiden_primitives::types::{
 	Address,
-	Log,
 	H256,
+	U64,
 };
+use web3::types::Log;
 
 use super::contracts::ContractsManager;
 

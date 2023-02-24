@@ -1,16 +1,14 @@
 use lazy_static::lazy_static;
-use web3::{
-	signing::keccak256,
-	types::{
-		Address,
-		Bytes,
-	},
+use raiden_primitives::types::{
+	Address,
+	Bytes,
+	ChainID,
+	ChannelIdentifier,
 };
+use web3::signing::keccak256;
 
 use crate::types::{
 	CanonicalIdentifier,
-	ChainID,
-	ChannelIdentifier,
 	ChannelStatus,
 	PayeeState,
 	PayerState,

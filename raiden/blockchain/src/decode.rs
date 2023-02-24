@@ -2,11 +2,17 @@ use std::sync::Arc;
 
 use derive_more::Display;
 use ethabi::Token;
+use raiden_primitives::types::{
+	Address,
+	BlockHash,
+	BlockNumber,
+	Bytes,
+	RevealTimeout,
+	SettleTimeout,
+};
 use raiden_state_machine::{
 	constants,
 	types::{
-		BlockHash,
-		BlockNumber,
 		CanonicalIdentifier,
 		ChainState,
 		ChannelState,
@@ -18,8 +24,6 @@ use raiden_state_machine::{
 		ContractReceiveTokenNetworkCreated,
 		ContractReceiveUpdateTransfer,
 		MediationFeeConfig,
-		RevealTimeout,
-		SettleTimeout,
 		StateChange,
 		TokenNetworkState,
 		TransactionChannelDeposit,
@@ -30,10 +34,6 @@ use raiden_state_machine::{
 };
 use raiden_storage::Storage;
 use thiserror::Error;
-use web3::types::{
-	Address,
-	Bytes,
-};
 
 use super::{
 	events::Event,

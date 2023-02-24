@@ -1,7 +1,7 @@
 mod channel;
 
 pub use channel::*;
-use web3::types::{
+use raiden_primitives::types::{
 	H256,
 	U256,
 };

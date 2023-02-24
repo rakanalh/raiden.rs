@@ -1,22 +1,20 @@
 use std::sync::Arc;
 
 use parking_lot::RwLock;
+use raiden_primitives::types::{
+	Address,
+	TokenAddress,
+	U256,
+};
 use raiden_state_machine::{
 	constants::DEFAULT_RETRY_TIMEOUT,
-	types::{
-		ChannelState,
-		TokenAddress,
-	},
+	types::ChannelState,
 	views,
 };
 use raiden_storage::state_manager::StateManager;
 use tokio::time::{
 	sleep,
 	Duration,
-};
-use web3::types::{
-	Address,
-	U256,
 };
 
 use crate::api::ApiError;

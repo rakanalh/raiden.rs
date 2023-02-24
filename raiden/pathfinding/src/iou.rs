@@ -2,25 +2,21 @@ use raiden_blockchain::{
 	keys::PrivateKey,
 	signature::SignatureUtils,
 };
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	BlockExpiration,
 	ChainID,
 	OneToNAddress,
 	TokenAmount,
+	H256,
 };
 use serde::{
 	Deserialize,
 	Serialize,
 };
-use web3::{
-	signing::{
-		self,
-		Key,
-	},
-	types::{
-		Address,
-		H256,
-	},
+use web3::signing::{
+	self,
+	Key,
 };
 
 const IOU_MESSAGE_TYPE_ID: u8 = 5;

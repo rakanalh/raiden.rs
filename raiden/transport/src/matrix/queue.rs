@@ -9,6 +9,7 @@ use chrono::{
 	Duration,
 };
 use futures::StreamExt;
+use raiden_primitives::types::Address;
 use raiden_state_machine::types::{
 	AddressMetadata,
 	QueueIdentifier,
@@ -24,7 +25,6 @@ use tokio::{
 	time::interval,
 };
 use tokio_stream::wrappers::IntervalStream;
-use web3::types::Address;
 
 use crate::{
 	config::TransportConfig,

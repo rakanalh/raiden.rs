@@ -23,4 +23,5 @@ web3 = { version = "0.18.0", default-features = false }
 ulid = { version = "0.4.1", default-features = false }
 
 # Raiden
+raiden-primitives = { path = "../primitives" }
 raiden-state-machine = { path = "../state-machine" }

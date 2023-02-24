@@ -1,7 +1,4 @@
-use std::collections::{
-	BTreeMap,
-	HashMap,
-};
+use std::collections::BTreeMap;
 
 use matrix_sdk::{
 	config::{
@@ -20,12 +17,10 @@ use raiden_blockchain::keys::{
 	signature_to_str,
 	PrivateKey,
 };
+use raiden_primitives::types::Address;
 use raiden_state_machine::types::AddressMetadata;
 use reqwest::Url;
-use web3::{
-	signing::Key,
-	types::Address,
-};
+use web3::signing::Key;
 
 use crate::TransportError;
 

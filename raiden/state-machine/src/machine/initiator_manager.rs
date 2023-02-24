@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use raiden_primitives::types::SecretHash;
+
 use super::{
 	channel,
 	initiator,
@@ -28,7 +30,6 @@ use crate::{
 		ReceiveSecretReveal,
 		ReceiveTransferCancelRoute,
 		RouteState,
-		SecretHash,
 		StateChange,
 		TransferDescriptionWithSecretState,
 		TransferState,

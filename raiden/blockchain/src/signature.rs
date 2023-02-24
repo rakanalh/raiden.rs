@@ -1,7 +1,5 @@
-use web3::{
-	signing::Signature,
-	types::H256,
-};
+use raiden_primitives::types::H256;
+use web3::signing::Signature;
 
 pub trait SignatureUtils {
 	fn to_bytes(&self) -> Vec<u8>;

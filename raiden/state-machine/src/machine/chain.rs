@@ -1,4 +1,10 @@
-use web3::types::H256;
+use raiden_primitives::types::{
+	BlockNumber,
+	SecretHash,
+	TokenNetworkAddress,
+	H256,
+	U64,
+};
 
 use super::{
 	initiator_manager,
@@ -20,7 +26,6 @@ use crate::{
 		ActionInitTarget,
 		ActionTransferReroute,
 		Block,
-		BlockNumber,
 		CanonicalIdentifier,
 		ChainState,
 		ContractReceiveChannelClosed,
@@ -42,17 +47,14 @@ use crate::{
 		ReceiveWithdrawConfirmation,
 		ReceiveWithdrawExpired,
 		ReceiveWithdrawRequest,
-		SecretHash,
 		SendMessageEvent,
 		StateChange,
 		TargetTask,
-		TokenNetworkAddress,
 		TokenNetworkState,
 		TransferRole,
 		TransferTask,
 		UpdateServicesAddresses,
 		UpdatedServicesAddresses,
-		U64,
 	},
 	views,
 };

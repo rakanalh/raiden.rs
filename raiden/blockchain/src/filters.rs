@@ -3,15 +3,15 @@ use std::{
 	sync::Arc,
 };
 
-use raiden_state_machine::types::{
-	ChainState,
+use raiden_primitives::types::{
+	H160,
+	H256,
 	U64,
 };
+use raiden_state_machine::types::ChainState;
 use web3::types::{
 	Filter,
 	FilterBuilder,
-	H160,
-	H256,
 };
 
 use super::contracts::{

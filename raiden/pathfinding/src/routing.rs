@@ -1,24 +1,24 @@
 use std::collections::HashMap;
 
 use raiden_blockchain::keys::PrivateKey;
+use raiden_primitives::types::{
+	Address,
+	BlockNumber,
+	ChannelIdentifier,
+	OneToNAddress,
+	TokenAmount,
+	TokenNetworkAddress,
+	U256,
+};
 use raiden_state_machine::{
 	types::{
 		AddressMetadata,
-		BlockNumber,
 		ChainState,
-		ChannelIdentifier,
 		ChannelState,
 		ChannelStatus,
-		OneToNAddress,
 		RouteState,
-		TokenAmount,
-		TokenNetworkAddress,
 	},
 	views,
-};
-use web3::types::{
-	Address,
-	U256,
 };
 
 use crate::{

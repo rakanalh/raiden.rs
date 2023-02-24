@@ -3,7 +3,18 @@ use std::{
 	ops::Mul,
 };
 
-use web3::types::Bytes;
+use raiden_primitives::types::{
+	BalanceProofData,
+	BlockExpiration,
+	BlockNumber,
+	Bytes,
+	LockTimeout,
+	LockedAmount,
+	Nonce,
+	RevealTimeout,
+	SecretHash,
+	TokenAmount,
+};
 
 use crate::{
 	constants::{
@@ -11,17 +22,8 @@ use crate::{
 		LOCKSROOT_OF_NO_LOCKS,
 	},
 	types::{
-		BalanceProofData,
-		BlockExpiration,
-		BlockNumber,
 		ChannelEndState,
 		HashTimeLockState,
-		LockTimeout,
-		LockedAmount,
-		Nonce,
-		RevealTimeout,
-		SecretHash,
-		TokenAmount,
 	},
 };
 

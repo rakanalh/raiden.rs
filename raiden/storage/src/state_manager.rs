@@ -1,25 +1,25 @@
 use std::sync::Arc;
 
+use raiden_primitives::types::{
+	Address,
+	ChainID,
+	TokenNetworkRegistryAddress,
+	H256,
+	U64,
+};
 use raiden_state_machine::{
 	errors::StateTransitionError,
 	machine::chain,
 	types::{
 		ActionInitChain,
-		ChainID,
 		ChainState,
 		ContractReceiveTokenNetworkRegistry,
 		Event,
 		StateChange,
-		TokenNetworkRegistryAddress,
 		TokenNetworkRegistryState,
-		U64,
 	},
 };
 use ulid::Ulid;
-use web3::types::{
-	Address,
-	H256,
-};
 
 use crate::{
 	constants::SNAPSHOT_STATE_CHANGE_COUNT,

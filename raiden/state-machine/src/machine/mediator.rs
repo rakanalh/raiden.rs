@@ -1,9 +1,16 @@
 use std::iter;
 
-use web3::{
-	signing::keccak256,
-	types::Address,
+use raiden_primitives::types::{
+	Address,
+	BlockExpiration,
+	BlockHash,
+	BlockNumber,
+	BlockTimeout,
+	Secret,
+	SecretHash,
+	TokenAmount,
 };
+use web3::signing::keccak256;
 
 use super::{
 	channel,
@@ -28,10 +35,6 @@ use crate::{
 	types::{
 		ActionInitMediator,
 		Block,
-		BlockExpiration,
-		BlockHash,
-		BlockNumber,
-		BlockTimeout,
 		CanonicalIdentifier,
 		ChainState,
 		ChannelState,
@@ -52,12 +55,9 @@ use crate::{
 		ReceiveSecretReveal,
 		ReceiveTransferRefund,
 		ReceiveUnlock,
-		Secret,
-		SecretHash,
 		SendMessageEventInner,
 		SendSecretReveal,
 		StateChange,
-		TokenAmount,
 		UnlockClaimSuccess,
 		UnlockSuccess,
 		WaitingTransferState,

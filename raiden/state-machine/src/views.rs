@@ -3,28 +3,26 @@ use std::{
 	collections::HashMap,
 };
 
-use web3::types::{
+use raiden_primitives::types::{
 	Address,
+	TokenAddress,
+	TokenAmount,
+	TokenNetworkAddress,
+	TokenNetworkRegistryAddress,
 	U256,
 };
 
-use super::types::{
-	ChainState,
-	ChannelEndState,
-	ChannelState,
-	ChannelStatus,
-	RouteState,
-	TokenNetworkRegistryState,
-	TokenNetworkState,
-};
 use crate::{
 	types::{
 		AddressMetadata,
 		CanonicalIdentifier,
-		TokenAddress,
-		TokenAmount,
-		TokenNetworkAddress,
-		TokenNetworkRegistryAddress,
+		ChainState,
+		ChannelEndState,
+		ChannelState,
+		ChannelStatus,
+		RouteState,
+		TokenNetworkRegistryState,
+		TokenNetworkState,
 	},
 	views,
 };

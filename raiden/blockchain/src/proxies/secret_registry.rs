@@ -1,13 +1,13 @@
-use raiden_state_machine::types::U64;
+use raiden_primitives::types::{
+	BlockId,
+	H256,
+	U256,
+	U64,
+};
 use web3::{
 	contract::{
 		Contract,
 		Options,
-	},
-	types::{
-		BlockId,
-		H256,
-		U256,
 	},
 	Transport,
 };

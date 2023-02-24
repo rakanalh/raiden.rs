@@ -6,7 +6,19 @@ use std::{
 	},
 };
 
-use web3::types::Address;
+use raiden_primitives::types::{
+	Address,
+	BlockExpiration,
+	BlockHash,
+	BlockNumber,
+	FeeAmount,
+	Locksroot,
+	MessageIdentifier,
+	PaymentIdentifier,
+	Secret,
+	SecretHash,
+	TokenAmount,
+};
 
 use self::{
 	utils::{
@@ -52,9 +64,6 @@ use crate::{
 		AddressMetadata,
 		BalanceProofState,
 		Block,
-		BlockExpiration,
-		BlockHash,
-		BlockNumber,
 		CanonicalIdentifier,
 		ChannelEndState,
 		ChannelState,
@@ -85,14 +94,10 @@ use crate::{
 		ErrorInvalidReceivedWithdrawRequest,
 		Event,
 		ExpiredWithdrawState,
-		FeeAmount,
 		FeeScheduleState,
 		HashTimeLockState,
 		LockedTransferState,
-		Locksroot,
 		MediationFeeConfig,
-		MessageIdentifier,
-		PaymentIdentifier,
 		PendingLocksState,
 		PendingWithdrawState,
 		Random,
@@ -103,8 +108,6 @@ use crate::{
 		ReceiveWithdrawExpired,
 		ReceiveWithdrawRequest,
 		RouteState,
-		Secret,
-		SecretHash,
 		SendLockExpired,
 		SendLockedTransfer,
 		SendMessageEventInner,
@@ -114,7 +117,6 @@ use crate::{
 		SendWithdrawExpired,
 		SendWithdrawRequest,
 		StateChange,
-		TokenAmount,
 		TransactionExecutionStatus,
 		TransactionResult,
 		UnlockPartialProofState,

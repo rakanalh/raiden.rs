@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use raiden_primitives::types::{
+	Address,
+	U256,
+};
 use tokio::sync::Mutex;
 use web3::{
 	signing::Key,
 	types::{
-		Address,
 		BlockNumber,
-		U256,
 		U64,
 	},
 	Transport,

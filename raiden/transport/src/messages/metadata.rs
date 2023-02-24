@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
+use raiden_primitives::types::{
+	Address,
+	Secret,
+};
 use raiden_state_machine::{
 	types::{
 		AddressMetadata,
-		Secret,
 		SendLockedTransfer,
 	},
 	views::get_address_metadata,
@@ -12,7 +15,6 @@ use serde::{
 	Deserialize,
 	Serialize,
 };
-use web3::types::Address;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RouteMetadata {

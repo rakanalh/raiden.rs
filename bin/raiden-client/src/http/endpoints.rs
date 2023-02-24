@@ -15,12 +15,12 @@ use raiden_blockchain::contracts::{
 	self,
 	ContractsManager,
 };
-use raiden_state_machine::{
-	types::TokenAddress,
-	views,
+use raiden_primitives::types::{
+	Address,
+	TokenAddress,
 };
+use raiden_state_machine::views;
 use routerify::ext::RequestExt;
-use web3::types::Address;
 
 use super::{
 	error::Error,

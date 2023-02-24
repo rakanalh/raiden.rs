@@ -1,6 +1,5 @@
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
 	BlockTimeout,
-	ChannelStatus,
 	PaymentIdentifier,
 	RevealTimeout,
 	SecretHash,
@@ -8,6 +7,7 @@ use raiden_state_machine::types::{
 	TokenAddress,
 	TokenAmount,
 };
+use raiden_state_machine::types::ChannelStatus;
 use serde::Deserialize;
 use web3::types::{
 	Address,

@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
-use web3::types::Address;
+use raiden_primitives::types::{
+	Address,
+	ChannelIdentifier,
+	TokenNetworkAddress,
+};
 
 use crate::types::{
-	ChannelIdentifier,
 	ChannelState,
 	RouteState,
-	TokenNetworkAddress,
 };
 
 pub fn prune_route_table(

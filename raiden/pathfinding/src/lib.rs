@@ -8,6 +8,17 @@ use chrono::{
 	Utc,
 };
 use derive_more::Display;
+use raiden_primitives::types::{
+	Address,
+	BlockExpiration,
+	BlockNumber,
+	ChainID,
+	OneToNAddress,
+	TokenAmount,
+	TokenNetworkAddress,
+	TokenNetworkRegistryAddress,
+	H256,
+};
 use rand::prelude::SliceRandom;
 use reqwest::Url;
 use serde::{
@@ -22,10 +33,6 @@ use web3::{
 		SigningError,
 	},
 	transports::Http,
-	types::{
-		Address,
-		H256,
-	},
 };
 
 pub mod config;
@@ -41,16 +48,7 @@ use raiden_blockchain::{
 	},
 	signature::SignatureUtils,
 };
-use raiden_state_machine::types::{
-	AddressMetadata,
-	BlockExpiration,
-	BlockNumber,
-	ChainID,
-	OneToNAddress,
-	TokenAmount,
-	TokenNetworkAddress,
-	TokenNetworkRegistryAddress,
-};
+use raiden_state_machine::types::AddressMetadata;
 
 use crate::{
 	config::{

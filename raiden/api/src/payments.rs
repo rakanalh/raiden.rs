@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	PaymentIdentifier,
 	TokenAmount,
 	TokenNetworkAddress,
 };
 use tokio::sync::oneshot;
-use web3::types::Address;
 
 pub struct Payment {
 	pub identifier: PaymentIdentifier,

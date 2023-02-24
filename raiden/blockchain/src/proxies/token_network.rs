@@ -3,12 +3,15 @@ use std::{
 	sync::Arc,
 };
 
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	BlockHash,
 	ChannelIdentifier,
 	SettleTimeout,
 	TokenAddress,
 	TokenAmount,
+	H256,
+	U256,
 };
 use tokio::sync::{
 	Mutex,
@@ -16,11 +19,6 @@ use tokio::sync::{
 };
 use web3::{
 	contract::Contract,
-	types::{
-		Address,
-		H256,
-		U256,
-	},
 	Transport,
 	Web3,
 };

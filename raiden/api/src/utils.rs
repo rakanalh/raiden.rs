@@ -1,7 +1,5 @@
-use raiden_state_machine::{
-	constants::SECRET_LENGTH,
-	types::PaymentIdentifier,
-};
+use raiden_primitives::types::PaymentIdentifier;
+use raiden_state_machine::constants::SECRET_LENGTH;
 use rand::{
 	distributions::Alphanumeric,
 	thread_rng,

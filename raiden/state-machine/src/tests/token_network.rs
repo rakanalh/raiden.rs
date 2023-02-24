@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use ethabi::{
-	ethereum_types::H256,
+use raiden_primitives::types::{
 	Address,
+	H256,
 };
 
 use crate::{

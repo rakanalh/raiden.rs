@@ -1,30 +1,24 @@
-use raiden_blockchain::{
-	contracts::{
-		ChainID,
-		U64,
-	},
-	keys::{
-		signature_to_bytes,
-		PrivateKey,
-	},
+use raiden_blockchain::keys::{
+	signature_to_bytes,
+	PrivateKey,
+};
+use raiden_primitives::types::{
+	Address,
+	ChainID,
+	TokenNetworkAddress,
+	U256,
+	U64,
 };
 use raiden_state_machine::types::{
 	SendWithdrawConfirmation,
 	SendWithdrawExpired,
 	SendWithdrawRequest,
-	TokenNetworkAddress,
 };
 use serde::{
 	Deserialize,
 	Serialize,
 };
-use web3::{
-	signing::SigningError,
-	types::{
-		Address,
-		U256,
-	},
-};
+use web3::signing::SigningError;
 
 use super::{
 	CmdId,

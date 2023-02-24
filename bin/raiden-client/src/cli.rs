@@ -13,10 +13,7 @@ use raiden_pathfinding::{
 	config::ServicesConfig,
 	types::RoutingMode,
 };
-use raiden_state_machine::types::{
-	ChainID,
-	TokenAmount,
-};
+use raiden_primitives::types::TokenAmount;
 use raiden_transport::{
 	matrix::constants::MATRIX_AUTO_SELECT_SERVER,
 	types::EnvironmentType,

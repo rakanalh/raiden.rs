@@ -1,24 +1,12 @@
 use derive_more::Deref;
 use raiden_macros::IntoEvent;
-use serde::{
-	Deserialize,
-	Serialize,
-};
-use web3::types::Address;
-
-use super::{
-	BalanceProofState,
-	LockedTransferState,
-};
-use crate::types::{
-	AddressMetadata,
+use raiden_primitives::types::{
+	Address,
 	BlockExpiration,
 	BlockHash,
-	CanonicalIdentifier,
 	MessageIdentifier,
 	Nonce,
 	PaymentIdentifier,
-	QueueIdentifier,
 	RevealTimeout,
 	Secret,
 	SecretHash,
@@ -27,6 +15,20 @@ use crate::types::{
 	TokenAmount,
 	TokenNetworkAddress,
 	TokenNetworkRegistryAddress,
+};
+use serde::{
+	Deserialize,
+	Serialize,
+};
+
+use super::{
+	BalanceProofState,
+	LockedTransferState,
+};
+use crate::types::{
+	AddressMetadata,
+	CanonicalIdentifier,
+	QueueIdentifier,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

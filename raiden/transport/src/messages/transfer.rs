@@ -1,8 +1,26 @@
-use raiden_blockchain::{
-	contracts::ChainID,
-	keys::{
-		signature_to_bytes,
-		PrivateKey,
+use raiden_blockchain::keys::{
+	signature_to_bytes,
+	PrivateKey,
+};
+use raiden_primitives::{
+	deserializers::{
+		deserialize_signature,
+		deserialize_u32_from_str,
+	},
+	types::{
+		Address,
+		BlockExpiration,
+		ChainID,
+		Locksroot,
+		MessageIdentifier,
+		PaymentIdentifier,
+		Secret,
+		SecretHash,
+		TokenAddress,
+		TokenAmount,
+		TokenNetworkAddress,
+		H256,
+		U256,
 	},
 };
 use raiden_state_machine::{
@@ -11,21 +29,12 @@ use raiden_state_machine::{
 		pack_balance_proof,
 	},
 	types::{
-		BlockExpiration,
 		CanonicalIdentifier,
-		HashTimeLockState,
-		Locksroot,
-		PaymentIdentifier,
-		Secret,
-		SecretHash,
 		SendLockExpired,
 		SendLockedTransfer,
 		SendSecretRequest,
 		SendSecretReveal,
 		SendUnlock,
-		TokenAddress,
-		TokenAmount,
-		TokenNetworkAddress,
 	},
 };
 use serde::{
@@ -36,14 +45,7 @@ use tiny_keccak::{
 	Hasher,
 	Keccak,
 };
-use web3::{
-	signing::SigningError,
-	types::{
-		Address,
-		H256,
-		U256,
-	},
-};
+use web3::signing::SigningError;
 
 use super::{
 	metadata::Metadata,

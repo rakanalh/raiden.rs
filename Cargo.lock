@@ -2268,6 +2268,7 @@ dependencies = [
  "parking_lot 0.11.2",
  "raiden-blockchain",
  "raiden-pathfinding",
+ "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
  "raiden-transport",
@@ -2289,6 +2290,7 @@ dependencies = [
  "ethabi",
  "ethsign",
  "hex",
+ "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
  "serde",
@@ -2305,6 +2307,7 @@ version = "0.1.0"
 dependencies = [
  "ethsign",
  "raiden-blockchain",
+ "raiden-primitives",
  "rpassword",
  "serde_json",
  "web3",
@@ -2323,6 +2326,7 @@ dependencies = [
  "raiden-blockchain",
  "raiden-cli",
  "raiden-pathfinding",
+ "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
  "raiden-transport",
@@ -2356,6 +2360,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "raiden-blockchain",
+ "raiden-primitives",
  "raiden-state-machine",
  "rand 0.8.5",
  "reqwest",
@@ -2367,6 +2372,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "raiden-primitives"
+version = "0.1.0"
+dependencies = [
+ "derive_more",
+ "hex",
+ "serde",
+ "serde_json",
+ "web3",
+]
+
+[[package]]
 name = "raiden-state-machine"
 version = "0.1.0"
 dependencies = [
@@ -2374,6 +2390,7 @@ dependencies = [
  "ethabi",
  "lazy_static",
  "raiden-macros",
+ "raiden-primitives",
  "rand_chacha 0.3.1",
  "serde",
  "web3",
@@ -2387,6 +2404,7 @@ dependencies = [
  "derive_more",
  "futures",
  "parking_lot 0.11.2",
+ "raiden-primitives",
  "raiden-state-machine",
  "rusqlite",
  "serde",
@@ -2405,6 +2423,7 @@ dependencies = [
  "futures",
  "matrix-sdk",
  "raiden-blockchain",
+ "raiden-primitives",
  "raiden-state-machine",
  "reqwest",
  "serde",

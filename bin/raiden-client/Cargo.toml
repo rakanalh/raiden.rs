@@ -41,5 +41,6 @@ raiden-blockchain = { path = "../../raiden/blockchain" }
 raiden-cli = { path = "../../raiden/cli" }
 raiden-state-machine = { path = "../../raiden/state-machine" }
 raiden-pathfinding = { path = "../../raiden/pathfinding" }
+raiden-primitives = { path = "../../raiden/primitives" }
 raiden-storage = { path = "../../raiden/storage" }
 raiden-transport = { path = "../../raiden/transport" }

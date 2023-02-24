@@ -1,9 +1,10 @@
+use raiden_primitives::types::SecretHash;
+
 use crate::types::{
 	ChainState,
 	ChannelState,
 	ContractReceiveSecretReveal,
 	ReceiveSecretReveal,
-	SecretHash,
 };
 
 pub(super) fn update_channel(

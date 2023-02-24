@@ -1,22 +1,20 @@
 use std::sync::Arc;
 
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	BlockHash,
+	BlockId,
 	ChannelIdentifier,
-	ChannelStatus,
 	GasLimit,
 	GasPrice,
 	SettleTimeout,
 	TokenAmount,
+	U256,
 };
+use raiden_state_machine::types::ChannelStatus;
 use web3::{
 	contract::Options,
-	types::{
-		Address,
-		BlockId,
-		BlockNumber,
-		U256,
-	},
+	types::BlockNumber,
 	Transport,
 	Web3,
 };

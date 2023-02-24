@@ -1,13 +1,13 @@
+use raiden_primitives::types::{
+	Address,
+	BlockId,
+	H256,
+	U256,
+};
 use web3::{
 	contract::{
 		Contract,
 		Options,
-	},
-	types::{
-		Address,
-		BlockId,
-		H256,
-		U256,
 	},
 	Transport,
 };

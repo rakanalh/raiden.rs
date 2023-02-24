@@ -9,10 +9,8 @@ use raiden_blockchain::{
 	events::Event,
 	filters::filters_from_chain_state,
 };
-use raiden_state_machine::types::{
-	Block,
-	U64,
-};
+use raiden_primitives::types::U64;
+use raiden_state_machine::types::Block;
 use raiden_storage::state_transition::Transitioner;
 use web3::types::{
 	BlockId,

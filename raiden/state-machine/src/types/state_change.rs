@@ -1,30 +1,12 @@
 use raiden_macros::IntoStateChange;
-use serde::{
-	Deserialize,
-	Serialize,
-};
-use web3::types::Address;
-
-use super::{
-	BalanceProofState,
-	HopState,
-	LockedTransferState,
-	RouteState,
-	SendSecretReveal,
-	TransactionChannelDeposit,
-	TransferDescriptionWithSecretState,
-};
-use crate::types::{
-	AddressMetadata,
+use raiden_primitives::types::{
+	Address,
 	BlockExpiration,
 	BlockHash,
 	BlockNumber,
-	CanonicalIdentifier,
 	ChainID,
-	ChannelState,
 	GasLimit,
 	Locksroot,
-	MediationFeeConfig,
 	MessageIdentifier,
 	Nonce,
 	PaymentIdentifier,
@@ -35,9 +17,29 @@ use crate::types::{
 	Signature,
 	TokenAmount,
 	TokenNetworkRegistryAddress,
+	TransactionHash,
+};
+use serde::{
+	Deserialize,
+	Serialize,
+};
+
+use crate::types::{
+	event::SendSecretReveal,
+	state::{
+		BalanceProofState,
+		HopState,
+		LockedTransferState,
+		RouteState,
+		TransactionChannelDeposit,
+		TransferDescriptionWithSecretState,
+	},
+	AddressMetadata,
+	CanonicalIdentifier,
+	ChannelState,
+	MediationFeeConfig,
 	TokenNetworkRegistryState,
 	TokenNetworkState,
-	TransactionHash,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

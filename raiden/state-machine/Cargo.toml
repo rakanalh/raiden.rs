@@ -21,3 +21,4 @@ web3 = { version = "0.18.0", default-features = false, features = [ "signing" ] 
 
 # Raiden
 raiden-macros = { path = "../macros" }
+raiden-primitives = { path = "../primitives" }

@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 
-use web3::types::{
+use raiden_primitives::types::{
 	Address,
+	ChainID,
+	TokenAddress,
+	TokenNetworkAddress,
 	H256,
 	U256,
+	U64,
 };
 
 use crate::{
@@ -14,7 +18,6 @@ use crate::{
 	machine::chain,
 	types::{
 		CanonicalIdentifier,
-		ChainID,
 		ChainState,
 		ChannelEndState,
 		ChannelState,
@@ -24,15 +27,12 @@ use crate::{
 		FeeScheduleState,
 		PaymentMappingState,
 		Random,
-		TokenAddress,
-		TokenNetworkAddress,
 		TokenNetworkGraphState,
 		TokenNetworkRegistryAddress,
 		TokenNetworkRegistryState,
 		TokenNetworkState,
 		TransactionExecutionStatus,
 		TransactionResult,
-		U64,
 	},
 };
 
