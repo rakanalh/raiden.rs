@@ -49,5 +49,5 @@ fn test_deserialize_locked_transfer() {
 		"type": "LockedTransfer",
 	});
 
-	let locked_transfer = LockedTransfer::deserialize(locked_transfer_content).unwrap();
+	let _locked_transfer = LockedTransfer::deserialize(locked_transfer_content).unwrap();
 }

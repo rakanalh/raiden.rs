@@ -92,10 +92,10 @@ impl MatrixClient {
 
 	pub async fn send(
 		&self,
-		receiver_address: Address,
-		data: String,
-		message_type: MessageType,
-		receiver_metadata: AddressMetadata,
+		_receiver_address: Address,
+		_data: String,
+		_message_type: MessageType,
+		_receiver_metadata: AddressMetadata,
 	) -> Result<(), TransportError> {
 		let transaction_id = TransactionId::new();
 		let request = send_event_to_device::v3::Request::new_raw(

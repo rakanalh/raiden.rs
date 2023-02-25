@@ -1,7 +1,6 @@
 use std::{
 	fs,
 	path::{
-		Path,
 		PathBuf,
 	},
 	process,
@@ -29,20 +28,6 @@ use raiden_client::{
 	services::{
 		BlockMonitorService,
 		SyncService,
-	},
-};
-use raiden_network_transport::{
-	config::{
-		MatrixTransportConfig,
-		TransportConfig,
-	},
-	matrix::{
-		constants::MATRIX_AUTO_SELECT_SERVER,
-		utils::{
-			get_default_matrix_servers,
-			select_best_server,
-		},
-		MatrixClient,
 	},
 };
 use raiden_pathfinding::{
@@ -138,7 +123,6 @@ async fn main() {
 	// #
 	// # Initialize state manager
 	// #
-	let keystore_path = Path::new(&cli.keystore_path);
 	let datadir = match expanduser::expanduser(cli.datadir.to_string_lossy()) {
 		Ok(p) => p,
 		Err(e) => {

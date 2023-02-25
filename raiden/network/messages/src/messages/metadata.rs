@@ -39,7 +39,7 @@ impl From<SendLockedTransfer> for Metadata {
 				address_metadata: Some(r.address_to_metadata),
 			})
 			.collect();
-		let target_metadata =
+		let _target_metadata =
 			get_address_metadata(transfer.target, event.transfer.route_states.clone());
 		Self { routes, secret: transfer.secret }
 	}

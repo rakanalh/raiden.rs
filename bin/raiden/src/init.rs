@@ -4,15 +4,7 @@ use std::{
 };
 
 use parking_lot::RwLock as SyncRwLock;
-use raiden_api::{
-	api::Api,
-	event_handler::EventHandler,
-	payments::PaymentsRegistry,
-	raiden::{
-		DefaultAddresses,
-		Raiden,
-	},
-};
+use raiden_api::raiden::DefaultAddresses;
 use raiden_blockchain::{
 	contracts::{
 		self,
@@ -22,10 +14,6 @@ use raiden_blockchain::{
 		Account,
 		ProxyManager,
 	},
-};
-use raiden_client::services::{
-	BlockMonitorService,
-	SyncService,
 };
 use raiden_network_messages::messages::TransportServiceMessage;
 use raiden_network_transport::{
@@ -55,19 +43,11 @@ use raiden_primitives::types::{
 use raiden_state_machine::types::AddressMetadata;
 use raiden_storage::{
 	state_manager::StateManager,
-	state_transition::TransitionService,
 	Storage,
 };
 use rusqlite::Connection;
-use tokio::sync::{
-	mpsc::UnboundedSender,
-	RwLock,
-};
-use tracing::debug;
-use web3::transports::{
-	Http,
-	WebSocket,
-};
+use tokio::sync::mpsc::UnboundedSender;
+use web3::transports::Http;
 
 pub fn init_storage(datadir: PathBuf) -> Result<Arc<Storage>, String> {
 	let conn = Connection::open(datadir.join("raiden.db"))
