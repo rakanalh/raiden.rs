@@ -1,7 +1,5 @@
-use raiden_blockchain::keys::{
-	signature_to_bytes,
-	PrivateKey,
-};
+use raiden_blockchain::keys::PrivateKey;
+use raiden_primitives::traits::ToBytes;
 use raiden_state_machine::types::SendProcessed;
 use serde::{
 	Deserialize,
@@ -38,7 +36,7 @@ impl SignedMessage for Processed {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }

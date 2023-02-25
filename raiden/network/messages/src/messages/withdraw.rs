@@ -1,13 +1,13 @@
-use raiden_blockchain::keys::{
-	signature_to_bytes,
-	PrivateKey,
-};
-use raiden_primitives::types::{
-	Address,
-	ChainID,
-	TokenNetworkAddress,
-	U256,
-	U64,
+use raiden_blockchain::keys::PrivateKey;
+use raiden_primitives::{
+	traits::ToBytes,
+	types::{
+		Address,
+		ChainID,
+		TokenNetworkAddress,
+		U256,
+		U64,
+	},
 };
 use raiden_state_machine::types::{
 	SendWithdrawConfirmation,
@@ -90,7 +90,7 @@ impl SignedMessage for WithdrawRequest {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
@@ -157,7 +157,7 @@ impl SignedMessage for WithdrawConfirmation {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
@@ -224,7 +224,7 @@ impl SignedMessage for WithdrawExpired {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }

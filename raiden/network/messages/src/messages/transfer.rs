@@ -1,12 +1,10 @@
-use raiden_blockchain::keys::{
-	signature_to_bytes,
-	PrivateKey,
-};
+use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	deserializers::{
 		deserialize_signature,
 		deserialize_u32_from_str,
 	},
+	traits::ToBytes,
 	types::{
 		Address,
 		BlockExpiration,
@@ -98,7 +96,7 @@ impl SignedMessage for SecretRequest {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
@@ -131,7 +129,7 @@ impl SignedMessage for SecretReveal {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
@@ -188,7 +186,7 @@ impl SignedMessage for LockExpired {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
@@ -263,7 +261,7 @@ impl SignedMessage for Unlock {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
@@ -364,7 +362,7 @@ impl SignedMessage for LockedTransfer {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = signature_to_bytes(self.sign_message(key)?);
+		self.signature = self.sign_message(key)?.as_vec();
 		Ok(())
 	}
 }
