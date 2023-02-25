@@ -48,7 +48,7 @@ use raiden_state_machine::{
 	},
 	views,
 };
-use raiden_storage::state_transition::Transitioner;
+use raiden_transition::Transitioner;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -94,14 +94,14 @@ pub enum ApiError {
 
 pub struct Api {
 	raiden: Arc<Raiden>,
-	transition_service: Arc<dyn Transitioner + Send + Sync>,
+	transition_service: Arc<Transitioner>,
 	payments_registry: Arc<RwLock<PaymentsRegistry>>,
 }
 
 impl Api {
 	pub fn new(
 		raiden: Arc<Raiden>,
-		transition_service: Arc<dyn Transitioner + Send + Sync>,
+		transition_service: Arc<Transitioner>,
 		payments_registry: Arc<RwLock<PaymentsRegistry>>,
 	) -> Self {
 		Self { raiden, transition_service, payments_registry }

@@ -1,6 +1,7 @@
 use std::{
 	collections::HashMap,
 	pin::Pin,
+	sync::Arc,
 	time::Duration,
 };
 
@@ -24,7 +25,11 @@ use raiden_network_messages::{
 		TransportServiceMessage,
 	},
 };
-use raiden_state_machine::types::QueueIdentifier;
+use raiden_state_machine::types::{
+	QueueIdentifier,
+	StateChange,
+};
+use raiden_transition::Transitioner;
 use tokio::{
 	select,
 	sync::mpsc::{
@@ -33,7 +38,10 @@ use tokio::{
 	},
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::error;
+use tracing::{
+	debug,
+	error,
+};
 
 use super::{
 	queue::RetryMessageQueue,
@@ -46,6 +54,7 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 pub struct MatrixService {
 	config: TransportConfig,
 	client: MatrixClient,
+	transition_service: Arc<Transitioner>,
 	sender: UnboundedSender<TransportServiceMessage>,
 	receiver: UnboundedReceiverStream<TransportServiceMessage>,
 	message_queues: HashMap<QueueIdentifier, UnboundedSender<(QueueIdentifier, OutgoingMessage)>>,
@@ -56,6 +65,7 @@ impl MatrixService {
 	pub fn new(
 		config: TransportConfig,
 		client: MatrixClient,
+		transition_service: Arc<Transitioner>,
 	) -> (Self, UnboundedSender<TransportServiceMessage>) {
 		let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -63,6 +73,7 @@ impl MatrixService {
 			Self {
 				config,
 				client,
+				transition_service,
 				sender: sender.clone(),
 				receiver: UnboundedReceiverStream::new(receiver),
 				message_queues: HashMap::new(),

@@ -25,3 +25,4 @@ raiden-blockchain = { path = "../../raiden/blockchain" }
 raiden-primitives = { path = "../../raiden/primitives" }
 raiden-storage = { path = "../../raiden/storage" }
 raiden-state-machine = { path = "../../raiden/state-machine" }
+raiden-transition = { path = "../../raiden/transition" }

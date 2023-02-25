@@ -18,7 +18,7 @@ use raiden_state_machine::types::{
 	AddressMetadata,
 	MediationFeeConfig,
 };
-use raiden_storage::state_manager::StateManager;
+use raiden_transition::manager::StateManager;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::{
 	transports::Http,

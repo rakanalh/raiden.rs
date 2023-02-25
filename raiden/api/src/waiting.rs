@@ -11,7 +11,7 @@ use raiden_state_machine::{
 	types::ChannelState,
 	views,
 };
-use raiden_storage::state_manager::StateManager;
+use raiden_transition::manager::StateManager;
 use tokio::time::{
 	sleep,
 	Duration,

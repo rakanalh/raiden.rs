@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 use raiden_api::raiden::Raiden;
 use raiden_state_machine::types::Block;
-use raiden_storage::state_transition::Transitioner;
+use raiden_transition::Transitioner;
 use tracing::debug;
 use web3::{
 	transports::WebSocket,
@@ -15,7 +15,7 @@ use super::SyncService;
 pub struct BlockMonitorService {
 	raiden: Arc<Raiden>,
 	web3: Web3<WebSocket>,
-	transition_service: Arc<dyn Transitioner>,
+	transition_service: Arc<Transitioner>,
 	sync_service: SyncService,
 }
 
@@ -23,7 +23,7 @@ impl BlockMonitorService {
 	pub fn new(
 		raiden: Arc<Raiden>,
 		socket: WebSocket,
-		transition_service: Arc<dyn Transitioner>,
+		transition_service: Arc<Transitioner>,
 		sync_service: SyncService,
 	) -> Result<Self, ()> {
 		let web3 = web3::Web3::new(socket);

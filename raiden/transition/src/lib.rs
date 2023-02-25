@@ -23,7 +23,7 @@ impl Transitioner {
 	}
 
 	// TODO: Should return Result
-	async fn transition(&self, state_change: StateChange) {
+	pub async fn transition(&self, state_change: StateChange) {
 		let transition_result = self.state_manager.write().transition(state_change);
 		match transition_result {
 			Ok(events) =>

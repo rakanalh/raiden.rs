@@ -11,7 +11,7 @@ use raiden_blockchain::{
 };
 use raiden_primitives::types::U64;
 use raiden_state_machine::types::Block;
-use raiden_storage::state_transition::Transitioner;
+use raiden_transition::Transitioner;
 use tracing::{
 	debug,
 	error,
@@ -70,12 +70,12 @@ impl BlockBatchSizeAdjuster {
 
 pub struct SyncService {
 	raiden: Arc<Raiden>,
-	transition_service: Arc<dyn Transitioner>,
+	transition_service: Arc<Transitioner>,
 	block_batch_size_adjuster: BlockBatchSizeAdjuster,
 }
 
 impl SyncService {
-	pub fn new(raiden: Arc<Raiden>, transition_service: Arc<dyn Transitioner>) -> Self {
+	pub fn new(raiden: Arc<Raiden>, transition_service: Arc<Transitioner>) -> Self {
 		let block_batch_size_adjuster = BlockBatchSizeAdjuster::new(
 			BlockBatchSizeConfig { min: 5, max: 100000, initial: 1000, _warn_threshold: 50 },
 			2.0, // base
