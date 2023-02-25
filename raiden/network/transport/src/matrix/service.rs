@@ -20,7 +20,7 @@ use matrix_sdk::{
 use raiden_network_messages::{
 	decode::MessageDecoder,
 	messages::{
-		Message,
+		OutgoingMessage,
 		TransportServiceMessage,
 	},
 };
@@ -48,7 +48,7 @@ pub struct MatrixService {
 	client: MatrixClient,
 	sender: UnboundedSender<TransportServiceMessage>,
 	receiver: UnboundedReceiverStream<TransportServiceMessage>,
-	message_queues: HashMap<QueueIdentifier, UnboundedSender<(QueueIdentifier, Message)>>,
+	message_queues: HashMap<QueueIdentifier, UnboundedSender<(QueueIdentifier, OutgoingMessage)>>,
 	running_futures: FuturesUnordered<BoxFuture<'static, ()>>,
 }
 
@@ -140,7 +140,7 @@ impl MatrixService {
 				let content = match map.get("content").map(|obj| obj.get("body")).flatten() {
 					Some(value) => value,
 					None => {
-						error!("Message {} has no body: {}", message_type, map);
+						error!("Message {} has no body: {:?}", message_type, map);
 						return
 					},
 				};

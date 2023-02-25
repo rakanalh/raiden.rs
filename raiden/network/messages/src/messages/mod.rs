@@ -123,7 +123,7 @@ macro_rules! to_message {
 			.expect("Address metadata should be set at this point");
 		let mut message: $message_type = $send_message_event.into();
 		let _ = message.sign($private_key);
-		Message {
+		OutgoingMessage {
 			message_identifier,
 			recipient,
 			recipient_metadata: address_metadata,

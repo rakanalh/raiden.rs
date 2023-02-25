@@ -1,5 +1,5 @@
 use matrix_sdk::HttpError;
-use raiden_network_messages::messages::Message;
+use raiden_network_messages::messages::OutgoingMessage;
 use raiden_state_machine::types::QueueIdentifier;
 use thiserror::Error;
 
@@ -23,7 +23,7 @@ pub trait Transport {
 	async fn send(
 		&self,
 		queue_identifier: QueueIdentifier,
-		message: Message,
+		message: OutgoingMessage,
 	) -> Result<(), TransportError>;
 	async fn process(mut self);
 }

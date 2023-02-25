@@ -6,8 +6,8 @@ use raiden_network_messages::{
 	messages::{
 		LockExpired,
 		LockedTransfer,
-		Message,
 		MessageInner,
+		OutgoingMessage,
 		Processed,
 		SecretRequest,
 		SecretReveal,

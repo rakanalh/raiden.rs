@@ -10,7 +10,7 @@ use chrono::{
 };
 use futures::StreamExt;
 use raiden_network_messages::messages::{
-	Message,
+	OutgoingMessage,
 	TransportServiceMessage,
 };
 use raiden_primitives::types::Address;
@@ -83,13 +83,13 @@ impl TimeoutGenerator {
 
 struct MessageData {
 	pub(self) queue_identifier: QueueIdentifier,
-	pub(self) message: Message,
+	pub(self) message: OutgoingMessage,
 	pub(self) text: String,
 	pub(self) timeout_generator: TimeoutGenerator,
 	pub(self) address_metadata: AddressMetadata,
 }
 
-type MessageInfo = (QueueIdentifier, Message);
+type MessageInfo = (QueueIdentifier, OutgoingMessage);
 
 pub struct RetryMessageQueue {
 	transport_sender: UnboundedSender<TransportServiceMessage>,
@@ -122,7 +122,7 @@ impl RetryMessageQueue {
 		)
 	}
 
-	pub fn enqueue(&mut self, queue_identifier: QueueIdentifier, message: Message) {
+	pub fn enqueue(&mut self, queue_identifier: QueueIdentifier, message: OutgoingMessage) {
 		if self
 			.queue
 			.iter()
