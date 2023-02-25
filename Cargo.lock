@@ -198,17 +198,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "autocfg"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -540,16 +529,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crossbeam-channel"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
-dependencies = [
- "cfg-if",
- "crossbeam-utils",
-]
-
-[[package]]
 name = "crossbeam-epoch"
 version = "0.9.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -756,28 +735,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fd78930633bd1c6e35c4b42b1df7b0cbc6bc191146e512bb3bedf243fcc3901"
 dependencies = [
  "libc",
- "redox_users 0.3.5",
- "winapi",
-]
-
-[[package]]
-name = "dirs-next"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
-dependencies = [
- "cfg-if",
- "dirs-sys-next",
-]
-
-[[package]]
-name = "dirs-sys-next"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
-dependencies = [
- "libc",
- "redox_users 0.4.0",
+ "redox_users",
  "winapi",
 ]
 
@@ -2114,9 +2072,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.7"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d31d11c69a6b52a174b42bdc0c30e5e11670f90788b2c471c31c1d17d449443"
+checksum = "e0a7ae3ac2f1173085d398531c705756c94a4c56843785df85a60c1a0afac116"
 
 [[package]]
 name = "pin-utils"
@@ -2262,21 +2220,54 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
 
 [[package]]
+name = "raiden"
+version = "0.0.1"
+dependencies = [
+ "ethsign",
+ "expanduser",
+ "futures",
+ "hyper",
+ "parking_lot 0.11.2",
+ "raiden-api",
+ "raiden-blockchain",
+ "raiden-client",
+ "raiden-network-messages",
+ "raiden-network-transport",
+ "raiden-pathfinding",
+ "raiden-primitives",
+ "raiden-state-machine",
+ "raiden-storage",
+ "routerify",
+ "rpassword",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "structopt",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "web3",
+]
+
+[[package]]
 name = "raiden-api"
 version = "0.1.0"
 dependencies = [
  "parking_lot 0.11.2",
  "raiden-blockchain",
+ "raiden-network-messages",
+ "raiden-network-transport",
  "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
- "raiden-transport",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "slog",
  "thiserror",
  "tokio",
+ "tracing",
  "ulid",
  "web3",
 ]
@@ -2302,46 +2293,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "raiden-cli"
+name = "raiden-client"
 version = "0.1.0"
 dependencies = [
  "ethsign",
- "raiden-blockchain",
- "raiden-primitives",
- "rpassword",
- "serde_json",
- "web3",
-]
-
-[[package]]
-name = "raiden-client"
-version = "0.0.1"
-dependencies = [
- "ethsign",
- "expanduser",
  "futures",
- "hyper",
- "parking_lot 0.11.2",
  "raiden-api",
  "raiden-blockchain",
- "raiden-cli",
- "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
- "raiden-transport",
- "routerify",
  "rpassword",
- "rusqlite",
- "serde",
  "serde_json",
- "slog",
- "slog-async",
- "slog-term",
- "structopt",
- "thiserror",
- "tokio",
- "url",
+ "tracing",
  "web3",
 ]
 
@@ -2351,6 +2315,52 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
+]
+
+[[package]]
+name = "raiden-network-messages"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "derive_more",
+ "futures",
+ "matrix-sdk",
+ "raiden-blockchain",
+ "raiden-primitives",
+ "raiden-state-machine",
+ "raiden-storage",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tiny-keccak",
+ "tokio",
+ "tokio-stream",
+ "web3",
+]
+
+[[package]]
+name = "raiden-network-transport"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "derive_more",
+ "futures",
+ "matrix-sdk",
+ "raiden-blockchain",
+ "raiden-network-messages",
+ "raiden-primitives",
+ "raiden-state-machine",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tiny-keccak",
+ "tokio",
+ "tokio-stream",
+ "web3",
 ]
 
 [[package]]
@@ -2410,28 +2420,6 @@ dependencies = [
  "serde",
  "serde_json",
  "ulid",
- "web3",
-]
-
-[[package]]
-name = "raiden-transport"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "derive_more",
- "futures",
- "matrix-sdk",
- "raiden-blockchain",
- "raiden-primitives",
- "raiden-state-machine",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tiny-keccak",
- "tokio",
- "tokio-stream",
  "web3",
 ]
 
@@ -2647,16 +2635,6 @@ dependencies = [
  "getrandom 0.1.16",
  "redox_syscall 0.1.57",
  "rust-argon2",
-]
-
-[[package]]
-name = "redox_users"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "528532f3d801c87aec9def2add9ca802fe569e44a544afe633765267840abe64"
-dependencies = [
- "getrandom 0.2.7",
- "redox_syscall 0.2.10",
 ]
 
 [[package]]
@@ -2914,12 +2892,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustversion"
-version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2cc38e8fa666e2de3c4aba7edeb5ffc5246c1c2ed0e3d17e560aeeba736b23f"
-
-[[package]]
 name = "ryu"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3135,6 +3107,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sharded-slab"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
 name = "signal-hook-registry"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3169,37 +3150,6 @@ dependencies = [
  "libc",
  "log",
  "parking_lot 0.11.2",
-]
-
-[[package]]
-name = "slog"
-version = "2.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8347046d4ebd943127157b94d63abb990fcf729dc4e9978927fdf4ac3c998d06"
-
-[[package]]
-name = "slog-async"
-version = "2.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "766c59b252e62a34651412870ff55d8c4e6d04df19b43eecb2703e417b097ffe"
-dependencies = [
- "crossbeam-channel",
- "slog",
- "take_mut",
- "thread_local",
-]
-
-[[package]]
-name = "slog-term"
-version = "2.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95c1e7e5aab61ced6006149ea772770b84a0d16ce0f7885def313e4829946d76"
-dependencies = [
- "atty",
- "chrono",
- "slog",
- "term",
- "thread_local",
 ]
 
 [[package]]
@@ -3308,12 +3258,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "take_mut"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f764005d11ee5f36500a149ace24e00e3da98b0158b3e2d53a7495660d3f4d60"
-
-[[package]]
 name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3330,17 +3274,6 @@ dependencies = [
  "rand 0.8.5",
  "redox_syscall 0.2.10",
  "remove_dir_all",
- "winapi",
-]
-
-[[package]]
-name = "term"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c59df8ac95d96ff9bede18eb7300b0fda5e5d8d90960e76f8e14ae765eedbf1f"
-dependencies = [
- "dirs-next",
- "rustversion",
  "winapi",
 ]
 
@@ -3375,10 +3308,11 @@ dependencies = [
 
 [[package]]
 name = "thread_local"
-version = "1.1.3"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8018d24e04c95ac8790716a5987d0fec4f8b27249ffa0f7d33f1369bdfb88cbd"
+checksum = "3fdd6f064ccff2d6567adcb3873ca630700f00b5ad3f060c25b5dcfd9a4ce152"
 dependencies = [
+ "cfg-if",
  "once_cell",
 ]
 
@@ -3424,13 +3358,13 @@ dependencies = [
  "expanduser",
  "futures",
  "raiden-blockchain",
- "raiden-cli",
+ "raiden-client",
+ "raiden-primitives",
  "rpassword",
- "slog",
- "slog-async",
- "slog-term",
  "structopt",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "web3",
 ]
 
@@ -3532,9 +3466,9 @@ checksum = "360dfd1d6d30e05fda32ace2c8c70e9c0a9da713275777f5a4dbb8a1893930c6"
 
 [[package]]
 name = "tracing"
-version = "0.1.35"
+version = "0.1.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a400e31aa60b9d44a52a8ee0343b5b18566b03a8321e0d321f695cf56e940160"
+checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
 dependencies = [
  "cfg-if",
  "pin-project-lite",
@@ -3555,11 +3489,22 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.28"
+version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7358be39f2f274f322d2aaed611acc57f382e8eb1e5b48cb9ae30933495ce7"
+checksum = "24eb03ba0eab1fd845050058ce5e616558e8f8d8fca633e6b163fe25c797213a"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "tracing-subscriber"
+version = "0.3.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6176eae26dd70d0c919749377897b54a9276bd7061339665dd68777926b5a70"
+dependencies = [
+ "sharded-slab",
+ "thread_local",
+ "tracing-core",
 ]
 
 [[package]]

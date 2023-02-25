@@ -6,6 +6,7 @@ use std::ops::{
 use raiden_primitives::types::{
 	Address,
 	Bytes,
+	TransactionHash,
 	H256,
 	U256,
 	U64,
@@ -42,7 +43,6 @@ use crate::{
 		SendWithdrawRequest,
 		TransactionChannelDeposit,
 		TransactionExecutionStatus,
-		TransactionHash,
 		TransactionResult,
 	},
 	views,

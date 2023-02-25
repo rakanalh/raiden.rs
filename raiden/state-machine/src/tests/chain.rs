@@ -1,5 +1,4 @@
 use raiden_primitives::types::{
-	Block,
 	H256,
 	U256,
 	U64,
@@ -8,6 +7,7 @@ use raiden_primitives::types::{
 use crate::{
 	machine::chain,
 	tests::factories::empty_chain_state,
+	types::Block,
 };
 
 #[test]

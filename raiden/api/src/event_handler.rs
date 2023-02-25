@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use raiden_blockchain::proxies::Account;
-use raiden_state_machine::types::Event;
-use raiden_storage::state_manager::StateManager;
-use raiden_transport::{
+use raiden_network_messages::{
 	messages::{
 		LockExpired,
 		LockedTransfer,
@@ -22,6 +20,8 @@ use raiden_transport::{
 	},
 	to_message,
 };
+use raiden_state_machine::types::Event;
+use raiden_storage::state_manager::StateManager;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;
 

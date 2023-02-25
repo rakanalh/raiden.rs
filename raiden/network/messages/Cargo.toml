@@ -1,0 +1,33 @@
+[package]
+name = "raiden-network-messages"
+version = "0.1.0"
+authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden Network messages"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
+edition = "2021"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+rust-version = "1.59"
+
+[dependencies]
+# 3rd-Party
+async-trait = { version = "0.1.51", default-features = false }
+chrono = { version = "0.4.19", default-features = false, features = [ "clock" ] }
+derive_more = { version = "0.99.11", default-features = false }
+futures = { version = "0.3.21", default-features = false }
+matrix-sdk = { version = "0.6.1", default-features = false, features = ["native-tls", "e2e-encryption"] }
+thiserror = { version = "1.0", default-features = false }
+tiny-keccak = { version = "2.0.0", features = [ "keccak" ] }
+reqwest = { version = "0.11.4", default-features = false, features = ["json"] }
+serde = { version = "1.0.136", default-features = false, features = [ "derive" ] }
+serde_json = { version = "1.0.59", default-features = false }
+tokio = { version = "1.0", features = ["macros", "time"], default-features = false }
+tokio-stream = { version = "0.1.7", features = ["time"], default-features = false }
+web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
+
+# Raiden
+raiden-blockchain = { path = "../../blockchain" }
+raiden-primitives = { path = "../../primitives" }
+raiden-state-machine = { path = "../../state-machine" }
+raiden-storage = { path = "../../storage" }

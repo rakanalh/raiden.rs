@@ -1,0 +1,46 @@
+[package]
+name = "raiden"
+version = "0.0.1"
+authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden executable"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
+edition = "2021"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+rust-version = "1.59"
+
+[[bin]]
+name = "raiden"
+path = "src/main.rs"
+
+[dependencies]
+# 3rd Party
+ethsign = { version = "0.8.0" }
+expanduser = { version = "1.2.1", default-features = false }
+futures = { version = "0.3.21", default-features = false }
+hyper = { version = "0.14.11", features = ["server"] }
+parking_lot = { version = "0.11.2", default-features = false }
+routerify = { version = "2.2.0", default-features = false }
+rpassword = { version = "5.0.1", default-features = false }
+rusqlite = { version = "0.25.3", default-features = false }
+serde = { version = "1.0.136", default-features = false }
+serde_json = { version = "1.0.59", default-features = false }
+tracing = { version = "0.1.37", default-features = false }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = [ "fmt" ] }
+structopt = { version = "0.3.25", default-features = false }
+thiserror = { version = "1.0", default-features = false }
+tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
+url = { version = "2.2.2", default-features = false }
+web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
+
+# Raiden
+raiden-api= { path = "../../raiden/api" }
+raiden-blockchain = { path = "../../raiden/blockchain" }
+raiden-client = { path = "../../raiden/client" }
+raiden-state-machine = { path = "../../raiden/state-machine" }
+raiden-pathfinding = { path = "../../raiden/pathfinding" }
+raiden-primitives = { path = "../../raiden/primitives" }
+raiden-storage = { path = "../../raiden/storage" }
+raiden-network-messages = { path = "../../raiden/network/messages" }
+raiden-network-transport = { path = "../../raiden/network/transport" }

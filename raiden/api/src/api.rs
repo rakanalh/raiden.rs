@@ -49,9 +49,9 @@ use raiden_state_machine::{
 	views,
 };
 use raiden_storage::state_transition::Transitioner;
-use slog::info;
 use thiserror::Error;
 use tokio::sync::RwLock;
+use tracing::info;
 use web3::{
 	signing::keccak256,
 	transports::Http,
@@ -120,7 +120,6 @@ impl Api {
 		let current_state = &self.raiden.state_manager.read().current_state.clone();
 
 		info!(
-            self.raiden.logger,
             "Opening channel. registry_address={}, partner_address={}, token_address={}, settle_timeout={:?}, reveal_timeout={:?}.",
             registry_address,
             partner_address,
@@ -286,7 +285,6 @@ impl Api {
 		retry_timeout: Option<RetryTimeout>,
 	) -> Result<(), ApiError> {
 		info!(
-            self.raiden.logger,
             "Patching channel. registry_address={}, partner_Address={}, token_address={}, reveal_timeout={:?}, total_deposit={:?}, total_withdraw={:?}, state={:?}.",
             registry_address,
             partner_address,
@@ -398,10 +396,8 @@ impl Api {
 		retry_timeout: Option<RetryTimeout>,
 	) -> Result<(), ApiError> {
 		info!(
-			self.raiden.logger,
 			"Depositing to channel. channel_identifier={}, total_deposit={:?}.",
-			channel_state.canonical_identifier.channel_identifier,
-			total_deposit,
+			channel_state.canonical_identifier.channel_identifier, total_deposit,
 		);
 
 		if channel_state.status() != ChannelStatus::Opened {
@@ -764,8 +760,8 @@ impl Api {
 			secrethash: transfer_secrethash,
 		};
 
-		let our_address_metadata = self.raiden.transport.address_metadata();
-		let one_to_n_address = self.raiden.addresses.one_to_n;
+		let our_address_metadata = self.raiden.config.metadata.clone();
+		let one_to_n_address = self.raiden.config.addresses.one_to_n;
 		let from_address = self.raiden.config.account.address();
 
 		let route_states = if let Some(route_states) = route_states {

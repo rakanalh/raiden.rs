@@ -6,16 +6,14 @@ use std::{
 };
 
 use raiden_blockchain::{
-	contracts::{
-		ChainID,
-		ContractsManager,
-	},
+	contracts::ContractsManager,
 	proxies::{
 		Account,
 		ProxyManager,
 	},
 };
-use raiden_cli::utils::get_private_key;
+use raiden_client::cli::get_private_key;
+use raiden_primitives::types::ChainID;
 use structopt::StructOpt;
 use web3::{
 	signing::Key,
@@ -76,7 +74,7 @@ async fn main() {
 		},
 	};
 
-	let contracts_manager = match ContractsManager::new(ChainID::Private) {
+	let contracts_manager = match ContractsManager::new(ChainID::Private(4321.into())) {
 		Ok(contracts_manager) => Arc::new(contracts_manager),
 		Err(e) => {
 			eprintln!("Error creating contracts manager: {}", e);

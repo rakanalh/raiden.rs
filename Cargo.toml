@@ -1,14 +1,15 @@
 [workspace]
 members = [
-    "bin/raiden-client",
+    "bin/raiden",
     "bin/token-ops",
     "raiden/api",
     "raiden/blockchain",
-    "raiden/cli",
+    "raiden/client",
     "raiden/macros",
     "raiden/state-machine",
     "raiden/storage",
-    "raiden/transport",
+    "raiden/network/messages",
+    "raiden/network/transport",
 ]
 
 

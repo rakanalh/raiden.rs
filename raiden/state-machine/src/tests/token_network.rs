@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use raiden_primitives::types::{
 	Address,
 	H256,
+	U64,
 };
 
 use crate::{
@@ -12,7 +13,6 @@ use crate::{
 		ContractReceiveTokenNetworkCreated,
 		TokenNetworkGraphState,
 		TokenNetworkState,
-		U64,
 	},
 	views,
 };
