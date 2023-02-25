@@ -4,7 +4,7 @@ use derive_more::Display;
 use raiden_storage::state_transition::Transitioner;
 use thiserror::Error;
 
-use super::messages::Message;
+use super::messages::IncomingMessage;
 
 #[derive(Error, Display, Debug)]
 pub struct MessageError {}
@@ -14,7 +14,7 @@ pub struct MessageHandler {
 }
 
 impl MessageHandler {
-	pub fn handle(&self, _message: Message) -> Result<(), MessageError> {
+	pub fn handle(&self, _message: IncomingMessage) -> Result<(), MessageError> {
 		// let state_change: StateChange = message.into();
 		// self.transition_service.transition(state_change);
 		Ok(())

@@ -66,8 +66,8 @@ impl Into<[u8; 1]> for MessageTypeId {
 }
 
 pub enum TransportServiceMessage {
-	Enqueue((QueueIdentifier, Message)),
-	Send(Message),
+	Enqueue((QueueIdentifier, OutgoingMessage)),
+	Send(OutgoingMessage),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -85,10 +85,16 @@ pub enum MessageInner {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Message {
+pub struct OutgoingMessage {
 	pub message_identifier: MessageIdentifier,
 	pub recipient: Address,
 	pub recipient_metadata: AddressMetadata,
+	pub inner: MessageInner,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct IncomingMessage {
+	pub message_identifier: MessageIdentifier,
 	pub inner: MessageInner,
 }
 
