@@ -19,13 +19,12 @@ use raiden_state_machine::{
 		TokenNetworkRegistryState,
 	},
 };
-use ulid::Ulid;
-
-use crate::{
+use raiden_storage::{
 	constants::SNAPSHOT_STATE_CHANGE_COUNT,
 	errors::RaidenError,
 	Storage,
 };
+use ulid::Ulid;
 
 pub type Result<T> = std::result::Result<T, StateTransitionError>;
 

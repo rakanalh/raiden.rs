@@ -8,6 +8,7 @@ members = [
     "raiden/macros",
     "raiden/state-machine",
     "raiden/storage",
+    "raiden/transition",
     "raiden/network/messages",
     "raiden/network/transport",
 ]

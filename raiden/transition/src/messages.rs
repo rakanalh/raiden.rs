@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use derive_more::Display;
-use raiden_storage::state_transition::Transitioner;
+use raiden_network_messages::messages::IncomingMessage;
 use thiserror::Error;
 
-use super::messages::IncomingMessage;
+use crate::Transitioner;
 
 #[derive(Error, Display, Debug)]
 pub struct MessageError {}
 
 pub struct MessageHandler {
-	transition_service: Arc<dyn Transitioner>,
+	transitioner: Arc<Transitioner>,
 }
 
 impl MessageHandler {

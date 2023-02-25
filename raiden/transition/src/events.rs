@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use parking_lot::RwLock;
 use raiden_blockchain::proxies::Account;
 use raiden_network_messages::{
 	messages::{
@@ -21,23 +18,20 @@ use raiden_network_messages::{
 	to_message,
 };
 use raiden_state_machine::types::Event;
-use raiden_storage::state_manager::StateManager;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;
 
 pub struct EventHandler {
 	account: Account<Http>,
-	_state_manager: Arc<RwLock<StateManager>>,
 	transport: UnboundedSender<TransportServiceMessage>,
 }
 
 impl EventHandler {
 	pub fn new(
 		account: Account<Http>,
-		state_manager: Arc<RwLock<StateManager>>,
 		transport: UnboundedSender<TransportServiceMessage>,
 	) -> Self {
-		Self { account, _state_manager: state_manager, transport }
+		Self { account, transport }
 	}
 
 	pub async fn handle_event(&self, event: Event) {

@@ -1,0 +1,32 @@
+[package]
+name = "raiden-transition"
+version = "0.1.0"
+authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden Network implementation in Rust"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
+edition = "2021"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+rust-version = "1.59"
+
+[dependencies]
+# 3rd-Party
+async-trait = { version = "0.1.51", default-features = false }
+derive_more = { version = "0.99.11", default-features = false }
+futures = { version = "0.3.21", default-features = false }
+parking_lot = { version = "0.11.2", default-features = false }
+rusqlite = { version = "0.25.3", default-features = false }
+serde = { version = "1.0.136", default-features = false, features = [ "derive" ] }
+serde_json = { version = "1.0.59", default-features = false }
+thiserror = { version = "1.0", default-features = false }
+tokio = { version = "1.0", default-features = false }
+ulid = { version = "0.4.1", default-features = false }
+web3 = { version = "0.18.0", default-features = false }
+
+# Raiden
+raiden-blockchain = { path = "../blockchain" }
+raiden-primitives = { path = "../primitives" }
+raiden-state-machine = { path = "../state-machine" }
+raiden-network-messages = { path = "../network/messages" }
+raiden-storage = { path = "../storage" }
