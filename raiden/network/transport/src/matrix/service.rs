@@ -10,7 +10,13 @@ use futures::{
 	FutureExt,
 	StreamExt,
 };
-use matrix_sdk::config::SyncSettings;
+use matrix_sdk::{
+	config::SyncSettings,
+	ruma::{
+		events::AnyToDeviceEvent,
+		serde::Raw,
+	},
+};
 use raiden_network_messages::{
 	decode::MessageDecoder,
 	messages::{
@@ -27,6 +33,7 @@ use tokio::{
 	},
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use tracing::error;
 
 use super::{
 	queue::RetryMessageQueue,
@@ -87,23 +94,7 @@ impl MatrixService {
 						Ok(response) => {
 							let to_device_events = response.to_device.events;
 							for to_device_event in to_device_events.iter() {
-								match to_device_event.get_field::<String>("type") {
-									Ok(Some(_field)) => {
-										let event_body = to_device_event.json().get();
-										let map: HashMap<String, serde_json::Value> = serde_json::from_str(event_body).unwrap();
-										let content = map.get("content").unwrap().get("body").unwrap();
-										if let Ok(message) = MessageDecoder::decode(content.clone()) {
-											println!("Message received: {:?}", message);
-
-										}
-									},
-									Ok(None) => {
-										println!("Not sure");
-									}
-									Err(e) => {
-										println!("Error: {:?}", e);
-									}
-								};
+								self.process_event(to_device_event).await;
 							}
 							let sync_token = response.next_batch;
 							sync_settings = SyncSettings::new().timeout(Duration::from_secs(30)).token(sync_token);
@@ -130,5 +121,45 @@ impl MatrixService {
 				}
 			}
 		}
+	}
+
+	pub async fn process_event(&self, event: &Raw<AnyToDeviceEvent>) {
+		match event.get_field::<String>("type") {
+			Ok(Some(message_type)) => {
+				let event_body = event.json().get();
+
+				let map: HashMap<String, serde_json::Value> = match serde_json::from_str(event_body)
+				{
+					Ok(map) => map,
+					Err(e) => {
+						error!("Could not parse message {}: {}", message_type, e);
+						return
+					},
+				};
+
+				let content = match map.get("content").map(|obj| obj.get("body")).flatten() {
+					Some(value) => value,
+					None => {
+						error!("Message {} has no body: {}", message_type, map);
+						return
+					},
+				};
+				let message = match MessageDecoder::decode(content.clone()) {
+					Ok(message) => message,
+					Err(e) => {
+						error!("Could not decode message: {}", message_type);
+						return
+					},
+				};
+
+				println!("Message received: {:?}", message);
+			},
+			Ok(None) => {
+				error!("Invalid event. Field 'type' does not exist");
+			},
+			Err(e) => {
+				error!("Invalid event: {:?}", e);
+			},
+		};
 	}
 }
