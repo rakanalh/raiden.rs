@@ -2236,6 +2236,7 @@ dependencies = [
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
+ "raiden-transition",
  "routerify",
  "rusqlite",
  "serde",

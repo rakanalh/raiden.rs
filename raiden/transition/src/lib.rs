@@ -14,11 +14,11 @@ pub mod messages;
 
 pub struct Transitioner {
 	state_manager: Arc<RwLock<StateManager>>,
-	event_handler: Arc<EventHandler>,
+	event_handler: EventHandler,
 }
 
 impl Transitioner {
-	pub fn new(state_manager: Arc<RwLock<StateManager>>, event_handler: Arc<EventHandler>) -> Self {
+	pub fn new(state_manager: Arc<RwLock<StateManager>>, event_handler: EventHandler) -> Self {
 		Self { state_manager, event_handler }
 	}
 

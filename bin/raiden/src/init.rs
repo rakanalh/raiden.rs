@@ -41,10 +41,8 @@ use raiden_primitives::types::{
 	ChainID,
 };
 use raiden_state_machine::types::AddressMetadata;
-use raiden_storage::{
-	state_manager::StateManager,
-	Storage,
-};
+use raiden_storage::Storage;
+use raiden_transition::manager::StateManager;
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;

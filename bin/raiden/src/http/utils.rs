@@ -10,7 +10,7 @@ use raiden_blockchain::{
 	contracts::ContractsManager,
 	proxies::Account,
 };
-use raiden_storage::state_manager::StateManager;
+use raiden_transition::manager::StateManager;
 use routerify::ext::RequestExt;
 use serde::de::DeserializeOwned;
 use web3::transports::Http;

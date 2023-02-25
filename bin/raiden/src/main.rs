@@ -1,15 +1,12 @@
 use std::{
 	fs,
-	path::{
-		PathBuf,
-	},
+	path::PathBuf,
 	process,
 	sync::Arc,
 };
 
 use raiden_api::{
 	api::Api,
-	event_handler::EventHandler,
 	payments::PaymentsRegistry,
 	raiden::{
 		Raiden,
@@ -36,7 +33,10 @@ use raiden_pathfinding::{
 };
 use raiden_primitives::types::ChainID;
 use raiden_state_machine::types::MediationFeeConfig;
-use raiden_storage::state_transition::TransitionService;
+use raiden_transition::{
+	events::EventHandler,
+	Transitioner,
+};
 use structopt::StructOpt;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -249,18 +249,8 @@ async fn main() {
 		transport: transport_sender.clone(),
 	});
 
-	let transport_sender_inner = transport_sender.clone();
-	let transition_service_account = account.clone();
-	let transition_service_raiden = raiden.clone();
-	let transition_service =
-		Arc::new(TransitionService::new(raiden.state_manager.clone(), move |event| {
-			let event_handler = EventHandler::new(
-				transition_service_account.clone(),
-				transition_service_raiden.state_manager.clone(),
-				transport_sender_inner.clone(),
-			);
-			async move { event_handler.handle_event(event).await }
-		}));
+	let event_handler = EventHandler::new(account.clone(), transport_sender.clone());
+	let transitioner = Arc::new(Transitioner::new(raiden.state_manager.clone(), event_handler));
 
 	let ws = match WebSocket::new(&eth_rpc_socket_endpoint).await {
 		Ok(ws) => ws,
@@ -270,29 +260,29 @@ async fn main() {
 		},
 	};
 
-	let mut sync_service = SyncService::new(raiden.clone(), transition_service.clone());
+	let mut sync_service = SyncService::new(raiden.clone(), transitioner.clone());
 	let latest_block_number = raiden.web3.eth().block_number().await.unwrap();
 	sync_service.sync(sync_start_block_number, latest_block_number.into()).await;
 
-	let block_monitor_service = match BlockMonitorService::new(
-		raiden.clone(),
-		ws,
-		transition_service.clone(),
-		sync_service,
-	) {
-		Ok(service) => service,
-		Err(_) => {
-			eprintln!("Could not initialize block monitor service");
-			process::exit(1);
-		},
-	};
+	let block_monitor_service =
+		match BlockMonitorService::new(raiden.clone(), ws, transitioner.clone(), sync_service) {
+			Ok(service) => service,
+			Err(_) => {
+				eprintln!("Could not initialize block monitor service");
+				process::exit(1);
+			},
+		};
 	let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));
-	let api = Api::new(raiden.clone(), transition_service, payments_registry);
+	let api = Api::new(raiden.clone(), transitioner.clone(), payments_registry);
 	let http_service = crate::http::HttpServer::new(raiden.clone(), Arc::new(api));
 
 	info!("Raiden is starting");
 
-	futures::join!(block_monitor_service.start(), transport_service.run(), http_service.start());
+	futures::join!(
+		block_monitor_service.start(),
+		transport_service.run(transitioner),
+		http_service.start()
+	);
 }
 
 fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {

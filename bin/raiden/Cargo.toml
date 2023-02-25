@@ -36,9 +36,10 @@ web3 = { version = "0.18.0", default-features = false, features = [ "http", "sig
 raiden-api= { path = "../../raiden/api" }
 raiden-blockchain = { path = "../../raiden/blockchain" }
 raiden-client = { path = "../../raiden/client" }
-raiden-state-machine = { path = "../../raiden/state-machine" }
-raiden-pathfinding = { path = "../../raiden/pathfinding" }
-raiden-primitives = { path = "../../raiden/primitives" }
-raiden-storage = { path = "../../raiden/storage" }
 raiden-network-messages = { path = "../../raiden/network/messages" }
 raiden-network-transport = { path = "../../raiden/network/transport" }
+raiden-pathfinding = { path = "../../raiden/pathfinding" }
+raiden-primitives = { path = "../../raiden/primitives" }
+raiden-state-machine = { path = "../../raiden/state-machine" }
+raiden-storage = { path = "../../raiden/storage" }
+raiden-transition = { path = "../../raiden/transition" }
