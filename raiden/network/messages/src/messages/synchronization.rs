@@ -16,8 +16,8 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Processed {
-	message_identifier: u32,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendProcessed> for Processed {

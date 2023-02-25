@@ -56,12 +56,12 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretRequest {
-	message_identifier: u32,
-	payment_identifier: PaymentIdentifier,
-	secrethash: SecretHash,
-	amount: TokenAmount,
-	expiration: BlockExpiration,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub payment_identifier: PaymentIdentifier,
+	pub secrethash: SecretHash,
+	pub amount: TokenAmount,
+	pub expiration: BlockExpiration,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendSecretRequest> for SecretRequest {
@@ -105,9 +105,9 @@ impl SignedMessage for SecretRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretReveal {
-	message_identifier: u32,
-	secret: Secret,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub secret: Secret,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendSecretReveal> for SecretReveal {
@@ -138,17 +138,17 @@ impl SignedMessage for SecretReveal {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LockExpired {
-	message_identifier: u32,
-	chain_id: ChainID,
-	token_network_address: TokenNetworkAddress,
-	channel_identifier: U256,
-	transferred_amount: TokenAmount,
-	locked_amount: TokenAmount,
-	locksroot: Locksroot,
-	nonce: U256,
-	recipient: Address,
-	secrethash: SecretHash,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub chain_id: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: U256,
+	pub transferred_amount: TokenAmount,
+	pub locked_amount: TokenAmount,
+	pub locksroot: Locksroot,
+	pub nonce: U256,
+	pub recipient: Address,
+	pub secrethash: SecretHash,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendLockExpired> for LockExpired {
@@ -213,17 +213,17 @@ impl SignedEnvelopeMessage for LockExpired {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Unlock {
-	message_identifier: u32,
-	payment_identifier: PaymentIdentifier,
-	chain_id: ChainID,
-	token_network_address: TokenNetworkAddress,
-	channel_identifier: U256,
-	transferred_amount: TokenAmount,
-	locked_amount: TokenAmount,
-	locksroot: Locksroot,
-	nonce: U256,
-	secret: Secret,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub payment_identifier: PaymentIdentifier,
+	pub chain_id: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: U256,
+	pub transferred_amount: TokenAmount,
+	pub locked_amount: TokenAmount,
+	pub locksroot: Locksroot,
+	pub nonce: U256,
+	pub secret: Secret,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendUnlock> for Unlock {
@@ -391,21 +391,21 @@ impl SignedEnvelopeMessage for LockedTransfer {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundTransfer {
-	message_identifier: u32,
-	payment_identifier: PaymentIdentifier,
-	chain_id: ChainID,
-	token_network_address: TokenNetworkAddress,
-	channel_identifier: U256,
-	transferred_amount: TokenAmount,
-	locked_amount: TokenAmount,
-	locksroot: Locksroot,
-	token: TokenAddress,
-	recipient: Address,
-	lock: Lock,
-	target: Address,
-	initiator: Address,
-	metadata: Metadata,
-	nonce: U256,
-	secret: Secret,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub payment_identifier: PaymentIdentifier,
+	pub chain_id: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: U256,
+	pub transferred_amount: TokenAmount,
+	pub locked_amount: TokenAmount,
+	pub locksroot: Locksroot,
+	pub token: TokenAddress,
+	pub recipient: Address,
+	pub lock: Lock,
+	pub target: Address,
+	pub initiator: Address,
+	pub metadata: Metadata,
+	pub nonce: U256,
+	pub secret: Secret,
+	pub signature: Vec<u8>,
 }

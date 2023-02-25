@@ -28,16 +28,16 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawRequest {
-	message_identifier: u32,
-	chain_id: ChainID,
-	token_network_address: TokenNetworkAddress,
-	channel_identifier: U256,
-	participant: Address,
-	total_withdraw: U256,
-	expiration: U64,
-	nonce: U256,
-	signature: Vec<u8>,
-	coop_settle: bool,
+	pub message_identifier: u32,
+	pub chain_id: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: U256,
+	pub participant: Address,
+	pub total_withdraw: U256,
+	pub expiration: U64,
+	pub nonce: U256,
+	pub signature: Vec<u8>,
+	pub coop_settle: bool,
 }
 
 impl From<SendWithdrawRequest> for WithdrawRequest {
@@ -97,15 +97,15 @@ impl SignedMessage for WithdrawRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawConfirmation {
-	message_identifier: u32,
-	chain_id: ChainID,
-	token_network_address: TokenNetworkAddress,
-	channel_identifier: U256,
-	participant: Address,
-	total_withdraw: U256,
-	expiration: U64,
-	nonce: U256,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub chain_id: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: U256,
+	pub participant: Address,
+	pub total_withdraw: U256,
+	pub expiration: U64,
+	pub nonce: U256,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
@@ -164,15 +164,15 @@ impl SignedMessage for WithdrawConfirmation {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawExpired {
-	message_identifier: u32,
-	chain_id: ChainID,
-	token_network_address: TokenNetworkAddress,
-	channel_identifier: U256,
-	participant: Address,
-	total_withdraw: U256,
-	expiration: U64,
-	nonce: U256,
-	signature: Vec<u8>,
+	pub message_identifier: u32,
+	pub chain_id: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: U256,
+	pub participant: Address,
+	pub total_withdraw: U256,
+	pub expiration: U64,
+	pub nonce: U256,
+	pub signature: Vec<u8>,
 }
 
 impl From<SendWithdrawExpired> for WithdrawExpired {
