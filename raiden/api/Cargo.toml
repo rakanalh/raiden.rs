@@ -14,11 +14,9 @@ rust-version = "1.59"
 # 3rd-Party
 parking_lot = { version = "0.11.2", default-features = false }
 rand = { version = "0.8.4", default-features = false }
-rand_chacha = { version = "0.3.1", default-features = false, features = ["serde1"] }
 tracing = { version = "0.1.37", default-features = false }
 thiserror = { version = "1.0", default-features = false }
 tokio = { version = "1.0", features = ["macros", "time"], default-features = false }
-ulid = { version = "0.4.1", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = ["http", "signing"] }
 
 # Raiden
@@ -28,4 +26,3 @@ raiden-primitives = { path = "../primitives" }
 raiden-state-machine = { path = "../state-machine" }
 raiden-storage = { path = "../storage" }
 raiden-network-messages= { path = "../network/messages" }
-raiden-network-transport = { path = "../network/transport" }

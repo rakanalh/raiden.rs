@@ -2223,7 +2223,6 @@ checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
 name = "raiden"
 version = "0.0.1"
 dependencies = [
- "ethsign",
  "expanduser",
  "futures",
  "hyper",
@@ -2238,7 +2237,6 @@ dependencies = [
  "raiden-state-machine",
  "raiden-storage",
  "routerify",
- "rpassword",
  "rusqlite",
  "serde",
  "serde_json",
@@ -2258,17 +2256,14 @@ dependencies = [
  "parking_lot 0.11.2",
  "raiden-blockchain",
  "raiden-network-messages",
- "raiden-network-transport",
  "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
  "rand 0.8.5",
- "rand_chacha 0.3.1",
  "thiserror",
  "tokio",
  "tracing",
- "ulid",
  "web3",
 ]
 
@@ -2321,22 +2316,15 @@ dependencies = [
 name = "raiden-network-messages"
 version = "0.1.0"
 dependencies = [
- "async-trait",
- "chrono",
  "derive_more",
- "futures",
- "matrix-sdk",
  "raiden-blockchain",
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
- "reqwest",
  "serde",
  "serde_json",
  "thiserror",
  "tiny-keccak",
- "tokio",
- "tokio-stream",
  "web3",
 ]
 
@@ -2346,7 +2334,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
- "derive_more",
  "futures",
  "matrix-sdk",
  "raiden-blockchain",
@@ -2357,7 +2344,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "tiny-keccak",
  "tokio",
  "tokio-stream",
  "web3",
@@ -2375,7 +2361,6 @@ dependencies = [
  "rand 0.8.5",
  "reqwest",
  "serde",
- "serde_json",
  "thiserror",
  "tokio",
  "web3",
@@ -2420,7 +2405,6 @@ dependencies = [
  "serde",
  "serde_json",
  "ulid",
- "web3",
 ]
 
 [[package]]
@@ -3354,17 +3338,12 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 name = "token-ops"
 version = "0.0.1"
 dependencies = [
- "ethsign",
- "expanduser",
- "futures",
  "raiden-blockchain",
  "raiden-client",
  "raiden-primitives",
  "rpassword",
  "structopt",
  "tokio",
- "tracing",
- "tracing-subscriber",
  "web3",
 ]
 
