@@ -5,6 +5,9 @@ mod state_change;
 use raiden_primitives::types::{
 	Address,
 	ChainID,
+	PaymentIdentifier,
+	Secret,
+	TokenAmount,
 	TokenNetworkAddress,
 	U256,
 	U64,
@@ -71,4 +74,11 @@ pub struct TransactionExecutionStatus {
 	pub started_block_number: Option<U64>,
 	pub finished_block_number: Option<U64>,
 	pub result: Option<TransactionResult>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct DecryptedSecret {
+	pub secret: Secret,
+	pub amount: TokenAmount,
+	pub payment_identifier: PaymentIdentifier,
 }

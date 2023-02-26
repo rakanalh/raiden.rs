@@ -300,6 +300,7 @@ pub struct ReceiveTransferRefund {
 
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveUnlock {
+	pub sender: Address,
 	pub message_identifier: MessageIdentifier,
 	pub secret: Secret,
 	pub secrethash: SecretHash,
