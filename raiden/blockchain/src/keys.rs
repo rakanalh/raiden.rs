@@ -22,6 +22,18 @@ use web3::signing::{
 	SigningError,
 };
 
+pub fn recover(data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
+	signing::recover(data, signature, 0)
+}
+
+pub fn encrypt(receiver_pub: &[u8], data: &[u8]) -> Result<Vec<u8>, SecpError> {
+	ecies::encrypt(receiver_pub, data)
+}
+
+pub fn decrypt(private_key: &PrivateKey, data: &[u8]) -> Result<Vec<u8>, SecpError> {
+	ecies::decrypt(private_key.plain.as_ref(), data)
+}
+
 #[derive(Clone)]
 pub struct PrivateKey {
 	plain: Protected,
@@ -45,20 +57,6 @@ impl PrivateKey {
 			.map_err(|e| format!("Could not generate secret key from file: {}", filename))?;
 
 		Ok(Self { plain: plain.into(), inner })
-	}
-}
-
-impl PrivateKey {
-	pub fn recover(&self, data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
-		signing::recover(data, signature, 0)
-	}
-
-	pub fn encrypt(&self, receiver_pub: &[u8], data: &[u8]) -> Result<Vec<u8>, SecpError> {
-		ecies::encrypt(receiver_pub, data)
-	}
-
-	pub fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, SecpError> {
-		ecies::decrypt(self.plain.as_ref(), data)
 	}
 }
 
