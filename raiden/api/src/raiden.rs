@@ -28,6 +28,7 @@ use web3::{
 #[derive(Clone)]
 pub struct DefaultAddresses {
 	pub token_network_registry: Address,
+	pub secret_registry: Address,
 	pub one_to_n: Address,
 }
 
