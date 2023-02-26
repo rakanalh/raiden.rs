@@ -56,7 +56,7 @@ pub struct PFSConfig {
 pub struct ServicesConfig {
 	pub routing_mode: RoutingMode,
 	pub pathfinding_service_random_address: bool,
-	pub pathfinding_service_specific_address: String,
+	pub pathfinding_service_address: String,
 	pub pathfinding_max_paths: usize,
 	pub pathfinding_max_fee: TokenAmount,
 	pub pathfinding_iou_timeout: BlockTimeout,

@@ -105,7 +105,7 @@ pub struct CliServicesConfig {
 	#[structopt(long)]
 	pub pathfinding_service_random_address: bool,
 	#[structopt(long, required = false, default_value = "")]
-	pub pathfinding_service_specific_address: String,
+	pub pathfinding_service_address: String,
 	#[structopt(long, required = false, default_value = "0")]
 	pub pathfinding_max_paths: usize,
 	#[structopt(long, required = false, default_value = "0")]
@@ -121,7 +121,7 @@ impl From<CliServicesConfig> for ServicesConfig {
 		ServicesConfig {
 			routing_mode: s.routing_mode.into(),
 			pathfinding_service_random_address: s.pathfinding_service_random_address,
-			pathfinding_service_specific_address: s.pathfinding_service_specific_address,
+			pathfinding_service_address: s.pathfinding_service_address,
 			pathfinding_max_paths: s.pathfinding_max_paths,
 			pathfinding_max_fee: s.pathfinding_max_fee,
 			pathfinding_iou_timeout: s.pathfinding_iou_timeout.into(),

@@ -232,7 +232,7 @@ async fn main() {
 		account: account.clone(),
 		metadata: our_metadata,
 		pfs_config: PFSConfig {
-			url: cli.services_config.pathfinding_service_specific_address,
+			url: cli.services_config.pathfinding_service_address,
 			info: pfs_info,
 			maximum_fee: cli.services_config.pathfinding_max_fee,
 			iou_timeout: cli.services_config.pathfinding_iou_timeout.into(),

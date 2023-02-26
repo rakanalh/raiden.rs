@@ -386,7 +386,7 @@ pub async fn configure_pfs(
 	let pfs_url = if services_config.pathfinding_service_random_address {
 		get_random_pfs(service_registry, services_config.pathfinding_max_fee).await?
 	} else {
-		services_config.pathfinding_service_specific_address
+		services_config.pathfinding_service_address
 	};
 
 	get_pfs_info(pfs_url).await
