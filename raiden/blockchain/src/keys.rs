@@ -1,4 +1,11 @@
-use ethsign::SecretKey;
+use std::fs::File;
+
+pub use ecies::SecpError;
+use ethsign::{
+	KeyFile,
+	Protected,
+	SecretKey,
+};
 use raiden_primitives::types::{
 	Address,
 	H256,
@@ -10,18 +17,48 @@ use tiny_keccak::{
 use web3::signing::{
 	self,
 	Key,
+	RecoveryError,
 	Signature,
 	SigningError,
 };
 
 #[derive(Clone)]
 pub struct PrivateKey {
+	plain: Protected,
 	inner: SecretKey,
 }
 
 impl PrivateKey {
-	pub fn new(inner: SecretKey) -> Self {
-		Self { inner }
+	pub fn new(filename: String, password: String) -> Result<Self, String> {
+		let file =
+			File::open(&filename).map_err(|e| format!("Could not open file: {}", filename))?;
+
+		let key: KeyFile = serde_json::from_reader(file)
+			.map_err(|e| format!("Could not read file: {}", filename))?;
+
+		let plain = key
+			.crypto
+			.decrypt(&password.into())
+			.map_err(|e| format!("Could not decrypt private key file: {}", filename))?;
+
+		let inner = SecretKey::from_raw(&plain)
+			.map_err(|e| format!("Could not generate secret key from file: {}", filename))?;
+
+		Ok(Self { plain: plain.into(), inner })
+	}
+}
+
+impl PrivateKey {
+	pub fn recover(&self, data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
+		signing::recover(data, signature, 0)
+	}
+
+	pub fn encrypt(&self, receiver_pub: &[u8], data: &[u8]) -> Result<Vec<u8>, SecpError> {
+		ecies::encrypt(receiver_pub, data)
+	}
+
+	pub fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, SecpError> {
+		ecies::decrypt(self.plain.as_ref(), data)
 	}
 }
 

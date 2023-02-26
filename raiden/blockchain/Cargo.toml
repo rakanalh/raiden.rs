@@ -13,6 +13,7 @@ rust-version = "1.59"
 [dependencies]
 # 3rd-Party
 async-trait = { version = "0.1.51", default-features = false }
+ecies = { version = "0.2.0" }
 ethsign = { version = "0.8.0", default-features = true }
 derive_more = { version = "0.99.11", default-features = false }
 ethabi = { version = "16.0.0", default-features = false }

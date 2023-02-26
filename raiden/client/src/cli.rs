@@ -3,7 +3,6 @@ use std::{
 	fs::{
 		self,
 		DirEntry,
-		File,
 	},
 	io,
 	io::{
@@ -17,11 +16,7 @@ use std::{
 	},
 };
 
-use ethsign::{
-	KeyFile,
-	Protected,
-	SecretKey,
-};
+use ethsign::KeyFile;
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::Address;
 
@@ -29,9 +24,7 @@ pub fn get_private_key(keystore_path: PathBuf) -> Result<PrivateKey, String> {
 	let keys =
 		list_keys(keystore_path.as_path()).map_err(|e| format!("Error listing accounts: {}", e))?;
 	let selected_key_filename = prompt_key(&keys);
-	let secret_key = prompt_password(selected_key_filename);
-
-	Ok(PrivateKey::new(secret_key))
+	Ok(prompt_password(selected_key_filename))
 }
 
 pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {
@@ -45,16 +38,6 @@ pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {
 		keys.insert(file_name, address);
 	}
 	Ok(keys)
-}
-
-pub fn use_key(keystore_file: &String, password: String) -> Option<SecretKey> {
-	let file = File::open(&keystore_file).unwrap();
-	let key: KeyFile = serde_json::from_reader(file).unwrap();
-	let password: Protected = password.into();
-	if let Ok(secret) = key.to_secret_key(&password) {
-		return Some(secret)
-	}
-	None
 }
 
 pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
@@ -80,12 +63,14 @@ pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
 	}
 }
 
-pub fn prompt_password(key_filename: String) -> SecretKey {
+pub fn prompt_password(key_filename: String) -> PrivateKey {
 	loop {
 		let pass = rpassword::read_password_from_tty(Some("Password: ")).unwrap();
-		let unlock = use_key(&key_filename, pass.to_string());
-		if let Some(secret_key) = unlock {
-			return secret_key
+		match PrivateKey::new(key_filename.clone(), pass) {
+			Ok(private_key) => return private_key,
+			Err(e) => {
+				println!("Error: {}", e);
+			},
 		}
 	}
 }
