@@ -13,6 +13,7 @@ rust-version = "1.59"
 [dependencies]
 # 3rd-Party
 derive_more = { version = "0.99.11", default-features = false }
+hex = { version = "0.4.3" }
 thiserror = { version = "1.0", default-features = false }
 tiny-keccak = { version = "2.0.0", features = [ "keccak" ] }
 serde = { version = "1.0.136", default-features = false, features = [ "derive" ] }
@@ -21,5 +22,6 @@ web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
 
 # Raiden
 raiden-blockchain = { path = "../../blockchain" }
+raiden-pathfinding = { path = "../../pathfinding" }
 raiden-primitives = { path = "../../primitives" }
 raiden-state-machine = { path = "../../state-machine" }

@@ -2426,7 +2426,9 @@ name = "raiden-network-messages"
 version = "0.1.0"
 dependencies = [
  "derive_more",
+ "hex",
  "raiden-blockchain",
+ "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
  "serde",
@@ -2444,6 +2446,7 @@ dependencies = [
  "chrono",
  "futures",
  "matrix-sdk",
+ "parking_lot 0.11.2",
  "raiden-blockchain",
  "raiden-network-messages",
  "raiden-primitives",

@@ -27,6 +27,7 @@ use raiden_client::{
 		SyncService,
 	},
 };
+use raiden_network_messages::decode::MessageDecoder;
 use raiden_pathfinding::{
 	self,
 	config::PFSConfig,
@@ -222,6 +223,14 @@ async fn main() {
 		},
 	};
 
+	let message_decoder = MessageDecoder {
+		private_key: account.private_key(),
+		our_address: account.address(),
+		proxy_manager: proxy_manager.clone(),
+		secret_registry_address: default_addresses.secret_registry,
+		pathfinding_service_url: cli.services_config.pathfinding_service_address.clone(),
+	};
+
 	// #
 	// # Initialize Raiden
 	// #
@@ -245,7 +254,7 @@ async fn main() {
 		config,
 		contracts_manager,
 		proxy_manager,
-		state_manager,
+		state_manager: state_manager.clone(),
 		transport: transport_sender.clone(),
 	});
 
@@ -280,7 +289,7 @@ async fn main() {
 
 	futures::join!(
 		block_monitor_service.start(),
-		transport_service.run(transitioner),
+		transport_service.run(state_manager, transitioner, message_decoder),
 		http_service.start()
 	);
 }

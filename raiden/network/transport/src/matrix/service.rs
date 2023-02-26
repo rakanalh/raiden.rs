@@ -18,6 +18,7 @@ use matrix_sdk::{
 		serde::Raw,
 	},
 };
+use parking_lot::RwLock;
 use raiden_network_messages::{
 	decode::MessageDecoder,
 	messages::{
@@ -25,11 +26,17 @@ use raiden_network_messages::{
 		TransportServiceMessage,
 	},
 };
-use raiden_state_machine::types::{
-	QueueIdentifier,
-	StateChange,
+use raiden_state_machine::{
+	types::{
+		QueueIdentifier,
+		StateChange,
+	},
+	views,
 };
-use raiden_transition::Transitioner;
+use raiden_transition::{
+	manager::StateManager,
+	Transitioner,
+};
 use tokio::{
 	select,
 	sync::mpsc::{
@@ -54,7 +61,6 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 pub struct MatrixService {
 	config: TransportConfig,
 	client: MatrixClient,
-	transition_service: Arc<Transitioner>,
 	sender: UnboundedSender<TransportServiceMessage>,
 	receiver: UnboundedReceiverStream<TransportServiceMessage>,
 	message_queues: HashMap<QueueIdentifier, UnboundedSender<(QueueIdentifier, OutgoingMessage)>>,
@@ -65,7 +71,6 @@ impl MatrixService {
 	pub fn new(
 		config: TransportConfig,
 		client: MatrixClient,
-		transition_service: Arc<Transitioner>,
 	) -> (Self, UnboundedSender<TransportServiceMessage>) {
 		let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -73,7 +78,6 @@ impl MatrixService {
 			Self {
 				config,
 				client,
-				transition_service,
 				sender: sender.clone(),
 				receiver: UnboundedReceiverStream::new(receiver),
 				message_queues: HashMap::new(),
@@ -96,7 +100,12 @@ impl MatrixService {
 		}
 	}
 
-	pub async fn run(mut self) {
+	pub async fn run(
+		mut self,
+		state_manager: Arc<RwLock<StateManager>>,
+		transition_service: Arc<Transitioner>,
+		message_decoder: MessageDecoder,
+	) {
 		let mut sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
 		loop {
 			select! {
@@ -105,7 +114,7 @@ impl MatrixService {
 						Ok(response) => {
 							let to_device_events = response.to_device.events;
 							for to_device_event in to_device_events.iter() {
-								self.process_event(to_device_event).await;
+								self.process_event(state_manager.clone(), transition_service.clone(), message_decoder.clone(), to_device_event).await;
 							}
 							let sync_token = response.next_batch;
 							sync_settings = SyncSettings::new().timeout(Duration::from_secs(30)).token(sync_token);
@@ -134,7 +143,13 @@ impl MatrixService {
 		}
 	}
 
-	pub async fn process_event(&self, event: &Raw<AnyToDeviceEvent>) {
+	pub async fn process_event(
+		&self,
+		state_manager: Arc<RwLock<StateManager>>,
+		transitioner: Arc<Transitioner>,
+		message_decoder: MessageDecoder,
+		event: &Raw<AnyToDeviceEvent>,
+	) {
 		match event.get_field::<String>("type") {
 			Ok(Some(message_type)) => {
 				let event_body = event.json().get();
@@ -155,7 +170,10 @@ impl MatrixService {
 						return
 					},
 				};
-				let message = match MessageDecoder::decode(content.clone()) {
+
+				let chain_state = state_manager.read().current_state.clone();
+				let state_changes = match message_decoder.decode(chain_state, content.clone()).await
+				{
 					Ok(message) => message,
 					Err(e) => {
 						error!("Could not decode message: {}", message_type);
@@ -163,7 +181,10 @@ impl MatrixService {
 					},
 				};
 
-				println!("Message received: {:?}", message);
+				for state_change in state_changes {
+					debug!("Transition state change: {:?}", state_change);
+					transitioner.transition(state_change).await;
+				}
 			},
 			Ok(None) => {
 				error!("Invalid event. Field 'type' does not exist");
