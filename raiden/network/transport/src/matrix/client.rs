@@ -85,7 +85,7 @@ impl MatrixClient {
 
 	pub fn address_metadata(&self) -> AddressMetadata {
 		let user_id = format!("@{}:{}", self.private_key.address().to_string(), self.server_name);
-		let displayname = self.private_key.sign(user_id.as_bytes(), None).unwrap().to_string();
+		let displayname = self.private_key.sign_message(user_id.as_bytes()).unwrap().to_string();
 		AddressMetadata { user_id, displayname, capabilities: "".to_owned() }
 	}
 
