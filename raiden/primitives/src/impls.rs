@@ -9,14 +9,7 @@ use crate::traits::{
 };
 
 impl ToBytes for U256 {
-	fn to_bytes(&self) -> &[u8] {
-		let bytes = self.as_vec();
-		let r: &mut [u8] = Default::default();
-		r.clone_from_slice(&bytes[..]);
-		r
-	}
-
-	fn as_vec(&self) -> Vec<u8> {
+	fn to_bytes(&self) -> Vec<u8> {
 		let mut bytes = vec![];
 		self.to_big_endian(&mut bytes);
 		bytes
@@ -24,14 +17,7 @@ impl ToBytes for U256 {
 }
 
 impl ToBytes for Signature {
-	fn to_bytes(&self) -> &[u8] {
-		let b = self.as_vec();
-		let r: &mut [u8] = Default::default();
-		r.clone_from_slice(&b[..]);
-		r
-	}
-
-	fn as_vec(&self) -> Vec<u8> {
+	fn to_bytes(&self) -> Vec<u8> {
 		let rb = self.r.to_fixed_bytes();
 		let sb = self.s.to_fixed_bytes();
 		let sv = self.v.to_be_bytes();

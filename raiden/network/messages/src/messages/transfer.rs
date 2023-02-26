@@ -96,7 +96,7 @@ impl SignedMessage for SecretRequest {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
@@ -129,7 +129,7 @@ impl SignedMessage for SecretReveal {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
@@ -186,7 +186,7 @@ impl SignedMessage for LockExpired {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
@@ -261,7 +261,7 @@ impl SignedMessage for Unlock {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
@@ -362,7 +362,7 @@ impl SignedMessage for LockedTransfer {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }

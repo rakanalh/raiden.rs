@@ -90,7 +90,7 @@ impl SignedMessage for WithdrawRequest {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
@@ -157,7 +157,7 @@ impl SignedMessage for WithdrawConfirmation {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
@@ -224,7 +224,7 @@ impl SignedMessage for WithdrawExpired {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.as_vec();
+		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
 	}
 }
