@@ -288,7 +288,7 @@ impl SignedEnvelopeMessage for Unlock {
 pub struct Lock {
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
-	pub secrethash: Option<SecretHash>,
+	pub secrethash: SecretHash,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -334,7 +334,7 @@ impl From<SendLockedTransfer> for LockedTransfer {
 			lock: Lock {
 				amount: event.transfer.lock.amount,
 				expiration: event.transfer.lock.expiration,
-				secrethash: Some(event.transfer.lock.secrethash),
+				secrethash: event.transfer.lock.secrethash,
 			},
 			target: event.transfer.target,
 			initiator: event.transfer.initiator,
