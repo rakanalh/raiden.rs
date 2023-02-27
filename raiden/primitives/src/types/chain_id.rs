@@ -1,11 +1,10 @@
 use std::str::FromStr;
 
 use derive_more::Display;
-use serde::Serialize;
 use web3::types::U256;
 
 #[repr(u8)]
-#[derive(Copy, Clone, Display, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Display, Debug, Eq, Hash, PartialEq)]
 pub enum ChainID {
 	Mainnet = 1,
 	Ropsten = 3,

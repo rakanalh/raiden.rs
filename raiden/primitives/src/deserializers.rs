@@ -75,7 +75,6 @@ impl<'de> Deserialize<'de> for ChainID {
 			where
 				E: Error,
 			{
-				println!("ChainID: {}", id);
 				Ok(ChainID::from_str(id)
 					.map_err(|_| Error::custom("Could not parse ChainID from string"))?)
 			}
