@@ -1,5 +1,5 @@
 use raiden_primitives::{
-	deserializers::deserialize_u256,
+	deserializers::u256_from_u64,
 	types::{
 		Address,
 		BlockNumber,
@@ -32,7 +32,7 @@ pub struct NetworkInfo {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PFSInfo {
-	#[serde(deserialize_with = "deserialize_u256", rename(deserialize = "price_info"))]
+	#[serde(deserialize_with = "u256_from_u64", rename(deserialize = "price_info"))]
 	pub price: TokenAmount,
 	#[serde(rename(deserialize = "network_info"))]
 	pub network: NetworkInfo,

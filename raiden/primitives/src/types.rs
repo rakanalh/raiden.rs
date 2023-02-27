@@ -4,6 +4,7 @@ pub use web3::types::{
 	Bytes,
 	H160,
 	H256,
+	U256,
 };
 
 mod chain_id;

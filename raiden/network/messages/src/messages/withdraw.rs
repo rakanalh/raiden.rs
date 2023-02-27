@@ -1,5 +1,10 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
+	deserializers::{
+		signature_from_str,
+		u256_from_str,
+		u32_from_str,
+	},
 	traits::ToBytes,
 	types::{
 		Address,
@@ -28,14 +33,19 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawRequest {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub channel_identifier: U256,
 	pub participant: Address,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub total_withdraw: U256,
 	pub expiration: U64,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 	pub coop_settle: bool,
 }
@@ -97,14 +107,19 @@ impl SignedMessage for WithdrawRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawConfirmation {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub channel_identifier: U256,
 	pub participant: Address,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub total_withdraw: U256,
 	pub expiration: U64,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 
@@ -164,14 +179,19 @@ impl SignedMessage for WithdrawConfirmation {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawExpired {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub channel_identifier: U256,
 	pub participant: Address,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub total_withdraw: U256,
 	pub expiration: U64,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 

@@ -1,11 +1,15 @@
+use std::str::FromStr;
+
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	deserializers::{
-		deserialize_signature,
-		deserialize_u32_from_str,
+		signature_from_str,
+		u256_from_str,
+		u32_from_str,
 	},
 	traits::ToBytes,
 	types::{
+		message_type::MessageTypeId,
 		Address,
 		BlockExpiration,
 		ChainID,
@@ -54,11 +58,14 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretRequest {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub payment_identifier: PaymentIdentifier,
 	pub secrethash: SecretHash,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 
@@ -88,7 +95,7 @@ impl SignedMessage for SecretRequest {
 		let mut bytes = vec![];
 		bytes.extend_from_slice(&cmd_id);
 		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
-		bytes.extend_from_slice(self.payment_identifier.as_bytes());
+		bytes.append(&mut self.payment_identifier.as_bytes());
 		bytes.extend_from_slice(self.secrethash.as_bytes());
 		bytes.extend_from_slice(&amount);
 		bytes.extend_from_slice(&expiration);
@@ -103,8 +110,10 @@ impl SignedMessage for SecretRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretReveal {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub secret: Secret,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 
@@ -136,16 +145,22 @@ impl SignedMessage for SecretReveal {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LockExpired {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub channel_identifier: U256,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub locked_amount: TokenAmount,
 	pub locksroot: Locksroot,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	pub recipient: Address,
 	pub secrethash: SecretHash,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 
@@ -181,6 +196,7 @@ impl SignedMessage for LockExpired {
 				token_network_address: self.token_network_address,
 				channel_identifier: self.channel_identifier,
 			},
+			MessageTypeId::BalanceProof,
 		)
 		.0
 	}
@@ -211,16 +227,21 @@ impl SignedEnvelopeMessage for LockExpired {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Unlock {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
 	pub channel_identifier: U256,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub locked_amount: TokenAmount,
 	pub locksroot: Locksroot,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	pub secret: Secret,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 
@@ -256,6 +277,7 @@ impl SignedMessage for Unlock {
 				token_network_address: self.token_network_address,
 				channel_identifier: self.channel_identifier,
 			},
+			MessageTypeId::BalanceProof,
 		)
 		.0
 	}
@@ -286,20 +308,24 @@ impl SignedEnvelopeMessage for Unlock {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lock {
+	#[serde(deserialize_with = "u256_from_str")]
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
-	pub secrethash: SecretHash,
+	pub secrethash: Option<SecretHash>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LockedTransfer {
-	#[serde(deserialize_with = "deserialize_u32_from_str")]
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub channel_identifier: U256,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub locked_amount: TokenAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
@@ -308,9 +334,10 @@ pub struct LockedTransfer {
 	pub target: Address,
 	pub initiator: Address,
 	pub metadata: Metadata,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	pub secret: Option<Secret>,
-	#[serde(deserialize_with = "deserialize_signature")]
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }
 
@@ -334,7 +361,7 @@ impl From<SendLockedTransfer> for LockedTransfer {
 			lock: Lock {
 				amount: event.transfer.lock.amount,
 				expiration: event.transfer.lock.expiration,
-				secrethash: event.transfer.lock.secrethash,
+				secrethash: Some(event.transfer.lock.secrethash),
 			},
 			target: event.transfer.target,
 			initiator: event.transfer.initiator,
@@ -348,6 +375,13 @@ impl SignedMessage for LockedTransfer {
 		let balance_hash =
 			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
 				.unwrap();
+		println!("transferred: {:?}", self.transferred_amount);
+		println!("locked: {:?}", self.locked_amount);
+		let a = TokenAmount::from_str("19000000000000000000").unwrap();
+		let value: serde_json::Value = serde_json::to_value(a).unwrap();
+		println!("locked 2: {:?}", U256::deserialize(value));
+		println!("locksroot: {:?}", hex::encode(self.locksroot.clone().0));
+		println!("Balance Hash: {:?}", hex::encode(balance_hash));
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
@@ -357,6 +391,7 @@ impl SignedMessage for LockedTransfer {
 				token_network_address: self.token_network_address,
 				channel_identifier: self.channel_identifier,
 			},
+			MessageTypeId::BalanceProof,
 		)
 		.0
 	}
@@ -389,12 +424,16 @@ impl SignedEnvelopeMessage for LockedTransfer {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundTransfer {
+	#[serde(deserialize_with = "u32_from_str")]
 	pub message_identifier: u32,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub channel_identifier: U256,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub locked_amount: TokenAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
@@ -403,7 +442,9 @@ pub struct RefundTransfer {
 	pub target: Address,
 	pub initiator: Address,
 	pub metadata: Metadata,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	pub secret: Secret,
+	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
 }

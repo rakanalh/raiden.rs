@@ -18,7 +18,7 @@ use crate::types::{
 	U64,
 };
 
-pub fn deserialize_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
+pub fn u256_from_u64<'de, D>(deserializer: D) -> Result<U256, D::Error>
 where
 	D: Deserializer<'de>,
 {
@@ -26,7 +26,16 @@ where
 	Ok(U256::from(buf))
 }
 
-pub fn deserialize_u32_from_str<'de, D>(deserializer: D) -> Result<u32, D::Error>
+pub fn u256_from_str<'de, D>(deserializer: D) -> Result<U256, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let binding = serde_json::Value::deserialize(deserializer)?;
+	let v = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse U256"))?;
+	Ok(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?)
+}
+
+pub fn u32_from_str<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
 	D: Deserializer<'de>,
 {
@@ -37,7 +46,7 @@ where
 	Ok(v as u32)
 }
 
-pub fn deserialize_signature<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+pub fn signature_from_str<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
 	D: Deserializer<'de>,
 {
