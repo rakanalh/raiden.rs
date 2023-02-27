@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use raiden_primitives::types::{
 	Address,
 	Secret,
+	H256,
 };
 use raiden_state_machine::{
 	types::{
@@ -15,6 +16,10 @@ use serde::{
 	Deserialize,
 	Serialize,
 };
+use tiny_keccak::{
+	Hasher,
+	Keccak,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RouteMetadata {
@@ -26,6 +31,24 @@ pub struct RouteMetadata {
 pub struct Metadata {
 	pub routes: Vec<RouteMetadata>,
 	pub secret: Option<Secret>,
+}
+
+impl Metadata {
+	pub fn hash(&self) -> Result<Vec<u8>, String> {
+		let value = serde_json::to_value(self)
+			.map_err(|e| format!("Could not convert metadata to JSON: {:?}", e))?;
+		let data = canonical_json::to_string(&value)
+			.map_err(|e| format!("Could not canonicalize json: {:?}", e))?;
+
+		let mut res: Vec<u8> = Vec::new();
+		res.extend_from_slice(data.as_bytes());
+
+		let mut keccak = Keccak::v256();
+		let mut result = [0u8; 32];
+		keccak.update(&res);
+		keccak.finalize(&mut result);
+		Ok(result.to_vec())
+	}
 }
 
 impl From<SendLockedTransfer> for Metadata {
