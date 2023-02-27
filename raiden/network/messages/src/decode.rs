@@ -81,13 +81,14 @@ impl MessageDecoder {
 	pub async fn decode(
 		&self,
 		chain_state: ChainState,
-		body: serde_json::Value,
+		body: String,
 	) -> Result<Vec<StateChange>, String> {
 		let message = self.into_message(body)?;
 
 		match message.inner {
 			crate::messages::MessageInner::LockedTransfer(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let data = message.bytes();
+				let sender = self.get_sender(&data, &message.signature)?;
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
 					message.locked_amount,
@@ -197,7 +198,8 @@ impl MessageDecoder {
 				}
 			},
 			crate::messages::MessageInner::LockExpired(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender =
+					self.get_sender(&message.message_hash().as_bytes(), &message.signature)?;
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
 					message.locked_amount,
@@ -348,11 +350,9 @@ impl MessageDecoder {
 		}
 	}
 
-	pub fn into_message(&self, body: serde_json::Value) -> Result<IncomingMessage, String> {
-		let s = body.as_str().ok_or(format!("Could not convert message to string"))?.to_owned();
-
+	pub fn into_message(&self, body: String) -> Result<IncomingMessage, String> {
 		let map: HashMap<String, serde_json::Value> =
-			serde_json::from_str(&s).map_err(|e| format!("Could not parse json {}", e))?;
+			serde_json::from_str(&body).map_err(|e| format!("Could not parse json {}", e))?;
 
 		let message_type = map
 			.get("type")
@@ -362,49 +362,50 @@ impl MessageDecoder {
 
 		match message_type {
 			"LockedTransfer" => {
-				let locked_transfer: LockedTransfer = serde_json::from_str(&s).unwrap();
+				let locked_transfer: LockedTransfer = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: locked_transfer.message_identifier,
 					inner: crate::messages::MessageInner::LockedTransfer(locked_transfer),
 				})
 			},
 			"LockExpired" => {
-				let lock_expired: LockExpired = serde_json::from_str(&s).unwrap();
+				let lock_expired: LockExpired = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: lock_expired.message_identifier,
 					inner: crate::messages::MessageInner::LockExpired(lock_expired),
 				})
 			},
 			"SecretRequest" => {
-				let secret_request: SecretRequest = serde_json::from_str(&s).unwrap();
+				let secret_request: SecretRequest = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: secret_request.message_identifier,
 					inner: crate::messages::MessageInner::SecretRequest(secret_request),
 				})
 			},
 			"SecretReveal" => {
-				let secret_reveal: SecretReveal = serde_json::from_str(&s).unwrap();
+				let secret_reveal: SecretReveal = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: secret_reveal.message_identifier,
 					inner: crate::messages::MessageInner::SecretReveal(secret_reveal),
 				})
 			},
 			"Unlock" => {
-				let unlock: Unlock = serde_json::from_str(&s).unwrap();
+				let unlock: Unlock = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: unlock.message_identifier,
 					inner: crate::messages::MessageInner::Unlock(unlock),
 				})
 			},
 			"WithdrawRequest" => {
-				let withdraw_request: WithdrawRequest = serde_json::from_str(&s).unwrap();
+				let withdraw_request: WithdrawRequest = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: withdraw_request.message_identifier,
 					inner: crate::messages::MessageInner::WithdrawRequest(withdraw_request),
 				})
 			},
 			"WithdrawConfirmation" => {
-				let withdraw_confirmation: WithdrawConfirmation = serde_json::from_str(&s).unwrap();
+				let withdraw_confirmation: WithdrawConfirmation =
+					serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: withdraw_confirmation.message_identifier,
 					inner: crate::messages::MessageInner::WithdrawConfirmation(
@@ -413,14 +414,14 @@ impl MessageDecoder {
 				})
 			},
 			"WithdrawExpired" => {
-				let withdraw_expired: WithdrawExpired = serde_json::from_str(&s).unwrap();
+				let withdraw_expired: WithdrawExpired = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: withdraw_expired.message_identifier,
 					inner: crate::messages::MessageInner::WithdrawExpired(withdraw_expired),
 				})
 			},
 			"Processed" => {
-				let processed: Processed = serde_json::from_str(&s).unwrap();
+				let processed: Processed = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: processed.message_identifier,
 					inner: crate::messages::MessageInner::Processed(processed),
