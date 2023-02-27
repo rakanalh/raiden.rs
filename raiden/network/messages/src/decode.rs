@@ -127,7 +127,7 @@ impl MessageDecoder {
 					lock: HashTimeLockState::create(
 						message.lock.amount,
 						message.lock.expiration,
-						message.lock.secrethash,
+						message.lock.secrethash.unwrap_or_default(),
 					),
 					initiator: message.initiator,
 					target: message.target,
@@ -165,7 +165,7 @@ impl MessageDecoder {
 							StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
 								sender,
 								secret: decrypted_secret.secret,
-								secrethash: message.lock.secrethash,
+								secrethash: message.lock.secrethash.unwrap_or_default(),
 							}),
 						])
 					}
