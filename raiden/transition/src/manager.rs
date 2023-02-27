@@ -51,7 +51,7 @@ impl StateManager {
 				// Set the snapshot
 				// and then apply state_changes after
 				let current_state: ChainState = serde_json::from_str(&snapshot.data)
-					.map_err(|e| RaidenError { msg: format!("{}", e) })?;
+					.map_err(|e| RaidenError { msg: format!("Snapshot error: {}", e) })?;
 
 				let state_changes_records = storage.get_state_changes_in_range(
 					snapshot.state_change_identifier,
@@ -61,7 +61,7 @@ impl StateManager {
 				let mut state_changes = vec![];
 				for record in state_changes_records {
 					let state_change = serde_json::from_str(&record.data)
-						.map_err(|e| RaidenError { msg: format!("{}", e) })?;
+						.map_err(|e| RaidenError { msg: format!("State change error: {}", e) })?;
 					state_changes.push(state_change);
 				}
 				let block_number = current_state.block_number;
