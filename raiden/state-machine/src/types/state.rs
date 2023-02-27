@@ -669,8 +669,8 @@ impl HashTimeLockState {
 	) -> Self {
 		let mut data = vec![];
 		data.extend_from_slice(&amount.to_bytes());
-		data.extend_from_slice(expiration.as_bytes());
-		data.extend_from_slice(secrethash.as_bytes());
+		data.extend_from_slice(&expiration.as_bytes());
+		data.extend_from_slice(&secrethash.as_bytes());
 		Self { amount, expiration, secrethash, encoded: Bytes(data) }
 	}
 }
