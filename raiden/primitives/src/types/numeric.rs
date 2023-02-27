@@ -35,13 +35,10 @@ impl U64 {
 		Self(PrimitiveU64::zero())
 	}
 
-	pub fn as_bytes(&self) -> &[u8] {
-		let mut bytes = vec![];
+	pub fn as_bytes(&self) -> Vec<u8> {
+		let mut bytes: [u8; 8] = [0; 8];
 		self.0.to_big_endian(&mut bytes);
-
-		let r: &mut [u8] = Default::default();
-		r.clone_from_slice(&bytes[..]);
-		r
+		bytes.to_vec()
 	}
 }
 
