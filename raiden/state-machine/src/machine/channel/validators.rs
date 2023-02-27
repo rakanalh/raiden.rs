@@ -1,4 +1,5 @@
 use raiden_primitives::types::{
+	message_type::MessageTypeId,
 	Address,
 	BlockExpiration,
 	BlockNumber,
@@ -126,6 +127,7 @@ pub(super) fn is_valid_balance_proof_signature(
 		balance_hash,
 		message_hash,
 		balance_proof.canonical_identifier.clone(),
+		MessageTypeId::BalanceProof,
 	);
 
 	let signature = match balance_proof.signature {

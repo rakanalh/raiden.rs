@@ -4,10 +4,10 @@ pub use web3::types::{
 	Bytes,
 	H160,
 	H256,
-	U256,
 };
 
 mod chain_id;
+pub mod message_type;
 pub use chain_id::*;
 
 mod numeric;

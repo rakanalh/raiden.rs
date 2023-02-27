@@ -3,6 +3,7 @@ use ethabi::{
 	Token,
 };
 use raiden_primitives::types::{
+	message_type::MessageTypeId,
 	Address,
 	BalanceHash,
 	BlockExpiration,
@@ -67,10 +68,10 @@ pub fn hash_balance_data(
 		return Err("Locksroot has wrong length".to_string())
 	}
 
-	let mut transferred_amount_in_bytes = vec![];
+	let mut transferred_amount_in_bytes: [u8; 32] = [0; 32];
 	transferred_amount.to_big_endian(&mut transferred_amount_in_bytes);
 
-	let mut locked_amount_in_bytes = vec![];
+	let mut locked_amount_in_bytes: [u8; 32] = [0; 32];
 	locked_amount.to_big_endian(&mut locked_amount_in_bytes);
 
 	let hash = keccak256(
@@ -84,16 +85,16 @@ pub fn pack_balance_proof(
 	balance_hash: BalanceHash,
 	additional_hash: MessageHash,
 	canonical_identifier: CanonicalIdentifier,
+	msg_type: MessageTypeId,
 ) -> Bytes {
 	let mut b = vec![];
 
-	b.extend(encode(&[
-		Token::Address(canonical_identifier.token_network_address),
-		Token::Uint(canonical_identifier.chain_identifier.into()),
-		Token::Uint(canonical_identifier.channel_identifier),
-	]));
+	b.extend(canonical_identifier.token_network_address.as_bytes());
+	b.extend(encode(&[Token::Uint(canonical_identifier.chain_identifier.into())]));
+	b.extend(encode(&[Token::Uint(U256::from(msg_type as u8))]));
+	b.extend(encode(&[Token::Uint(canonical_identifier.channel_identifier.into())]));
 	b.extend(balance_hash.as_bytes());
-	b.extend(encode(&[Token::Uint(nonce)]));
+	b.extend(encode(&[Token::Uint(nonce.into())]));
 	b.extend(additional_hash.as_bytes());
 
 	Bytes(b)
@@ -110,9 +111,9 @@ pub fn pack_withdraw(
 	b.extend(encode(&[
 		Token::Address(canonical_identifier.token_network_address),
 		Token::Uint(canonical_identifier.chain_identifier.into()),
-		Token::Uint(canonical_identifier.channel_identifier),
+		Token::Uint(canonical_identifier.channel_identifier.into()),
 		Token::Address(participant),
-		Token::Uint(total_withdraw),
+		Token::Uint(total_withdraw.into()),
 		Token::Uint(expiration_block.into()),
 	]));
 
