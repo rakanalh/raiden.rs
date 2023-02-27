@@ -48,6 +48,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{
 	debug,
 	error,
+	info,
 };
 
 use super::{
@@ -113,6 +114,7 @@ impl MatrixService {
 					match response {
 						Ok(response) => {
 							let to_device_events = response.to_device.events;
+							info!("Received {} network messages", to_device_events.len());
 							for to_device_event in to_device_events.iter() {
 								self.process_event(state_manager.clone(), transition_service.clone(), message_decoder.clone(), to_device_event).await;
 							}
@@ -171,19 +173,41 @@ impl MatrixService {
 					},
 				};
 
-				let chain_state = state_manager.read().current_state.clone();
-				let state_changes = match message_decoder.decode(chain_state, content.clone()).await
-				{
-					Ok(message) => message,
-					Err(e) => {
-						error!("Could not decode message: {}", message_type);
-						return
-					},
-				};
+				let s = content.as_str().unwrap().to_owned();
+				for line in s.lines() {
+					let map: HashMap<String, serde_json::Value> = match serde_json::from_str(&line)
+					{
+						Ok(map) => map,
+						Err(e) => {
+							error!("Cannot parse JSON: {:?}\n{}", e, line);
+							continue
+						},
+					};
 
-				for state_change in state_changes {
-					debug!("Transition state change: {:?}", state_change);
-					transitioner.transition(state_change).await;
+					let message_type = match map.get("type").map(|v| v.as_str()).flatten() {
+						Some(message_type) => message_type,
+						None => {
+							error!("Cannot find type field: {}", line);
+							continue
+						},
+					};
+
+					let chain_state = state_manager.read().current_state.clone();
+					let state_changes = match message_decoder
+						.decode(chain_state, line.to_string())
+						.await
+					{
+						Ok(message) => message,
+						Err(e) => {
+							error!("Could not decode message({}): {} {}", message_type, e, line);
+							return
+						},
+					};
+
+					for state_change in state_changes {
+						debug!("Transition state change: {:?}", state_change);
+						transitioner.transition(state_change).await;
+					}
 				}
 			},
 			Ok(None) => {
