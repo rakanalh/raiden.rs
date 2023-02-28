@@ -99,11 +99,12 @@ pub struct IncomingMessage {
 }
 
 pub trait SignedMessage {
-	fn bytes(&self) -> Vec<u8>;
+	fn bytes_to_sign(&self) -> Vec<u8>;
+	fn bytes_to_pack(&self) -> Vec<u8>;
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError>;
 	fn sign_message(&self, key: PrivateKey) -> Result<Signature, SigningError> {
-		let bytes = self.bytes();
-		key.sign(&bytes, None)
+		let bytes = self.bytes_to_sign();
+		key.sign_message(&bytes)
 	}
 }
 

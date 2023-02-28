@@ -5,7 +5,7 @@ use raiden_primitives::{
 	deserializers::{
 		signature_from_str,
 		u256_from_str,
-		u32_from_str,
+		u64_from_str,
 	},
 	traits::ToBytes,
 	types::{
@@ -47,7 +47,13 @@ use tiny_keccak::{
 	Hasher,
 	Keccak,
 };
-use web3::signing::SigningError;
+use web3::{
+	ethabi::{
+		encode,
+		Token,
+	},
+	signing::SigningError,
+};
 
 use super::{
 	metadata::Metadata,
@@ -58,8 +64,8 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretRequest {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub secrethash: SecretHash,
 	#[serde(deserialize_with = "u256_from_str")]
@@ -83,23 +89,30 @@ impl From<SendSecretRequest> for SecretRequest {
 }
 
 impl SignedMessage for SecretRequest {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let cmd_id: [u8; 1] = CmdId::SecretRequest.into();
 
-		let mut expiration = [0u8; 32];
+		let mut expiration = [0u8; 4];
 		self.expiration.to_big_endian(&mut expiration);
 
 		let mut amount = [0u8; 32];
 		self.amount.to_big_endian(&mut amount);
 
+		let mut payment_identifier = [0u8; 4];
+		self.payment_identifier.to_big_endian(&mut payment_identifier);
+
 		let mut bytes = vec![];
 		bytes.extend_from_slice(&cmd_id);
 		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
-		bytes.append(&mut self.payment_identifier.as_bytes());
+		bytes.append(&mut payment_identifier.to_vec());
 		bytes.extend_from_slice(self.secrethash.as_bytes());
 		bytes.extend_from_slice(&amount);
 		bytes.extend_from_slice(&expiration);
 		bytes
+	}
+
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -110,8 +123,8 @@ impl SignedMessage for SecretRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretReveal {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
@@ -128,13 +141,17 @@ impl From<SendSecretReveal> for SecretReveal {
 }
 
 impl SignedMessage for SecretReveal {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let cmd_id: [u8; 1] = CmdId::SecretRequest.into();
 
 		let mut bytes = vec![];
 		bytes.extend_from_slice(&cmd_id);
 		bytes.extend_from_slice(&self.secret.0);
 		bytes
+	}
+
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -145,8 +162,8 @@ impl SignedMessage for SecretReveal {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LockExpired {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
 	#[serde(deserialize_with = "u256_from_str")]
@@ -183,7 +200,7 @@ impl From<SendLockExpired> for LockExpired {
 }
 
 impl SignedMessage for LockExpired {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
 			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
 				.unwrap();
@@ -199,6 +216,10 @@ impl SignedMessage for LockExpired {
 			MessageTypeId::BalanceProof,
 		)
 		.0
+	}
+
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -227,8 +248,8 @@ impl SignedEnvelopeMessage for LockExpired {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Unlock {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
@@ -264,7 +285,7 @@ impl From<SendUnlock> for Unlock {
 }
 
 impl SignedMessage for Unlock {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
 			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
 				.unwrap();
@@ -282,6 +303,10 @@ impl SignedMessage for Unlock {
 		.0
 	}
 
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
+	}
+
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
@@ -292,10 +317,13 @@ impl SignedEnvelopeMessage for Unlock {
 	fn message_hash(&self) -> H256 {
 		let cmd: [u8; 1] = CmdId::LockExpired.into();
 
+		let mut payment_identifier = [0u8; 1];
+		self.payment_identifier.to_big_endian(&mut payment_identifier);
+
 		let mut res: Vec<u8> = Vec::new();
 		res.append(&mut cmd.to_vec());
 		res.append(&mut self.message_identifier.to_be_bytes().to_vec());
-		res.append(&mut self.payment_identifier.as_bytes().to_vec());
+		res.append(&mut payment_identifier.to_vec());
 		res.append(&mut self.secret.0.clone());
 
 		let mut keccak = Keccak::v256();
@@ -316,7 +344,7 @@ pub struct Lock {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LockedTransfer {
-	#[serde(deserialize_with = "u32_from_str")]
+	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
@@ -371,16 +399,10 @@ impl From<SendLockedTransfer> for LockedTransfer {
 }
 
 impl SignedMessage for LockedTransfer {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
 			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
 				.unwrap();
-		println!("transferred: {:?}", self.transferred_amount);
-		println!("locked: {:?}", self.locked_amount);
-		let a = TokenAmount::from_str("19000000000000000000").unwrap();
-		let value: serde_json::Value = serde_json::to_value(a).unwrap();
-		println!("locked 2: {:?}", U256::deserialize(value));
-		println!("locksroot: {:?}", hex::encode(self.locksroot.clone().0));
 		println!("Balance Hash: {:?}", hex::encode(balance_hash));
 		pack_balance_proof(
 			self.nonce,
@@ -396,6 +418,29 @@ impl SignedMessage for LockedTransfer {
 		.0
 	}
 
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		let mut b = vec![];
+
+		let message_identifier = self.message_identifier.to_be_bytes();
+		let mut payment_identifier = [0u8; 8];
+		self.payment_identifier.to_big_endian(&mut payment_identifier);
+		let lock_expiration: U256 = self.lock.expiration.into();
+
+		b.push(CmdId::LockedTransfer as u8);
+		b.extend(message_identifier);
+		b.extend(payment_identifier);
+		b.extend(lock_expiration.to_bytes());
+		b.extend(self.token.as_bytes());
+		b.extend(self.recipient.as_bytes());
+		b.extend(self.target.as_bytes());
+		b.extend(self.initiator.as_bytes());
+		if let Some(secrethash) = self.lock.secrethash {
+			b.extend(secrethash.as_bytes());
+		}
+		b.extend(encode(&[Token::Uint(self.lock.amount.into())]));
+		b
+	}
+
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
@@ -404,19 +449,12 @@ impl SignedMessage for LockedTransfer {
 
 impl SignedEnvelopeMessage for LockedTransfer {
 	fn message_hash(&self) -> H256 {
-		let cmd: [u8; 1] = CmdId::LockExpired.into();
-
-		let mut res: Vec<u8> = Vec::new();
-		res.append(&mut cmd.to_vec());
-		res.append(&mut self.message_identifier.to_be_bytes().to_vec());
-		res.append(&mut self.payment_identifier.as_bytes().to_vec());
-		if let Some(secret) = &self.secret {
-			res.append(&mut secret.0.clone());
-		}
+		let mut packed_data = self.bytes_to_pack();
+		packed_data.extend_from_slice(&self.metadata.hash().unwrap_or_default());
 
 		let mut keccak = Keccak::v256();
 		let mut result = [0u8; 32];
-		keccak.update(&res);
+		keccak.update(&packed_data);
 		keccak.finalize(&mut result);
 		H256::from_slice(&result)
 	}
@@ -424,8 +462,8 @@ impl SignedEnvelopeMessage for LockedTransfer {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundTransfer {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,

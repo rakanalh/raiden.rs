@@ -87,7 +87,7 @@ impl MessageDecoder {
 
 		match message.inner {
 			crate::messages::MessageInner::LockedTransfer(message) => {
-				let data = message.bytes();
+				let data = message.bytes_to_sign();
 				let sender = self.get_sender(&data, &message.signature)?;
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
@@ -109,7 +109,6 @@ impl MessageDecoder {
 					signature: Some(Signature::from_slice(&message.signature)),
 					sender: Some(sender),
 				};
-
 				let route_states: Vec<RouteState> = message
 					.metadata
 					.routes
@@ -153,7 +152,7 @@ impl MessageDecoder {
 
 					if let Some(encrypted_secret) = message.metadata.secret {
 						let decrypted_secret =
-							decrypt_secret(encrypted_secret.0, &self.private_key)?;
+							decrypt_secret(encrypted_secret.into_bytes(), &self.private_key)?;
 						if transfer.lock.amount < decrypted_secret.amount ||
 							transfer.payment_identifier != decrypted_secret.payment_identifier
 						{
@@ -228,7 +227,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::SecretRequest(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 				Ok(vec![StateChange::ReceiveSecretRequest(ReceiveSecretRequest {
 					sender,
 					secrethash: message.secrethash,
@@ -239,7 +238,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::SecretReveal(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 				let mut secrethash = vec![];
 				secrethash.extend_from_slice(&keccak256(&message.secret.0));
 				Ok(vec![StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
@@ -249,7 +248,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::Unlock(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
 					message.locked_amount,
@@ -281,7 +280,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::WithdrawRequest(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 
 				let sender_metadata = raiden_pathfinding::query_address_metadata(
 					self.pathfinding_service_url.clone(),
@@ -308,7 +307,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::WithdrawConfirmation(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 				Ok(vec![StateChange::ReceiveWithdrawConfirmation(ReceiveWithdrawConfirmation {
 					sender,
 					message_identifier: message.message_identifier,
@@ -325,7 +324,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::WithdrawExpired(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 				Ok(vec![StateChange::ReceiveWithdrawExpired(ReceiveWithdrawExpired {
 					sender,
 					message_identifier: message.message_identifier,
@@ -341,7 +340,7 @@ impl MessageDecoder {
 				})])
 			},
 			crate::messages::MessageInner::Processed(message) => {
-				let sender = self.get_sender(&message.bytes(), &message.signature)?;
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature)?;
 				Ok(vec![StateChange::ReceiveProcessed(ReceiveProcessed {
 					sender,
 					message_identifier: message.message_identifier,

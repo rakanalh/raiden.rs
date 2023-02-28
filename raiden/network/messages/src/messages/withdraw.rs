@@ -3,12 +3,13 @@ use raiden_primitives::{
 	deserializers::{
 		signature_from_str,
 		u256_from_str,
-		u32_from_str,
+		u64_from_str,
 	},
 	traits::ToBytes,
 	types::{
 		Address,
 		ChainID,
+		MessageIdentifier,
 		TokenNetworkAddress,
 		U256,
 		U64,
@@ -33,8 +34,8 @@ use super::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawRequest {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
 	#[serde(deserialize_with = "u256_from_str")]
@@ -68,7 +69,7 @@ impl From<SendWithdrawRequest> for WithdrawRequest {
 }
 
 impl SignedMessage for WithdrawRequest {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
 		let cmd_id: [u8; 1] = CmdId::WithdrawRequest.into();
 		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
@@ -99,6 +100,10 @@ impl SignedMessage for WithdrawRequest {
 		bytes
 	}
 
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
+	}
+
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
@@ -107,8 +112,8 @@ impl SignedMessage for WithdrawRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawConfirmation {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
 	#[serde(deserialize_with = "u256_from_str")]
@@ -140,7 +145,7 @@ impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
 }
 
 impl SignedMessage for WithdrawConfirmation {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
 		let cmd_id: [u8; 1] = CmdId::WithdrawConfirmation.into();
 		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
@@ -171,6 +176,10 @@ impl SignedMessage for WithdrawConfirmation {
 		bytes
 	}
 
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
+	}
+
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes();
 		Ok(())
@@ -179,8 +188,8 @@ impl SignedMessage for WithdrawConfirmation {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithdrawExpired {
-	#[serde(deserialize_with = "u32_from_str")]
-	pub message_identifier: u32,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
 	#[serde(deserialize_with = "u256_from_str")]
@@ -212,7 +221,7 @@ impl From<SendWithdrawExpired> for WithdrawExpired {
 }
 
 impl SignedMessage for WithdrawExpired {
-	fn bytes(&self) -> Vec<u8> {
+	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
 		let cmd_id: [u8; 1] = CmdId::WithdrawExpired.into();
 		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
@@ -241,6 +250,10 @@ impl SignedMessage for WithdrawExpired {
 		bytes.extend_from_slice(&total_withdraw);
 		bytes.extend_from_slice(&expiration);
 		bytes
+	}
+
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
