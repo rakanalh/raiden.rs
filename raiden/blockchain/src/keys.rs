@@ -22,8 +22,27 @@ use web3::signing::{
 	SigningError,
 };
 
+pub fn hash_data(data: &[u8]) -> [u8; 32] {
+	let prefix_msg = "\x19Ethereum Signed Message:\n";
+	let len_str = data.len().to_string();
+	let mut res: Vec<u8> = Vec::new();
+	res.append(&mut prefix_msg.as_bytes().to_vec());
+	res.append(&mut len_str.as_bytes().to_vec());
+	res.append(&mut data.to_vec());
+
+	let mut keccak = Keccak::v256();
+	let mut result = [0u8; 32];
+	keccak.update(&res);
+	keccak.finalize(&mut result);
+
+	result
+}
+
 pub fn recover(data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
-	signing::recover(data, signature, 0)
+	let hashed_data = hash_data(data);
+	let recovery_id = signature[64] as i32 - 27;
+	let a = signing::recover(data, &signature[..64], recovery_id)?;
+	Ok(a)
 }
 
 pub fn encrypt(receiver_pub: &[u8], data: &[u8]) -> Result<Vec<u8>, SecpError> {
@@ -78,19 +97,8 @@ impl Key for PrivateKey {
 	}
 
 	fn sign_message(&self, message: &[u8]) -> Result<Signature, SigningError> {
-		let prefix_msg = "\x19Ethereum Signed Message:\n";
-		let len_str = message.len().to_string();
-		let mut res: Vec<u8> = Vec::new();
-		res.append(&mut prefix_msg.as_bytes().to_vec());
-		res.append(&mut len_str.as_bytes().to_vec());
-		res.append(&mut message.to_vec());
-
-		let mut keccak = Keccak::v256();
-		let mut result = [0u8; 32];
-		keccak.update(&res);
-		keccak.finalize(&mut result);
-
-		let signature = self.inner.sign(&result).map_err(|_| SigningError::InvalidMessage)?;
+		let data_hash = hash_data(message);
+		let signature = self.inner.sign(&data_hash).map_err(|_| SigningError::InvalidMessage)?;
 
 		Ok(Signature {
 			r: H256::from(signature.r),
