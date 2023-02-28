@@ -10,9 +10,9 @@ use crate::traits::{
 
 impl ToBytes for U256 {
 	fn to_bytes(&self) -> Vec<u8> {
-		let mut bytes = vec![];
+		let mut bytes = [0u8; 32];
 		self.to_big_endian(&mut bytes);
-		bytes
+		bytes.to_vec()
 	}
 }
 
