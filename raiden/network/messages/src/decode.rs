@@ -152,7 +152,7 @@ impl MessageDecoder {
 
 					if let Some(encrypted_secret) = message.metadata.secret {
 						let decrypted_secret =
-							decrypt_secret(encrypted_secret.into_bytes(), &self.private_key)?;
+							decrypt_secret(encrypted_secret.0, &self.private_key)?;
 						if transfer.lock.amount < decrypted_secret.amount ||
 							transfer.payment_identifier != decrypted_secret.payment_identifier
 						{
