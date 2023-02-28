@@ -42,7 +42,7 @@ pub type LockTimeout = U64;
 
 pub type Locksroot = Bytes;
 
-pub type MessageIdentifier = u32;
+pub type MessageIdentifier = u64;
 
 pub type MessageHash = H256;
 

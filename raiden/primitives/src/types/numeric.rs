@@ -58,7 +58,11 @@ impl FromStr for U64 {
 	type Err = ();
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		Ok(U64(PrimitiveU64::from_str(s).map_err(|_| ())?))
+		if let Ok(num) = PrimitiveU64::from_dec_str(s) {
+			return Ok(U64(num))
+		}
+		let num = PrimitiveU64::from_str(s).map_err(|_| ())?;
+		Ok(U64(num))
 	}
 }
 

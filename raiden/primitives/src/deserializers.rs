@@ -35,7 +35,7 @@ where
 	Ok(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?)
 }
 
-pub fn u32_from_str<'de, D>(deserializer: D) -> Result<u32, D::Error>
+pub fn u64_from_str<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
 	D: Deserializer<'de>,
 {
@@ -43,7 +43,7 @@ where
 		.as_str()
 		.and_then(|s| s.parse().ok())
 		.ok_or_else(|| D::Error::custom("non-integer"))?;
-	Ok(v as u32)
+	Ok(v)
 }
 
 pub fn signature_from_str<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
