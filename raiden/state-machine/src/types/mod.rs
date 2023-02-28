@@ -38,8 +38,8 @@ impl Random {
 		Self(ChaChaRng::seed_from_u64(0))
 	}
 
-	pub fn next(&mut self) -> u32 {
-		self.0.next_u32()
+	pub fn next(&mut self) -> u64 {
+		self.0.next_u64()
 	}
 }
 

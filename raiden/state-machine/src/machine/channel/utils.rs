@@ -1,5 +1,6 @@
 use ethabi::{
 	encode,
+	ethereum_types::U256,
 	Token,
 };
 use raiden_primitives::types::{
@@ -92,9 +93,9 @@ pub fn pack_balance_proof(
 	b.extend(canonical_identifier.token_network_address.as_bytes());
 	b.extend(encode(&[Token::Uint(canonical_identifier.chain_identifier.into())]));
 	b.extend(encode(&[Token::Uint(U256::from(msg_type as u8))]));
-	b.extend(encode(&[Token::Uint(canonical_identifier.channel_identifier.into())]));
+	b.extend(encode(&[Token::Uint(canonical_identifier.channel_identifier)]));
 	b.extend(balance_hash.as_bytes());
-	b.extend(encode(&[Token::Uint(nonce.into())]));
+	b.extend(encode(&[Token::Uint(nonce)]));
 	b.extend(additional_hash.as_bytes());
 
 	Bytes(b)
@@ -111,9 +112,9 @@ pub fn pack_withdraw(
 	b.extend(encode(&[
 		Token::Address(canonical_identifier.token_network_address),
 		Token::Uint(canonical_identifier.chain_identifier.into()),
-		Token::Uint(canonical_identifier.channel_identifier.into()),
+		Token::Uint(canonical_identifier.channel_identifier),
 		Token::Address(participant),
-		Token::Uint(total_withdraw.into()),
+		Token::Uint(total_withdraw),
 		Token::Uint(expiration_block.into()),
 	]));
 
