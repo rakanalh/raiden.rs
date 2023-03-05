@@ -60,19 +60,19 @@ pub struct PrivateKey {
 
 impl PrivateKey {
 	pub fn new(filename: String, password: String) -> Result<Self, String> {
-		let file =
-			File::open(&filename).map_err(|e| format!("Could not open file: {}", filename))?;
+		let file = File::open(&filename)
+			.map_err(|e| format!("Could not open file {}: {}", filename, e))?;
 
 		let key: KeyFile = serde_json::from_reader(file)
-			.map_err(|e| format!("Could not read file: {}", filename))?;
+			.map_err(|e| format!("Could not read file {}: {}", filename, e))?;
 
 		let plain = key
 			.crypto
 			.decrypt(&password.into())
-			.map_err(|e| format!("Could not decrypt private key file: {}", filename))?;
+			.map_err(|e| format!("Could not decrypt private key file {}: {}", filename, e))?;
 
 		let inner = SecretKey::from_raw(&plain)
-			.map_err(|e| format!("Could not generate secret key from file: {}", filename))?;
+			.map_err(|e| format!("Could not generate secret key from file {}: {}", filename, e))?;
 
 		Ok(Self { plain: plain.into(), inner })
 	}

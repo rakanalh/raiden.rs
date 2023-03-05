@@ -285,7 +285,7 @@ impl MessageDecoder {
 					sender,
 				)
 				.await
-				.map_err(|e| format!("Could not fetch address metadata: {:?}", sender))?;
+				.map_err(|e| format!("Could not fetch address metadata {:?}: {}", sender, e))?;
 
 				Ok(vec![StateChange::ReceiveWithdrawRequest(ReceiveWithdrawRequest {
 					sender,
@@ -449,7 +449,7 @@ pub fn encrypt_secret(
 	let data = DecryptedSecret { secret, amount, payment_identifier };
 
 	let json = serde_json::to_string(&data)
-		.map_err(|e| format!("Could not serialize encrypted secret"))?;
+		.map_err(|e| format!("Could not serialize encrypted secret: {}", e))?;
 
 	Ok(Bytes(
 		keys::encrypt(public_key.as_bytes(), json.as_bytes())
