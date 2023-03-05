@@ -1,6 +1,7 @@
 use raiden_primitives::types::{
+	BlockHash,
 	BlockId,
-	H256,
+	SecretHash,
 	U256,
 	U64,
 };
@@ -28,8 +29,8 @@ impl<T: Transport> SecretRegistryProxy<T> {
 
 	pub async fn get_secret_registration_block_by_secrethash(
 		&self,
-		secrethash: H256,
-		block: Option<H256>,
+		secrethash: SecretHash,
+		block: Option<BlockHash>,
 	) -> Result<Option<U64>> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
@@ -44,8 +45,8 @@ impl<T: Transport> SecretRegistryProxy<T> {
 
 	pub async fn is_secret_registered(
 		&self,
-		secrethash: H256,
-		block: Option<H256>,
+		secrethash: SecretHash,
+		block: Option<BlockHash>,
 	) -> Result<bool> {
 		let block = self.get_secret_registration_block_by_secrethash(secrethash, block).await?;
 		Ok(block.is_some())

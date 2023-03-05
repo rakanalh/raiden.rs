@@ -6,7 +6,7 @@ use raiden_primitives::types::{
 	Address,
 	BlockHash,
 	BlockNumber,
-	Bytes,
+	Locksroot,
 	RevealTimeout,
 	SettleTimeout,
 };
@@ -473,7 +473,7 @@ impl EventDecoder {
 		&self,
 		channel_state: &ChannelState,
 		block: BlockHash,
-	) -> Result<(Bytes, Bytes)> {
+	) -> Result<(Locksroot, Locksroot)> {
 		let payment_channel = self
 			.proxy_manager
 			.payment_channel(&channel_state)

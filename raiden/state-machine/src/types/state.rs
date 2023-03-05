@@ -521,7 +521,7 @@ pub struct ChannelEndState {
 	pub secrethashes_to_onchain_unlockedlocks: HashMap<SecretHash, UnlockPartialProofState>,
 	pub balance_proof: Option<BalanceProofState>,
 	pub pending_locks: PendingLocksState,
-	pub onchain_locksroot: Bytes,
+	pub onchain_locksroot: Locksroot,
 	pub nonce: Nonce,
 }
 
@@ -538,7 +538,7 @@ impl ChannelEndState {
 			secrethashes_to_onchain_unlockedlocks: HashMap::new(),
 			balance_proof: None,
 			pending_locks: PendingLocksState::default(),
-			onchain_locksroot: Bytes(vec![]),
+			onchain_locksroot: Locksroot::zero(),
 			nonce: Nonce::zero(),
 			initiated_coop_settle: None,
 			expired_coop_settles: vec![],

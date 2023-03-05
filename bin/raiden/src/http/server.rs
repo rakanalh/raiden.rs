@@ -17,7 +17,6 @@ use raiden_api::{
 	raiden::Raiden,
 };
 use routerify::{
-	ext::RequestExt,
 	Middleware,
 	RequestInfo,
 	Router,

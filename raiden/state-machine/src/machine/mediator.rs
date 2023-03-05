@@ -442,7 +442,7 @@ fn events_for_secret_reveal(
 					message_identifier,
 				},
 				secret: secret.clone(),
-				secrethash: keccak256(&secret.0).into(),
+				secrethash: SecretHash::from_slice(&keccak256(&secret.0)),
 			};
 			events.push(reveal_secret.into());
 		}

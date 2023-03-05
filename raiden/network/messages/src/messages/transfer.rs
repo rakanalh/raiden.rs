@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	deserializers::{

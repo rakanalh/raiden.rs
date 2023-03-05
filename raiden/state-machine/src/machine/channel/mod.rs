@@ -921,8 +921,8 @@ fn handle_channel_settled(
 		channel_state = set_settled(channel_state.clone(), state_change.block_number);
 		let our_locksroot = state_change.our_onchain_locksroot.clone();
 		let partner_locksroot = state_change.our_onchain_locksroot.clone();
-		let should_clear_channel = our_locksroot == Locksroot::from(vec![]) &&
-			partner_locksroot == Locksroot::from(vec![]);
+		let should_clear_channel =
+			our_locksroot == Locksroot::zero() && partner_locksroot == Locksroot::zero();
 
 		if should_clear_channel {
 			return Ok(ChannelTransition { new_state: None, events })
@@ -1081,14 +1081,13 @@ fn handle_channel_batch_unlock(
 ) -> TransitionResult {
 	if channel_state.status() == ChannelStatus::Settled {
 		if state_change.sender == channel_state.our_state.address {
-			channel_state.our_state.onchain_locksroot = Locksroot::from(vec![]);
+			channel_state.our_state.onchain_locksroot = Locksroot::zero();
 		} else if state_change.sender == channel_state.partner_state.address {
-			channel_state.partner_state.onchain_locksroot = Locksroot::from(vec![]);
+			channel_state.partner_state.onchain_locksroot = Locksroot::zero();
 		}
 
-		let no_unlocks_left_to_do = channel_state.our_state.onchain_locksroot ==
-			Locksroot::from(vec![]) &&
-			channel_state.partner_state.onchain_locksroot == Locksroot::from(vec![]);
+		let no_unlocks_left_to_do = channel_state.our_state.onchain_locksroot == Locksroot::zero() &&
+			channel_state.partner_state.onchain_locksroot == Locksroot::zero();
 		if no_unlocks_left_to_do {
 			return Ok(ChannelTransition { new_state: None, events: vec![] })
 		}

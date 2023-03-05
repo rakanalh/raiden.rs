@@ -40,7 +40,7 @@ pub type LockedAmount = U256;
 
 pub type LockTimeout = U64;
 
-pub type Locksroot = Bytes;
+pub type Locksroot = H256;
 
 pub type MessageIdentifier = u64;
 

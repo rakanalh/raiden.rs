@@ -39,7 +39,6 @@ pub fn hash_data(data: &[u8]) -> [u8; 32] {
 }
 
 pub fn recover(data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
-	let hashed_data = hash_data(data);
 	let recovery_id = signature[64] as i32 - 27;
 	let a = signing::recover(data, &signature[..64], recovery_id)?;
 	Ok(a)

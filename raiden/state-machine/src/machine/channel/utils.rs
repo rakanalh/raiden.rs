@@ -14,7 +14,6 @@ use raiden_primitives::types::{
 	MessageHash,
 	Nonce,
 	TokenAmount,
-	H256,
 };
 use web3::signing::keccak256;
 
@@ -53,7 +52,7 @@ pub(super) fn compute_locks_without(
 pub(super) fn compute_locksroot(locks: &PendingLocksState) -> Locksroot {
 	let locks: Vec<&[u8]> = locks.locks.iter().map(|lock| lock.0.as_slice()).collect();
 	let hash = keccak256(&locks.concat());
-	return Bytes(hash.to_vec())
+	Locksroot::from_slice(&hash)
 }
 
 pub fn hash_balance_data(
@@ -61,7 +60,7 @@ pub fn hash_balance_data(
 	locked_amount: LockedAmount,
 	locksroot: Locksroot,
 ) -> Result<BalanceHash, String> {
-	if locksroot == Bytes(vec![]) {
+	if locksroot.is_zero() {
 		return Err("Can't hash empty locksroot".to_string())
 	}
 
@@ -78,7 +77,7 @@ pub fn hash_balance_data(
 	let hash = keccak256(
 		&[&transferred_amount_in_bytes[..], &locked_amount_in_bytes[..], &locksroot.0[..]].concat(),
 	);
-	Ok(H256::from_slice(&hash))
+	Ok(BalanceHash::from_slice(&hash))
 }
 
 pub fn pack_balance_proof(

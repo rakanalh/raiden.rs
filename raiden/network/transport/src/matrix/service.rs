@@ -26,13 +26,7 @@ use raiden_network_messages::{
 		TransportServiceMessage,
 	},
 };
-use raiden_state_machine::{
-	types::{
-		QueueIdentifier,
-		StateChange,
-	},
-	views,
-};
+use raiden_state_machine::types::QueueIdentifier;
 use raiden_transition::{
 	manager::StateManager,
 	Transitioner,

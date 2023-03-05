@@ -203,7 +203,7 @@ fn subdispatch_to_all_channels(
 fn subdispatch_to_payment_task(
 	mut chain_state: ChainState,
 	state_change: StateChange,
-	secrethash: H256,
+	secrethash: SecretHash,
 ) -> TransitionResult {
 	let mut events = vec![];
 

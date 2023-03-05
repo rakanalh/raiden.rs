@@ -4,6 +4,7 @@ use raiden_primitives::types::{
 	Bytes,
 	ChainID,
 	ChannelIdentifier,
+	Locksroot,
 };
 use web3::signing::keccak256;
 
@@ -71,5 +72,5 @@ pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalI
 };
 
 lazy_static! {
-	pub static ref LOCKSROOT_OF_NO_LOCKS: Vec<u8> = keccak256(&[]).to_vec();
+	pub static ref LOCKSROOT_OF_NO_LOCKS: Locksroot = Locksroot::from_slice(&keccak256(&[]));
 }

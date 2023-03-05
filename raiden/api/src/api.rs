@@ -615,11 +615,12 @@ impl Api {
 
 		let secret_hash = match secret_hash {
 			Some(hash) => hash,
-			None => keccak256(&secret.0).into(),
+			None => SecretHash::from_slice(&keccak256(&secret.0)),
 		};
 
 		if !secret.0.is_empty() {
-			if secret_hash != keccak256(&secret.0).into() {
+			let secrethash_from_secret = SecretHash::from_slice(&keccak256(&secret.0));
+			if secret_hash != secrethash_from_secret {
 				return Err(ApiError::Param(format!("Provided secret and secret_hash do not match")))
 			}
 		}

@@ -174,15 +174,13 @@ impl MessageDecoder {
 					let mut filtered_route_states = vec![];
 					for route_state in transfer.route_states.iter() {
 						if let Some(next_hope_address) = route_state.hop_after(self.our_address) {
-							if let Some(channel_state) =
-								views::get_channel_by_token_network_and_partner(
-									&chain_state,
-									transfer
-										.balance_proof
-										.canonical_identifier
-										.token_network_address,
-									next_hope_address,
-								) {
+							if views::get_channel_by_token_network_and_partner(
+								&chain_state,
+								transfer.balance_proof.canonical_identifier.token_network_address,
+								next_hope_address,
+							)
+							.is_some()
+							{
 								filtered_route_states.push(route_state.clone());
 							}
 						}

@@ -7,7 +7,6 @@ use raiden_primitives::types::{
 	BalanceProofData,
 	BlockExpiration,
 	BlockNumber,
-	Bytes,
 	LockTimeout,
 	LockedAmount,
 	Nonce,
@@ -104,12 +103,7 @@ pub(super) fn get_current_balance_proof(end_state: &ChannelEndState) -> BalanceP
 			get_amount_locked(end_state),
 		)
 	} else {
-		(
-			Bytes(LOCKSROOT_OF_NO_LOCKS.to_vec()),
-			Nonce::zero(),
-			TokenAmount::zero(),
-			LockedAmount::zero(),
-		)
+		(*LOCKSROOT_OF_NO_LOCKS, Nonce::zero(), TokenAmount::zero(), LockedAmount::zero())
 	}
 }
 

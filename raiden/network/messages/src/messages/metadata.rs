@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use raiden_primitives::types::{
 	Address,
 	Secret,
-	H256,
 };
 use raiden_state_machine::{
 	types::{

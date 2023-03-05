@@ -1,10 +1,14 @@
 use derive_more::Deref;
 use raiden_primitives::types::{
 	Address,
+	BalanceHash,
 	BlockId,
-	Bytes,
+	ChannelIdentifier,
+	Locksroot,
+	Nonce,
 	SettleTimeout,
 	TokenAddress,
+	TokenAmount,
 	H256,
 	U256,
 };
@@ -25,18 +29,18 @@ use crate::proxies::{
 #[derive(Clone)]
 pub struct ParticipantDetails {
 	pub address: Address,
-	pub deposit: U256,
-	pub withdrawn: U256,
+	pub deposit: TokenAmount,
+	pub withdrawn: TokenAmount,
 	pub is_closer: bool,
-	pub balance_hash: Bytes,
-	pub nonce: U256,
-	pub locksroot: Bytes,
-	pub locked_amount: U256,
+	pub balance_hash: BalanceHash,
+	pub nonce: Nonce,
+	pub locksroot: Locksroot,
+	pub locked_amount: TokenAmount,
 }
 
 #[derive(Clone)]
 pub struct ChannelData {
-	pub channel_identifier: U256,
+	pub channel_identifier: ChannelIdentifier,
 	pub settle_block_number: U256,
 	pub status: ChannelStatus,
 }
@@ -219,16 +223,16 @@ impl<T: Transport> TokenNetworkContract<T> {
 		block: Option<H256>,
 	) -> Result<ParticipantDetails> {
 		let block = block.map(|b| BlockId::Hash(b));
-		let data: (U256, U256, bool, Bytes, U256, Bytes, U256) = self
-			.inner
-			.query(
-				"getChannelParticipantInfo",
-				(channel_identifier, partner, partner),
-				None,
-				Options::default(),
-				block,
-			)
-			.await?;
+		let data: (TokenAmount, TokenAmount, bool, BalanceHash, Nonce, Locksroot, TokenAmount) =
+			self.inner
+				.query(
+					"getChannelParticipantInfo",
+					(channel_identifier, partner, partner),
+					None,
+					Options::default(),
+					block,
+				)
+				.await?;
 
 		Ok(ParticipantDetails {
 			address,
