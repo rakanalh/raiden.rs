@@ -11,7 +11,10 @@ use serde::{
 	Deserialize,
 	Deserializer,
 };
-use web3::types::U256;
+use web3::types::{
+	H256,
+	U256,
+};
 
 use crate::types::{
 	ChainID,
@@ -44,6 +47,17 @@ where
 		.and_then(|s| s.parse().ok())
 		.ok_or_else(|| D::Error::custom("non-integer"))?;
 	Ok(v)
+}
+
+pub fn h256_from_str<'de, D>(deserializer: D) -> Result<H256, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let binding = serde_json::Value::deserialize(deserializer)?;
+	let str_value = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse H256"))?;
+	let hex_value = hex::decode(str_value.trim_start_matches("0x"))
+		.map_err(|e| D::Error::custom(format!("Could not decode hex: {:?}", e)))?;
+	Ok(H256::from_slice(&hex_value))
 }
 
 pub fn signature_from_str<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>

@@ -1,6 +1,7 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	deserializers::{
+		h256_from_str,
 		signature_from_str,
 		u256_from_str,
 		u64_from_str,
@@ -170,10 +171,12 @@ pub struct LockExpired {
 	pub transferred_amount: TokenAmount,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub locked_amount: TokenAmount,
+	#[serde(deserialize_with = "h256_from_str")]
 	pub locksroot: Locksroot,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	pub recipient: Address,
+	#[serde(deserialize_with = "h256_from_str")]
 	pub secrethash: SecretHash,
 	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Vec<u8>,
