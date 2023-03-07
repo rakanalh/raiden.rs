@@ -79,8 +79,8 @@ async fn main() {
 	let subscriber = tracing_subscriber::fmt()
 		.with_env_filter(filter)
 		.pretty()
-		.with_file(true)
-		.with_line_number(true)
+		.with_file(false)
+		.with_line_number(false)
 		.with_thread_ids(false)
 		.with_target(true)
 		.finish();
