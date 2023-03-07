@@ -24,6 +24,7 @@ use raiden_storage::{
 	errors::RaidenError,
 	Storage,
 };
+use tracing::debug;
 use ulid::Ulid;
 
 pub type Result<T> = std::result::Result<T, StateTransitionError>;
@@ -50,6 +51,7 @@ impl StateManager {
 				// Load state changes since the snapshot's state_change_identifier
 				// Set the snapshot
 				// and then apply state_changes after
+				debug!("Restoring state");
 				let current_state: ChainState = serde_json::from_str(&snapshot.data)
 					.map_err(|e| RaidenError { msg: format!("Snapshot error: {}", e) })?;
 
@@ -67,13 +69,16 @@ impl StateManager {
 				let block_number = current_state.block_number;
 				(current_state, state_changes, block_number)
 			},
-			Err(_e) => Self::init_state(
-				storage.clone(),
-				chain_id,
-				our_address,
-				token_network_registry_address,
-				token_network_registry_deploy_block_number,
-			)?,
+			Err(_e) => {
+				debug!("Initializing state");
+				Self::init_state(
+					storage.clone(),
+					chain_id,
+					our_address,
+					token_network_registry_address,
+					token_network_registry_deploy_block_number,
+				)?
+			},
 		};
 
 		let mut state_manager =

@@ -104,7 +104,6 @@ async fn main() {
 	};
 
 	info!("Welcome to Raiden");
-	info!("Initializing");
 
 	// #
 	// # Initialize chain related components
@@ -290,6 +289,8 @@ async fn main() {
 
 	let mut sync_service = SyncService::new(raiden.clone(), transitioner.clone());
 	let latest_block_number = raiden.web3.eth().block_number().await.unwrap();
+
+	info!("Performing initial sync from {} to {}", sync_start_block_number, latest_block_number);
 	sync_service.sync(sync_start_block_number, latest_block_number.into()).await;
 
 	let block_monitor_service =
