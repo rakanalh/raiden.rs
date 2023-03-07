@@ -157,7 +157,7 @@ impl EventDecoder {
 			DecodeError(format!("{} event haswan unknown Token network address", event.name))
 		})?;
 		let token_address = token_network.token_address;
-		let token_network_registry_address = Address::zero();
+		let token_network_registry_address = event.address;
 		let reveal_timeout = RevealTimeout::from(constants::DEFAULT_REVEAL_TIMEOUT);
 		let open_transaction = TransactionExecutionStatus {
 			started_block_number: Some(BlockNumber::from(0)),
