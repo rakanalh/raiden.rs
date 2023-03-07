@@ -2,15 +2,18 @@ mod event;
 mod state;
 mod state_change;
 
-use raiden_primitives::types::{
-	Address,
-	ChainID,
-	PaymentIdentifier,
-	Secret,
-	TokenAmount,
-	TokenNetworkAddress,
-	U256,
-	U64,
+use raiden_primitives::{
+	deserializers::u256_from_str,
+	types::{
+		Address,
+		ChainID,
+		PaymentIdentifier,
+		Secret,
+		TokenAmount,
+		TokenNetworkAddress,
+		U256,
+		U64,
+	},
 };
 use rand_chacha::{
 	rand_core::{
@@ -79,6 +82,7 @@ pub struct TransactionExecutionStatus {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct DecryptedSecret {
 	pub secret: Secret,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub amount: TokenAmount,
 	pub payment_identifier: PaymentIdentifier,
 }
