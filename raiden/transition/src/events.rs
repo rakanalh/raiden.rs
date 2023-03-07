@@ -19,6 +19,11 @@ use raiden_network_messages::{
 };
 use raiden_state_machine::types::Event;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::{
+	error,
+	event,
+	Level,
+};
 use web3::transports::Http;
 
 pub struct EventHandler {
@@ -112,22 +117,65 @@ impl EventHandler {
 			Event::UnlockClaimSuccess(_) => todo!(),
 			Event::UnlockSuccess(_) => todo!(),
 			Event::UpdatedServicesAddresses(_) => todo!(),
-			Event::ErrorInvalidActionCoopSettle(_) => todo!(),
-			Event::ErrorInvalidActionWithdraw(_) => todo!(),
-			Event::ErrorInvalidActionSetRevealTimeout(_) => todo!(),
-			Event::ErrorInvalidReceivedUnlock(_) => todo!(),
-			Event::ErrorPaymentSentFailed(_) => todo!(),
-			Event::ErrorRouteFailed(_) => todo!(),
-			Event::ErrorUnlockFailed(_) => todo!(),
-			Event::ErrorInvalidSecretRequest(_) => todo!(),
-			Event::ErrorInvalidReceivedLockedTransfer(_) => todo!(),
-			Event::ErrorInvalidReceivedLockExpired(_) => todo!(),
-			Event::ErrorInvalidReceivedTransferRefund(_) => todo!(),
-			Event::ErrorInvalidReceivedWithdrawRequest(_) => todo!(),
-			Event::ErrorInvalidReceivedWithdrawConfirmation(_) => todo!(),
-			Event::ErrorInvalidReceivedWithdrawExpired(_) => todo!(),
-			Event::ErrorUnexpectedReveal(_) => todo!(),
-			Event::ErrorUnlockClaimFailed(_) => todo!(),
+			Event::ErrorInvalidActionCoopSettle(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidActionWithdraw(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidActionSetRevealTimeout(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidReceivedUnlock(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorPaymentSentFailed(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorRouteFailed(e) => {
+				event!(
+					Level::ERROR,
+					reason = "Route Failed",
+					routes = format!("{:?}", e.route),
+					token_network_address = format!("{}", e.token_network_address),
+				);
+			},
+			Event::ErrorUnlockFailed(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidSecretRequest(e) => {
+				event!(
+					Level::ERROR,
+					reason = "Invalid secret request",
+					payment_identifier = format!("{:?}", e.payment_identifier),
+					intended_amount = format!("{}", e.intended_amount),
+					actual_amount = format!("{}", e.actual_amount),
+				);
+			},
+			Event::ErrorInvalidReceivedLockedTransfer(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidReceivedLockExpired(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidReceivedTransferRefund(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidReceivedWithdrawRequest(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidReceivedWithdrawConfirmation(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorInvalidReceivedWithdrawExpired(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorUnexpectedReveal(e) => {
+				error!("{}", e.reason);
+			},
+			Event::ErrorUnlockClaimFailed(e) => {
+				error!("{}", e.reason);
+			},
 		}
 	}
 }
