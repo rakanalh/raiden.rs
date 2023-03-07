@@ -149,15 +149,21 @@ impl EventDecoder {
 		}
 
 		let token_network_address = event.address;
+		let token_network_registry = views::get_token_network_registry_by_token_network_address(
+			chain_state,
+			token_network_address,
+		)
+		.ok_or_else(|| {
+			DecodeError(format!("{} event has an unknown Token network address", event.name))
+		})?;
 		let token_network = views::get_token_network_by_address(
 			&chain_state,
 			token_network_address,
 		)
 		.ok_or_else(|| {
-			DecodeError(format!("{} event haswan unknown Token network address", event.name))
+			DecodeError(format!("{} event has an unknown Token network address", event.name))
 		})?;
 		let token_address = token_network.token_address;
-		let token_network_registry_address = event.address;
 		let reveal_timeout = RevealTimeout::from(constants::DEFAULT_REVEAL_TIMEOUT);
 		let open_transaction = TransactionExecutionStatus {
 			started_block_number: Some(BlockNumber::from(0)),
@@ -171,7 +177,7 @@ impl EventDecoder {
 				channel_identifier,
 			},
 			token_address,
-			token_network_registry_address,
+			token_network_registry.address,
 			our_address,
 			partner_address,
 			reveal_timeout,
