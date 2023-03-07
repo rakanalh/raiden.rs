@@ -18,6 +18,7 @@ use web3::types::{
 
 use crate::types::{
 	ChainID,
+	Signature,
 	U64,
 };
 
@@ -60,7 +61,7 @@ where
 	Ok(H256::from_slice(&hex_value))
 }
 
-pub fn signature_from_str<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+pub fn signature_from_str<'de, D>(deserializer: D) -> Result<Signature, D::Error>
 where
 	D: Deserializer<'de>,
 {
@@ -69,8 +70,7 @@ where
 		.as_str()
 		.ok_or_else(|| D::Error::custom("Invalid signature"))?
 		.trim_start_matches("0x");
-	let bytes = hex::decode(v).map_err(|_| D::Error::custom("Invalid signature"))?;
-	Ok(bytes)
+	Ok(Signature::from(hex::decode(v).map_err(|_| D::Error::custom("Invalid signature"))?))
 }
 
 impl<'de> Deserialize<'de> for ChainID {

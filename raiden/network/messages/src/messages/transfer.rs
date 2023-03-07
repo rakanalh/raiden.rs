@@ -17,6 +17,7 @@ use raiden_primitives::{
 		PaymentIdentifier,
 		Secret,
 		SecretHash,
+		Signature,
 		TokenAddress,
 		TokenAmount,
 		TokenNetworkAddress,
@@ -71,7 +72,7 @@ pub struct SecretRequest {
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendSecretRequest> for SecretRequest {
@@ -82,7 +83,7 @@ impl From<SendSecretRequest> for SecretRequest {
 			secrethash: event.secrethash,
 			amount: event.amount,
 			expiration: event.expiration,
-			signature: vec![],
+			signature: Signature::default(),
 		}
 	}
 }
@@ -115,7 +116,7 @@ impl SignedMessage for SecretRequest {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -126,7 +127,7 @@ pub struct SecretReveal {
 	pub message_identifier: MessageIdentifier,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendSecretReveal> for SecretReveal {
@@ -134,7 +135,7 @@ impl From<SendSecretReveal> for SecretReveal {
 		Self {
 			message_identifier: event.message_identifier,
 			secret: event.secret,
-			signature: vec![],
+			signature: Signature::default(),
 		}
 	}
 }
@@ -154,7 +155,7 @@ impl SignedMessage for SecretReveal {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -179,7 +180,7 @@ pub struct LockExpired {
 	#[serde(deserialize_with = "h256_from_str")]
 	pub secrethash: SecretHash,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendLockExpired> for LockExpired {
@@ -195,7 +196,7 @@ impl From<SendLockExpired> for LockExpired {
 			recipient: event.recipient,
 			secrethash: event.secrethash,
 			nonce: event.balance_proof.nonce,
-			signature: vec![],
+			signature: Signature::default(),
 		}
 	}
 }
@@ -224,7 +225,7 @@ impl SignedMessage for LockExpired {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -264,7 +265,7 @@ pub struct Unlock {
 	pub nonce: U256,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendUnlock> for Unlock {
@@ -280,7 +281,7 @@ impl From<SendUnlock> for Unlock {
 			locksroot: event.balance_proof.locksroot,
 			secret: event.secret,
 			nonce: event.balance_proof.nonce,
-			signature: vec![],
+			signature: Signature::default(),
 		}
 	}
 }
@@ -309,7 +310,7 @@ impl SignedMessage for Unlock {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -367,7 +368,7 @@ pub struct LockedTransfer {
 	pub nonce: U256,
 	pub secret: Option<Secret>,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendLockedTransfer> for LockedTransfer {
@@ -384,7 +385,7 @@ impl From<SendLockedTransfer> for LockedTransfer {
 			locksroot: event.transfer.balance_proof.locksroot.clone(),
 			secret: event.transfer.secret.clone(),
 			nonce: event.transfer.balance_proof.nonce,
-			signature: vec![],
+			signature: Signature::default(),
 			token: event.transfer.token,
 			recipient: event.recipient,
 			lock: Lock {
@@ -442,7 +443,7 @@ impl SignedMessage for LockedTransfer {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -484,5 +485,5 @@ pub struct RefundTransfer {
 	pub nonce: U256,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }

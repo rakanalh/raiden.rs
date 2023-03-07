@@ -10,6 +10,7 @@ use raiden_primitives::{
 		Address,
 		ChainID,
 		MessageIdentifier,
+		Signature,
 		TokenNetworkAddress,
 		U256,
 		U64,
@@ -47,7 +48,7 @@ pub struct WithdrawRequest {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 	pub coop_settle: bool,
 }
 
@@ -62,7 +63,7 @@ impl From<SendWithdrawRequest> for WithdrawRequest {
 			total_withdraw: event.total_withdraw,
 			expiration: event.expiration,
 			nonce: event.nonce,
-			signature: vec![],
+			signature: Signature::default(),
 			coop_settle: event.coop_settle,
 		}
 	}
@@ -105,7 +106,7 @@ impl SignedMessage for WithdrawRequest {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -125,7 +126,7 @@ pub struct WithdrawConfirmation {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
@@ -139,7 +140,7 @@ impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
 			total_withdraw: event.total_withdraw,
 			expiration: event.expiration,
 			nonce: event.nonce,
-			signature: vec![],
+			signature: Signature::default(),
 		}
 	}
 }
@@ -181,7 +182,7 @@ impl SignedMessage for WithdrawConfirmation {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
@@ -201,7 +202,7 @@ pub struct WithdrawExpired {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendWithdrawExpired> for WithdrawExpired {
@@ -215,7 +216,7 @@ impl From<SendWithdrawExpired> for WithdrawExpired {
 			total_withdraw: event.total_withdraw,
 			expiration: event.expiration,
 			nonce: event.nonce,
-			signature: vec![],
+			signature: Signature::default(),
 		}
 	}
 }
@@ -257,7 +258,7 @@ impl SignedMessage for WithdrawExpired {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }

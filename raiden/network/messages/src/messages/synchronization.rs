@@ -1,7 +1,10 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	traits::ToBytes,
-	types::MessageIdentifier,
+	types::{
+		MessageIdentifier,
+		Signature,
+	},
 };
 use raiden_state_machine::types::SendProcessed;
 use serde::{
@@ -18,12 +21,12 @@ use super::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Processed {
 	pub message_identifier: MessageIdentifier,
-	pub signature: Vec<u8>,
+	pub signature: Signature,
 }
 
 impl From<SendProcessed> for Processed {
 	fn from(event: SendProcessed) -> Self {
-		Self { message_identifier: event.message_identifier, signature: vec![] }
+		Self { message_identifier: event.message_identifier, signature: Signature::default() }
 	}
 }
 
@@ -43,7 +46,7 @@ impl SignedMessage for Processed {
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes();
+		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
