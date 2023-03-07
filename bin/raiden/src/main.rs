@@ -41,6 +41,7 @@ use raiden_transition::{
 use structopt::StructOpt;
 use tokio::sync::RwLock;
 use tracing::info;
+use tracing_subscriber::filter::EnvFilter;
 use web3::{
 	signing::Key,
 	transports::WebSocket,
@@ -66,7 +67,25 @@ use init::*;
 async fn main() {
 	let cli = Opt::from_args();
 
-	tracing_subscriber::fmt::init();
+	let filter = EnvFilter::from_env("RAIDEN_LOG")
+		.add_directive("raiden_blockchain=debug".parse().unwrap())
+		.add_directive("raiden_client=debug".parse().unwrap())
+		.add_directive("raiden_state_machine=debug".parse().unwrap())
+		.add_directive("raiden_storage=debug".parse().unwrap())
+		.add_directive("raiden_transition=debug".parse().unwrap())
+		.add_directive("raiden_network_messages=debug".parse().unwrap())
+		.add_directive("raiden_network_transport=debug".parse().unwrap());
+
+	let subscriber = tracing_subscriber::fmt()
+		.with_env_filter(filter)
+		.pretty()
+		.with_file(true)
+		.with_line_number(true)
+		.with_thread_ids(false)
+		.with_target(true)
+		.finish();
+
+	let _ = tracing::subscriber::set_global_default(subscriber);
 
 	match setup_data_directory(cli.datadir.clone()) {
 		Err(e) => {
