@@ -64,7 +64,7 @@ pub type SecretHash = H256;
 
 pub type SecretRegistryAddress = Address;
 
-pub type Signature = H256;
+pub type Signature = Bytes;
 
 pub type SettleTimeout = U64;
 

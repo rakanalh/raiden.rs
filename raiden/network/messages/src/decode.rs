@@ -106,7 +106,7 @@ impl MessageDecoder {
 					},
 					balance_hash,
 					message_hash: Some(message.message_hash()),
-					signature: Some(Signature::from_slice(&message.signature)),
+					signature: Some(Signature::from(message.signature)),
 					sender: Some(sender),
 				};
 				let route_states: Vec<RouteState> = message
@@ -214,7 +214,7 @@ impl MessageDecoder {
 					},
 					balance_hash,
 					message_hash: Some(message.message_hash()),
-					signature: Some(Signature::from_slice(&message.signature)),
+					signature: Some(Signature::from(message.signature)),
 					sender: Some(sender),
 				};
 				Ok(vec![StateChange::ReceiveLockExpired(ReceiveLockExpired {
@@ -264,7 +264,7 @@ impl MessageDecoder {
 					},
 					balance_hash,
 					message_hash: Some(message.message_hash()),
-					signature: Some(Signature::from_slice(&message.signature)),
+					signature: Some(Signature::from(message.signature)),
 					sender: Some(sender),
 				};
 				let mut secrethash = vec![];
@@ -298,7 +298,7 @@ impl MessageDecoder {
 					total_withdraw: message.total_withdraw,
 					nonce: message.nonce,
 					expiration: message.expiration,
-					signature: Signature::from_slice(&message.signature),
+					signature: Signature::from(message.signature),
 					participant: message.participant,
 					coop_settle: message.coop_settle,
 					sender_metadata: Some(sender_metadata),
@@ -317,7 +317,7 @@ impl MessageDecoder {
 					total_withdraw: message.total_withdraw,
 					nonce: message.nonce,
 					expiration: message.expiration,
-					signature: Signature::from_slice(&message.signature),
+					signature: Signature::from(message.signature),
 					participant: message.participant,
 				})])
 			},

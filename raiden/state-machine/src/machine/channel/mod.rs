@@ -1238,9 +1238,9 @@ fn events_for_coop_settle(
 	block_number: BlockNumber,
 	block_hash: BlockHash,
 ) -> Vec<Event> {
-	if let Some(partner_signature_request) = coop_settle_state.partner_signature_request {
+	if let Some(partner_signature_request) = &coop_settle_state.partner_signature_request {
 		if let Some(partner_signature_confirmation) =
-			coop_settle_state.partner_signature_confirmation
+			&coop_settle_state.partner_signature_confirmation
 		{
 			if coop_settle_state.expiration >= block_number - channel_state.reveal_timeout {
 				let send_coop_settle = ContractSendChannelCoopSettle {
@@ -1249,8 +1249,8 @@ fn events_for_coop_settle(
 					our_total_withdraw: coop_settle_state.total_withdraw_initiator,
 					partner_total_withdraw: coop_settle_state.total_withdraw_partner,
 					expiration: coop_settle_state.expiration,
-					signature_our_withdraw: partner_signature_confirmation,
-					signature_partner_withdraw: partner_signature_request,
+					signature_our_withdraw: partner_signature_confirmation.clone(),
+					signature_partner_withdraw: partner_signature_request.clone(),
 				};
 
 				coop_settle_state.transaction = Some(TransactionExecutionStatus {

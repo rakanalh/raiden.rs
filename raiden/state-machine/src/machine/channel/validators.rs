@@ -90,16 +90,16 @@ pub(super) fn is_lock_locked(end_state: &ChannelEndState, secrethash: SecretHash
 
 pub(super) fn is_valid_signature(
 	data: Bytes,
-	signature: Signature,
+	signature: &Signature,
 	sender_address: Address,
 ) -> Result<(), String> {
-	let recovery =
-		Recovery::from_raw_signature(data.0.as_slice(), signature).map_err(|e| e.to_string())?;
+	let recovery = Recovery::from_raw_signature(data.0.as_slice(), signature.0.clone())
+		.map_err(|e| e.to_string())?;
 	let recovery_id = match recovery.recovery_id() {
 		Some(id) => id,
 		None => return Err("Found invalid recovery ID".to_owned()),
 	};
-	let signer_address = recover(data.0.as_slice(), signature.as_bytes(), recovery_id)
+	let signer_address = recover(data.0.as_slice(), &signature.0, recovery_id)
 		.map_err(|e| format!("Error recovering signature {:?}", e))?;
 
 	if signer_address == sender_address {
@@ -130,7 +130,7 @@ pub(super) fn is_valid_balance_proof_signature(
 		MessageTypeId::BalanceProof,
 	);
 
-	let signature = match balance_proof.signature {
+	let signature = match &balance_proof.signature {
 		Some(signature) => signature,
 		None => return Err("Balance proof must be signed".to_owned()),
 	};
@@ -403,7 +403,7 @@ pub(super) fn is_valid_withdraw_signature(
 	withdraw_signature: Signature,
 ) -> Result<(), String> {
 	let packed = pack_withdraw(canonical_identifier, participant, total_withdraw, expiration_block);
-	is_valid_signature(packed, withdraw_signature, sender)
+	is_valid_signature(packed, &withdraw_signature, sender)
 }
 
 /// Determine whether a withdraw has expired.
@@ -467,7 +467,7 @@ pub(super) fn is_valid_withdraw_request(
 		withdraw_request.participant,
 		withdraw_request.total_withdraw,
 		withdraw_request.expiration,
-		withdraw_request.signature,
+		withdraw_request.signature.clone(),
 	);
 
 	let withdraw_amount = withdraw_request.total_withdraw - channel_state.partner_total_withdraw();
@@ -585,7 +585,7 @@ pub(super) fn is_valid_withdraw_confirmation(
 		received_withdraw.participant,
 		received_withdraw.total_withdraw,
 		received_withdraw.expiration,
-		received_withdraw.signature,
+		received_withdraw.signature.clone(),
 	)
 }
 

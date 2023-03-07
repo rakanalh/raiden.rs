@@ -404,7 +404,6 @@ impl SignedMessage for LockedTransfer {
 		let balance_hash =
 			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
 				.unwrap();
-		println!("Balance Hash: {:?}", hex::encode(balance_hash));
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
