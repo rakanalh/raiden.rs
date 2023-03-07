@@ -77,7 +77,7 @@ pub struct SyncService {
 impl SyncService {
 	pub fn new(raiden: Arc<Raiden>, transition_service: Arc<Transitioner>) -> Self {
 		let block_batch_size_adjuster = BlockBatchSizeAdjuster::new(
-			BlockBatchSizeConfig { min: 5, max: 100000, initial: 1000, _warn_threshold: 50 },
+			BlockBatchSizeConfig { min: 5, max: 100000, initial: 100, _warn_threshold: 50 },
 			2.0, // base
 			1.0, //step size
 		);
@@ -108,6 +108,7 @@ impl SyncService {
 				from_block,
 				to_block,
 			);
+
 
 			let logs = match self.raiden.web3.eth().logs((filter).clone()).await {
 				Ok(logs) => logs,
