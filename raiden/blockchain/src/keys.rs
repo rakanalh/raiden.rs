@@ -10,10 +10,6 @@ use raiden_primitives::types::{
 	Address,
 	H256,
 };
-use tiny_keccak::{
-	Hasher,
-	Keccak,
-};
 use web3::signing::{
 	self,
 	Key,
@@ -30,12 +26,7 @@ pub fn hash_data(data: &[u8]) -> [u8; 32] {
 	res.append(&mut len_str.as_bytes().to_vec());
 	res.append(&mut data.to_vec());
 
-	let mut keccak = Keccak::v256();
-	let mut result = [0u8; 32];
-	keccak.update(&res);
-	keccak.finalize(&mut result);
-
-	result
+	signing::keccak256(&res)
 }
 
 pub fn recover(data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {

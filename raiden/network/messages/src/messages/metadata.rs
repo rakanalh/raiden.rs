@@ -15,10 +15,7 @@ use serde::{
 	Deserialize,
 	Serialize,
 };
-use tiny_keccak::{
-	Hasher,
-	Keccak,
-};
+use web3::signing::keccak256;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RouteMetadata {
@@ -42,11 +39,7 @@ impl Metadata {
 		let mut res: Vec<u8> = Vec::new();
 		res.extend_from_slice(data.as_bytes());
 
-		let mut keccak = Keccak::v256();
-		let mut result = [0u8; 32];
-		keccak.update(&res);
-		keccak.finalize(&mut result);
-		Ok(result.to_vec())
+		Ok(keccak256(&res).to_vec())
 	}
 }
 

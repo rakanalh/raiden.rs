@@ -43,16 +43,15 @@ use serde::{
 	Deserialize,
 	Serialize,
 };
-use tiny_keccak::{
-	Hasher,
-	Keccak,
-};
 use web3::{
 	ethabi::{
 		encode,
 		Token,
 	},
-	signing::SigningError,
+	signing::{
+		keccak256,
+		SigningError,
+	},
 };
 
 use super::{
@@ -240,11 +239,7 @@ impl SignedEnvelopeMessage for LockExpired {
 		res.append(&mut self.recipient.as_bytes().to_vec());
 		res.append(&mut self.secrethash.as_bytes().to_vec());
 
-		let mut keccak = Keccak::v256();
-		let mut result = [0u8; 32];
-		keccak.update(&res);
-		keccak.finalize(&mut result);
-		H256::from_slice(&result)
+		H256::from_slice(&keccak256(&res))
 	}
 }
 
@@ -328,11 +323,7 @@ impl SignedEnvelopeMessage for Unlock {
 		res.append(&mut payment_identifier.to_vec());
 		res.append(&mut self.secret.0.clone());
 
-		let mut keccak = Keccak::v256();
-		let mut result = [0u8; 32];
-		keccak.update(&res);
-		keccak.finalize(&mut result);
-		H256::from_slice(&result)
+		H256::from_slice(&keccak256(&res))
 	}
 }
 
@@ -453,11 +444,7 @@ impl SignedEnvelopeMessage for LockedTransfer {
 		let mut packed_data = self.bytes_to_pack();
 		packed_data.extend_from_slice(&self.metadata.hash().unwrap_or_default());
 
-		let mut keccak = Keccak::v256();
-		let mut result = [0u8; 32];
-		keccak.update(&packed_data);
-		keccak.finalize(&mut result);
-		H256::from_slice(&result)
+		H256::from_slice(&keccak256(&packed_data))
 	}
 }
 

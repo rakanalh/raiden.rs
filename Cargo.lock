@@ -2429,7 +2429,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "tiny-keccak",
  "tokio",
  "web3",
 ]
@@ -2473,7 +2472,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "tiny-keccak",
  "web3",
 ]
 
