@@ -40,6 +40,13 @@ impl U64 {
 		self.0.to_big_endian(&mut bytes);
 		bytes.to_vec()
 	}
+
+	pub fn to_be_bytes(&self) -> Vec<u8> {
+		let bytes = self.as_bytes();
+		let mut padded_bytes: [u8; 32] = [0; 32];
+		padded_bytes[24..].copy_from_slice(&bytes);
+		padded_bytes.to_vec()
+	}
 }
 
 impl From<PrimitiveU64> for U64 {
