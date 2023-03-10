@@ -14,7 +14,6 @@ rust-version = "1.59"
 # 3rd-Party
 ethsign = { version = "0.8.0" }
 futures = { version = "0.3.21", default-features = false }
-rpassword = { version = "5.0.1", default-features = false }
 serde_json = { version = "1.0.59", default-features = false }
 tracing = { version = "0.1.37", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
