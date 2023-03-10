@@ -12,6 +12,7 @@ use raiden_primitives::{
 		Address,
 		BlockExpiration,
 		ChainID,
+		ChannelIdentifier,
 		Locksroot,
 		MessageIdentifier,
 		PaymentIdentifier,
@@ -343,7 +344,7 @@ pub struct LockedTransfer {
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
 	#[serde(deserialize_with = "u256_from_str")]
-	pub channel_identifier: U256,
+	pub channel_identifier: ChannelIdentifier,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
 	#[serde(deserialize_with = "u256_from_str")]
