@@ -1,4 +1,6 @@
 use std::{
+	collections::HashMap,
+	fs,
 	path::PathBuf,
 	sync::Arc,
 };
@@ -10,11 +12,13 @@ use raiden_blockchain::{
 		self,
 		ContractsManager,
 	},
+	keys::PrivateKey,
 	proxies::{
 		Account,
 		ProxyManager,
 	},
 };
+use raiden_client::cli::list_keys;
 use raiden_network_messages::messages::TransportServiceMessage;
 use raiden_network_transport::{
 	config::{
@@ -37,6 +41,7 @@ use raiden_pathfinding::config::{
 	ServicesConfig,
 };
 use raiden_primitives::types::{
+	Address,
 	BlockNumber,
 	ChainID,
 };
@@ -46,6 +51,36 @@ use raiden_transition::manager::StateManager;
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;
+
+use crate::cli::prompt_key;
+
+pub fn init_private_key(
+	keystore_path: PathBuf,
+	address: Option<Address>,
+	password_file: Option<PathBuf>,
+) -> Result<PrivateKey, String> {
+	let keys = list_keys(&keystore_path).map_err(|e| format!("Could not list accounts: {}", e))?;
+	let key_filename = if let Some(address) = address {
+		let inverted_keys: HashMap<Address, String> =
+			keys.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+		inverted_keys.get(&address).unwrap().clone()
+	} else {
+		prompt_key(&keys)
+	};
+
+	let password = if let Some(password_file) = password_file {
+		fs::read_to_string(password_file)
+			.map_err(|e| format!("Error reading password file: {:?}", e))?
+			.trim()
+			.to_owned()
+	} else {
+		rpassword::read_password_from_tty(Some("Password: "))
+			.map_err(|e| format!("Could not read password: {:?}", e))?
+	};
+
+	PrivateKey::new(key_filename.clone(), password)
+		.map_err(|e| format!("Could not unlock private key: {:?}", e))
+}
 
 pub fn init_storage(datadir: PathBuf) -> Result<Arc<Storage>, String> {
 	let conn = Connection::open(datadir.join("raiden.db"))

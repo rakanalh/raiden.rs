@@ -1,6 +1,13 @@
 use std::{
+	collections::HashMap,
 	error::Error,
+	io::{
+		stdin,
+		stdout,
+		Write,
+	},
 	path::PathBuf,
+	str::FromStr,
 };
 
 use raiden_network_transport::{
@@ -11,7 +18,10 @@ use raiden_pathfinding::{
 	config::ServicesConfig,
 	types::RoutingMode,
 };
-use raiden_primitives::types::TokenAmount;
+use raiden_primitives::types::{
+	Address,
+	TokenAmount,
+};
 use structopt::{
 	clap::arg_enum,
 	StructOpt,
@@ -42,6 +52,10 @@ fn parse_chain_id(src: &str) -> Result<u64, Box<dyn Error + Send + Sync + 'stati
 			Ok(id)
 		},
 	}
+}
+
+fn parse_address(address: &str) -> Result<Address, Box<dyn Error + Send + Sync + 'static>> {
+	Ok(Address::from_str(&address)?)
 }
 
 arg_enum! {
@@ -177,6 +191,12 @@ pub struct Opt {
 	#[structopt(short("k"), long, parse(from_os_str), required = true, takes_value = true)]
 	pub keystore_path: PathBuf,
 
+	#[structopt(short("a"), long, parse(try_from_str = parse_address), takes_value = true)]
+	pub address: Option<Address>,
+
+	#[structopt(long, parse(from_os_str), takes_value = true)]
+	pub password_file: Option<PathBuf>,
+
 	#[structopt(
 		short("d"),
 		long,
@@ -200,4 +220,28 @@ pub struct Opt {
 
 	#[structopt(flatten)]
 	pub services_config: CliServicesConfig,
+}
+
+pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
+	println!("Select key:");
+	loop {
+		let mut index = 0;
+		let mut s = String::new();
+
+		for address in keys.values() {
+			println!("[{}]: {}", index, address);
+			index += 1;
+		}
+		print!("Selected key: ");
+		let _ = stdout().flush();
+		stdin().read_line(&mut s).expect("Did not enter a correct string");
+		let selected_value: Result<u32, _> = s.trim().parse();
+		if let Ok(chosen_index) = selected_value {
+			if (chosen_index as usize) >= keys.len() {
+				continue
+			}
+			let selected_filename = keys.keys().nth(chosen_index as usize).unwrap();
+			return selected_filename.clone()
+		}
+	}
 }

@@ -20,12 +20,9 @@ use raiden_blockchain::{
 		ProxyManager,
 	},
 };
-use raiden_client::{
-	cli::get_private_key,
-	services::{
-		BlockMonitorService,
-		SyncService,
-	},
+use raiden_client::services::{
+	BlockMonitorService,
+	SyncService,
 };
 use raiden_network_messages::decode::MessageDecoder;
 use raiden_pathfinding::{
@@ -95,13 +92,14 @@ async fn main() {
 		_ => {},
 	};
 
-	let private_key = match get_private_key(cli.keystore_path.clone()) {
-		Ok(result) => result,
-		Err(e) => {
-			eprintln!("{}", e);
-			process::exit(1);
-		},
-	};
+	let private_key =
+		match init_private_key(cli.keystore_path.clone(), cli.address, cli.password_file) {
+			Ok(key) => key,
+			Err(e) => {
+				eprintln!("{}", e);
+				process::exit(1);
+			},
+		};
 
 	info!("Welcome to Raiden");
 
