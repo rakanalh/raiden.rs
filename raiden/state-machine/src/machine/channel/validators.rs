@@ -1,17 +1,16 @@
-use raiden_primitives::types::{
-	message_type::MessageTypeId,
-	Address,
-	BlockExpiration,
-	BlockNumber,
-	Bytes,
-	MessageHash,
-	SecretHash,
-	Signature,
-	TokenAmount,
-};
-use web3::{
+use raiden_primitives::{
 	signing::recover,
-	types::Recovery,
+	types::{
+		message_type::MessageTypeId,
+		Address,
+		BlockExpiration,
+		BlockNumber,
+		Bytes,
+		MessageHash,
+		SecretHash,
+		Signature,
+		TokenAmount,
+	},
 };
 
 use super::{
@@ -93,13 +92,7 @@ pub(super) fn is_valid_signature(
 	signature: &Signature,
 	sender_address: Address,
 ) -> Result<(), String> {
-	let recovery = Recovery::from_raw_signature(data.0.as_slice(), signature.0.clone())
-		.map_err(|e| e.to_string())?;
-	let recovery_id = match recovery.recovery_id() {
-		Some(id) => id,
-		None => return Err("Found invalid recovery ID".to_owned()),
-	};
-	let signer_address = recover(data.0.as_slice(), &signature.0, recovery_id)
+	let signer_address = recover(&data.0, &signature.0)
 		.map_err(|e| format!("Error recovering signature {:?}", e))?;
 
 	if signer_address == sender_address {

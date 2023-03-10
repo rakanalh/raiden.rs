@@ -10,15 +10,18 @@ use raiden_blockchain::{
 	},
 	proxies::ProxyManager,
 };
-use raiden_primitives::types::{
-	Address,
-	Bytes,
-	PaymentIdentifier,
-	Secret,
-	SecretHash,
-	SecretRegistryAddress,
-	Signature,
-	TokenAmount,
+use raiden_primitives::{
+	signing,
+	types::{
+		Address,
+		Bytes,
+		PaymentIdentifier,
+		Secret,
+		SecretHash,
+		SecretRegistryAddress,
+		Signature,
+		TokenAmount,
+	},
 };
 use raiden_state_machine::{
 	machine::channel::utils::hash_balance_data,
@@ -46,10 +49,7 @@ use raiden_state_machine::{
 	},
 	views,
 };
-use web3::signing::{
-	self,
-	keccak256,
-};
+use web3::signing::keccak256;
 
 use super::messages::{
 	IncomingMessage,
@@ -136,6 +136,7 @@ impl MessageDecoder {
 					balance_proof: balance_proof.clone(),
 					secret: message.secret,
 				};
+
 				let from_hop = HopState {
 					node_address: sender,
 					channel_identifier: message.channel_identifier,
@@ -429,7 +430,7 @@ impl MessageDecoder {
 	}
 
 	fn get_sender(&self, data: &[u8], signature: &[u8]) -> Result<Address, String> {
-		keys::recover(&data, &signature)
+		signing::recover(&data, &signature)
 			.map_err(|e| format!("Could not recover address from signature: {}", e))
 	}
 }
@@ -443,7 +444,7 @@ pub fn encrypt_secret(
 	let message = target_metadata.user_id;
 	let signature = hex::decode(target_metadata.displayname)
 		.map_err(|e| format!("Could not decode signature: {:?}", e))?;
-	let public_key = signing::recover(message.as_bytes(), &signature, 0)
+	let public_key = web3::signing::recover(message.as_bytes(), &signature, 0)
 		.map_err(|e| format!("Could not recover public key: {:?}", e))?;
 
 	let data = DecryptedSecret { secret, amount, payment_identifier };

@@ -6,34 +6,18 @@ use ethsign::{
 	Protected,
 	SecretKey,
 };
-use raiden_primitives::types::{
-	Address,
-	H256,
+use raiden_primitives::{
+	signing::hash_data,
+	types::{
+		Address,
+		H256,
+	},
 };
 use web3::signing::{
-	self,
 	Key,
-	RecoveryError,
 	Signature,
 	SigningError,
 };
-
-pub fn hash_data(data: &[u8]) -> [u8; 32] {
-	let prefix_msg = "\x19Ethereum Signed Message:\n";
-	let len_str = data.len().to_string();
-	let mut res: Vec<u8> = Vec::new();
-	res.append(&mut prefix_msg.as_bytes().to_vec());
-	res.append(&mut len_str.as_bytes().to_vec());
-	res.append(&mut data.to_vec());
-
-	signing::keccak256(&res)
-}
-
-pub fn recover(data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
-	let data_hash = hash_data(data);
-	let recovery_id = signature[64] as i32 - 27;
-	signing::recover(&data_hash, &signature[..64], recovery_id)
-}
 
 pub fn encrypt(receiver_pub: &[u8], data: &[u8]) -> Result<Vec<u8>, SecpError> {
 	ecies::encrypt(receiver_pub, data)
@@ -70,11 +54,7 @@ impl PrivateKey {
 }
 
 impl Key for PrivateKey {
-	fn sign(
-		&self,
-		message: &[u8],
-		chain_id: Option<u64>,
-	) -> Result<signing::Signature, SigningError> {
+	fn sign(&self, message: &[u8], chain_id: Option<u64>) -> Result<Signature, SigningError> {
 		let signature = self.inner.sign(message).map_err(|_| SigningError::InvalidMessage)?;
 
 		let standard_v = signature.v as u64;
