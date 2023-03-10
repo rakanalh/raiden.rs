@@ -39,6 +39,7 @@ use crate::{
 
 pub(super) type TransitionResult = std::result::Result<TargetTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct TargetTransition {
 	pub new_state: Option<TargetTransferState>,
 	pub chain_state: ChainState,

@@ -71,6 +71,7 @@ use crate::{
 
 pub(super) type TransitionResult = std::result::Result<MediatorTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct MediatorTransition {
 	pub new_state: Option<MediatorTransferState>,
 	pub chain_state: ChainState,

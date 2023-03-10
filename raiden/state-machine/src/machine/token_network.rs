@@ -18,6 +18,7 @@ use crate::{
 
 type TransitionResult = std::result::Result<TokenNetworkTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct TokenNetworkTransition {
 	pub new_state: TokenNetworkState,
 	pub events: Vec<Event>,

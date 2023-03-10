@@ -54,6 +54,7 @@ use crate::{
 
 pub(super) type TransitionResult = std::result::Result<InitiatorTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct InitiatorTransition {
 	pub new_state: Option<InitiatorTransferState>,
 	pub channel_state: Option<ChannelState>,

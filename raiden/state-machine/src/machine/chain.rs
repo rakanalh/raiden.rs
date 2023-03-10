@@ -61,6 +61,7 @@ use crate::{
 
 type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct ChainTransition {
 	pub new_state: ChainState,
 	pub events: Vec<Event>,

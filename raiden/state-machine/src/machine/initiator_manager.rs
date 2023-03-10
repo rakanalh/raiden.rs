@@ -43,6 +43,7 @@ use crate::{
 pub(super) type TransitionResult =
 	std::result::Result<InitiatorManagerTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct InitiatorManagerTransition {
 	pub new_state: Option<InitiatorPaymentState>,
 	pub chain_state: ChainState,

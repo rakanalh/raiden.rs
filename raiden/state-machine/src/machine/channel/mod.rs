@@ -130,6 +130,7 @@ pub mod views;
 
 type TransitionResult = std::result::Result<ChannelTransition, StateTransitionError>;
 
+#[derive(Debug)]
 pub struct ChannelTransition {
 	pub new_state: Option<ChannelState>,
 	pub events: Vec<Event>,
