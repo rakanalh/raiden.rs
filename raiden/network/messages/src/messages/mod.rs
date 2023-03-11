@@ -65,6 +65,7 @@ impl Into<[u8; 1]> for MessageTypeId {
 	}
 }
 
+#[derive(Debug)]
 pub enum TransportServiceMessage {
 	Enqueue((QueueIdentifier, OutgoingMessage)),
 	Send(OutgoingMessage),
