@@ -17,10 +17,13 @@ use raiden_primitives::types::{
 };
 use web3::signing::keccak256;
 
-use crate::types::{
-	CanonicalIdentifier,
-	HashTimeLockState,
-	PendingLocksState,
+use crate::{
+	constants::LOCKSROOT_OF_NO_LOCKS,
+	types::{
+		CanonicalIdentifier,
+		HashTimeLockState,
+		PendingLocksState,
+	},
 };
 
 pub(super) fn compute_locks_with(
@@ -66,6 +69,13 @@ pub fn hash_balance_data(
 
 	if locksroot.0.len() != 32 {
 		return Err("Locksroot has wrong length".to_string())
+	}
+
+	if transferred_amount == TokenAmount::zero() &&
+		locked_amount == TokenAmount::zero() &&
+		locksroot == *LOCKSROOT_OF_NO_LOCKS
+	{
+		return Ok(BalanceHash::zero())
 	}
 
 	let mut transferred_amount_in_bytes: [u8; 32] = [0; 32];
