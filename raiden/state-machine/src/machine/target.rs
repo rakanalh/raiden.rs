@@ -163,13 +163,14 @@ fn handle_init_target(
 			}
 			Some(target_state)
 		},
-		Err(e) => {
+		Err((e, err_events)) => {
 			let unlock_failed = ErrorUnlockClaimFailed {
 				identifier: transfer.payment_identifier,
 				secrethash: transfer.lock.secrethash,
 				reason: e,
 			};
 			events.push(unlock_failed.into());
+			events.extend(err_events);
 			None
 		},
 	};

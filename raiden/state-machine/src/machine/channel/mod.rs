@@ -691,8 +691,12 @@ pub(super) fn handle_receive_locked_transfer(
 	channel_state: &mut ChannelState,
 	mediated_transfer: LockedTransferState,
 	recipient_metadata: Option<AddressMetadata>,
-) -> Result<Event, String> {
-	let sender = mediated_transfer.balance_proof.sender.ok_or("The transfer's sender is None")?;
+) -> Result<Event, (String, Vec<Event>)> {
+	let sender = mediated_transfer
+		.balance_proof
+		.sender
+		.ok_or("The transfer's sender is None".to_owned())
+		.map_err(|e| (e, vec![]))?;
 
 	match is_valid_locked_transfer(
 		&mediated_transfer,
@@ -722,11 +726,14 @@ pub(super) fn handle_receive_locked_transfer(
 			}
 			.into())
 		},
-		Err(e) => Ok(ErrorInvalidReceivedLockedTransfer {
-			payment_identifier: mediated_transfer.payment_identifier,
-			reason: e,
-		}
-		.into()),
+		Err(e) => {
+			let event: Event = ErrorInvalidReceivedLockedTransfer {
+				payment_identifier: mediated_transfer.payment_identifier,
+				reason: e.clone(),
+			}
+			.into();
+			Err((e, vec![event]))
+		},
 	}
 }
 
