@@ -90,6 +90,7 @@ pub struct OutgoingMessage {
 	pub message_identifier: MessageIdentifier,
 	pub recipient: Address,
 	pub recipient_metadata: AddressMetadata,
+	#[serde(flatten)]
 	pub inner: MessageInner,
 }
 

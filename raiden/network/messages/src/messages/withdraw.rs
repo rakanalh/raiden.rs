@@ -34,6 +34,7 @@ use super::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct WithdrawRequest {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -112,6 +113,7 @@ impl SignedMessage for WithdrawRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct WithdrawConfirmation {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -188,6 +190,7 @@ impl SignedMessage for WithdrawConfirmation {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct WithdrawExpired {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,

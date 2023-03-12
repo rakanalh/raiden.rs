@@ -63,6 +63,7 @@ use super::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct SecretRequest {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -122,6 +123,7 @@ impl SignedMessage for SecretRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct SecretReveal {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -161,6 +163,7 @@ impl SignedMessage for SecretReveal {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct LockExpired {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -245,6 +248,7 @@ impl SignedEnvelopeMessage for LockExpired {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct Unlock {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -337,6 +341,7 @@ pub struct Lock {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct LockedTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,

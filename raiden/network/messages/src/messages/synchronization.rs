@@ -19,6 +19,7 @@ use super::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct Processed {
 	pub message_identifier: MessageIdentifier,
 	pub signature: Signature,
