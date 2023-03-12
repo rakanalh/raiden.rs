@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::{
+	collections::BTreeMap,
+	fmt::Display,
+};
 
 use matrix_sdk::{
 	config::{
@@ -27,6 +30,16 @@ use crate::TransportError;
 pub enum MessageType {
 	Text,
 	Notice,
+}
+
+impl Display for MessageType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let value = match self {
+			MessageType::Text => "m.text".to_owned(),
+			MessageType::Notice => "m.notice".to_owned(),
+		};
+		write!(f, "{}", value)
+	}
 }
 
 pub struct MatrixClient {
