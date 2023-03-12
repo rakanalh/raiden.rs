@@ -104,6 +104,7 @@ impl MatrixService {
 		let mut sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
 		loop {
 			select! {
+				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
 				response = self.client.sync_once(sync_settings.clone()).fuse() => {
 					match response {
 						Ok(response) => {
