@@ -22,6 +22,7 @@ use parking_lot::RwLock;
 use raiden_network_messages::{
 	decode::MessageDecoder,
 	messages::{
+		MessageContent,
 		OutgoingMessage,
 		TransportServiceMessage,
 	},
@@ -49,7 +50,10 @@ use super::{
 	queue::RetryMessageQueue,
 	MatrixClient,
 };
-use crate::config::TransportConfig;
+use crate::{
+	config::TransportConfig,
+	matrix::MessageType,
+};
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 
@@ -116,8 +120,8 @@ impl MatrixService {
 							let sync_token = response.next_batch;
 							sync_settings = SyncSettings::new().timeout(Duration::from_secs(30)).token(sync_token);
 						},
-						Err(_e) => {
-
+						Err(e) => {
+							error!("Sync error: {:?}", e);
 						}
 					}
 				},
@@ -130,8 +134,18 @@ impl MatrixService {
 								.expect("Queue should have been created before.")
 								.send((queue_identifier, message));
 						},
-						Some(TransportServiceMessage::Send(_message)) => {
-							//self.client.send();
+						Some(TransportServiceMessage::Send(message)) => {
+							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message.clone() };
+							let json = match serde_json::to_string(&content) {
+								Ok(json) => json,
+								Err(e) => {
+									error!("Could not serialize message: {:?}", e);
+									continue;
+								}
+							};
+							if let Err(e) = self.client.send(message.recipient, json, MessageType::Text, message.recipient_metadata).await {
+								error!("Could not send message {:?}", e);
+							};
 						},
 						_ => {}
 					}

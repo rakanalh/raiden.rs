@@ -1,4 +1,7 @@
-use matrix_sdk::HttpError;
+use matrix_sdk::{
+	ruma::IdParseError,
+	HttpError,
+};
 use raiden_network_messages::messages::OutgoingMessage;
 use raiden_state_machine::types::QueueIdentifier;
 use thiserror::Error;
@@ -15,6 +18,8 @@ pub enum TransportError {
 	Sync(String),
 	#[error("Could to send messages: `{0}`")]
 	Send(HttpError),
+	#[error("Error: `{0}`")]
+	Other(String),
 }
 
 #[async_trait::async_trait]

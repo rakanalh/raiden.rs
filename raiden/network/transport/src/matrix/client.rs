@@ -11,6 +11,9 @@ use matrix_sdk::{
 	deserialized_responses::SyncResponse,
 	ruma::{
 		api::client::to_device::send_event_to_device,
+		serde::Raw,
+		to_device::DeviceIdOrAllDevices,
+		OwnedUserId,
 		TransactionId,
 	},
 	Client,
@@ -104,16 +107,30 @@ impl MatrixClient {
 
 	pub async fn send(
 		&self,
-		_receiver_address: Address,
-		_data: String,
-		_message_type: MessageType,
-		_receiver_metadata: AddressMetadata,
+		recipient_address: Address,
+		data: String,
+		message_type: MessageType,
+		receiver_metadata: AddressMetadata,
 	) -> Result<(), TransportError> {
+		let data = match Raw::from_json_string(data) {
+			Ok(d) => d,
+			Err(e) => return Err(TransportError::Other(format!("{:?}", e))),
+		};
+		let user_id: OwnedUserId = receiver_metadata
+			.user_id
+			.as_str()
+			.try_into()
+			.map_err(|e| TransportError::Other(format!("{:?}", e)))?;
+		let mut messages = BTreeMap::new();
+		messages.insert(DeviceIdOrAllDevices::DeviceId("RAIDEN".into()), data);
+		let mut destination = BTreeMap::new();
+		destination.insert(user_id, messages);
+
 		let transaction_id = TransactionId::new();
 		let request = send_event_to_device::v3::Request::new_raw(
 			"m.room.message",
 			&transaction_id,
-			BTreeMap::new(),
+			destination,
 		);
 		self.client
 			.send(request, Some(RequestConfig::default()))
