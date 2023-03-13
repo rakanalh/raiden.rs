@@ -50,7 +50,6 @@ use raiden_state_machine::{
 	},
 	views,
 };
-use web3::signing::keccak256;
 
 use super::messages::{
 	IncomingMessage,

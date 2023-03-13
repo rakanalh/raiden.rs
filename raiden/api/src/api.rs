@@ -55,10 +55,7 @@ use raiden_transition::Transitioner;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::info;
-use web3::{
-	signing::keccak256,
-	transports::Http,
-};
+use web3::transports::Http;
 
 use crate::{
 	payments::PaymentsRegistry,

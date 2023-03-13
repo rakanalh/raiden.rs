@@ -13,7 +13,6 @@ use raiden_primitives::{
 		TokenAmount,
 	},
 };
-use web3::signing::keccak256;
 
 use super::{
 	channel,
