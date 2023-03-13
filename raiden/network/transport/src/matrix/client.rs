@@ -26,6 +26,7 @@ use raiden_primitives::{
 };
 use raiden_state_machine::types::AddressMetadata;
 use reqwest::Url;
+use serde::Serialize;
 use web3::signing::Key;
 
 use crate::TransportError;
@@ -43,6 +44,12 @@ impl Display for MessageType {
 		};
 		write!(f, "{}", value)
 	}
+}
+
+#[derive(Serialize)]
+pub struct MessageContent {
+	pub msgtype: String,
+	pub body: String,
 }
 
 pub struct MatrixClient {

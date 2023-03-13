@@ -22,7 +22,6 @@ use parking_lot::RwLock;
 use raiden_network_messages::{
 	decode::MessageDecoder,
 	messages::{
-		MessageContent,
 		OutgoingMessage,
 		TransportServiceMessage,
 	},
@@ -52,7 +51,10 @@ use super::{
 };
 use crate::{
 	config::TransportConfig,
-	matrix::MessageType,
+	matrix::{
+		MessageContent,
+		MessageType,
+	},
 };
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
@@ -135,7 +137,14 @@ impl MatrixService {
 								.send((queue_identifier, message));
 						},
 						Some(TransportServiceMessage::Send(message)) => {
-							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message.clone() };
+							let message_json = match serde_json::to_string(&message) {
+								Ok(json) => json,
+								Err(e) => {
+									error!("Could not serialize message: {:?}", e);
+									continue;
+								}
+							};
+							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
 							let json = match serde_json::to_string(&content) {
 								Ok(json) => json,
 								Err(e) => {

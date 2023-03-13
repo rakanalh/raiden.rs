@@ -1,7 +1,4 @@
-use matrix_sdk::{
-	ruma::IdParseError,
-	HttpError,
-};
+use matrix_sdk::HttpError;
 use raiden_network_messages::messages::OutgoingMessage;
 use raiden_state_machine::types::QueueIdentifier;
 use thiserror::Error;
