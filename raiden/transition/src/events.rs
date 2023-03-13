@@ -50,7 +50,14 @@ impl EventHandler {
 			Event::ContractSendChannelBatchUnlock(_) => todo!(),
 			Event::ContractSendSecretReveal(_) => todo!(),
 			Event::PaymentSentSuccess(_) => todo!(),
-			Event::PaymentReceivedSuccess(_) => todo!(),
+			Event::PaymentReceivedSuccess(inner) => {
+				event!(
+					Level::INFO,
+					reason = "Payment Received",
+					from = format!("{:?}", inner.initiator),
+					amount = format!("{}", inner.amount),
+				);
+			},
 			Event::SendWithdrawRequest(inner) => {
 				let queue_identifier = inner.queue_identifier();
 				let message = to_message!(inner, private_key, WithdrawRequest);
