@@ -1,10 +1,17 @@
 use web3::{
-	signing::Signature,
-	types::U256,
+	signing::{
+		keccak256,
+		Signature,
+	},
+	types::{
+		Address,
+		U256,
+	},
 };
 
 use crate::traits::{
 	ToBytes,
+	ToChecksummed,
 	ToString,
 };
 
@@ -34,5 +41,26 @@ impl ToString for Signature {
 	fn to_string(&self) -> String {
 		let bytes = self.to_bytes();
 		format!("0x{}", hex::encode(&bytes))
+	}
+}
+
+/// Adapted from: https://github.com/gakonst/ethers-rs/blob/da743fc8b29ffeb650c767f622bb19eba2f057b7/ethers-core/src/utils/mod.rs#L407
+impl ToChecksummed for Address {
+	fn to_checksummed(&self) -> String {
+		let prefixed_address = format!("{self:x}");
+		let hash = hex::encode(keccak256(prefixed_address.as_bytes()));
+		let hash = hash.as_bytes();
+
+		let addr_hex = hex::encode(self.as_bytes());
+		let addr_hex = addr_hex.as_bytes();
+
+		addr_hex.iter().zip(hash).fold("0x".to_owned(), |mut encoded, (addr, hash)| {
+			encoded.push(if *hash >= 56 {
+				addr.to_ascii_uppercase() as char
+			} else {
+				addr.to_ascii_lowercase() as char
+			});
+			encoded
+		})
 	}
 }
