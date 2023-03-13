@@ -155,8 +155,12 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
 	let partner_address =
 		unwrap!(req.param("partner_address").ok_or(Error::Uri("Missing partner address")));
 
-	let token_address: TokenAddress = Address::from_slice(token_address.as_bytes());
-	let partner_address: Address = Address::from_slice(partner_address.as_bytes());
+	let token_address: TokenAddress =
+		Address::from_slice(unwrap!(&hex::decode(token_address.trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let partner_address: Address =
+		Address::from_slice(unwrap!(&hex::decode(partner_address.trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid partner address")))));
 
 	let params: InitiatePaymentParams = unwrap!(body_to_params(req).await);
 
@@ -187,7 +191,7 @@ fn get_default_token_network_registry(
 	contracts_manager: Arc<ContractsManager>,
 ) -> Result<Address, Error> {
 	let token_network_registry_deployed_contract =
-		match contracts_manager.get_deployed(contracts::ContractIdentifier::SecretRegistry) {
+		match contracts_manager.get_deployed(contracts::ContractIdentifier::TokenNetworkRegistry) {
 			Ok(contract) => contract,
 			Err(e) =>
 				return Err(Error::Other(format!(

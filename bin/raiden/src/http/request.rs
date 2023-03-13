@@ -1,18 +1,18 @@
-use raiden_primitives::types::{
-	BlockTimeout,
-	PaymentIdentifier,
-	RevealTimeout,
-	SecretHash,
-	SettleTimeout,
-	TokenAddress,
-	TokenAmount,
+use raiden_primitives::{
+	deserializers::u256_from_str,
+	types::{
+		Address,
+		BlockTimeout,
+		PaymentIdentifier,
+		RevealTimeout,
+		SecretHash,
+		SettleTimeout,
+		TokenAddress,
+		TokenAmount,
+	},
 };
 use raiden_state_machine::types::ChannelStatus;
 use serde::Deserialize;
-use web3::types::{
-	Address,
-	U256,
-};
 
 #[derive(Deserialize)]
 pub struct ChannelOpenParams {
@@ -37,7 +37,8 @@ pub struct ChannelPatchParams {
 
 #[derive(Deserialize)]
 pub struct InitiatePaymentParams {
-	pub amount: U256,
+	#[serde(deserialize_with = "u256_from_str")]
+	pub amount: TokenAmount,
 	pub payment_identifier: Option<PaymentIdentifier>,
 	pub secret: Option<String>,
 	pub secret_hash: Option<SecretHash>,

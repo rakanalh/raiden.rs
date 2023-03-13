@@ -8,16 +8,19 @@ use chrono::{
 	Utc,
 };
 use derive_more::Display;
-use raiden_primitives::types::{
-	Address,
-	BlockExpiration,
-	BlockNumber,
-	ChainID,
-	OneToNAddress,
-	TokenAmount,
-	TokenNetworkAddress,
-	TokenNetworkRegistryAddress,
-	H256,
+use raiden_primitives::{
+	traits::ToChecksummed,
+	types::{
+		Address,
+		BlockExpiration,
+		BlockNumber,
+		ChainID,
+		OneToNAddress,
+		TokenAmount,
+		TokenNetworkAddress,
+		TokenNetworkRegistryAddress,
+		H256,
+	},
 };
 use rand::prelude::SliceRandom;
 use reqwest::Url;
@@ -26,7 +29,13 @@ use serde::{
 	Serialize,
 };
 use thiserror::Error;
-use tokio::sync::Mutex;
+use tokio::{
+	sync::Mutex,
+	time::{
+		self,
+		Duration,
+	},
+};
 use web3::{
 	signing::{
 		Key,
@@ -88,8 +97,8 @@ pub enum RoutingError {
 
 #[derive(Clone, Serialize)]
 pub struct PFSRequest {
-	from: Address,
-	to: Address,
+	from: String,
+	to: String,
 	value: TokenAmount,
 	max_paths: usize,
 	iou: Option<IOU>,
@@ -140,8 +149,8 @@ impl PFS {
 		pfs_wait_for_block: BlockNumber,
 	) -> Result<(Vec<PFSPath>, String), RoutingError> {
 		let mut payload = PFSRequest {
-			from: route_from,
-			to: route_to,
+			from: route_from.to_checksummed(),
+			to: route_to.to_checksummed(),
 			max_paths: self.pfs_config.max_paths,
 			iou: None,
 			value,
@@ -150,7 +159,7 @@ impl PFS {
 
 		let mut current_info = self.get_pfs_info().await?;
 		while current_info.network.confirmed_block.number < pfs_wait_for_block {
-			tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+			time::sleep(Duration::from_millis(500)).await;
 			current_info = self.get_pfs_info().await?;
 		}
 
@@ -190,6 +199,7 @@ impl PFS {
 		payload: PFSRequest,
 	) -> Result<PFSPathsResponse, RoutingError> {
 		let client = reqwest::Client::new();
+		let token_network_address = token_network_address.to_checksummed();
 		let response: PFSPathsResponse = client
 			.post(format!("{}/api/v1/{}/paths", &self.pfs_config.url, token_network_address))
 			.json(&payload)
@@ -363,14 +373,17 @@ pub async fn query_address_metadata(
 	url: String,
 	address: Address,
 ) -> Result<AddressMetadata, RoutingError> {
-	let metadata = reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address))
-		.await
-		.map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?
-		.json::<AddressMetadata>()
-		.await
-		.map_err(|e| {
-			RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
-		})?;
+	let metadata =
+		reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.to_checksummed()))
+			.await
+			.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
+			})?
+			.json::<AddressMetadata>()
+			.await
+			.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?;
 
 	Ok(metadata)
 }

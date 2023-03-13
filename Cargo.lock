@@ -2368,6 +2368,7 @@ version = "0.0.1"
 dependencies = [
  "expanduser",
  "futures",
+ "hex",
  "hyper",
  "parking_lot 0.11.2",
  "raiden-api",
