@@ -1,14 +1,17 @@
 use std::iter;
 
-use raiden_primitives::types::{
-	Address,
-	BlockExpiration,
-	BlockHash,
-	BlockNumber,
-	BlockTimeout,
-	Secret,
-	SecretHash,
-	TokenAmount,
+use raiden_primitives::{
+	hashing::hash_secret,
+	types::{
+		Address,
+		BlockExpiration,
+		BlockHash,
+		BlockNumber,
+		BlockTimeout,
+		Secret,
+		SecretHash,
+		TokenAmount,
+	},
 };
 use web3::signing::keccak256;
 
@@ -443,7 +446,7 @@ fn events_for_secret_reveal(
 					message_identifier,
 				},
 				secret: secret.clone(),
-				secrethash: SecretHash::from_slice(&keccak256(&secret.0)),
+				secrethash: SecretHash::from_slice(&hash_secret(&secret.0)),
 			};
 			events.push(reveal_secret.into());
 		}

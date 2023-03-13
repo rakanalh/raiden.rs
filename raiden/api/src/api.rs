@@ -12,22 +12,25 @@ use raiden_pathfinding::{
 	routing,
 	RoutingError,
 };
-use raiden_primitives::types::{
-	Address,
-	BlockTimeout,
-	Bytes,
-	ChannelIdentifier,
-	PaymentIdentifier,
-	RetryTimeout,
-	RevealTimeout,
-	Secret,
-	SecretHash,
-	SecretRegistryAddress,
-	SettleTimeout,
-	TokenAddress,
-	TokenAmount,
-	TokenNetworkAddress,
-	TokenNetworkRegistryAddress,
+use raiden_primitives::{
+	hashing::hash_secret,
+	types::{
+		Address,
+		BlockTimeout,
+		Bytes,
+		ChannelIdentifier,
+		PaymentIdentifier,
+		RetryTimeout,
+		RevealTimeout,
+		Secret,
+		SecretHash,
+		SecretRegistryAddress,
+		SettleTimeout,
+		TokenAddress,
+		TokenAmount,
+		TokenNetworkAddress,
+		TokenNetworkRegistryAddress,
+	},
 };
 use raiden_state_machine::{
 	constants::{
@@ -615,11 +618,11 @@ impl Api {
 
 		let secret_hash = match secret_hash {
 			Some(hash) => hash,
-			None => SecretHash::from_slice(&keccak256(&secret.0)),
+			None => SecretHash::from_slice(&hash_secret(&secret.0)),
 		};
 
 		if !secret.0.is_empty() {
-			let secrethash_from_secret = SecretHash::from_slice(&keccak256(&secret.0));
+			let secrethash_from_secret = SecretHash::from_slice(&hash_secret(&secret.0));
 			if secret_hash != secrethash_from_secret {
 				return Err(ApiError::Param(format!("Provided secret and secret_hash do not match")))
 			}

@@ -1,4 +1,5 @@
 pub mod deserializers;
+pub mod hashing;
 pub mod impls;
 pub mod serializers;
 pub mod signing;

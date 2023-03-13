@@ -11,6 +11,7 @@ use raiden_blockchain::{
 	proxies::ProxyManager,
 };
 use raiden_primitives::{
+	hashing::hash_secret,
 	signing,
 	types::{
 		Address,
@@ -238,7 +239,8 @@ impl MessageDecoder {
 			},
 			crate::messages::MessageInner::SecretReveal(message) => {
 				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature.0)?;
-				let mut secrethash = SecretHash::from_slice(&keccak256(&message.secret.0));
+				let secrethash = hash_secret(&message.secret.0);
+				let mut secrethash = SecretHash::from_slice(&secrethash);
 				Ok(vec![StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
 					sender,
 					secrethash,
@@ -267,7 +269,7 @@ impl MessageDecoder {
 					signature: Some(Signature::from(message.signature.0)),
 					sender: Some(sender),
 				};
-				let mut secrethash = SecretHash::from_slice(&keccak256(&message.secret.0));
+				let mut secrethash = SecretHash::from_slice(&hash_secret(&message.secret.0));
 				Ok(vec![StateChange::ReceiveUnlock(ReceiveUnlock {
 					sender,
 					balance_proof,
