@@ -91,24 +91,21 @@ impl From<SendSecretRequest> for SecretRequest {
 
 impl SignedMessage for SecretRequest {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let cmd_id: [u8; 1] = CmdId::SecretRequest.into();
-
-		let mut expiration = [0u8; 4];
-		self.expiration.to_big_endian(&mut expiration);
+		let expiration: U256 = self.expiration.into();
 
 		let mut amount = [0u8; 32];
 		self.amount.to_big_endian(&mut amount);
 
-		let mut payment_identifier = [0u8; 4];
+		let mut payment_identifier = [0u8; 8];
 		self.payment_identifier.to_big_endian(&mut payment_identifier);
 
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&cmd_id);
-		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
-		bytes.append(&mut payment_identifier.to_vec());
-		bytes.extend_from_slice(self.secrethash.as_bytes());
-		bytes.extend_from_slice(&amount);
-		bytes.extend_from_slice(&expiration);
+		bytes.extend(&[CmdId::SecretRequest as u8, 0, 0, 0]);
+		bytes.extend(&self.message_identifier.to_be_bytes());
+		bytes.extend(&payment_identifier);
+		bytes.extend(self.secrethash.as_bytes());
+		bytes.extend(&amount);
+		bytes.extend(&expiration.to_bytes());
 		bytes
 	}
 
@@ -123,7 +120,7 @@ impl SignedMessage for SecretRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename = "RevealSecret")]
 pub struct SecretReveal {
 	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
@@ -144,11 +141,12 @@ impl From<SendSecretReveal> for SecretReveal {
 
 impl SignedMessage for SecretReveal {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let cmd_id: [u8; 1] = CmdId::SecretRequest.into();
-
+		let message_identifier = self.message_identifier.to_be_bytes();
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&cmd_id);
-		bytes.extend_from_slice(&self.secret.0);
+
+		bytes.extend(&[CmdId::RevealSecret as u8, 0, 0, 0]);
+		bytes.extend(message_identifier);
+		bytes.extend(&self.secret.0);
 		bytes
 	}
 
@@ -233,13 +231,13 @@ impl SignedMessage for LockExpired {
 
 impl SignedEnvelopeMessage for LockExpired {
 	fn message_hash(&self) -> H256 {
-		let cmd: [u8; 1] = CmdId::LockExpired.into();
+		let message_identifier = self.message_identifier.to_be_bytes();
 
 		let mut res: Vec<u8> = Vec::new();
-		res.append(&mut cmd.to_vec());
-		res.append(&mut self.message_identifier.to_be_bytes().to_vec());
-		res.append(&mut self.recipient.as_bytes().to_vec());
-		res.append(&mut self.secrethash.as_bytes().to_vec());
+		res.push(CmdId::LockExpired as u8);
+		res.extend(&message_identifier);
+		res.extend(&self.recipient.as_bytes().to_vec());
+		res.extend(&self.secrethash.as_bytes().to_vec());
 
 		H256::from_slice(&keccak256(&res))
 	}
@@ -315,16 +313,15 @@ impl SignedMessage for Unlock {
 
 impl SignedEnvelopeMessage for Unlock {
 	fn message_hash(&self) -> H256 {
-		let cmd: [u8; 1] = CmdId::LockExpired.into();
-
-		let mut payment_identifier = [0u8; 1];
+		let message_identifier = self.message_identifier.to_be_bytes();
+		let mut payment_identifier = [0u8; 8];
 		self.payment_identifier.to_big_endian(&mut payment_identifier);
 
 		let mut res: Vec<u8> = Vec::new();
-		res.append(&mut cmd.to_vec());
-		res.append(&mut self.message_identifier.to_be_bytes().to_vec());
-		res.append(&mut payment_identifier.to_vec());
-		res.append(&mut self.secret.0.clone());
+		res.push(CmdId::LockedTransfer as u8);
+		res.extend(&message_identifier);
+		res.extend(&payment_identifier);
+		res.extend(&self.secret.0.clone());
 
 		H256::from_slice(&keccak256(&res))
 	}

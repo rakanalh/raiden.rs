@@ -71,12 +71,6 @@ pub enum TransportServiceMessage {
 	Send(OutgoingMessage),
 }
 
-#[derive(Serialize)]
-pub struct MessageContent {
-	pub msgtype: String,
-	pub body: OutgoingMessage,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageInner {
