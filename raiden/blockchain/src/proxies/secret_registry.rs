@@ -49,6 +49,6 @@ impl<T: Transport> SecretRegistryProxy<T> {
 		block: Option<BlockHash>,
 	) -> Result<bool> {
 		let block = self.get_secret_registration_block_by_secrethash(secrethash, block).await?;
-		Ok(block.is_some())
+		Ok(block.is_none())
 	}
 }
