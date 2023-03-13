@@ -318,7 +318,7 @@ impl SignedEnvelopeMessage for Unlock {
 		self.payment_identifier.to_big_endian(&mut payment_identifier);
 
 		let mut res: Vec<u8> = Vec::new();
-		res.push(CmdId::LockedTransfer as u8);
+		res.push(CmdId::Unlock as u8);
 		res.extend(&message_identifier);
 		res.extend(&payment_identifier);
 		res.extend(&self.secret.0.clone());
