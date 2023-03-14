@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use raiden_state_machine::types::StateChange;
-use tracing::{
-	debug,
-	error,
-};
+use tracing::error;
 
 use crate::{
 	events::EventHandler,
@@ -30,11 +27,10 @@ impl Transitioner {
 	pub async fn transition(&self, state_change: StateChange) {
 		let transition_result = self.state_manager.write().transition(state_change);
 		match transition_result {
-			Ok(events) => {
+			Ok(events) =>
 				for event in events {
 					self.event_handler.handle_event(event).await;
-				}
-			},
+				},
 			Err(e) => {
 				// Maybe use an informant service for error logging
 				error!("Error transitioning: {:?}", e);
