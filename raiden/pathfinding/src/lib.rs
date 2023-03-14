@@ -9,18 +9,23 @@ use chrono::{
 };
 use derive_more::Display;
 use raiden_primitives::{
-	traits::ToChecksummed,
+	traits::{
+		Stringify,
+		ToBytes,
+		ToChecksummed,
+	},
 	types::{
 		Address,
 		AddressMetadata,
 		BlockExpiration,
 		BlockNumber,
+		Bytes,
 		ChainID,
 		OneToNAddress,
+		Signature,
 		TokenAmount,
 		TokenNetworkAddress,
 		TokenNetworkRegistryAddress,
-		H256,
 	},
 };
 use rand::prelude::SliceRandom;
@@ -56,7 +61,6 @@ use raiden_blockchain::{
 		ProxyError,
 		ServiceRegistryProxy,
 	},
-	signature::SignatureUtils,
 };
 
 use crate::{
@@ -255,7 +259,7 @@ impl PFS {
 				("sender", sender.to_string()),
 				("receiver", self.pfs_config.info.payment_address.to_string()),
 				("timestamp", timestamp.to_string()),
-				("signature", signature.to_string()),
+				("signature", signature.as_string()),
 			])
 			.send()
 			.await
@@ -298,11 +302,12 @@ impl PFS {
 			response.get("chain_id").ok_or(RoutingError::PFServiceInvalidResponse)?.as_str(),
 		)
 		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let signature = H256::from_slice(
+		let signature = Bytes(
 			response
 				.get("signature")
 				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes(),
+				.as_bytes()
+				.to_vec(),
 		);
 
 		Ok(IOU {
@@ -357,7 +362,7 @@ impl PFS {
 		sender: Address,
 		receiver: Address,
 		timestamp: DateTime<Utc>,
-	) -> Result<H256, SigningError> {
+	) -> Result<Bytes, SigningError> {
 		let timestamp = format!("{}", timestamp.format("%+"));
 		let chain_id = self.chain_id.clone().into();
 
@@ -365,7 +370,7 @@ impl PFS {
 		data.extend_from_slice(sender.as_bytes());
 		data.extend_from_slice(receiver.as_bytes());
 		data.extend_from_slice(timestamp.as_bytes());
-		Ok(self.private_key.sign(&data, Some(chain_id))?.to_h256())
+		Ok(Bytes(self.private_key.sign(&data, Some(chain_id))?.to_bytes()))
 	}
 }
 

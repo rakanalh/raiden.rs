@@ -25,6 +25,7 @@ use raiden_network_messages::{
 };
 use raiden_primitives::{
 	packing::pack_balance_proof_message,
+	traits::ToBytes,
 	types::{
 		BalanceHash,
 		Bytes,
@@ -118,7 +119,7 @@ impl EventHandler {
 				);
 
 				let our_signature = match self.account.private_key().sign_message(&closing_data.0) {
-					Ok(sig) => sig,
+					Ok(sig) => sig.to_bytes(),
 					Err(e) => {
 						event!(
 							Level::ERROR,

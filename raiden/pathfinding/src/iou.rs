@@ -1,14 +1,14 @@
-use raiden_blockchain::{
-	keys::PrivateKey,
-	signature::SignatureUtils,
-};
-use raiden_primitives::types::{
-	Address,
-	BlockExpiration,
-	ChainID,
-	OneToNAddress,
-	TokenAmount,
-	H256,
+use raiden_blockchain::keys::PrivateKey;
+use raiden_primitives::{
+	traits::ToBytes,
+	types::{
+		Address,
+		BlockExpiration,
+		Bytes,
+		ChainID,
+		OneToNAddress,
+		TokenAmount,
+	},
 };
 use serde::{
 	Deserialize,
@@ -29,7 +29,7 @@ pub struct IOU {
 	pub amount: TokenAmount,
 	pub expiration_block: BlockExpiration,
 	pub chain_id: ChainID,
-	pub signature: Option<H256>,
+	pub signature: Option<Bytes>,
 }
 
 impl IOU {
@@ -51,7 +51,7 @@ impl IOU {
 		message.extend(amount);
 		message.extend(expiration_block);
 		let signature = private_key.sign(&message, Some(chain_id))?;
-		self.signature = Some(signature.to_h256());
+		self.signature = Some(Bytes(signature.to_bytes()));
 		Ok(())
 	}
 }

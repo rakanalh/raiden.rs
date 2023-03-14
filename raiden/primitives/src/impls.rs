@@ -5,14 +5,15 @@ use web3::{
 	},
 	types::{
 		Address,
+		Bytes,
 		U256,
 	},
 };
 
 use crate::traits::{
+	Stringify,
 	ToBytes,
 	ToChecksummed,
-	ToString,
 };
 
 impl ToBytes for U256 {
@@ -37,9 +38,16 @@ impl ToBytes for Signature {
 	}
 }
 
-impl ToString for Signature {
-	fn to_string(&self) -> String {
+impl Stringify for Signature {
+	fn as_string(&self) -> String {
 		let bytes = self.to_bytes();
+		format!("0x{}", hex::encode(&bytes))
+	}
+}
+
+impl Stringify for Bytes {
+	fn as_string(&self) -> String {
+		let bytes = &self.0;
 		format!("0x{}", hex::encode(&bytes))
 	}
 }
