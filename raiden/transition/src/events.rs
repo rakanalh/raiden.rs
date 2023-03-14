@@ -1,4 +1,10 @@
-use raiden_blockchain::proxies::Account;
+use std::sync::Arc;
+
+use parking_lot::RwLock;
+use raiden_blockchain::proxies::{
+	Account,
+	ProxyManager,
+};
 use raiden_network_messages::{
 	messages::{
 		LockExpired,
@@ -17,32 +23,143 @@ use raiden_network_messages::{
 	},
 	to_message,
 };
-use raiden_state_machine::types::Event;
+use raiden_primitives::{
+	packing::pack_balance_proof_message,
+	types::{
+		BalanceHash,
+		Bytes,
+		MessageHash,
+		MessageTypeId,
+		Nonce,
+	},
+};
+use raiden_state_machine::{
+	types::Event,
+	views,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{
 	error,
 	event,
+	warn,
 	Level,
 };
-use web3::transports::Http;
+use web3::{
+	signing::Key,
+	transports::Http,
+};
+
+use crate::manager::StateManager;
 
 pub struct EventHandler {
 	account: Account<Http>,
+	state_manager: Arc<RwLock<StateManager>>,
+	proxy_manager: Arc<ProxyManager>,
 	transport: UnboundedSender<TransportServiceMessage>,
 }
 
 impl EventHandler {
 	pub fn new(
 		account: Account<Http>,
+		state_manager: Arc<RwLock<StateManager>>,
+		proxy_manager: Arc<ProxyManager>,
 		transport: UnboundedSender<TransportServiceMessage>,
 	) -> Self {
-		Self { account, transport }
+		Self { account, state_manager, proxy_manager, transport }
 	}
 
 	pub async fn handle_event(&self, event: Event) {
 		let private_key = self.account.private_key();
 		match event {
-			Event::ContractSendChannelClose(_) => todo!(),
+			Event::ContractSendChannelClose(inner) => {
+				let (nonce, balance_hash, signature_in_proof, message_hash, canonical_identifier) =
+					match inner.balance_proof {
+						Some(bp) => {
+							let signature = match bp.signature {
+								Some(sig) => sig,
+								None => {
+									warn!("Closing channel but partner's balance proof is None");
+									Bytes(vec![])
+								},
+							};
+
+							let message_hash = match bp.message_hash {
+								Some(m) => m,
+								None => {
+									warn!("Closing channel but message hash is None");
+									MessageHash::zero()
+								},
+							};
+
+							(
+								bp.nonce,
+								bp.balance_hash,
+								signature,
+								message_hash,
+								bp.canonical_identifier,
+							)
+						},
+						None => (
+							Nonce::zero(),
+							BalanceHash::zero(),
+							Bytes(vec![0; 65]),
+							MessageHash::zero(),
+							inner.canonical_identifier.clone(),
+						),
+					};
+
+				let closing_data = pack_balance_proof_message(
+					nonce,
+					balance_hash,
+					message_hash,
+					canonical_identifier,
+					MessageTypeId::BalanceProof,
+					signature_in_proof,
+				);
+
+				let our_signature = match self.account.private_key().sign_message(&closing_data.0) {
+					Ok(sig) => sig,
+					Err(e) => {
+						event!(
+							Level::ERROR,
+							reason = "Close channel, signing failed",
+							error = format!("{:?}", e),
+						);
+						return
+					},
+				};
+
+				let chain_state = self.state_manager.read().current_state.clone();
+				let confirmed_block = chain_state.block_hash;
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					inner.canonical_identifier,
+				) {
+					Some(channel_state) => channel_state,
+					None => {
+						error!("Closing channel for non-existent channel");
+						return
+					},
+				};
+				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+					Ok(proxy) => proxy,
+					Err(e) => {
+						error!("Something went wrong constructing channel proxy {:?}", e);
+						return
+					},
+				};
+
+				channel_proxy
+					.close(
+						nonce,
+						balance_hash,
+						message_hash,
+						signature_in_proof,
+						our_signature,
+						inner.triggered_by_blockhash,
+					)
+					.await;
+			},
 			Event::ContractSendChannelWithdraw(_) => todo!(),
 			Event::ContractSendChannelSettle(_) => todo!(),
 			Event::ContractSendChannelCoopSettle(_) => todo!(),

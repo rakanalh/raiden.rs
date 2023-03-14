@@ -269,12 +269,17 @@ async fn main() {
 		web3,
 		config,
 		contracts_manager,
-		proxy_manager,
+		proxy_manager: proxy_manager.clone(),
 		state_manager: state_manager.clone(),
 		transport: transport_sender.clone(),
 	});
 
-	let event_handler = EventHandler::new(account.clone(), transport_sender.clone());
+	let event_handler = EventHandler::new(
+		account.clone(),
+		state_manager.clone(),
+		proxy_manager.clone(),
+		transport_sender.clone(),
+	);
 	let transitioner = Arc::new(Transitioner::new(raiden.state_manager.clone(), event_handler));
 
 	let ws = match WebSocket::new(&eth_rpc_socket_endpoint).await {
