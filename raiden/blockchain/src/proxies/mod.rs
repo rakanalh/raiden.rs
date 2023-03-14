@@ -1,6 +1,5 @@
 mod channel;
 mod common;
-mod contract;
 mod error;
 mod gas_reserve;
 mod manager;

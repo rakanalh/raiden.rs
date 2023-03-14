@@ -18,7 +18,10 @@ use tokio::sync::{
 	RwLock,
 };
 use web3::{
-	contract::Contract,
+	contract::{
+		Contract,
+		Options,
+	},
 	Transport,
 	Web3,
 };
@@ -28,16 +31,13 @@ use super::{
 		Account,
 		Result,
 	},
-	contract::{
-		ParticipantDetails,
-		TokenNetworkContract,
-	},
 	transaction::{
 		ChannelOpenTransaction,
 		ChannelOpenTransactionParams,
 		ChannelSetTotalDepositTransaction,
 		ChannelSetTotalDepositTransactionParams,
 	},
+	ProxyError,
 	TokenProxy,
 };
 use crate::{
@@ -46,12 +46,31 @@ use crate::{
 };
 
 #[derive(Clone)]
+pub struct ParticipantDetails {
+	pub address: Address,
+	pub deposit: TokenAmount,
+	pub withdrawn: TokenAmount,
+	pub is_closer: bool,
+	pub balance_hash: BalanceHash,
+	pub nonce: Nonce,
+	pub locksroot: Locksroot,
+	pub locked_amount: TokenAmount,
+}
+
+#[derive(Clone)]
+pub struct ChannelData {
+	pub channel_identifier: ChannelIdentifier,
+	pub settle_block_number: U256,
+	pub status: ChannelStatus,
+}
+
+#[derive(Clone)]
 pub struct TokenNetworkProxy<T: Transport> {
 	web3: Web3<T>,
 	gas_metadata: Arc<GasMetadata>,
 	token_proxy: TokenProxy<T>,
-	contract: TokenNetworkContract<T>,
-	pub opening_channels_count: u32,
+	pub(super) contract: Contract<T>,
+	pub(super) opening_channels_count: u32,
 	channel_operations_lock: Arc<RwLock<HashMap<Address, Mutex<bool>>>>,
 }
 
@@ -70,7 +89,7 @@ where
 			web3,
 			gas_metadata,
 			token_proxy,
-			contract: TokenNetworkContract { inner: contract },
+			contract,
 			opening_channels_count: 0,
 			channel_operations_lock: Arc::new(RwLock::new(HashMap::new())),
 		}
@@ -95,7 +114,7 @@ where
 		let open_channel_transaction = ChannelOpenTransaction {
 			web3: self.web3.clone(),
 			account: account.clone(),
-			contract: self.contract.clone(),
+			token_network: self.clone(),
 			token_proxy: self.token_proxy.clone(),
 			gas_metadata: self.gas_metadata.clone(),
 		};
@@ -120,7 +139,7 @@ where
 		let set_total_deposit_transaction = ChannelSetTotalDepositTransaction {
 			web3: self.web3.clone(),
 			account: account.clone(),
-			contract: self.contract.clone(),
+			token_network: self.clone(),
 			token: self.token_proxy.clone(),
 			gas_metadata: self.gas_metadata.clone(),
 		};
@@ -137,29 +156,70 @@ where
 			.await?)
 	}
 
-	pub async fn address_by_token_address(
-		&self,
-		token_address: TokenAddress,
-		block: BlockHash,
-	) -> Result<Address> {
-		self.contract.address_by_token_address(token_address, block).await
-	}
-
-	pub async fn safety_deprecation_switch(&self, block: BlockHash) -> Result<bool> {
-		self.contract.safety_deprecation_switch(block).await
-	}
-
-	pub async fn channel_participant_deposit_limit(&self, block: BlockHash) -> Result<TokenAmount> {
-		self.contract.channel_participant_deposit_limit(block).await
-	}
-
 	pub async fn get_channel_identifier(
 		&self,
 		participant1: Address,
 		participant2: Address,
-		block: BlockHash,
-	) -> Result<Option<ChannelIdentifier>> {
-		self.contract.get_channel_identifier(participant1, participant2, block).await
+		block: H256,
+	) -> Result<Option<U256>> {
+		let channel_identifier: U256 = self
+			.contract
+			.query(
+				"getChannelIdentifier",
+				(participant1, participant2),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await?;
+
+		if channel_identifier.is_zero() {
+			return Ok(None)
+		}
+
+		Ok(Some(channel_identifier))
+	}
+	pub async fn address_by_token_address(
+		&self,
+		token_address: TokenAddress,
+		block: H256,
+	) -> Result<Address> {
+		self.contract
+			.query(
+				"token_to_token_networks",
+				(token_address,),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await
+			.map_err(Into::into)
+	}
+
+	pub async fn safety_deprecation_switch(&self, block: H256) -> Result<bool> {
+		self.contract
+			.query(
+				"safety_deprecation_switch",
+				(),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await
+			.map_err(Into::into)
+	}
+
+	pub async fn channel_participant_deposit_limit(&self, block: H256) -> Result<U256> {
+		self.contract
+			.query(
+				"channel_participant_deposit_limit",
+				(),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await
+			.map_err(Into::into)
 	}
 
 	pub async fn participants_details(
@@ -169,33 +229,121 @@ where
 		partner: Address,
 		block: H256,
 	) -> Result<(ParticipantDetails, ParticipantDetails)> {
-		self.contract
-			.participants_details(channel_identifier, address, partner, block)
-			.await
+		let our_data = self
+			.participant_details(channel_identifier, address, partner, Some(block))
+			.await?;
+		let partner_data = self
+			.participant_details(channel_identifier, partner, address, Some(block))
+			.await?;
+		Ok((our_data, partner_data))
 	}
 
-	pub async fn settlement_timeout_min(&self, block: BlockHash) -> Result<SettleTimeout> {
-		self.contract.settlement_timeout_min(block).await
-	}
-
-	pub async fn settlement_timeout_max(&self, block: BlockHash) -> Result<SettleTimeout> {
-		self.contract.settlement_timeout_max(block).await
-	}
-
-	pub async fn token_network_deposit_limit(&self, block: BlockHash) -> Result<TokenAmount> {
-		self.contract.token_network_deposit_limit(block).await
-	}
-
-	#[allow(dead_code)]
-	async fn participant_details(
+	pub async fn channel_details(
 		&self,
-		channel_identifier: ChannelIdentifier,
+		channel_identifier: Option<U256>,
 		address: Address,
 		partner: Address,
-		block: BlockHash,
-	) -> Result<ParticipantDetails> {
+		block: H256,
+	) -> Result<ChannelData> {
+		let channel_identifier = channel_identifier.unwrap_or(
+			self.get_channel_identifier(address, partner, block)
+				.await?
+				.ok_or(ProxyError::BrokenPrecondition("Channel does not exist".to_string()))?,
+		);
+
+		let (settle_block_number, status) = self
+			.contract
+			.query(
+				"getChannelInfo",
+				(channel_identifier, address, partner),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await?;
+
+		Ok(ChannelData {
+			channel_identifier,
+			settle_block_number,
+			status: match status {
+				1 => ChannelStatus::Opened,
+				2 => ChannelStatus::Closed,
+				3 => ChannelStatus::Settled,
+				4 => ChannelStatus::Removed,
+				_ => ChannelStatus::Unusable,
+			},
+		})
+	}
+
+	pub async fn settlement_timeout_min(&self, block: H256) -> Result<SettleTimeout> {
 		self.contract
-			.participant_details(channel_identifier, address, partner, Some(block))
+			.query(
+				"settlement_timeout_min",
+				(),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
 			.await
+			.map(|b: U256| b.as_u64().into())
+			.map_err(Into::into)
+	}
+
+	pub async fn settlement_timeout_max(&self, block: H256) -> Result<SettleTimeout> {
+		self.contract
+			.query(
+				"settlement_timeout_max",
+				(),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await
+			.map(|b: U256| b.as_u64().into())
+			.map_err(Into::into)
+	}
+
+	pub async fn token_network_deposit_limit(&self, block: H256) -> Result<U256> {
+		self.contract
+			.query(
+				"token_network_deposit_limit",
+				(),
+				None,
+				Options::default(),
+				Some(BlockId::Hash(block)),
+			)
+			.await
+			.map_err(Into::into)
+	}
+
+	pub async fn participant_details(
+		&self,
+		channel_identifier: U256,
+		address: Address,
+		partner: Address,
+		block: Option<H256>,
+	) -> Result<ParticipantDetails> {
+		let block = block.map(|b| BlockId::Hash(b));
+		let data: (TokenAmount, TokenAmount, bool, BalanceHash, Nonce, Locksroot, TokenAmount) =
+			self.contract
+				.query(
+					"getChannelParticipantInfo",
+					(channel_identifier, partner, partner),
+					None,
+					Options::default(),
+					block,
+				)
+				.await?;
+
+		Ok(ParticipantDetails {
+			address,
+			deposit: data.0,
+			withdrawn: data.1,
+			is_closer: data.2,
+			balance_hash: data.3,
+			nonce: data.4,
+			locksroot: data.5,
+			locked_amount: data.6,
+		})
 	}
 }

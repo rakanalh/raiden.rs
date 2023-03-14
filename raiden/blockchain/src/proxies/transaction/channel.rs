@@ -24,12 +24,12 @@ use crate::{
 	contracts::GasMetadata,
 	proxies::{
 		common::Account,
-		contract::{
+		token_network::{
 			ChannelData,
 			ParticipantDetails,
-			TokenNetworkContract,
 		},
 		ProxyError,
+		TokenNetworkProxy,
 		TokenProxy,
 	},
 };
@@ -53,7 +53,7 @@ pub struct ChannelOpenTransactionParams {
 pub struct ChannelOpenTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,
-	pub(crate) contract: TokenNetworkContract<T>,
+	pub(crate) token_network: TokenNetworkProxy<T>,
 	pub(crate) token_proxy: TokenProxy<T>,
 	pub(crate) gas_metadata: Arc<GasMetadata>,
 }
@@ -73,16 +73,16 @@ where
 		params: Self::Params,
 		at_block_hash: BlockHash,
 	) -> Result<Self::Data, ProxyError> {
-		let settle_timeout_min = self.contract.settlement_timeout_min(at_block_hash).await?;
-		let settle_timeout_max = self.contract.settlement_timeout_max(at_block_hash).await?;
+		let settle_timeout_min = self.token_network.settlement_timeout_min(at_block_hash).await?;
+		let settle_timeout_max = self.token_network.settlement_timeout_max(at_block_hash).await?;
 		let token_network_deposit_limit =
-			self.contract.token_network_deposit_limit(at_block_hash).await?;
+			self.token_network.token_network_deposit_limit(at_block_hash).await?;
 		let token_network_balance =
 			self.token_proxy.balance_of(self.account.address(), Some(at_block_hash)).await?;
 		let safety_deprecation_switch =
-			self.contract.safety_deprecation_switch(at_block_hash).await?;
+			self.token_network.safety_deprecation_switch(at_block_hash).await?;
 		let channel_identifier = self
-			.contract
+			.token_network
 			.get_channel_identifier(self.account.address(), params.partner, at_block_hash)
 			.await?;
 
@@ -140,7 +140,8 @@ where
 		let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
 
 		let settle_timeout: U256 = params.settle_timeout.into();
-		self.contract
+		self.token_network
+			.contract
 			.estimate_gas(
 				"openChannel",
 				(self.account.address(), params.partner, settle_timeout),
@@ -167,6 +168,7 @@ where
 
 		let settle_timeout: U256 = params.settle_timeout.into();
 		let receipt = self
+			.token_network
 			.contract
 			.signed_call_with_confirmations(
 				"openChannel",
@@ -183,7 +185,7 @@ where
 			.await?;
 
 		Ok(self
-			.contract
+			.token_network
 			.get_channel_identifier(
 				self.account.address(),
 				params.partner,
@@ -267,7 +269,7 @@ pub struct ChannelSetTotalDepositTransactionParams {
 pub struct ChannelSetTotalDepositTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,
-	pub(crate) contract: TokenNetworkContract<T>,
+	pub(crate) token_network: TokenNetworkProxy<T>,
 	pub(crate) token: TokenProxy<T>,
 	pub(crate) gas_metadata: Arc<GasMetadata>,
 }
@@ -288,13 +290,13 @@ where
 		at_block_hash: BlockHash,
 	) -> Result<Self::Data, ProxyError> {
 		let channel_identifier = self
-			.contract
+			.token_network
 			.get_channel_identifier(self.account.address(), params.partner, at_block_hash)
 			.await?
 			.ok_or(ProxyError::BrokenPrecondition("Block not found".to_string()))?;
 
 		let channel_onchain_details = self
-			.contract
+			.token_network
 			.channel_details(
 				Some(channel_identifier),
 				self.account.address(),
@@ -304,7 +306,7 @@ where
 			.await?;
 
 		let our_details = match self
-			.contract
+			.token_network
 			.participant_details(
 				channel_identifier,
 				self.account.address(),
@@ -315,7 +317,7 @@ where
 		{
 			Ok(our_details) => our_details,
 			Err(_) =>
-				self.contract
+				self.token_network
 					.participant_details(
 						channel_identifier,
 						self.account.address(),
@@ -326,7 +328,7 @@ where
 		};
 
 		let partner_details = self
-			.contract
+			.token_network
 			.participant_details(
 				channel_identifier,
 				params.partner,
@@ -339,13 +341,13 @@ where
 			self.token.balance_of(self.account.address(), Some(at_block_hash)).await?;
 
 		let safety_deprecation_switch =
-			self.contract.safety_deprecation_switch(at_block_hash).await?;
+			self.token_network.safety_deprecation_switch(at_block_hash).await?;
 
 		let token_network_deposit_limit =
-			self.contract.token_network_deposit_limit(at_block_hash).await?;
+			self.token_network.token_network_deposit_limit(at_block_hash).await?;
 
 		let channel_participant_deposit_limit =
-			self.contract.channel_participant_deposit_limit(at_block_hash).await?;
+			self.token_network.channel_participant_deposit_limit(at_block_hash).await?;
 
 		let network_total_deposit =
 			self.token.balance_of(self.account.address(), Some(at_block_hash)).await?;
@@ -452,11 +454,12 @@ where
 	) -> Result<Self::Output, ProxyError> {
 		let allowance = data.amount_to_deposit + 1;
 		self.token
-			.approve(self.account.clone(), self.contract.address(), allowance)
+			.approve(self.account.clone(), self.token_network.contract.address(), allowance)
 			.await?;
 		let nonce = self.account.next_nonce().await;
 
-		self.contract
+		self.token_network
+			.contract
 			.signed_call_with_confirmations(
 				"setTotalDeposit",
 				(
@@ -562,7 +565,7 @@ where
 
 		let has_sufficient_balance = self
 			.token
-			.balance_of(self.contract.address(), Some(failed_at_blockhash))
+			.balance_of(self.token_network.contract.address(), Some(failed_at_blockhash))
 			.await? < data.amount_to_deposit;
 		if !has_sufficient_balance {
 			return Err(ProxyError::Recoverable(format!(
@@ -572,7 +575,11 @@ where
 
 		let allowance = self
 			.token
-			.allowance(self.contract.address(), self.account.address(), Some(failed_at_blockhash))
+			.allowance(
+				self.token_network.contract.address(),
+				self.account.address(),
+				Some(failed_at_blockhash),
+			)
 			.await?;
 
 		if allowance < data.amount_to_deposit {
@@ -585,7 +592,7 @@ where
 		}
 
 		let latest_deposit = self
-			.contract
+			.token_network
 			.participant_details(
 				params.channel_identifier,
 				self.account.address(),
@@ -609,7 +616,8 @@ where
 		let nonce = self.account.peek_next_nonce().await;
 		let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
 
-		self.contract
+		self.token_network
+			.contract
 			.estimate_gas(
 				"setTotalDeposit",
 				(
