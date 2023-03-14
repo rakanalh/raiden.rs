@@ -5,14 +5,22 @@ use std::{
 
 use raiden_primitives::types::{
 	Address,
+	BalanceHash,
 	BlockHash,
+	BlockId,
+	ChainID,
 	ChannelIdentifier,
+	Locksroot,
+	Nonce,
 	SettleTimeout,
+	Signature,
 	TokenAddress,
 	TokenAmount,
+	TransactionHash,
 	H256,
 	U256,
 };
+use raiden_state_machine::types::ChannelStatus;
 use tokio::sync::{
 	Mutex,
 	RwLock,
@@ -32,6 +40,8 @@ use super::{
 		Result,
 	},
 	transaction::{
+		ChannelCloseTransaction,
+		ChannelCloseTransactionParams,
 		ChannelOpenTransaction,
 		ChannelOpenTransactionParams,
 		ChannelSetTotalDepositTransaction,
@@ -126,6 +136,41 @@ where
 		self.opening_channels_count -= 1;
 
 		Ok(channel_id)
+	}
+
+	pub async fn close(
+		&self,
+		account: Account<T>,
+		partner: Address,
+		channel_identifier: ChannelIdentifier,
+		nonce: Nonce,
+		balance_hash: BalanceHash,
+		additional_hash: H256,
+		non_closing_signature: Signature,
+		closing_signature: Signature,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		let close_channel_transaction = ChannelCloseTransaction {
+			web3: self.web3.clone(),
+			account: account.clone(),
+			token_network: self.clone(),
+			gas_metadata: self.gas_metadata.clone(),
+		};
+
+		close_channel_transaction
+			.execute(
+				ChannelCloseTransactionParams {
+					channel_identifier,
+					nonce,
+					partner,
+					balance_hash,
+					additional_hash,
+					non_closing_signature,
+					closing_signature,
+				},
+				block_hash,
+			)
+			.await
 	}
 
 	pub async fn approve_and_set_total_deposit(
@@ -273,6 +318,14 @@ where
 				_ => ChannelStatus::Unusable,
 			},
 		})
+	}
+
+	pub async fn chain_id(&self, block: H256) -> Result<ChainID> {
+		self.contract
+			.query("chain_id", (), None, Options::default(), Some(BlockId::Hash(block)))
+			.await
+			.map(|b: U256| b.into())
+			.map_err(Into::into)
 	}
 
 	pub async fn settlement_timeout_min(&self, block: H256) -> Result<SettleTimeout> {

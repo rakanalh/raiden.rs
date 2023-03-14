@@ -37,10 +37,24 @@ impl Into<u64> for ChainID {
 	}
 }
 
-impl Into<Vec<u8>> for ChainID {
-	fn into(self) -> Vec<u8> {
-		let chain_id: u64 = self.into();
-		chain_id.to_be_bytes().to_vec()
+impl From<U256> for ChainID {
+	fn from(value: U256) -> Self {
+		let mainnet: U256 = 1u64.into();
+		let ropsten: U256 = 3u64.into();
+		let rinkeby: U256 = 4u64.into();
+		let goerli: U256 = 5u64.into();
+
+		if value == mainnet {
+			ChainID::Mainnet
+		} else if value == ropsten {
+			ChainID::Ropsten
+		} else if value == rinkeby {
+			ChainID::Rinkeby
+		} else if value == goerli {
+			ChainID::Goerli
+		} else {
+			ChainID::Private(value)
+		}
 	}
 }
 
@@ -48,6 +62,13 @@ impl Into<U256> for ChainID {
 	fn into(self) -> U256 {
 		let chain_id: u64 = self.into();
 		chain_id.into()
+	}
+}
+
+impl Into<Vec<u8>> for ChainID {
+	fn into(self) -> Vec<u8> {
+		let chain_id: u64 = self.into();
+		chain_id.to_be_bytes().to_vec()
 	}
 }
 

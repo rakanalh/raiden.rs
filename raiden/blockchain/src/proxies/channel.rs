@@ -1,7 +1,13 @@
+use ethabi::ethereum_types::H256;
 use raiden_primitives::types::{
 	Address,
-	H256,
-	U256,
+	BalanceHash,
+	BlockHash,
+	ChannelIdentifier,
+	Nonce,
+	Signature,
+	TokenAmount,
+	TransactionHash,
 };
 use web3::Transport;
 
@@ -30,10 +36,10 @@ where
 	pub async fn approve_and_set_total_deposit(
 		&self,
 		account: Account<T>,
-		channel_identifier: U256,
+		channel_identifier: ChannelIdentifier,
 		partner: Address,
-		total_deposit: U256,
-		block_hash: H256,
+		total_deposit: TokenAmount,
+		block_hash: BlockHash,
 	) -> Result<()> {
 		self.token_network
 			.approve_and_set_total_deposit(
@@ -41,6 +47,33 @@ where
 				channel_identifier,
 				partner,
 				total_deposit,
+				block_hash,
+			)
+			.await
+	}
+
+	pub async fn close(
+		&self,
+		account: Account<T>,
+		partner: Address,
+		channel_identifier: ChannelIdentifier,
+		nonce: Nonce,
+		balance_hash: BalanceHash,
+		additional_hash: H256,
+		non_closing_signature: Signature,
+		closing_signature: Signature,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		self.token_network
+			.close(
+				account,
+				partner,
+				channel_identifier,
+				nonce,
+				balance_hash,
+				additional_hash,
+				non_closing_signature,
+				closing_signature,
 				block_hash,
 			)
 			.await

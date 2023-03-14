@@ -74,7 +74,7 @@ impl EventHandler {
 		match event {
 			Event::ContractSendChannelClose(inner) => {
 				let (nonce, balance_hash, signature_in_proof, message_hash, canonical_identifier) =
-					match inner.balance_proof {
+					match inner.balance_proof.clone() {
 						Some(bp) => {
 							let signature = match bp.signature {
 								Some(sig) => sig,
@@ -113,28 +113,29 @@ impl EventHandler {
 					nonce,
 					balance_hash,
 					message_hash,
-					canonical_identifier,
+					canonical_identifier.clone(),
 					MessageTypeId::BalanceProof,
-					signature_in_proof,
+					signature_in_proof.clone(),
 				);
 
-				let our_signature = match self.account.private_key().sign_message(&closing_data.0) {
-					Ok(sig) => sig.to_bytes(),
-					Err(e) => {
-						event!(
-							Level::ERROR,
-							reason = "Close channel, signing failed",
-							error = format!("{:?}", e),
-						);
-						return
-					},
-				};
+				let our_signature: Bytes =
+					match self.account.private_key().sign_message(&closing_data.0) {
+						Ok(sig) => Bytes(sig.to_bytes()),
+						Err(e) => {
+							event!(
+								Level::ERROR,
+								reason = "Close channel, signing failed",
+								error = format!("{:?}", e),
+							);
+							return
+						},
+					};
 
 				let chain_state = self.state_manager.read().current_state.clone();
 				let confirmed_block = chain_state.block_hash;
 				let channel_state = match views::get_channel_by_canonical_identifier(
 					&chain_state,
-					inner.canonical_identifier,
+					inner.canonical_identifier.clone(),
 				) {
 					Some(channel_state) => channel_state,
 					None => {
@@ -152,6 +153,9 @@ impl EventHandler {
 
 				channel_proxy
 					.close(
+						self.account.clone(),
+						channel_state.partner_state.address,
+						canonical_identifier.channel_identifier,
 						nonce,
 						balance_hash,
 						message_hash,
