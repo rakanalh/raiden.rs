@@ -2524,6 +2524,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "hex",
+ "lazy_static",
  "serde",
  "serde_json",
  "sha2 0.10.6",
@@ -2536,7 +2537,6 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "ethabi",
- "lazy_static",
  "raiden-macros",
  "raiden-primitives",
  "rand_chacha 0.3.1",
