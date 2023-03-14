@@ -1,6 +1,6 @@
 use matrix_sdk::HttpError;
 use raiden_network_messages::messages::OutgoingMessage;
-use raiden_state_machine::types::QueueIdentifier;
+use raiden_primitives::types::QueueIdentifier;
 use thiserror::Error;
 
 pub mod config;

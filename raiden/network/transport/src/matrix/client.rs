@@ -21,10 +21,12 @@ use matrix_sdk::{
 };
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
-	traits::ToString,
-	types::Address,
+	traits::Stringify,
+	types::{
+		Address,
+		AddressMetadata,
+	},
 };
-use raiden_state_machine::types::AddressMetadata;
 use reqwest::Url;
 use serde::Serialize;
 use web3::signing::Key;
@@ -79,7 +81,7 @@ impl MatrixClient {
 				TransportError::Init(format!("Could not generate server password: {}", e))
 			})?;
 
-		let password = signed_server_name.to_string();
+		let password = signed_server_name.as_string();
 		let user_info = self
 			.client
 			.login_username(&username, &password)
@@ -95,7 +97,7 @@ impl MatrixClient {
 
 		self.client
 			.account()
-			.set_display_name(Some(&display_name.to_string()))
+			.set_display_name(Some(&display_name.as_string()))
 			.await
 			.map_err(|e| TransportError::Init(format!("Error setting displayname: {}", e)))?;
 
@@ -108,7 +110,7 @@ impl MatrixClient {
 
 	pub fn address_metadata(&self) -> AddressMetadata {
 		let user_id = format!("@{}:{}", self.private_key.address().to_string(), self.server_name);
-		let displayname = self.private_key.sign_message(user_id.as_bytes()).unwrap().to_string();
+		let displayname = self.private_key.sign_message(user_id.as_bytes()).unwrap().as_string();
 		AddressMetadata { user_id, displayname, capabilities: "".to_owned() }
 	}
 

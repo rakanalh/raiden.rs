@@ -22,7 +22,6 @@ use raiden_primitives::{
 		Bytes,
 		ChainID,
 		OneToNAddress,
-		Signature,
 		TokenAmount,
 		TokenNetworkAddress,
 		TokenNetworkRegistryAddress,

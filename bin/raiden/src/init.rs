@@ -42,10 +42,10 @@ use raiden_pathfinding::config::{
 };
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	BlockNumber,
 	ChainID,
 };
-use raiden_state_machine::types::AddressMetadata;
 use raiden_storage::Storage;
 use raiden_transition::manager::StateManager;
 use rusqlite::Connection;

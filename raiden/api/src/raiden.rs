@@ -12,12 +12,10 @@ use raiden_network_messages::messages::TransportServiceMessage;
 use raiden_pathfinding::config::PFSConfig;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	ChainID,
 };
-use raiden_state_machine::types::{
-	AddressMetadata,
-	MediationFeeConfig,
-};
+use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transition::manager::StateManager;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::{

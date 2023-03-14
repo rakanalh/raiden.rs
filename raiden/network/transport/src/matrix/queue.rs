@@ -13,8 +13,8 @@ use raiden_network_messages::messages::{
 	OutgoingMessage,
 	TransportServiceMessage,
 };
-use raiden_primitives::types::Address;
-use raiden_state_machine::types::{
+use raiden_primitives::types::{
+	Address,
 	AddressMetadata,
 	QueueIdentifier,
 };
