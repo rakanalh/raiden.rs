@@ -1223,20 +1223,16 @@ fn events_for_close(
 		result: None,
 	});
 
-	let balance_proof = match &channel_state.partner_state.balance_proof {
-		Some(balance_proof) => {
-			if balance_proof.signature.is_none() {
-				return Err("Balance proof is not signed".to_owned().into())
-			}
-			balance_proof
-		},
-		None => return Err("No Balance proof found".to_owned().into()),
-	};
+	if let Some(balance_proof) = &channel_state.partner_state.balance_proof {
+		if balance_proof.signature.is_none() {
+			return Err("Balance proof is not signed".to_owned().into())
+		}
+	}
 
 	let close_event = ContractSendChannelClose {
 		inner: ContractSendEventInner { triggered_by_blockhash: block_hash },
 		canonical_identifier: channel_state.canonical_identifier.clone(),
-		balance_proof: balance_proof.clone(),
+		balance_proof: channel_state.partner_state.balance_proof.clone(),
 	};
 
 	Ok(vec![close_event.into()])

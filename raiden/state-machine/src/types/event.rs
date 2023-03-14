@@ -284,7 +284,7 @@ pub struct ContractSendChannelClose {
 	#[deref]
 	pub inner: ContractSendEventInner,
 	pub canonical_identifier: CanonicalIdentifier,
-	pub balance_proof: BalanceProofState,
+	pub balance_proof: Option<BalanceProofState>,
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
