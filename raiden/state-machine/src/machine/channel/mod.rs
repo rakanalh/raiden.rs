@@ -6,18 +6,23 @@ use std::{
 	},
 };
 
-use raiden_primitives::types::{
-	Address,
-	BlockExpiration,
-	BlockHash,
-	BlockNumber,
-	FeeAmount,
-	Locksroot,
-	MessageIdentifier,
-	PaymentIdentifier,
-	Secret,
-	SecretHash,
-	TokenAmount,
+use raiden_primitives::{
+	hashing::hash_balance_data,
+	types::{
+		Address,
+		AddressMetadata,
+		BlockExpiration,
+		BlockHash,
+		BlockNumber,
+		CanonicalIdentifier,
+		FeeAmount,
+		Locksroot,
+		MessageIdentifier,
+		PaymentIdentifier,
+		Secret,
+		SecretHash,
+		TokenAmount,
+	},
 };
 
 use self::{
@@ -25,7 +30,6 @@ use self::{
 		compute_locks_with,
 		compute_locks_without,
 		compute_locksroot,
-		hash_balance_data,
 	},
 	validators::{
 		is_lock_expired,
@@ -61,10 +65,8 @@ use crate::{
 		ActionChannelCoopSettle,
 		ActionChannelSetRevealTimeout,
 		ActionChannelWithdraw,
-		AddressMetadata,
 		BalanceProofState,
 		Block,
-		CanonicalIdentifier,
 		ChannelEndState,
 		ChannelState,
 		ChannelStatus,

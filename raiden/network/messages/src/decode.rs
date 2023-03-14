@@ -11,11 +11,16 @@ use raiden_blockchain::{
 	proxies::ProxyManager,
 };
 use raiden_primitives::{
-	hashing::hash_secret,
+	hashing::{
+		hash_balance_data,
+		hash_secret,
+	},
 	signing,
 	types::{
 		Address,
+		AddressMetadata,
 		Bytes,
+		CanonicalIdentifier,
 		PaymentIdentifier,
 		Secret,
 		SecretHash,
@@ -25,13 +30,10 @@ use raiden_primitives::{
 	},
 };
 use raiden_state_machine::{
-	machine::channel::utils::hash_balance_data,
 	types::{
 		ActionInitMediator,
 		ActionInitTarget,
-		AddressMetadata,
 		BalanceProofState,
-		CanonicalIdentifier,
 		ChainState,
 		DecryptedSecret,
 		HashTimeLockState,

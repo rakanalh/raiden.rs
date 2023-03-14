@@ -1,3 +1,8 @@
+use derive_more::Display;
+use serde::{
+	Deserialize,
+	Serialize,
+};
 pub use web3::types::{
 	Address,
 	BlockId,
@@ -8,7 +13,6 @@ pub use web3::types::{
 };
 
 mod chain_id;
-pub mod message_type;
 pub use chain_id::*;
 
 mod numeric;
@@ -77,3 +81,40 @@ pub type TokenNetworkAddress = Address;
 pub type TokenAmount = U256;
 
 pub type TransactionHash = H256;
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct CanonicalIdentifier {
+	pub chain_identifier: ChainID,
+	pub token_network_address: TokenNetworkAddress,
+	pub channel_identifier: ChannelIdentifier,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct QueueIdentifier {
+	pub recipient: Address,
+	pub canonical_identifier: CanonicalIdentifier,
+}
+
+#[repr(u8)]
+#[derive(Clone, Display, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub enum MessageTypeId {
+	BalanceProof = 1,
+	BalanceProofUpdate = 2,
+	Withdraw = 3,
+	CooperativeSettle = 4,
+	IOU = 5,
+	MSReward = 6,
+}
+
+impl Into<[u8; 1]> for MessageTypeId {
+	fn into(self) -> [u8; 1] {
+		(self as u8).to_be_bytes()
+	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub struct AddressMetadata {
+	pub user_id: String,
+	pub displayname: String,
+	pub capabilities: String,
+}

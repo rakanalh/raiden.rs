@@ -3,23 +3,23 @@ use std::{
 	ops::Mul,
 };
 
-use raiden_primitives::types::{
-	BalanceProofData,
-	BlockExpiration,
-	BlockNumber,
-	LockTimeout,
-	LockedAmount,
-	Nonce,
-	RevealTimeout,
-	SecretHash,
-	TokenAmount,
+use raiden_primitives::{
+	constants::LOCKSROOT_OF_NO_LOCKS,
+	types::{
+		BalanceProofData,
+		BlockExpiration,
+		BlockNumber,
+		LockTimeout,
+		LockedAmount,
+		Nonce,
+		RevealTimeout,
+		SecretHash,
+		TokenAmount,
+	},
 };
 
 use crate::{
-	constants::{
-		DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
-		LOCKSROOT_OF_NO_LOCKS,
-	},
+	constants::DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
 	types::{
 		ChannelEndState,
 		HashTimeLockState,

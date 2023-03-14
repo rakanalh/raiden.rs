@@ -2,13 +2,11 @@ use std::collections::HashMap;
 
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	Secret,
 };
 use raiden_state_machine::{
-	types::{
-		AddressMetadata,
-		SendLockedTransfer,
-	},
+	types::SendLockedTransfer,
 	views::get_address_metadata,
 };
 use serde::{

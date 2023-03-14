@@ -1,5 +1,7 @@
 use raiden_primitives::types::{
 	BlockNumber,
+	CanonicalIdentifier,
+	QueueIdentifier,
 	SecretHash,
 	TokenNetworkAddress,
 	H256,
@@ -26,7 +28,6 @@ use crate::{
 		ActionInitTarget,
 		ActionTransferReroute,
 		Block,
-		CanonicalIdentifier,
 		ChainState,
 		ContractReceiveChannelClosed,
 		ContractReceiveTokenNetworkCreated,
@@ -35,7 +36,6 @@ use crate::{
 		Event,
 		InitiatorTask,
 		MediatorTask,
-		QueueIdentifier,
 		ReceiveDelivered,
 		ReceiveLockExpired,
 		ReceiveProcessed,

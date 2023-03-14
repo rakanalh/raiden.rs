@@ -1,20 +1,22 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	deserializers::{
-		h256_from_str,
 		signature_from_str,
 		u256_from_str,
 		u64_from_str,
 	},
+	hashing::hash_balance_data,
+	packing::pack_balance_proof,
 	traits::ToBytes,
 	types::{
-		message_type::MessageTypeId,
 		Address,
 		BlockExpiration,
+		CanonicalIdentifier,
 		ChainID,
 		ChannelIdentifier,
 		Locksroot,
 		MessageIdentifier,
+		MessageTypeId,
 		PaymentIdentifier,
 		Secret,
 		SecretHash,
@@ -26,19 +28,12 @@ use raiden_primitives::{
 		U256,
 	},
 };
-use raiden_state_machine::{
-	machine::channel::utils::{
-		hash_balance_data,
-		pack_balance_proof,
-	},
-	types::{
-		CanonicalIdentifier,
-		SendLockExpired,
-		SendLockedTransfer,
-		SendSecretRequest,
-		SendSecretReveal,
-		SendUnlock,
-	},
+use raiden_state_machine::types::{
+	SendLockExpired,
+	SendLockedTransfer,
+	SendSecretRequest,
+	SendSecretReveal,
+	SendUnlock,
 };
 use serde::{
 	Deserialize,

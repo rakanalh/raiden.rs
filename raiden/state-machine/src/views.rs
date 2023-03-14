@@ -5,6 +5,8 @@ use std::{
 
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
+	CanonicalIdentifier,
 	TokenAddress,
 	TokenAmount,
 	TokenNetworkAddress,
@@ -14,8 +16,6 @@ use raiden_primitives::types::{
 
 use crate::{
 	types::{
-		AddressMetadata,
-		CanonicalIdentifier,
 		ChainState,
 		ChannelEndState,
 		ChannelState,

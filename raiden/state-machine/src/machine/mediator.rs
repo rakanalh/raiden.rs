@@ -8,6 +8,7 @@ use raiden_primitives::{
 		BlockHash,
 		BlockNumber,
 		BlockTimeout,
+		CanonicalIdentifier,
 		Secret,
 		SecretHash,
 		TokenAmount,
@@ -37,7 +38,6 @@ use crate::{
 	types::{
 		ActionInitMediator,
 		Block,
-		CanonicalIdentifier,
 		ChainState,
 		ChannelState,
 		ChannelStatus,

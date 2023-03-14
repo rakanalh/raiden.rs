@@ -6,6 +6,7 @@ use raiden_primitives::types::{
 	Address,
 	BlockHash,
 	BlockNumber,
+	CanonicalIdentifier,
 	Locksroot,
 	RevealTimeout,
 	SettleTimeout,
@@ -13,7 +14,6 @@ use raiden_primitives::types::{
 use raiden_state_machine::{
 	constants,
 	types::{
-		CanonicalIdentifier,
 		ChainState,
 		ChannelState,
 		ContractReceiveChannelClosed,

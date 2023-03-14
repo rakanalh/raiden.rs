@@ -2,11 +2,14 @@ use derive_more::Deref;
 use raiden_macros::IntoEvent;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	BlockExpiration,
 	BlockHash,
+	CanonicalIdentifier,
 	MessageIdentifier,
 	Nonce,
 	PaymentIdentifier,
+	QueueIdentifier,
 	RevealTimeout,
 	Secret,
 	SecretHash,
@@ -24,11 +27,6 @@ use serde::{
 use super::{
 	BalanceProofState,
 	LockedTransferState,
-};
-use crate::types::{
-	AddressMetadata,
-	CanonicalIdentifier,
-	QueueIdentifier,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

@@ -1,12 +1,18 @@
 use raiden_primitives::{
+	hashing::hash_balance_data,
+	packing::{
+		pack_balance_proof,
+		pack_withdraw,
+	},
 	signing::recover,
 	types::{
-		message_type::MessageTypeId,
 		Address,
 		BlockExpiration,
 		BlockNumber,
 		Bytes,
+		CanonicalIdentifier,
 		MessageHash,
+		MessageTypeId,
 		SecretHash,
 		Signature,
 		TokenAmount,
@@ -18,9 +24,6 @@ use super::{
 		compute_locks_with,
 		compute_locks_without,
 		compute_locksroot,
-		hash_balance_data,
-		pack_balance_proof,
-		pack_withdraw,
 	},
 	views::{
 		get_current_balance_proof,
@@ -35,7 +38,6 @@ use crate::{
 	types::{
 		ActionChannelWithdraw,
 		BalanceProofState,
-		CanonicalIdentifier,
 		ChannelEndState,
 		ChannelState,
 		ChannelStatus,

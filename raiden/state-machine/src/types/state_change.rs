@@ -1,9 +1,11 @@
 use raiden_macros::IntoStateChange;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	BlockExpiration,
 	BlockHash,
 	BlockNumber,
+	CanonicalIdentifier,
 	ChainID,
 	GasLimit,
 	Locksroot,
@@ -34,8 +36,6 @@ use crate::types::{
 		TransactionChannelDeposit,
 		TransferDescriptionWithSecretState,
 	},
-	AddressMetadata,
-	CanonicalIdentifier,
 	ChannelState,
 	MediationFeeConfig,
 	TokenNetworkRegistryState,

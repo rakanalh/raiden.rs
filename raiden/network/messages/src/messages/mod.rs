@@ -1,12 +1,10 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::{
 	Address,
-	MessageIdentifier,
-	H256,
-};
-use raiden_state_machine::types::{
 	AddressMetadata,
+	MessageIdentifier,
 	QueueIdentifier,
+	H256,
 };
 use serde::{
 	Deserialize,

@@ -12,6 +12,7 @@ use raiden_primitives::{
 	traits::ToChecksummed,
 	types::{
 		Address,
+		AddressMetadata,
 		BlockExpiration,
 		BlockNumber,
 		ChainID,
@@ -57,7 +58,6 @@ use raiden_blockchain::{
 	},
 	signature::SignatureUtils,
 };
-use raiden_state_machine::types::AddressMetadata;
 
 use crate::{
 	config::{

@@ -1,15 +1,12 @@
-use lazy_static::lazy_static;
 use raiden_primitives::types::{
 	Address,
 	Bytes,
+	CanonicalIdentifier,
 	ChainID,
 	ChannelIdentifier,
-	Locksroot,
 };
-use web3::signing::keccak256;
 
 use crate::types::{
-	CanonicalIdentifier,
 	ChannelStatus,
 	PayeeState,
 	PayerState,
@@ -70,7 +67,3 @@ pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalI
 	token_network_address: Address::zero(),
 	channel_identifier: ChannelIdentifier::zero(),
 };
-
-lazy_static! {
-	pub static ref LOCKSROOT_OF_NO_LOCKS: Locksroot = Locksroot::from_slice(&keccak256(&[]));
-}

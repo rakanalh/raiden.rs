@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	BlockNumber,
 	ChannelIdentifier,
 	OneToNAddress,
@@ -12,7 +13,6 @@ use raiden_primitives::types::{
 };
 use raiden_state_machine::{
 	types::{
-		AddressMetadata,
 		ChainState,
 		ChannelState,
 		ChannelStatus,

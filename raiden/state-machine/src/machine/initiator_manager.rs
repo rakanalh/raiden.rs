@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use raiden_primitives::types::SecretHash;
+use raiden_primitives::types::{
+	CanonicalIdentifier,
+	SecretHash,
+};
 
 use super::{
 	channel,
@@ -15,7 +18,6 @@ use crate::{
 		ActionInitInitiator,
 		ActionTransferReroute,
 		Block,
-		CanonicalIdentifier,
 		ChainState,
 		ContractReceiveSecretReveal,
 		ErrorPaymentSentFailed,

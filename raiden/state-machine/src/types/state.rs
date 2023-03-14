@@ -8,6 +8,7 @@ use raiden_primitives::{
 	traits::ToBytes,
 	types::{
 		Address,
+		AddressMetadata,
 		BalanceHash,
 		BalanceProofData,
 		BlockExpiration,
@@ -15,6 +16,7 @@ use raiden_primitives::{
 		BlockNumber,
 		BlockTimeout,
 		Bytes,
+		CanonicalIdentifier,
 		ChainID,
 		ChannelIdentifier,
 		EncodedLock,
@@ -27,6 +29,7 @@ use raiden_primitives::{
 		Nonce,
 		PaymentIdentifier,
 		ProportionalFeeAmount,
+		QueueIdentifier,
 		RevealTimeout,
 		Secret,
 		SecretHash,
@@ -58,9 +61,6 @@ use crate::{
 	},
 	errors::StateTransitionError,
 	types::{
-		AddressMetadata,
-		CanonicalIdentifier,
-		QueueIdentifier,
 		Random,
 		TransactionExecutionStatus,
 		TransactionResult,
