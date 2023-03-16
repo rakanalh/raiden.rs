@@ -6,7 +6,7 @@ use raiden_primitives::types::{
 	U256,
 };
 
-use super::ProxyError;
+use crate::proxies::ProxyError;
 
 #[async_trait::async_trait]
 pub trait Transaction {

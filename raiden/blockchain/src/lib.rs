@@ -6,3 +6,4 @@ pub mod events;
 pub mod filters;
 pub mod keys;
 pub mod proxies;
+pub mod transactions;

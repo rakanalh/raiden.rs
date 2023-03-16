@@ -39,20 +39,20 @@ use super::{
 		Account,
 		Result,
 	},
-	transaction::{
+	ProxyError,
+	TokenProxy,
+};
+use crate::{
+	contracts::GasMetadata,
+	transactions::{
 		ChannelCloseTransaction,
 		ChannelCloseTransactionParams,
 		ChannelOpenTransaction,
 		ChannelOpenTransactionParams,
 		ChannelSetTotalDepositTransaction,
 		ChannelSetTotalDepositTransactionParams,
+		Transaction,
 	},
-	ProxyError,
-	TokenProxy,
-};
-use crate::{
-	contracts::GasMetadata,
-	proxies::transaction::Transaction,
 };
 
 #[derive(Clone)]
@@ -79,7 +79,7 @@ pub struct TokenNetworkProxy<T: Transport> {
 	web3: Web3<T>,
 	gas_metadata: Arc<GasMetadata>,
 	token_proxy: TokenProxy<T>,
-	pub(super) contract: Contract<T>,
+	pub(crate) contract: Contract<T>,
 	pub(super) opening_channels_count: u32,
 	channel_operations_lock: Arc<RwLock<HashMap<Address, Mutex<bool>>>>,
 }

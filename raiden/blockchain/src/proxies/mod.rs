@@ -8,7 +8,6 @@ mod services;
 mod token;
 mod token_network;
 mod token_network_registry;
-mod transaction;
 mod user_deposit;
 
 pub use common::*;
