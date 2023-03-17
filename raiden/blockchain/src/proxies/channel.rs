@@ -2,6 +2,7 @@ use ethabi::ethereum_types::H256;
 use raiden_primitives::types::{
 	Address,
 	BalanceHash,
+	BlockExpiration,
 	BlockHash,
 	ChannelIdentifier,
 	Nonce,
@@ -47,6 +48,33 @@ where
 				channel_identifier,
 				partner,
 				total_deposit,
+				block_hash,
+			)
+			.await
+	}
+
+	pub async fn set_total_withdraw(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		total_withdraw: TokenAmount,
+		participant: Address,
+		partner: Address,
+		participant_signature: Signature,
+		partner_signature: Signature,
+		expiration_block: BlockExpiration,
+		block_hash: BlockHash,
+	) -> Result<()> {
+		self.token_network
+			.set_total_withdraw(
+				account,
+				channel_identifier,
+				total_withdraw,
+				participant,
+				partner,
+				participant_signature,
+				partner_signature,
+				expiration_block,
 				block_hash,
 			)
 			.await

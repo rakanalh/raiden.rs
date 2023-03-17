@@ -6,6 +6,7 @@ use std::{
 use raiden_primitives::types::{
 	Address,
 	BalanceHash,
+	BlockExpiration,
 	BlockHash,
 	BlockId,
 	ChainID,
@@ -51,6 +52,8 @@ use crate::{
 		ChannelOpenTransactionParams,
 		ChannelSetTotalDepositTransaction,
 		ChannelSetTotalDepositTransactionParams,
+		ChannelSetTotalWithdrawTransaction,
+		ChannelSetTotalWithdrawTransactionParams,
 		Transaction,
 	},
 };
@@ -199,6 +202,37 @@ where
 				block_hash,
 			)
 			.await?)
+	}
+
+	pub async fn set_total_withdraw(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		total_withdraw: TokenAmount,
+		participant: Address,
+		partner: Address,
+		participant_signature: Signature,
+		partner_signature: Signature,
+		expiration_block: BlockExpiration,
+		block_hash: BlockHash,
+	) -> Result<()> {
+		let set_total_withdraw_transaction = ChannelSetTotalWithdrawTransaction {
+			web3: self.web3.clone(),
+			account: account.clone(),
+			token_network: self.clone(),
+			gas_metadata: self.gas_metadata.clone(),
+		};
+
+		let params = ChannelSetTotalWithdrawTransactionParams {
+			channel_identifier,
+			participant,
+			participant2: partner,
+			participant_signature,
+			participant2_signature: partner_signature,
+			total_withdraw,
+			expiration_block,
+		};
+		Ok(set_total_withdraw_transaction.execute(params, block_hash).await?)
 	}
 
 	pub async fn get_channel_identifier(
