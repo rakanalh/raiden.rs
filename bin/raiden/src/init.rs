@@ -6,7 +6,6 @@ use std::{
 };
 
 use parking_lot::RwLock as SyncRwLock;
-use raiden_api::raiden::DefaultAddresses;
 use raiden_blockchain::{
 	contracts::{
 		self,
@@ -45,6 +44,7 @@ use raiden_primitives::types::{
 	AddressMetadata,
 	BlockNumber,
 	ChainID,
+	DefaultAddresses,
 };
 use raiden_storage::Storage;
 use raiden_transition::manager::StateManager;

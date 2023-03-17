@@ -198,7 +198,7 @@ impl EventHandler {
 						},
 					};
 
-				let chain_state = &self.state_manager.read().current_state;
+				let chain_state = self.state_manager.read().current_state.clone();
 				let channel_state = match views::get_channel_by_canonical_identifier(
 					&chain_state,
 					inner.canonical_identifier.clone(),

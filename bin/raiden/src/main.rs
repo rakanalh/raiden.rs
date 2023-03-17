@@ -263,7 +263,7 @@ async fn main() {
 			iou_timeout: cli.services_config.pathfinding_iou_timeout.into(),
 			max_paths: cli.services_config.pathfinding_max_paths,
 		},
-		addresses: default_addresses,
+		addresses: default_addresses.clone(),
 	};
 	let raiden = Arc::new(Raiden {
 		web3,
@@ -279,6 +279,7 @@ async fn main() {
 		state_manager.clone(),
 		proxy_manager.clone(),
 		transport_sender.clone(),
+		default_addresses,
 	);
 	let transitioner = Arc::new(Transitioner::new(raiden.state_manager.clone(), event_handler));
 
@@ -306,7 +307,7 @@ async fn main() {
 		};
 	let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));
 	let api = Api::new(raiden.clone(), transitioner.clone(), payments_registry);
-	let http_service = crate::http::HttpServer::new(raiden.clone(), Arc::new(api));
+	let http_service = crate::http::HttpServer::new(raiden, Arc::new(api));
 
 	info!("Raiden is starting");
 
