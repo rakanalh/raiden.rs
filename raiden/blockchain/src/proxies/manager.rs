@@ -124,7 +124,11 @@ impl ProxyManager {
 				secret_registry_contract.abi.as_slice(),
 			)
 			.map_err(ContractDefError::ABI)?;
-			let proxy = SecretRegistryProxy::new(secret_registry_web3_contract);
+			let proxy = SecretRegistryProxy::new(
+				self.web3.clone(),
+				self.gas_metadata.clone(),
+				secret_registry_web3_contract,
+			);
 			let mut secret_registries = self.secret_registries.write().await;
 			secret_registries.insert(secret_registry_address, proxy);
 		}

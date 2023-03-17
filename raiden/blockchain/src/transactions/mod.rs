@@ -1,10 +1,12 @@
 mod channel;
+mod secret;
 
 pub use channel::*;
 use raiden_primitives::types::{
 	H256,
 	U256,
 };
+pub use secret::*;
 
 use crate::proxies::ProxyError;
 
