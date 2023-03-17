@@ -14,6 +14,7 @@ use raiden_primitives::types::{
 	Address,
 	AddressMetadata,
 	ChainID,
+	DefaultAddresses,
 };
 use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transition::manager::StateManager;
@@ -22,13 +23,6 @@ use web3::{
 	transports::Http,
 	Web3,
 };
-
-#[derive(Clone)]
-pub struct DefaultAddresses {
-	pub token_network_registry: Address,
-	pub secret_registry: Address,
-	pub one_to_n: Address,
-}
 
 #[derive(Clone)]
 pub struct RaidenConfig {
