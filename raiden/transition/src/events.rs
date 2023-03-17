@@ -32,6 +32,7 @@ use raiden_primitives::{
 	types::{
 		BalanceHash,
 		Bytes,
+		DefaultAddresses,
 		MessageHash,
 		MessageTypeId,
 		Nonce,
@@ -60,6 +61,7 @@ pub struct EventHandler {
 	state_manager: Arc<RwLock<StateManager>>,
 	proxy_manager: Arc<ProxyManager>,
 	transport: UnboundedSender<TransportServiceMessage>,
+	default_addresses: DefaultAddresses,
 }
 
 impl EventHandler {
@@ -68,8 +70,9 @@ impl EventHandler {
 		state_manager: Arc<RwLock<StateManager>>,
 		proxy_manager: Arc<ProxyManager>,
 		transport: UnboundedSender<TransportServiceMessage>,
+		default_addresses: DefaultAddresses,
 	) -> Self {
-		Self { account, state_manager, proxy_manager, transport }
+		Self { account, state_manager, proxy_manager, transport, default_addresses }
 	}
 
 	pub async fn handle_event(&self, event: Event) {
@@ -135,7 +138,6 @@ impl EventHandler {
 					};
 
 				let chain_state = self.state_manager.read().current_state.clone();
-				let confirmed_block = chain_state.block_hash;
 				let channel_state = match views::get_channel_by_canonical_identifier(
 					&chain_state,
 					inner.canonical_identifier.clone(),
@@ -154,7 +156,7 @@ impl EventHandler {
 					},
 				};
 
-				channel_proxy
+				if let Err(e) = channel_proxy
 					.close(
 						self.account.clone(),
 						channel_state.partner_state.address,
@@ -166,7 +168,14 @@ impl EventHandler {
 						our_signature,
 						inner.triggered_by_blockhash,
 					)
-					.await;
+					.await
+				{
+					event!(
+						Level::ERROR,
+						reason = "Channel close transaction failed",
+						error = format!("{:?}", e),
+					);
+				}
 			},
 			Event::ContractSendChannelWithdraw(inner) => {
 				let withdraw_confirmation = pack_withdraw(
@@ -189,11 +198,10 @@ impl EventHandler {
 						},
 					};
 
-				let chain_state = self.state_manager.read().current_state;
-				let confirmed_block = chain_state.block_hash;
+				let chain_state = &self.state_manager.read().current_state;
 				let channel_state = match views::get_channel_by_canonical_identifier(
 					&chain_state,
-					inner.canonical_identifier,
+					inner.canonical_identifier.clone(),
 				) {
 					Some(channel_state) => channel_state,
 					None => {
@@ -210,25 +218,61 @@ impl EventHandler {
 					},
 				};
 
-				channel_proxy
+				if let Err(e) = channel_proxy
 					.set_total_withdraw(
 						self.account.clone(),
-						inner.canonical_identifier.channel_identifier,
+						inner.canonical_identifier.channel_identifier.clone(),
 						inner.total_withdraw,
 						channel_state.our_state.address,
 						channel_state.partner_state.address,
 						our_signature,
-						inner.partner_signature,
-						inner.expiration,
+						inner.partner_signature.clone(),
+						inner.expiration.clone(),
 						inner.triggered_by_blockhash,
 					)
-					.await;
+					.await
+				{
+					event!(
+						Level::ERROR,
+						reason = "Channel setTotalWithdraw transaction failed",
+						error = format!("{:?}", e),
+					);
+				}
 			},
 			Event::ContractSendChannelSettle(_) => todo!(),
 			Event::ContractSendChannelCoopSettle(_) => todo!(),
 			Event::ContractSendChannelUpdateTransfer(_) => todo!(),
 			Event::ContractSendChannelBatchUnlock(_) => todo!(),
-			Event::ContractSendSecretReveal(_) => todo!(),
+			Event::ContractSendSecretReveal(inner) => {
+				let secret_registry = match self
+					.proxy_manager
+					.secret_registry(self.default_addresses.secret_registry)
+					.await
+				{
+					Ok(registry) => registry,
+					Err(_) => {
+						error!(
+							"Could not instantiate secret registry with address {:?}",
+							self.default_addresses.secret_registry
+						);
+						return
+					},
+				};
+				if let Err(e) = secret_registry
+					.register_secret(
+						self.account.clone(),
+						inner.secret.clone(),
+						inner.triggered_by_blockhash,
+					)
+					.await
+				{
+					event!(
+						Level::ERROR,
+						reason = "RegisterSecret transaction failed",
+						error = format!("{:?}", e),
+					);
+				}
+			},
 			Event::PaymentSentSuccess(_) => todo!(),
 			Event::PaymentReceivedSuccess(inner) => {
 				event!(
