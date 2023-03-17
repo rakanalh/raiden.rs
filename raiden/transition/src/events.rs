@@ -24,7 +24,10 @@ use raiden_network_messages::{
 	to_message,
 };
 use raiden_primitives::{
-	packing::pack_balance_proof_message,
+	packing::{
+		pack_balance_proof_message,
+		pack_withdraw,
+	},
 	traits::ToBytes,
 	types::{
 		BalanceHash,
@@ -165,7 +168,62 @@ impl EventHandler {
 					)
 					.await;
 			},
-			Event::ContractSendChannelWithdraw(_) => todo!(),
+			Event::ContractSendChannelWithdraw(inner) => {
+				let withdraw_confirmation = pack_withdraw(
+					inner.canonical_identifier.clone(),
+					self.account.address(),
+					inner.total_withdraw,
+					inner.expiration,
+				);
+
+				let our_signature =
+					match self.account.private_key().sign_message(&withdraw_confirmation.0) {
+						Ok(sig) => Bytes(sig.to_bytes()),
+						Err(e) => {
+							event!(
+								Level::ERROR,
+								reason = "Channel withdraw, signing failed",
+								error = format!("{:?}", e),
+							);
+							return
+						},
+					};
+
+				let chain_state = self.state_manager.read().current_state;
+				let confirmed_block = chain_state.block_hash;
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					inner.canonical_identifier,
+				) {
+					Some(channel_state) => channel_state,
+					None => {
+						error!("ContractSendChannelWithdraw for non-existent channel");
+						return
+					},
+				};
+
+				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+					Ok(proxy) => proxy,
+					Err(e) => {
+						error!("Something went wrong constructing channel proxy {:?}", e);
+						return
+					},
+				};
+
+				channel_proxy
+					.set_total_withdraw(
+						self.account.clone(),
+						inner.canonical_identifier.channel_identifier,
+						inner.total_withdraw,
+						channel_state.our_state.address,
+						channel_state.partner_state.address,
+						our_signature,
+						inner.partner_signature,
+						inner.expiration,
+						inner.triggered_by_blockhash,
+					)
+					.await;
+			},
 			Event::ContractSendChannelSettle(_) => todo!(),
 			Event::ContractSendChannelCoopSettle(_) => todo!(),
 			Event::ContractSendChannelUpdateTransfer(_) => todo!(),
