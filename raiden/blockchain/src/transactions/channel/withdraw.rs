@@ -325,7 +325,7 @@ where
 		}
 
 		if params.total_withdraw <= data.our_details.withdrawn {
-			return Err(ProxyError::BrokenPrecondition(format!(
+			return Err(ProxyError::Recoverable(format!(
 				"Current total withdraw ({}) is already larger \
                 than the requested total withdraw amount ({})",
 				data.our_details.withdrawn, params.total_withdraw,
@@ -338,14 +338,14 @@ where
 			data.our_details.deposit.overflowing_add(data.partner_details.deposit);
 
 		if total_channel_withdraw_overflow {
-			return Err(ProxyError::BrokenPrecondition(format!("Withdraw overflow")))
+			return Err(ProxyError::Recoverable(format!("Withdraw overflow")))
 		}
 		if total_channel_deposit_overflow {
-			return Err(ProxyError::BrokenPrecondition(format!("Deposit overflow")))
+			return Err(ProxyError::Recoverable(format!("Deposit overflow")))
 		}
 
 		if total_channel_withdraw > total_channel_deposit {
-			return Err(ProxyError::BrokenPrecondition(format!(
+			return Err(ProxyError::Recoverable(format!(
 				"Total channel withdraw of {} is larger than the \
                  total channel deposit {}",
 				total_channel_withdraw, total_channel_deposit,
@@ -356,7 +356,7 @@ where
 			self.web3.eth().block_number().await.map_err(ProxyError::Web3)?.into();
 
 		if params.expiration_block <= current_block_number {
-			return Err(ProxyError::BrokenPrecondition(format!(
+			return Err(ProxyError::Recoverable(format!(
 				"The current block number {} is already at expiration block {} or later",
 				current_block_number, params.expiration_block
 			)))
