@@ -11,6 +11,7 @@ use raiden_primitives::types::{
 	BlockId,
 	ChainID,
 	ChannelIdentifier,
+	LockedAmount,
 	Locksroot,
 	Nonce,
 	SettleTimeout,
@@ -54,6 +55,8 @@ use crate::{
 		ChannelSetTotalDepositTransactionParams,
 		ChannelSetTotalWithdrawTransaction,
 		ChannelSetTotalWithdrawTransactionParams,
+		ChannelSettleTransaction,
+		ChannelSettleTransactionParams,
 		Transaction,
 	},
 };
@@ -67,7 +70,7 @@ pub struct ParticipantDetails {
 	pub balance_hash: BalanceHash,
 	pub nonce: Nonce,
 	pub locksroot: Locksroot,
-	pub locked_amount: TokenAmount,
+	pub locked_amount: LockedAmount,
 }
 
 #[derive(Clone)]
@@ -239,6 +242,43 @@ where
 			expiration_block,
 		};
 		Ok(set_total_withdraw_transaction.execute(params, block_hash).await?)
+	}
+
+	pub async fn settle(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		our_transferred_amount: TokenAmount,
+		our_locked_amount: LockedAmount,
+		our_locksroot: Locksroot,
+		partner_address: Address,
+		partner_transferred_amount: TokenAmount,
+		partner_locked_amount: LockedAmount,
+		partner_locksroot: Locksroot,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		let settle_transaction = ChannelSettleTransaction {
+			web3: self.web3.clone(),
+			account,
+			token_network: self.clone(),
+			gas_metadata: self.gas_metadata.clone(),
+		};
+
+		Ok(settle_transaction
+			.execute(
+				ChannelSettleTransactionParams {
+					channel_identifier,
+					our_transferred_amount,
+					our_locked_amount,
+					our_locksroot,
+					partner_address,
+					partner_transferred_amount,
+					partner_locked_amount,
+					partner_locksroot,
+				},
+				block_hash,
+			)
+			.await?)
 	}
 
 	pub async fn get_channel_identifier(
