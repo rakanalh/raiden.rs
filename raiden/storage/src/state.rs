@@ -260,6 +260,70 @@ impl StateStorage {
 		}))
 	}
 
+	pub fn get_state_change_with_balance_proof_by_balance_hash(
+		&self,
+		canonical_identifier: CanonicalIdentifier,
+		balance_hash: BalanceHash,
+		recipient: Address,
+	) -> Result<Option<StateChangeRecord>> {
+		let criteria = vec![
+			(
+				"balance_proof.canonical_identifier.chain_identifier".to_owned(),
+				canonical_identifier.chain_identifier.to_string(),
+			),
+			(
+				"balance_proof.canonical_identifier.token_network_address".to_owned(),
+				canonical_identifier.token_network_address.to_string(),
+			),
+			(
+				"balance_proof.canonical_identifier.channel_identifier".to_owned(),
+				canonical_identifier.channel_identifier.to_string(),
+			),
+			("balance_hash".to_owned(), balance_hash.to_string()),
+			("recipient".to_owned(), recipient.to_string()),
+		];
+
+		let mut where_cond = "".to_owned();
+		let mut query_values: Vec<&dyn ToSql> = vec![];
+		let mut it = criteria.iter().enumerate().peekable();
+		while let Some((i, (field, value))) = it.next() {
+			where_cond.push_str(&format!("{}=?{}", field, i + 1));
+			query_values.push(value);
+			if it.peek().is_some() {
+				where_cond.push_str(" AND ");
+			}
+		}
+
+		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+
+		let mut stmt = conn
+			.prepare(&format!(
+				"SELECT identifier, data FROM state_changes
+                    WHERE {}
+                    ORDER BY identifier DESC
+                    LIMIT 1",
+				where_cond
+			))
+			.map_err(StorageError::Sql)?;
+
+		let mut rows = stmt.query(query_values.as_slice()).map_err(StorageError::Sql)?;
+
+		let row = match rows.next().map_err(StorageError::Sql)? {
+			Some(row) => row,
+			None => return Err(StorageError::Other("Event not found")),
+		};
+
+		let identifier: StorageID =
+			row.get::<usize, String>(0).map_err(StorageError::Sql)?.try_into()?;
+
+		let data: String = row.get(1).map_err(StorageError::Sql)?;
+
+		Ok(Some(StateChangeRecord {
+			identifier,
+			data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+		}))
+	}
+
 	pub fn get_latest_event_by_data_field(
 		&self,
 		criteria: Vec<(String, String)>,
