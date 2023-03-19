@@ -71,6 +71,12 @@ pub struct ParticipantDetails {
 }
 
 #[derive(Clone)]
+pub struct ParticipantsDetails {
+	pub our_details: ParticipantDetails,
+	pub partner_details: ParticipantDetails,
+}
+
+#[derive(Clone)]
 pub struct ChannelData {
 	pub channel_identifier: ChannelIdentifier,
 	pub settle_block_number: U256,
@@ -306,15 +312,13 @@ where
 		channel_identifier: U256,
 		address: Address,
 		partner: Address,
-		block: H256,
-	) -> Result<(ParticipantDetails, ParticipantDetails)> {
-		let our_data = self
-			.participant_details(channel_identifier, address, partner, Some(block))
-			.await?;
-		let partner_data = self
-			.participant_details(channel_identifier, partner, address, Some(block))
-			.await?;
-		Ok((our_data, partner_data))
+		block: Option<H256>,
+	) -> Result<ParticipantsDetails> {
+		let our_details =
+			self.participant_details(channel_identifier, address, partner, block).await?;
+		let partner_details =
+			self.participant_details(channel_identifier, partner, address, block).await?;
+		Ok(ParticipantsDetails { our_details, partner_details })
 	}
 
 	pub async fn channel_details(

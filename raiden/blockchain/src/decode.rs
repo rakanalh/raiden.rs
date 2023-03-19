@@ -485,18 +485,21 @@ impl EventDecoder {
 			.payment_channel(&channel_state)
 			.await
 			.map_err(|e| DecodeError(format!("{:?}", e)))?;
-		let (our_data, partner_data) = payment_channel
+		let participants_details = payment_channel
 			.token_network
 			.participants_details(
 				channel_state.canonical_identifier.channel_identifier,
 				channel_state.our_state.address,
 				channel_state.partner_state.address,
-				block,
+				Some(block),
 			)
 			.await
 			.map_err(|e| DecodeError(format!("{:?}", e)))?;
 
-		Ok((our_data.locksroot, partner_data.locksroot))
+		Ok((
+			participants_details.our_details.locksroot,
+			participants_details.partner_details.locksroot,
+		))
 	}
 
 	#[allow(dead_code)]
