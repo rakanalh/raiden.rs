@@ -24,6 +24,7 @@ use raiden_network_messages::{
 	to_message,
 };
 use raiden_primitives::{
+	constants::LOCKSROOT_OF_NO_LOCKS,
 	packing::{
 		pack_balance_proof_message,
 		pack_withdraw,
@@ -36,10 +37,14 @@ use raiden_primitives::{
 		MessageHash,
 		MessageTypeId,
 		Nonce,
+		TokenAmount,
 	},
 };
 use raiden_state_machine::{
-	types::Event,
+	types::{
+		Event,
+		StateChange,
+	},
 	views,
 };
 use tokio::sync::mpsc::UnboundedSender;
@@ -239,10 +244,177 @@ impl EventHandler {
 					);
 				}
 			},
-			Event::ContractSendChannelSettle(_) => todo!(),
-			Event::ContractSendChannelCoopSettle(_) => todo!(),
-			Event::ContractSendChannelUpdateTransfer(_) => todo!(),
-			Event::ContractSendChannelBatchUnlock(_) => todo!(),
+			Event::ContractSendChannelSettle(inner) => {
+				let chain_state = self.state_manager.read().current_state.clone();
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					inner.canonical_identifier.clone(),
+				) {
+					Some(channel_state) => channel_state,
+					None => {
+						error!("ContractSendChannelWithdraw for non-existent channel");
+						return
+					},
+				};
+
+				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+					Ok(proxy) => proxy,
+					Err(e) => {
+						error!("Something went wrong constructing channel proxy {:?}", e);
+						return
+					},
+				};
+				let token_network_proxy = channel_proxy.token_network;
+
+				let participant_details = match token_network_proxy
+					.participants_details(
+						inner.canonical_identifier.channel_identifier,
+						channel_state.our_state.address,
+						channel_state.partner_state.address,
+						Some(inner.triggered_by_blockhash),
+					)
+					.await
+				{
+					Ok(details) => details,
+					Err(_) => match token_network_proxy
+						.participants_details(
+							inner.canonical_identifier.channel_identifier,
+							channel_state.our_state.address,
+							channel_state.partner_state.address,
+							None,
+						)
+						.await
+					{
+						Ok(details) => details,
+						Err(e) => {
+							error!("Channel settle: Something went wrong fetching participant details {:?}", e);
+							return
+						},
+					},
+				};
+
+				let (our_transferred_amount, our_locked_amount, our_locksroot) =
+					if participant_details.our_details.balance_hash != BalanceHash::zero() {
+						let event_record = match self
+							.state_manager
+							.read()
+							.storage
+							.get_event_with_balance_proof_by_balance_hash(
+								inner.canonical_identifier.clone(),
+								participant_details.our_details.balance_hash,
+								participant_details.partner_details.address,
+							) {
+							Ok(Some(event)) => event.data,
+							Ok(None) => {
+								error!("Channel settle: Our balance proof could not be found in the database");
+								return
+							},
+							Err(e) => {
+								error!("Channel settle: storage error {}", e);
+								return
+							},
+						};
+
+						let our_balance_proof = match event_record {
+							Event::SendLockedTransfer(inner) => inner.transfer.balance_proof,
+							Event::SendLockExpired(inner) => inner.balance_proof,
+							Event::SendUnlock(inner) => inner.balance_proof,
+							Event::ContractSendChannelClose(inner) =>
+								inner.balance_proof.expect("Balance proof should be set"),
+							Event::ContractSendChannelUpdateTransfer(inner) => inner.balance_proof,
+							_ => {
+								error!("Channel settle: found participant event does not contain balance proof");
+								return
+							},
+						};
+
+						(
+							our_balance_proof.transferred_amount,
+							our_balance_proof.locked_amount,
+							our_balance_proof.locksroot,
+						)
+					} else {
+						(TokenAmount::zero(), TokenAmount::zero(), *LOCKSROOT_OF_NO_LOCKS)
+					};
+
+				let (partner_transferred_amount, partner_locked_amount, partner_locksroot) =
+					if participant_details.partner_details.balance_hash != BalanceHash::zero() {
+						let state_change_record = match self
+							.state_manager
+							.read()
+							.storage
+							.get_state_change_with_balance_proof_by_balance_hash(
+								inner.canonical_identifier.clone(),
+								participant_details.partner_details.balance_hash,
+								participant_details.partner_details.address,
+							) {
+							Ok(Some(state_change)) => state_change.data,
+							Ok(None) => {
+								error!("Channel settle: Partner balance proof could not be found in the database");
+								return
+							},
+							Err(e) => {
+								error!("Channel settle: storage error {}", e);
+								return
+							},
+						};
+
+						let partner_balance_proof = match state_change_record {
+							StateChange::ActionInitMediator(inner) => inner.balance_proof,
+							StateChange::ActionInitTarget(inner) => inner.balance_proof,
+							StateChange::ActionTransferReroute(inner) =>
+								inner.transfer.balance_proof,
+							StateChange::ReceiveTransferCancelRoute(inner) =>
+								inner.transfer.balance_proof,
+							StateChange::ReceiveLockExpired(inner) => inner.balance_proof,
+							StateChange::ReceiveTransferRefund(inner) => inner.balance_proof,
+							StateChange::ReceiveUnlock(inner) => inner.balance_proof,
+							_ => {
+								error!("Channel settle: found participant event does not contain balance proof");
+								return
+							},
+						};
+
+						(
+							partner_balance_proof.transferred_amount,
+							partner_balance_proof.locked_amount,
+							partner_balance_proof.locksroot,
+						)
+					} else {
+						(TokenAmount::zero(), TokenAmount::zero(), *LOCKSROOT_OF_NO_LOCKS)
+					};
+
+				if let Err(e) = token_network_proxy
+					.settle(
+						self.account.clone(),
+						inner.canonical_identifier.channel_identifier,
+						our_transferred_amount,
+						our_locked_amount,
+						our_locksroot,
+						channel_state.partner_state.address,
+						partner_transferred_amount,
+						partner_locked_amount,
+						partner_locksroot,
+						inner.triggered_by_blockhash,
+					)
+					.await
+				{
+					event!(
+						Level::ERROR,
+						reason = "Channel setTotalWithdraw transaction failed",
+						error = format!("{:?}", e),
+					);
+				}
+			},
+			Event::ContractSendChannelCoopSettle(inner) => {
+				// Call
+			},
+			Event::ContractSendChannelUpdateTransfer(inner) => {
+				// Call
+			},
+			Event::ContractSendChannelBatchUnlock(inner) => {
+				// Call
+			},
 			Event::ContractSendSecretReveal(inner) => {
 				let secret_registry = match self
 					.proxy_manager
@@ -345,8 +517,8 @@ impl EventHandler {
 					.transport
 					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
 			},
-			Event::UnlockClaimSuccess(_) => todo!(),
-			Event::UnlockSuccess(_) => todo!(),
+			Event::UnlockClaimSuccess(_) => {},
+			Event::UnlockSuccess(_) => {},
 			Event::UpdatedServicesAddresses(_) => todo!(),
 			Event::ErrorInvalidActionCoopSettle(e) => {
 				error!("{}", e.reason);
