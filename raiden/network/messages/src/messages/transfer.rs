@@ -14,6 +14,7 @@ use raiden_primitives::{
 		CanonicalIdentifier,
 		ChainID,
 		ChannelIdentifier,
+		LockedAmount,
 		Locksroot,
 		MessageIdentifier,
 		MessageTypeId,
@@ -167,7 +168,7 @@ pub struct LockExpired {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
 	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
@@ -250,7 +251,7 @@ pub struct Unlock {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
 	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
@@ -343,7 +344,7 @@ pub struct LockedTransfer {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
 	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
 	pub recipient: Address,
@@ -456,7 +457,7 @@ pub struct RefundTransfer {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub transferred_amount: TokenAmount,
 	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
 	pub recipient: Address,

@@ -8,6 +8,7 @@ use raiden_primitives::types::{
 	CanonicalIdentifier,
 	ChainID,
 	GasLimit,
+	LockedAmount,
 	Locksroot,
 	MessageIdentifier,
 	Nonce,
@@ -193,7 +194,7 @@ pub struct ContractReceiveChannelBatchUnlock {
 	pub receiver: Address,
 	pub sender: Address,
 	pub locksroot: Locksroot,
-	pub unlocked_amount: TokenAmount,
+	pub unlocked_amount: LockedAmount,
 	pub returned_tokens: TokenAmount,
 }
 
