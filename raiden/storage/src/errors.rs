@@ -1,40 +1,20 @@
-use std::{
-	error,
-	fmt,
-};
+use derive_more::Display;
+use ulid::DecodeError;
 
-#[derive(Debug, Clone)]
-pub struct RaidenError {
-	pub msg: String,
-}
-
-impl fmt::Display for RaidenError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.msg)
-	}
-}
-
-impl error::Error for RaidenError {
-	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-		// Generic error, underlying cause isn't tracked.
-		None
-	}
-}
-
-#[derive(Debug, Clone)]
-pub struct TypeError {
-	pub msg: String,
-}
-
-impl fmt::Display for TypeError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.msg)
-	}
-}
-
-impl error::Error for TypeError {
-	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-		// Generic error, underlying cause isn't tracked.
-		None
-	}
+#[derive(Display, Debug)]
+pub enum StorageError {
+	#[display(fmt = "Storage lock poisoned")]
+	CannotLock,
+	#[display(fmt = "Field unknown {}", _0)]
+	FieldUnknown(rusqlite::Error),
+	#[display(fmt = "Cannot serialize for storage {}", _0)]
+	SerializationError(serde_json::Error),
+	#[display(fmt = "SQL Error: {}", _0)]
+	Sql(rusqlite::Error),
+	#[display(fmt = "Cannot map item to for storage: {}", _0)]
+	Cast(rusqlite::Error),
+	#[display(fmt = "Cannot convert value to Ulid: {}", _0)]
+	ID(DecodeError),
+	#[display(fmt = "Error: {}", _0)]
+	Other(&'static str),
 }

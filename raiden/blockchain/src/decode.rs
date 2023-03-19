@@ -32,7 +32,7 @@ use raiden_state_machine::{
 	},
 	views,
 };
-use raiden_storage::Storage;
+use raiden_storage::state::StateStorage;
 use thiserror::Error;
 
 use super::{
@@ -59,7 +59,7 @@ impl EventDecoder {
 		&self,
 		event: Event,
 		chain_state: &ChainState,
-		_storage: Arc<Storage>,
+		_storage: Arc<StateStorage>,
 	) -> Result<Option<StateChange>> {
 		match event.name.as_ref() {
 			"TokenNetworkCreated" => self.token_network_created(event),

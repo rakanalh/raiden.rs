@@ -2579,7 +2579,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "ulid",
  "web3",
 ]
 

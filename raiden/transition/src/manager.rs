@@ -21,30 +21,30 @@ use raiden_state_machine::{
 };
 use raiden_storage::{
 	constants::SNAPSHOT_STATE_CHANGE_COUNT,
-	errors::RaidenError,
-	Storage,
+	errors::StorageError,
+	state::StateStorage,
+	types::StorageID,
 };
 use tracing::debug;
-use ulid::Ulid;
 
 pub type Result<T> = std::result::Result<T, StateTransitionError>;
 
 pub struct StateManager {
-	pub storage: Arc<Storage>,
+	pub storage: Arc<StateStorage>,
 	pub current_state: ChainState,
-	state_change_last_id: Option<Ulid>,
+	state_change_last_id: Option<StorageID>,
 	state_change_count: u16,
 }
 
 impl StateManager {
 	pub fn restore_or_init_state(
-		storage: Arc<Storage>,
+		storage: Arc<StateStorage>,
 		chain_id: ChainID,
 		our_address: Address,
 		token_network_registry_address: TokenNetworkRegistryAddress,
 		token_network_registry_deploy_block_number: U64,
-	) -> std::result::Result<(Self, U64), RaidenError> {
-		let snapshot = storage.get_snapshot_before_state_change(Ulid::from(u128::MAX));
+	) -> std::result::Result<(Self, U64), StorageError> {
+		let snapshot = storage.get_snapshot_before_state_change(u128::MAX.into());
 
 		let (current_state, state_changes, block_number) = match snapshot {
 			Ok(snapshot) => {
@@ -52,18 +52,16 @@ impl StateManager {
 				// Set the snapshot
 				// and then apply state_changes after
 				debug!("Restoring state");
-				let current_state: ChainState = serde_json::from_str(&snapshot.data)
-					.map_err(|e| RaidenError { msg: format!("Snapshot error: {}", e) })?;
+				let current_state: ChainState = snapshot.data;
 
 				let state_changes_records = storage.get_state_changes_in_range(
 					snapshot.state_change_identifier,
-					Ulid::from(u128::MAX).into(),
+					u128::MAX.into(),
 				)?;
 
 				let mut state_changes = vec![];
 				for record in state_changes_records {
-					let state_change = serde_json::from_str(&record.data)
-						.map_err(|e| RaidenError { msg: format!("State change error: {}", e) })?;
+					let state_change = record.data;
 					state_changes.push(state_change);
 				}
 				let block_number = current_state.block_number;
@@ -92,12 +90,12 @@ impl StateManager {
 	}
 
 	fn init_state(
-		storage: Arc<Storage>,
+		storage: Arc<StateStorage>,
 		chain_id: ChainID,
 		our_address: Address,
 		token_network_registry_address: TokenNetworkRegistryAddress,
 		token_network_registry_deploy_block_number: U64,
-	) -> std::result::Result<(ChainState, Vec<StateChange>, U64), RaidenError> {
+	) -> std::result::Result<(ChainState, Vec<StateChange>, U64), StorageError> {
 		let mut state_changes: Vec<StateChange> = vec![];
 
 		let chain_state =
@@ -124,8 +122,7 @@ impl StateManager {
 		state_changes.push(new_network_registry_state_change.into());
 
 		for record in storage.state_changes()? {
-			let state_change = serde_json::from_str(&record.data)
-				.map_err(|e| RaidenError { msg: format!("{}", e) })?;
+			let state_change = record.data;
 			state_changes.push(state_change);
 		}
 		Ok((chain_state, state_changes, token_network_registry_deploy_block_number))
