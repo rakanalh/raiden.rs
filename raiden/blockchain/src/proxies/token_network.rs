@@ -57,6 +57,8 @@ use crate::{
 		ChannelSetTotalWithdrawTransactionParams,
 		ChannelSettleTransaction,
 		ChannelSettleTransactionParams,
+		ChannelUpdateTransferTransaction,
+		ChannelUpdateTransferTransactionParams,
 		Transaction,
 	},
 };
@@ -242,6 +244,41 @@ where
 			expiration_block,
 		};
 		Ok(set_total_withdraw_transaction.execute(params, block_hash).await?)
+	}
+
+	pub async fn update_transfer(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		nonce: Nonce,
+		partner: Address,
+		balance_hash: BalanceHash,
+		additional_hash: H256,
+		closing_signature: Signature,
+		non_closing_signature: Signature,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		let transaction = ChannelUpdateTransferTransaction {
+			web3: self.web3.clone(),
+			account,
+			token_network: self.clone(),
+			gas_metadata: self.gas_metadata.clone(),
+		};
+
+		Ok(transaction
+			.execute(
+				ChannelUpdateTransferTransactionParams {
+					channel_identifier,
+					nonce,
+					partner,
+					balance_hash,
+					additional_hash,
+					closing_signature,
+					non_closing_signature,
+				},
+				block_hash,
+			)
+			.await?)
 	}
 
 	pub async fn settle(

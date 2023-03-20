@@ -410,7 +410,78 @@ impl EventHandler {
 				// Call
 			},
 			Event::ContractSendChannelUpdateTransfer(inner) => {
-				// Call
+				let partner_signature = match &inner.balance_proof.signature {
+					Some(sig) => sig.clone(),
+					None => {
+						error!("Channel update transfer: Partner signature is not set");
+						return
+					},
+				};
+				let message_hash = match &inner.balance_proof.message_hash {
+					Some(hash) => hash.clone(),
+					None => {
+						error!("Channel update transfer: Message hash is not set");
+						return
+					},
+				};
+				let chain_state = self.state_manager.read().current_state.clone();
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					inner.balance_proof.canonical_identifier.clone(),
+				) {
+					Some(channel_state) => channel_state,
+					None => {
+						error!("ContractSendChannelWithdraw for non-existent channel");
+						return
+					},
+				};
+
+				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+					Ok(proxy) => proxy,
+					Err(e) => {
+						error!("Something went wrong constructing channel proxy {:?}", e);
+						return
+					},
+				};
+
+				let balance_proof = inner.balance_proof.clone();
+				let non_closing_data = pack_balance_proof_message(
+					balance_proof.nonce,
+					balance_proof.balance_hash,
+					message_hash,
+					balance_proof.canonical_identifier,
+					MessageTypeId::BalanceProofUpdate,
+					partner_signature.clone(),
+				);
+				let our_signature =
+					match self.account.private_key().sign_message(&non_closing_data.0) {
+						Ok(sig) => Bytes(sig.to_bytes()),
+						Err(e) => {
+							error!("Error signing non-closing-data {:?}", e);
+							return
+						},
+					};
+
+				if let Err(e) = channel_proxy
+					.update_transfer(
+						self.account.clone(),
+						channel_state.canonical_identifier.channel_identifier,
+						balance_proof.nonce,
+						channel_state.partner_state.address,
+						balance_proof.balance_hash,
+						message_hash,
+						partner_signature,
+						our_signature,
+						inner.triggered_by_blockhash,
+					)
+					.await
+				{
+					event!(
+						Level::ERROR,
+						reason = "Channel update transfer transaction failed",
+						error = format!("{:?}", e),
+					);
+				}
 			},
 			Event::ContractSendChannelBatchUnlock(inner) => {
 				// Call

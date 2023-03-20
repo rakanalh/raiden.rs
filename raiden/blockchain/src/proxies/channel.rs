@@ -106,4 +106,31 @@ where
 			)
 			.await
 	}
+
+	pub async fn update_transfer(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		nonce: Nonce,
+		partner: Address,
+		balance_hash: BalanceHash,
+		additional_hash: H256,
+		closing_signature: Signature,
+		non_closing_signature: Signature,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		self.token_network
+			.update_transfer(
+				account,
+				channel_identifier,
+				nonce,
+				partner,
+				balance_hash,
+				additional_hash,
+				closing_signature,
+				non_closing_signature,
+				block_hash,
+			)
+			.await
+	}
 }
