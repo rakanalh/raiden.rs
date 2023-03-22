@@ -13,12 +13,7 @@ use raiden_network_messages::messages::{
 	OutgoingMessage,
 	TransportServiceMessage,
 };
-use raiden_primitives::types::{
-	Address,
-	AddressMetadata,
-	QueueIdentifier,
-};
-use serde_json::json;
+use raiden_primitives::types::QueueIdentifier;
 use tokio::{
 	select,
 	sync::mpsc::{
@@ -82,18 +77,14 @@ impl TimeoutGenerator {
 }
 
 struct MessageData {
-	pub(self) queue_identifier: QueueIdentifier,
 	pub(self) message: OutgoingMessage,
-	pub(self) text: String,
 	pub(self) timeout_generator: TimeoutGenerator,
-	pub(self) address_metadata: AddressMetadata,
 }
 
 type MessageInfo = (QueueIdentifier, OutgoingMessage);
 
 pub struct RetryMessageQueue {
 	transport_sender: UnboundedSender<TransportServiceMessage>,
-	recipient: Address,
 	queue: Vec<MessageData>,
 	channel_receiver: UnboundedReceiver<MessageInfo>,
 	retry_timeout: u8,
@@ -103,14 +94,12 @@ pub struct RetryMessageQueue {
 
 impl RetryMessageQueue {
 	pub fn new(
-		recipient: Address,
 		transport_sender: UnboundedSender<TransportServiceMessage>,
 		transport_config: TransportConfig,
 	) -> (Self, UnboundedSender<MessageInfo>) {
 		let (channel_sender, channel_receiver) = mpsc::unbounded_channel();
 		(
 			Self {
-				recipient,
 				channel_receiver,
 				transport_sender,
 				queue: vec![],
@@ -122,7 +111,7 @@ impl RetryMessageQueue {
 		)
 	}
 
-	pub fn enqueue(&mut self, queue_identifier: QueueIdentifier, message: OutgoingMessage) {
+	pub fn enqueue(&mut self, message: OutgoingMessage) {
 		if self
 			.queue
 			.iter()
@@ -131,13 +120,8 @@ impl RetryMessageQueue {
 			return
 		}
 
-		let message_text = json!(message).to_string();
-		let address_metadata = message.recipient_metadata.clone();
 		self.queue.push(MessageData {
-			queue_identifier,
 			message,
-			address_metadata,
-			text: message_text,
 			timeout_generator: TimeoutGenerator::new(
 				self.retry_count,
 				self.retry_timeout,
@@ -152,8 +136,8 @@ impl RetryMessageQueue {
 
 		loop {
 			select! {
-				Some((queue_identifier, message)) = self.channel_receiver.recv() => {
-					self.enqueue(queue_identifier, message);
+				Some((_queue_identifier, message)) = self.channel_receiver.recv() => {
+					self.enqueue(message);
 				}
 				_ = &mut delay.next() => {
 					if self.queue.is_empty() {

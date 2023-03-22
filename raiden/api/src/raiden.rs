@@ -11,7 +11,6 @@ use raiden_blockchain::{
 use raiden_network_messages::messages::TransportServiceMessage;
 use raiden_pathfinding::config::PFSConfig;
 use raiden_primitives::types::{
-	Address,
 	AddressMetadata,
 	ChainID,
 	DefaultAddresses,

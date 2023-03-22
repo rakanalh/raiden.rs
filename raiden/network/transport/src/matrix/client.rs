@@ -22,10 +22,7 @@ use matrix_sdk::{
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	traits::Stringify,
-	types::{
-		Address,
-		AddressMetadata,
-	},
+	types::AddressMetadata,
 };
 use reqwest::Url;
 use serde::Serialize;
@@ -116,9 +113,7 @@ impl MatrixClient {
 
 	pub async fn send(
 		&self,
-		recipient_address: Address,
 		data: String,
-		message_type: MessageType,
 		receiver_metadata: AddressMetadata,
 	) -> Result<(), TransportError> {
 		let data = match Raw::from_json_string(data) {

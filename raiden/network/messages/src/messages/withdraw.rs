@@ -10,6 +10,7 @@ use raiden_primitives::{
 		Address,
 		ChainID,
 		MessageIdentifier,
+		MessageTypeId,
 		Signature,
 		TokenNetworkAddress,
 		U256,
@@ -29,7 +30,6 @@ use web3::signing::SigningError;
 
 use super::{
 	CmdId,
-	MessageTypeId,
 	SignedMessage,
 };
 

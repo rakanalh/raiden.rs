@@ -28,12 +28,9 @@ pub use withdraw::*;
 
 enum CmdId {
 	Processed = 0,
-	Ping = 1,
-	Pong = 2,
 	SecretRequest = 3,
 	Unlock = 4,
 	LockedTransfer = 7,
-	RefundTransfer = 8,
 	RevealSecret = 11,
 	Delivered = 12,
 	LockExpired = 13,
@@ -43,21 +40,6 @@ enum CmdId {
 }
 
 impl Into<[u8; 1]> for CmdId {
-	fn into(self) -> [u8; 1] {
-		(self as u8).to_be_bytes()
-	}
-}
-
-enum MessageTypeId {
-	BalanceProof = 1,
-	BalanceProofUpdate = 2,
-	Withdraw = 3,
-	CooperativeSettle = 4,
-	IOU = 5,
-	MSReward = 6,
-}
-
-impl Into<[u8; 1]> for MessageTypeId {
 	fn into(self) -> [u8; 1] {
 		(self as u8).to_be_bytes()
 	}

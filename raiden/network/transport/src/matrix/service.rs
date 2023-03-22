@@ -90,11 +90,7 @@ impl MatrixService {
 
 	async fn create_message_queue_if_not_exists(&mut self, queue_identifier: QueueIdentifier) {
 		if let None = self.message_queues.get(&queue_identifier) {
-			let (queue, sender) = RetryMessageQueue::new(
-				queue_identifier.recipient,
-				self.sender.clone(),
-				self.config.clone(),
-			);
+			let (queue, sender) = RetryMessageQueue::new(self.sender.clone(), self.config.clone());
 			self.running_futures.push(Box::pin(queue.run()));
 
 			self.message_queues.insert(queue_identifier, sender);
@@ -152,7 +148,7 @@ impl MatrixService {
 									continue;
 								}
 							};
-							if let Err(e) = self.client.send(message.recipient, json, MessageType::Text, message.recipient_metadata).await {
+							if let Err(e) = self.client.send(json, message.recipient_metadata).await {
 								error!("Could not send message {:?}", e);
 							};
 						},
