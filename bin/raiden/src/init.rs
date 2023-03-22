@@ -46,7 +46,7 @@ use raiden_primitives::types::{
 	ChainID,
 	DefaultAddresses,
 };
-use raiden_storage::Storage;
+use raiden_storage::state::StateStorage;
 use raiden_transition::manager::StateManager;
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
@@ -82,11 +82,11 @@ pub fn init_private_key(
 		.map_err(|e| format!("Could not unlock private key: {:?}", e))
 }
 
-pub fn init_storage(datadir: PathBuf) -> Result<Arc<Storage>, String> {
+pub fn init_storage(datadir: PathBuf) -> Result<Arc<StateStorage>, String> {
 	let conn = Connection::open(datadir.join("raiden.db"))
 		.map_err(|e| format!("Could not connect to database: {}", e))?;
 
-	let storage = Arc::new(Storage::new(conn));
+	let storage = Arc::new(StateStorage::new(conn));
 	storage
 		.setup_database()
 		.map_err(|e| format!("Failed to setup storage: {}", e))?;
@@ -96,7 +96,7 @@ pub fn init_storage(datadir: PathBuf) -> Result<Arc<Storage>, String> {
 
 pub fn init_state_manager(
 	contracts_manager: Arc<ContractsManager>,
-	storage: Arc<Storage>,
+	storage: Arc<StateStorage>,
 	chain_id: ChainID,
 	account: Account<Http>,
 ) -> Result<(Arc<SyncRwLock<StateManager>>, BlockNumber, DefaultAddresses), String> {
