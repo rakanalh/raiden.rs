@@ -677,18 +677,7 @@ fn handle_receive_withdraw_confirmation(
 	state_change: ReceiveWithdrawConfirmation,
 ) -> TransitionResult {
 	let canonical_identifier = state_change.canonical_identifier.clone();
-	let iteration = subdispatch_by_canonical_id(
-		&mut chain_state,
-		state_change.clone().into(),
-		canonical_identifier,
-	)?;
-
-	let mut chain_state = iteration.new_state;
-	for queue_id in chain_state.queueids_to_queues.clone().keys() {
-		inplace_delete_message_queue(&mut chain_state, &state_change.clone().into(), queue_id);
-	}
-
-	Ok(ChainTransition { new_state: chain_state, events: iteration.events })
+	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
 fn handle_receive_withdraw_expired(
