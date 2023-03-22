@@ -39,6 +39,7 @@ use raiden_state_machine::{
 		HashTimeLockState,
 		HopState,
 		LockedTransferState,
+		ReceiveDelivered,
 		ReceiveLockExpired,
 		ReceiveProcessed,
 		ReceiveSecretRequest,
@@ -58,6 +59,7 @@ use super::messages::{
 	LockedTransfer,
 };
 use crate::messages::{
+	Delivered,
 	LockExpired,
 	Processed,
 	SecretRequest,
@@ -346,6 +348,13 @@ impl MessageDecoder {
 					message_identifier: message.message_identifier,
 				})])
 			},
+			crate::messages::MessageInner::Delivered(message) => {
+				let sender = self.get_sender(&message.bytes_to_sign(), &message.signature.0)?;
+				Ok(vec![StateChange::ReceiveDelivered(ReceiveDelivered {
+					sender,
+					message_identifier: message.delivered_message_identifier,
+				})])
+			},
 		}
 	}
 
@@ -424,6 +433,13 @@ impl MessageDecoder {
 				return Ok(IncomingMessage {
 					message_identifier: processed.message_identifier,
 					inner: crate::messages::MessageInner::Processed(processed),
+				})
+			},
+			"Delivered" => {
+				let delivered: Delivered = serde_json::from_str(&body).unwrap();
+				return Ok(IncomingMessage {
+					message_identifier: delivered.delivered_message_identifier,
+					inner: crate::messages::MessageInner::Delivered(delivered),
 				})
 			},
 			_ => return Err(format!("Message type {} is unknown", message_type)),

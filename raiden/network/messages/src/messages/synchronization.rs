@@ -51,3 +51,31 @@ impl SignedMessage for Processed {
 		Ok(())
 	}
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub struct Delivered {
+	pub message_identifier: MessageIdentifier,
+	pub signature: Signature,
+}
+
+impl SignedMessage for Delivered {
+	fn bytes_to_sign(&self) -> Vec<u8> {
+		let cmd_id: [u8; 1] = CmdId::Delivered.into();
+
+		let mut bytes = vec![];
+		bytes.extend_from_slice(&cmd_id);
+		bytes.extend_from_slice(&[0, 0, 0]);
+		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
+		bytes
+	}
+
+	fn bytes_to_pack(&self) -> Vec<u8> {
+		vec![]
+	}
+
+	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
+		self.signature = self.sign_message(key)?.to_bytes().into();
+		Ok(())
+	}
+}

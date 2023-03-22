@@ -63,6 +63,7 @@ pub enum MessageInner {
 	WithdrawConfirmation(WithdrawConfirmation),
 	WithdrawExpired(WithdrawExpired),
 	Processed(Processed),
+	Delivered(Delivered),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
