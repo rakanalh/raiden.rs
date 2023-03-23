@@ -126,8 +126,8 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 			params.token_address,
 			params.partner_address,
 			params.reveal_timeout,
-			params.total_withdraw,
 			params.total_deposit,
+			params.total_withdraw,
 			params.state,
 			None,
 		)
