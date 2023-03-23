@@ -8,13 +8,13 @@ use raiden_primitives::{
 	traits::ToBytes,
 	types::{
 		Address,
+		BlockExpiration,
 		ChainID,
 		MessageIdentifier,
 		MessageTypeId,
 		Signature,
 		TokenNetworkAddress,
 		U256,
-		U64,
 	},
 };
 use raiden_state_machine::types::{
@@ -45,7 +45,7 @@ pub struct WithdrawRequest {
 	pub participant: Address,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub total_withdraw: U256,
-	pub expiration: U64,
+	pub expiration: BlockExpiration,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -73,7 +73,6 @@ impl From<SendWithdrawRequest> for WithdrawRequest {
 impl SignedMessage for WithdrawRequest {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
-		let cmd_id: [u8; 1] = CmdId::WithdrawRequest.into();
 		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
 
 		let mut nonce = [0u8; 32];
@@ -85,16 +84,11 @@ impl SignedMessage for WithdrawRequest {
 		let mut total_withdraw = [0u8; 32];
 		self.total_withdraw.to_big_endian(&mut total_withdraw);
 
-		let mut expiration = [0u8; 32];
-		self.expiration.to_big_endian(&mut expiration);
+		let mut expiration = self.expiration.to_be_bytes();
 
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&cmd_id);
-		bytes.extend_from_slice(&nonce);
-		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
 		bytes.extend_from_slice(&chain_id);
-		bytes.extend_from_slice(&message_type_id);
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.participant.as_bytes());
 		bytes.extend_from_slice(&total_withdraw);
@@ -124,7 +118,7 @@ pub struct WithdrawConfirmation {
 	pub participant: Address,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub total_withdraw: U256,
-	pub expiration: U64,
+	pub expiration: BlockExpiration,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -162,16 +156,11 @@ impl SignedMessage for WithdrawConfirmation {
 		let mut total_withdraw = [0u8; 32];
 		self.total_withdraw.to_big_endian(&mut total_withdraw);
 
-		let mut expiration = [0u8; 32];
-		self.expiration.to_big_endian(&mut expiration);
+		let mut expiration = self.expiration.to_be_bytes();
 
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&cmd_id);
-		bytes.extend_from_slice(&nonce);
-		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
 		bytes.extend_from_slice(&chain_id);
-		bytes.extend_from_slice(&message_type_id);
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.participant.as_bytes());
 		bytes.extend_from_slice(&total_withdraw);
@@ -201,7 +190,7 @@ pub struct WithdrawExpired {
 	pub participant: Address,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub total_withdraw: U256,
-	pub expiration: U64,
+	pub expiration: BlockExpiration,
 	#[serde(deserialize_with = "u256_from_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -227,7 +216,6 @@ impl From<SendWithdrawExpired> for WithdrawExpired {
 impl SignedMessage for WithdrawExpired {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
-		let cmd_id: [u8; 1] = CmdId::WithdrawExpired.into();
 		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
 
 		let mut nonce = [0u8; 32];
@@ -239,11 +227,10 @@ impl SignedMessage for WithdrawExpired {
 		let mut total_withdraw = [0u8; 32];
 		self.total_withdraw.to_big_endian(&mut total_withdraw);
 
-		let mut expiration = [0u8; 32];
-		self.expiration.to_big_endian(&mut expiration);
+		let mut expiration = self.expiration.to_be_bytes();
 
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&cmd_id);
+		bytes.extend(&[CmdId::WithdrawExpired as u8, 0, 0, 0]);
 		bytes.extend_from_slice(&nonce);
 		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
