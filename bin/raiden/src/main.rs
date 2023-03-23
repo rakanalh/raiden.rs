@@ -65,6 +65,7 @@ async fn main() {
 	let cli = Opt::from_args();
 
 	let filter = EnvFilter::from_env("RAIDEN_LOG")
+		.add_directive("raiden_api=debug".parse().unwrap())
 		.add_directive("raiden_blockchain=debug".parse().unwrap())
 		.add_directive("raiden_client=debug".parse().unwrap())
 		.add_directive("raiden_state_machine=debug".parse().unwrap())
