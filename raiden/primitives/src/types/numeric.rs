@@ -8,25 +8,13 @@ use std::{
 };
 
 use derive_more::Display;
-use serde::Serialize;
 use web3::types::{
 	U256,
 	U64 as PrimitiveU64,
 };
 
 #[derive(
-	Default,
-	Copy,
-	Clone,
-	Display,
-	Debug,
-	derive_more::Deref,
-	Eq,
-	Ord,
-	PartialEq,
-	PartialOrd,
-	Hash,
-	Serialize,
+	Default, Copy, Clone, Display, Debug, derive_more::Deref, Eq, Ord, PartialEq, PartialOrd, Hash,
 )]
 pub struct U64(PrimitiveU64);
 

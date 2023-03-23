@@ -1,5 +1,6 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
+	deserializers::u64_from_str,
 	traits::ToBytes,
 	types::{
 		MessageIdentifier,
@@ -21,6 +22,7 @@ use super::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Processed {
+	#[serde(deserialize_with = "u64_from_str")]
 	pub message_identifier: MessageIdentifier,
 	pub signature: Signature,
 }
@@ -55,7 +57,8 @@ impl SignedMessage for Processed {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Delivered {
-	pub message_identifier: MessageIdentifier,
+	#[serde(deserialize_with = "u64_from_str")]
+	pub delivered_message_identifier: MessageIdentifier,
 	pub signature: Signature,
 }
 
@@ -66,7 +69,7 @@ impl SignedMessage for Delivered {
 		let mut bytes = vec![];
 		bytes.extend_from_slice(&cmd_id);
 		bytes.extend_from_slice(&[0, 0, 0]);
-		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
+		bytes.extend_from_slice(&self.delivered_message_identifier.to_be_bytes());
 		bytes
 	}
 

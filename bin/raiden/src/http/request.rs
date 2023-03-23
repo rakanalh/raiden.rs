@@ -1,5 +1,8 @@
 use raiden_primitives::{
-	deserializers::u256_from_str,
+	deserializers::{
+		u256_from_optional_str,
+		u256_from_str,
+	},
 	types::{
 		Address,
 		BlockTimeout,
@@ -21,6 +24,7 @@ pub struct ChannelOpenParams {
 	pub token_address: TokenAddress,
 	pub settle_timeout: Option<SettleTimeout>,
 	pub reveal_timeout: Option<RevealTimeout>,
+	#[serde(deserialize_with = "u256_from_optional_str")]
 	pub total_deposit: Option<TokenAmount>,
 }
 
@@ -29,7 +33,11 @@ pub struct ChannelPatchParams {
 	pub registry_address: Address,
 	pub token_address: TokenAddress,
 	pub partner_address: Address,
+	#[serde(default)]
+	#[serde(deserialize_with = "u256_from_optional_str")]
 	pub total_deposit: Option<TokenAmount>,
+	#[serde(default)]
+	#[serde(deserialize_with = "u256_from_optional_str")]
 	pub total_withdraw: Option<TokenAmount>,
 	pub reveal_timeout: Option<RevealTimeout>,
 	pub state: Option<ChannelStatus>,

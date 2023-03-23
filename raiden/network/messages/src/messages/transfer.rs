@@ -7,6 +7,7 @@ use raiden_primitives::{
 	},
 	hashing::hash_balance_data,
 	packing::pack_balance_proof,
+	serializers::u256_to_str,
 	traits::ToBytes,
 	types::{
 		Address,
@@ -325,7 +326,7 @@ impl SignedEnvelopeMessage for Unlock {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lock {
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
 	pub secrethash: Option<SecretHash>,
@@ -339,11 +340,11 @@ pub struct LockedTransfer {
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: ChannelIdentifier,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
@@ -352,7 +353,7 @@ pub struct LockedTransfer {
 	pub target: Address,
 	pub initiator: Address,
 	pub metadata: Metadata,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	pub secret: Option<Secret>,
 	#[serde(deserialize_with = "signature_from_str")]

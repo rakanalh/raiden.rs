@@ -39,6 +39,15 @@ where
 	Ok(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?)
 }
 
+pub fn u256_from_optional_str<'de, D>(deserializer: D) -> Result<Option<U256>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let binding = serde_json::Value::deserialize(deserializer)?;
+	let v = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse U256"))?;
+	Ok(Some(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?))
+}
+
 pub fn u64_from_str<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
 	D: Deserializer<'de>,
