@@ -26,7 +26,7 @@ type Result<T> = std::result::Result<T, ProxyError>;
 #[derive(Clone)]
 pub struct TokenProxy<T: Transport> {
 	web3: Web3<T>,
-	contract: Contract<T>,
+	pub(crate) contract: Contract<T>,
 	lock: Arc<RwLock<bool>>,
 }
 

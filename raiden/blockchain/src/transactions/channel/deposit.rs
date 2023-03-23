@@ -238,9 +238,6 @@ where
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
 		let allowance = data.amount_to_deposit + 1;
-		self.token
-			.approve(self.account.clone(), self.token_network.contract.address(), allowance)
-			.await?;
 		let nonce = self.account.next_nonce().await;
 
 		self.token_network
@@ -351,7 +348,7 @@ where
 		let has_sufficient_balance = self
 			.token
 			.balance_of(self.token_network.contract.address(), Some(failed_at_blockhash))
-			.await? < data.amount_to_deposit;
+			.await? >= data.amount_to_deposit;
 		if !has_sufficient_balance {
 			return Err(ProxyError::Recoverable(format!(
 				"The account does not have enough balance to complete the deposit"
