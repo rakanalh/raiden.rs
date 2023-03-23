@@ -50,11 +50,16 @@ use raiden_storage::state::StateStorage;
 use raiden_transition::manager::StateManager;
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
-use web3::transports::Http;
+use web3::{
+	signing::Key,
+	transports::Http,
+	Web3,
+};
 
 use crate::cli::prompt_key;
 
-pub fn init_private_key(
+pub async fn init_private_key(
+	web3: Web3<Http>,
 	keystore_path: PathBuf,
 	address: Option<Address>,
 	password_file: Option<PathBuf>,
@@ -78,8 +83,15 @@ pub fn init_private_key(
 			.map_err(|e| format!("Could not read password: {:?}", e))?
 	};
 
-	PrivateKey::new(key_filename.clone(), password)
-		.map_err(|e| format!("Could not unlock private key: {:?}", e))
+	let private_key = PrivateKey::new(key_filename.clone(), password.clone())
+		.map_err(|e| format!("Could not unlock private key: {:?}", e))?;
+
+	web3.personal()
+		.unlock_account(private_key.address(), &password, None)
+		.await
+		.map_err(|e| format!("Could not unlock account on ethereum node: {:?}", e))?;
+
+	Ok(private_key)
 }
 
 pub fn init_storage(datadir: PathBuf) -> Result<Arc<StateStorage>, String> {

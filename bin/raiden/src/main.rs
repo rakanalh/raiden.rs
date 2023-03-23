@@ -92,15 +92,6 @@ async fn main() {
 		_ => {},
 	};
 
-	let private_key =
-		match init_private_key(cli.keystore_path.clone(), cli.address, cli.password_file) {
-			Ok(key) => key,
-			Err(e) => {
-				eprintln!("{}", e);
-				process::exit(1);
-			},
-		};
-
 	info!("Welcome to Raiden");
 
 	// #
@@ -128,6 +119,20 @@ async fn main() {
 	// #
 	let http = web3::transports::Http::new(&eth_rpc_http_endpoint).unwrap();
 	let web3 = web3::Web3::new(http);
+	let private_key = match init_private_key(
+		web3.clone(),
+		cli.keystore_path.clone(),
+		cli.address,
+		cli.password_file,
+	)
+	.await
+	{
+		Ok(key) => key,
+		Err(e) => {
+			eprintln!("{}", e);
+			process::exit(1);
+		},
+	};
 	let nonce = match web3.eth().transaction_count(private_key.address(), None).await {
 		Ok(nonce) => nonce,
 		Err(e) => {
