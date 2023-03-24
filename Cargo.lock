@@ -2483,6 +2483,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "hex",
  "matrix-sdk",
  "parking_lot 0.11.2",
  "raiden-blockchain",

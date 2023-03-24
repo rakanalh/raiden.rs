@@ -106,7 +106,8 @@ impl MatrixClient {
 	}
 
 	pub fn address_metadata(&self) -> AddressMetadata {
-		let user_id = format!("@{}:{}", self.private_key.address().to_string(), self.server_name);
+		let user_id =
+			format!("@0x{}:{}", hex::encode(self.private_key.address()), self.server_name);
 		let displayname = self.private_key.sign_message(user_id.as_bytes()).unwrap().as_string();
 		AddressMetadata { user_id, displayname, capabilities: "".to_owned() }
 	}
