@@ -66,7 +66,7 @@ pub struct SecretRequest {
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub secrethash: SecretHash,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -164,14 +164,14 @@ pub struct LockExpired {
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	pub recipient: Address,
 	pub secrethash: SecretHash,
@@ -454,11 +454,11 @@ pub struct RefundTransfer {
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
@@ -467,7 +467,7 @@ pub struct RefundTransfer {
 	pub target: Address,
 	pub initiator: Address,
 	pub metadata: Metadata,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]

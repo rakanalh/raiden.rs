@@ -40,13 +40,13 @@ pub struct WithdrawRequest {
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
 	pub participant: Address,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub total_withdraw: U256,
 	pub expiration: BlockExpiration,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Signature,
@@ -112,13 +112,13 @@ pub struct WithdrawConfirmation {
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
 	pub participant: Address,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub total_withdraw: U256,
 	pub expiration: BlockExpiration,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Signature,
@@ -182,13 +182,13 @@ pub struct WithdrawExpired {
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
 	pub participant: Address,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub total_withdraw: U256,
 	pub expiration: BlockExpiration,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	#[serde(deserialize_with = "signature_from_str")]
 	pub signature: Signature,
