@@ -459,20 +459,12 @@ fn handle_unlock(
 	Ok(TargetTransition { new_state: None, chain_state, events })
 }
 
-fn sanity_check(transition: TargetTransition) -> TransitionResult {
-	Ok(transition)
-}
-
-pub fn clear_if_finalized(transition: TargetTransition) -> TargetTransition {
-	transition
-}
-
 pub fn state_transition(
 	chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
 	state_change: StateChange,
 ) -> TransitionResult {
-	let transition_result = match state_change {
+	match state_change {
 		StateChange::ActionInitTarget(inner) =>
 			handle_init_target(chain_state, target_state, inner),
 		StateChange::Block(inner) => handle_block(chain_state, target_state, inner),
@@ -484,8 +476,5 @@ pub fn state_transition(
 		StateChange::ReceiveLockExpired(inner) =>
 			handle_lock_expired(chain_state, target_state, inner),
 		_ => return Ok(TargetTransition { new_state: target_state, chain_state, events: vec![] }),
-	}?;
-
-	let transition_result = sanity_check(transition_result)?;
-	Ok(clear_if_finalized(transition_result))
+	}
 }
