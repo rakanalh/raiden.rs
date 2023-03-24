@@ -287,7 +287,7 @@ fn subdispatch_to_all_lockedtransfers(
 }
 
 fn subdispatch_initiator_task(
-	mut chain_state: ChainState,
+	chain_state: ChainState,
 	state_change: ActionInitInitiator,
 ) -> TransitionResult {
 	let token_network_state = match views::get_token_network_by_address(
@@ -325,6 +325,7 @@ fn subdispatch_initiator_task(
 		state_change.clone().into(),
 	)?;
 
+	let mut chain_state = initiator_state.chain_state;
 	match initiator_state.new_state {
 		Some(initiator_state) => {
 			chain_state.payment_mapping.secrethashes_to_task.insert(
@@ -344,7 +345,7 @@ fn subdispatch_initiator_task(
 		},
 	}
 
-	Ok(ChainTransition { new_state: initiator_state.chain_state, events: initiator_state.events })
+	Ok(ChainTransition { new_state: chain_state, events: initiator_state.events })
 }
 
 fn subdispatch_mediator_task(
