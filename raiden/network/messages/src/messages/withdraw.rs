@@ -73,7 +73,6 @@ impl From<SendWithdrawRequest> for WithdrawRequest {
 impl SignedMessage for WithdrawRequest {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
-		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
 
 		let mut nonce = [0u8; 32];
 		self.nonce.to_big_endian(&mut nonce);
@@ -84,7 +83,7 @@ impl SignedMessage for WithdrawRequest {
 		let mut total_withdraw = [0u8; 32];
 		self.total_withdraw.to_big_endian(&mut total_withdraw);
 
-		let mut expiration = self.expiration.to_be_bytes();
+		let expiration = self.expiration.to_be_bytes();
 
 		let mut bytes = vec![];
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
@@ -144,8 +143,6 @@ impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
 impl SignedMessage for WithdrawConfirmation {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let chain_id: Vec<u8> = self.chain_id.into();
-		let cmd_id: [u8; 1] = CmdId::WithdrawConfirmation.into();
-		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
 
 		let mut nonce = [0u8; 32];
 		self.nonce.to_big_endian(&mut nonce);
@@ -156,7 +153,7 @@ impl SignedMessage for WithdrawConfirmation {
 		let mut total_withdraw = [0u8; 32];
 		self.total_withdraw.to_big_endian(&mut total_withdraw);
 
-		let mut expiration = self.expiration.to_be_bytes();
+		let expiration = self.expiration.to_be_bytes();
 
 		let mut bytes = vec![];
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
@@ -227,7 +224,7 @@ impl SignedMessage for WithdrawExpired {
 		let mut total_withdraw = [0u8; 32];
 		self.total_withdraw.to_big_endian(&mut total_withdraw);
 
-		let mut expiration = self.expiration.to_be_bytes();
+		let expiration = self.expiration.to_be_bytes();
 
 		let mut bytes = vec![];
 		bytes.extend(&[CmdId::WithdrawExpired as u8, 0, 0, 0]);

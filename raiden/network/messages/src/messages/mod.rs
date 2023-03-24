@@ -34,8 +34,6 @@ enum CmdId {
 	RevealSecret = 11,
 	Delivered = 12,
 	LockExpired = 13,
-	WithdrawRequest = 15,
-	WithdrawConfirmation = 16,
 	WithdrawExpired = 17,
 }
 
