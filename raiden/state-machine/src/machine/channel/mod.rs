@@ -273,7 +273,7 @@ fn create_unlock(
 	block_number: BlockNumber,
 	recipient_metadata: Option<AddressMetadata>,
 ) -> Result<(SendUnlock, PendingLocksState), String> {
-	if channel_state.status() == ChannelStatus::Opened {
+	if channel_state.status() != ChannelStatus::Opened {
 		return Err("Channel is not open".to_owned())
 	}
 
