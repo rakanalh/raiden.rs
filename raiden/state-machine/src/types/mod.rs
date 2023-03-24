@@ -4,6 +4,7 @@ mod state_change;
 
 use raiden_primitives::{
 	deserializers::u256_from_str,
+	serializers::u256_to_str,
 	types::{
 		BlockNumber,
 		PaymentIdentifier,
@@ -58,7 +59,7 @@ pub struct TransactionExecutionStatus {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct DecryptedSecret {
 	pub secret: Secret,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub payment_identifier: PaymentIdentifier,
 }
