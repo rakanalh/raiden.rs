@@ -15,6 +15,8 @@ use serde::{
 };
 use web3::signing::keccak256;
 
+use crate::decode::encrypt_secret;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RouteMetadata {
 	pub route: Vec<Address>,
@@ -49,8 +51,21 @@ impl From<SendLockedTransfer> for Metadata {
 			.into_iter()
 			.map(|r| RouteMetadata { route: r.route, address_metadata: r.address_to_metadata })
 			.collect();
-		let _target_metadata =
+
+		let target_metadata =
 			get_address_metadata(transfer.target, event.transfer.route_states.clone());
-		Self { routes, secret: transfer.secret }
+		let secret = match target_metadata {
+			Some(target_metadata) => transfer.secret.map(|s| {
+				encrypt_secret(
+					s,
+					target_metadata,
+					transfer.lock.amount,
+					transfer.payment_identifier,
+				)
+				.unwrap()
+			}),
+			None => None,
+		};
+		Self { routes, secret }
 	}
 }
