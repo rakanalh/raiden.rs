@@ -2526,6 +2526,8 @@ dependencies = [
  "derive_more",
  "hex",
  "lazy_static",
+ "once_cell",
+ "secp256k1 0.21.3",
  "serde",
  "serde_json",
  "sha2 0.10.6",

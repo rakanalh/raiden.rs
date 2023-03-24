@@ -15,7 +15,10 @@ use raiden_primitives::{
 		hash_balance_data,
 		hash_secret,
 	},
-	signing,
+	signing::{
+		self,
+		recover_pub_key,
+	},
 	types::{
 		Address,
 		AddressMetadata,
@@ -390,7 +393,7 @@ impl MessageDecoder {
 					inner: crate::messages::MessageInner::SecretRequest(secret_request),
 				})
 			},
-			"SecretReveal" => {
+			"RevealSecret" => {
 				let secret_reveal: SecretReveal = serde_json::from_str(&body).unwrap();
 				return Ok(IncomingMessage {
 					message_identifier: secret_reveal.message_identifier,
@@ -459,9 +462,9 @@ pub fn encrypt_secret(
 	payment_identifier: PaymentIdentifier,
 ) -> Result<Bytes, String> {
 	let message = target_metadata.user_id;
-	let signature = hex::decode(target_metadata.displayname)
+	let signature = hex::decode(target_metadata.displayname.trim_start_matches("0x"))
 		.map_err(|e| format!("Could not decode signature: {:?}", e))?;
-	let public_key = web3::signing::recover(message.as_bytes(), &signature, 0)
+	let public_key = recover_pub_key(&message.as_bytes(), &signature)
 		.map_err(|e| format!("Could not recover public key: {:?}", e))?;
 
 	let data = DecryptedSecret { secret, amount, payment_identifier };
@@ -470,7 +473,7 @@ pub fn encrypt_secret(
 		.map_err(|e| format!("Could not serialize encrypted secret: {}", e))?;
 
 	Ok(Bytes(
-		keys::encrypt(public_key.as_bytes(), json.as_bytes())
+		keys::encrypt(&public_key.0, json.as_bytes())
 			.map_err(|e| format!("Could not encrypt secret: {:?}", e))?,
 	))
 }
