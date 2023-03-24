@@ -98,7 +98,7 @@ pub enum RoutingError {
 	NoPathFindingServiceFound,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PFSRequest {
 	from: String,
 	to: String,
@@ -115,14 +115,14 @@ pub struct PFSNetworkInfo {
 	confirmed_block_number: BlockNumber,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct PFSPath {
 	pub nodes: Vec<Address>,
 	pub address_metadata: HashMap<Address, AddressMetadata>,
 	pub estimated_fee: TokenAmount,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct PFSPathsResponse {
 	feedback_token: String,
 	result: Vec<PFSPath>,

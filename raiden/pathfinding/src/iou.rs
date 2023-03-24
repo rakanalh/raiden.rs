@@ -21,7 +21,7 @@ use web3::signing::{
 
 const IOU_MESSAGE_TYPE_ID: u8 = 5;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IOU {
 	pub sender: Address,
 	pub receiver: Address,
