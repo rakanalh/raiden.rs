@@ -14,6 +14,10 @@ use raiden_network_messages::messages::{
 	TransportServiceMessage,
 };
 use raiden_primitives::types::QueueIdentifier;
+use serde::{
+	Deserialize,
+	Serialize,
+};
 use tokio::{
 	select,
 	sync::mpsc::{
@@ -27,11 +31,12 @@ use tokio_stream::wrappers::IntervalStream;
 
 use crate::config::TransportConfig;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct TimeoutGenerator {
 	retries_count: u32,
 	timeout: u8,
 	timeout_max: u8,
+	#[serde(skip_serializing, skip_deserializing)]
 	next: Option<DateTime<Local>>,
 	tries: u32,
 }
@@ -76,6 +81,7 @@ impl TimeoutGenerator {
 	}
 }
 
+#[derive(Serialize, Deserialize)]
 struct MessageData {
 	pub(self) message: OutgoingMessage,
 	pub(self) timeout_generator: TimeoutGenerator,
