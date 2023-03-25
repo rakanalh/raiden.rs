@@ -2372,6 +2372,7 @@ dependencies = [
  "hyper",
  "parking_lot 0.11.2",
  "raiden-api",
+ "raiden-bin-common",
  "raiden-blockchain",
  "raiden-client",
  "raiden-network-messages",
@@ -2411,6 +2412,17 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "web3",
+]
+
+[[package]]
+name = "raiden-bin-common"
+version = "0.0.1"
+dependencies = [
+ "raiden-blockchain",
+ "raiden-client",
+ "raiden-primitives",
+ "rpassword",
  "web3",
 ]
 
@@ -3525,6 +3537,7 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 name = "token-ops"
 version = "0.0.1"
 dependencies = [
+ "raiden-bin-common",
  "raiden-blockchain",
  "raiden-client",
  "raiden-primitives",

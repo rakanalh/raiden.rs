@@ -1,6 +1,4 @@
 use std::{
-	collections::HashMap,
-	fs,
 	path::PathBuf,
 	sync::Arc,
 };
@@ -11,13 +9,11 @@ use raiden_blockchain::{
 		self,
 		ContractsManager,
 	},
-	keys::PrivateKey,
 	proxies::{
 		Account,
 		ProxyManager,
 	},
 };
-use raiden_client::cli::list_keys;
 use raiden_network_messages::messages::TransportServiceMessage;
 use raiden_network_transport::{
 	config::{
@@ -40,7 +36,6 @@ use raiden_pathfinding::config::{
 	ServicesConfig,
 };
 use raiden_primitives::types::{
-	Address,
 	AddressMetadata,
 	BlockNumber,
 	ChainID,
@@ -50,49 +45,7 @@ use raiden_storage::state::StateStorage;
 use raiden_transition::manager::StateManager;
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
-use web3::{
-	signing::Key,
-	transports::Http,
-	Web3,
-};
-
-use crate::cli::prompt_key;
-
-pub async fn init_private_key(
-	web3: Web3<Http>,
-	keystore_path: PathBuf,
-	address: Option<Address>,
-	password_file: Option<PathBuf>,
-) -> Result<PrivateKey, String> {
-	let keys = list_keys(&keystore_path).map_err(|e| format!("Could not list accounts: {}", e))?;
-	let key_filename = if let Some(address) = address {
-		let inverted_keys: HashMap<Address, String> =
-			keys.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
-		inverted_keys.get(&address).unwrap().clone()
-	} else {
-		prompt_key(&keys)
-	};
-
-	let password = if let Some(password_file) = password_file {
-		fs::read_to_string(password_file)
-			.map_err(|e| format!("Error reading password file: {:?}", e))?
-			.trim()
-			.to_owned()
-	} else {
-		rpassword::read_password_from_tty(Some("Password: "))
-			.map_err(|e| format!("Could not read password: {:?}", e))?
-	};
-
-	let private_key = PrivateKey::new(key_filename.clone(), password.clone())
-		.map_err(|e| format!("Could not unlock private key: {:?}", e))?;
-
-	web3.personal()
-		.unlock_account(private_key.address(), &password, None)
-		.await
-		.map_err(|e| format!("Could not unlock account on ethereum node: {:?}", e))?;
-
-	Ok(private_key)
-}
+use web3::transports::Http;
 
 pub fn init_storage(datadir: PathBuf) -> Result<Arc<StateStorage>, String> {
 	let conn = Connection::open(datadir.join("raiden.db"))

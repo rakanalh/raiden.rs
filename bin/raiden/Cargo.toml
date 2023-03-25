@@ -35,6 +35,7 @@ url = { version = "2.2.2", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
 
 # Raiden
+raiden-bin-common = { path = "../common" }
 raiden-api= { path = "../../raiden/api" }
 raiden-blockchain = { path = "../../raiden/blockchain" }
 raiden-client = { path = "../../raiden/client" }

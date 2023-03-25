@@ -1,15 +1,9 @@
 use std::{
-	collections::HashMap,
 	error::Error,
-	io::{
-		stdin,
-		stdout,
-		Write,
-	},
 	path::PathBuf,
-	str::FromStr,
 };
 
+use raiden_bin_common::parse_address;
 use raiden_network_transport::{
 	matrix::constants::MATRIX_AUTO_SELECT_SERVER,
 	types::EnvironmentType,
@@ -52,10 +46,6 @@ fn parse_chain_id(src: &str) -> Result<u64, Box<dyn Error + Send + Sync + 'stati
 			Ok(id)
 		},
 	}
-}
-
-fn parse_address(address: &str) -> Result<Address, Box<dyn Error + Send + Sync + 'static>> {
-	Ok(Address::from_str(&address)?)
 }
 
 arg_enum! {
@@ -228,28 +218,4 @@ pub struct Opt {
 
 	#[structopt(flatten)]
 	pub services_config: CliServicesConfig,
-}
-
-pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
-	println!("Select key:");
-	loop {
-		let mut index = 0;
-		let mut s = String::new();
-
-		for address in keys.values() {
-			println!("[{}]: {}", index, address);
-			index += 1;
-		}
-		print!("Selected key: ");
-		let _ = stdout().flush();
-		stdin().read_line(&mut s).expect("Did not enter a correct string");
-		let selected_value: Result<u32, _> = s.trim().parse();
-		if let Ok(chosen_index) = selected_value {
-			if (chosen_index as usize) >= keys.len() {
-				continue
-			}
-			let selected_filename = keys.keys().nth(chosen_index as usize).unwrap();
-			return selected_filename.clone()
-		}
-	}
 }

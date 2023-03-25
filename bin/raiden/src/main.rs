@@ -14,6 +14,7 @@ use raiden_api::{
 		RaidenConfig,
 	},
 };
+use raiden_bin_common::init_private_key;
 use raiden_blockchain::{
 	contracts,
 	proxies::{

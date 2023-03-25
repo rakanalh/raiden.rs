@@ -1,8 +1,8 @@
 [package]
-name = "token-ops"
+name = "raiden-bin-common"
 version = "0.0.1"
 authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
-description = "Raiden token operations"
+description = "Raiden common binary utils"
 repository = "https://github.com/rakanalh/raiden-rust"
 license = "MIT"
 edition = "2021"
@@ -10,19 +10,12 @@ readme = "README.md"
 keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
 rust-version = "1.59"
 
-[[bin]]
-name = "token-ops"
-path = "src/main.rs"
-
 [dependencies]
 # 3rd Party
 rpassword = { version = "5.0.1", default-features = false }
-structopt = { version = "0.3.25", default-features = false }
-tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
 
 # Raiden
-raiden-bin-common = { path = "../common" }
-raiden-primitives = { path = "../../raiden/primitives" }
 raiden-blockchain = { path = "../../raiden/blockchain" }
 raiden-client = { path = "../../raiden/client" }
+raiden-primitives = { path = "../../raiden/primitives" }

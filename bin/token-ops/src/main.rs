@@ -5,6 +5,10 @@ use std::{
 	sync::Arc,
 };
 
+use raiden_bin_common::{
+	init_private_key,
+	parse_address,
+};
 use raiden_blockchain::{
 	contracts::ContractsManager,
 	proxies::{
@@ -12,7 +16,6 @@ use raiden_blockchain::{
 		ProxyManager,
 	},
 };
-use raiden_client::cli::get_private_key;
 use raiden_primitives::types::ChainID;
 use structopt::StructOpt;
 use web3::{
@@ -33,6 +36,12 @@ pub struct Opt {
 	#[structopt(long, required = true, takes_value = true)]
 	pub token_address: String,
 
+	#[structopt(short("a"), long, parse(try_from_str = parse_address), takes_value = true)]
+	pub address: Option<Address>,
+
+	#[structopt(long, parse(from_os_str), takes_value = true)]
+	pub password_file: Option<PathBuf>,
+
 	#[structopt(subcommand)]
 	cmd: Command,
 }
@@ -48,14 +57,6 @@ enum Command {
 async fn main() {
 	let cli = Opt::from_args();
 
-	let private_key = match get_private_key(cli.keystore_path.clone()) {
-		Ok(result) => result,
-		Err(e) => {
-			eprintln!("{}", e);
-			process::exit(1);
-		},
-	};
-
 	let transport = match web3::transports::Http::new(&cli.eth_rpc_endpoint) {
 		Ok(transport) => transport,
 		Err(e) => {
@@ -65,6 +66,21 @@ async fn main() {
 	};
 
 	let web3 = web3::Web3::new(transport);
+
+	let private_key = match init_private_key(
+		web3.clone(),
+		cli.keystore_path.clone(),
+		cli.address,
+		cli.password_file,
+	)
+	.await
+	{
+		Ok(result) => result,
+		Err(e) => {
+			eprintln!("{}", e);
+			process::exit(1);
+		},
+	};
 
 	let nonce = match web3.eth().transaction_count(private_key.address(), None).await {
 		Ok(nonce) => nonce,
