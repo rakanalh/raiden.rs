@@ -52,10 +52,14 @@ pub fn u64_from_str<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
 	D: Deserializer<'de>,
 {
-	let v: u64 = serde_json::Value::deserialize(deserializer)?
-		.as_str()
-		.and_then(|s| s.parse().ok())
-		.ok_or_else(|| D::Error::custom("non-integer"))?;
+	let value = serde_json::Value::deserialize(deserializer)?;
+	let v = match value.as_u64() {
+		Some(v) => v,
+		None => value
+			.as_str()
+			.and_then(|s| s.parse().ok())
+			.ok_or_else(|| D::Error::custom("non-integer"))?,
+	};
 	Ok(v)
 }
 
