@@ -63,6 +63,7 @@ use super::{
 #[serde(tag = "type")]
 pub struct SecretRequest {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub secrethash: SecretHash,
@@ -120,6 +121,7 @@ impl SignedMessage for SecretRequest {
 #[serde(tag = "type", rename = "RevealSecret")]
 pub struct SecretReveal {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -161,6 +163,7 @@ impl SignedMessage for SecretReveal {
 #[serde(tag = "type")]
 pub struct LockExpired {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
@@ -173,6 +176,7 @@ pub struct LockExpired {
 	pub locksroot: Locksroot,
 	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
+	#[serde(skip_serializing)]
 	pub recipient: Address,
 	pub secrethash: SecretHash,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -244,6 +248,7 @@ impl SignedEnvelopeMessage for LockExpired {
 #[serde(tag = "type")]
 pub struct Unlock {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
@@ -337,6 +342,7 @@ pub struct Lock {
 #[serde(tag = "type")]
 pub struct LockedTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
@@ -349,6 +355,7 @@ pub struct LockedTransfer {
 	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
+	#[serde(skip_serializing)]
 	pub recipient: Address,
 	pub lock: Lock,
 	pub target: Address,
@@ -450,6 +457,7 @@ impl SignedEnvelopeMessage for LockedTransfer {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
@@ -462,6 +470,7 @@ pub struct RefundTransfer {
 	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
+	#[serde(skip_serializing)]
 	pub recipient: Address,
 	pub lock: Lock,
 	pub target: Address,

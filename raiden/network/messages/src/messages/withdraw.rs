@@ -38,6 +38,7 @@ use super::{
 #[serde(tag = "type")]
 pub struct WithdrawRequest {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
@@ -110,6 +111,7 @@ impl SignedMessage for WithdrawRequest {
 #[serde(tag = "type")]
 pub struct WithdrawConfirmation {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
@@ -180,6 +182,7 @@ impl SignedMessage for WithdrawConfirmation {
 #[serde(tag = "type")]
 pub struct WithdrawExpired {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,

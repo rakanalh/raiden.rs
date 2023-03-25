@@ -23,6 +23,7 @@ use super::{
 #[serde(tag = "type")]
 pub struct Processed {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub signature: Signature,
 }
