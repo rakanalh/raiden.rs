@@ -82,8 +82,12 @@ async fn main() {
 		},
 	};
 
-	let nonce = match web3.eth().transaction_count(private_key.address(), None).await {
-		Ok(nonce) => nonce,
+	let nonce = match web3
+		.eth()
+		.transaction_count(private_key.address(), Some(web3::types::BlockNumber::Pending))
+		.await
+	{
+		Ok(nonce) => nonce - 1,
 		Err(e) => {
 			eprintln!("Failed to fetch nonce: {}", e);
 			process::exit(1);
