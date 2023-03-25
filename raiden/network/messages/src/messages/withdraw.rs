@@ -5,6 +5,7 @@ use raiden_primitives::{
 		u256_from_str,
 		u64_from_str,
 	},
+	serializers::u256_to_str,
 	traits::ToBytes,
 	types::{
 		Address,
