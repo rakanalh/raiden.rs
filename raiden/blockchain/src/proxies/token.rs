@@ -62,7 +62,6 @@ impl<T: Transport> TokenProxy<T> {
 		allowed_address: Address,
 		allowance: U256,
 	) -> Result<H256> {
-		let nonce = account.peek_next_nonce().await;
 		let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
 		let gas_estimate = self
 			.contract
@@ -75,10 +74,11 @@ impl<T: Transport> TokenProxy<T> {
 			.await
 			.map_err(ProxyError::ChainError)?;
 
+		let nonce = account.next_nonce().await;
 		let lock = self.lock.write().await;
-		let transaction_hash = self
+		let receipt = self
 			.contract
-			.call(
+			.call_with_confirmations(
 				"approve",
 				(allowed_address, allowance),
 				account.address(),
@@ -87,13 +87,14 @@ impl<T: Transport> TokenProxy<T> {
 					opt.nonce = Some(nonce);
 					opt.gas_price = Some(gas_price);
 				}),
+				1,
 			)
 			.await
-			.map_err(ProxyError::ChainError)?;
+			.map_err(ProxyError::Web3)?;
 
 		drop(lock);
 
-		Ok(transaction_hash)
+		Ok(receipt.transaction_hash)
 	}
 
 	pub async fn mint(&self, account: Account<T>, amount: U256) -> Result<H256> {
