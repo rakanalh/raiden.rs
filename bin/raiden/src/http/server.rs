@@ -31,17 +31,14 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-	pub fn new(raiden: Arc<Raiden>, api: Arc<Api>) -> Self {
+	pub fn new(socket: SocketAddr, raiden: Arc<Raiden>, api: Arc<Api>) -> Self {
 		let router = router(raiden, api);
 
 		// Create a Service from the router above to handle incoming requests.
 		let service = RouterService::new(router).unwrap();
 
-		// The address on which the server will be listening.
-		let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-
 		// Create a server by passing the created service to `.serve` method.
-		let server = Server::bind(&addr).serve(service);
+		let server = Server::bind(&socket).serve(service);
 
 		Self { inner: server }
 	}

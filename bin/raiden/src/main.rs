@@ -1,5 +1,6 @@
 use std::{
 	fs,
+	net::SocketAddr,
 	path::PathBuf,
 	process,
 	sync::Arc,
@@ -313,7 +314,15 @@ async fn main() {
 		};
 	let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));
 	let api = Api::new(raiden.clone(), transitioner.clone(), payments_registry);
-	let http_service = crate::http::HttpServer::new(raiden, Arc::new(api));
+
+	let socket: SocketAddr = match format!("{}:{}", cli.http_host, cli.http_port).parse() {
+		Ok(socket) => socket,
+		Err(e) => {
+			eprintln!("Error starting HTTP server: {:?}", e);
+			process::exit(1);
+		},
+	};
+	let http_service = crate::http::HttpServer::new(socket, raiden, Arc::new(api));
 
 	info!("Raiden is starting");
 

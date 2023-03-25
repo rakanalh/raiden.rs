@@ -184,6 +184,14 @@ pub struct Opt {
 	#[structopt(long, required = true, takes_value = true)]
 	pub eth_rpc_endpoint: String,
 
+	/// Specify the http server host
+	#[structopt(long, required = true, takes_value = true, default_value = "127.0.0.1")]
+	pub http_host: String,
+
+	/// Specify the http server port
+	#[structopt(long, required = true, takes_value = true, default_value = "3000")]
+	pub http_port: u16,
+
 	/// Specify the RPC endpoint to interact with.
 	#[structopt(long, required = true, takes_value = true)]
 	pub eth_rpc_socket_endpoint: String,
