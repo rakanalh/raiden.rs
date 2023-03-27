@@ -6,6 +6,7 @@ use std::{
 	sync::Arc,
 };
 
+use futures::FutureExt;
 use raiden_api::{
 	api::Api,
 	payments::PaymentsRegistry,
@@ -38,7 +39,14 @@ use raiden_transition::{
 	Transitioner,
 };
 use structopt::StructOpt;
-use tokio::sync::RwLock;
+use tokio::{
+	select,
+	signal::unix::{
+		signal,
+		SignalKind,
+	},
+	sync::RwLock,
+};
 use tracing::info;
 use tracing_subscriber::filter::EnvFilter;
 use web3::{
@@ -327,11 +335,22 @@ async fn main() {
 
 	info!("Raiden is starting");
 
-	futures::join!(
-		block_monitor_service.start(),
-		transport_service.run(state_manager, transitioner, message_decoder),
-		http_service.start()
-	);
+	let mut hangup = match signal(SignalKind::interrupt()) {
+		Ok(s) => s,
+		Err(e) => {
+			eprintln!("Could not instantiate listener for hangup signal: {:?}", e);
+			return
+		},
+	};
+	select! {
+		_ = block_monitor_service.start().fuse() => {},
+		_ = transport_service.run(state_manager, transitioner, message_decoder).fuse() => {},
+		_  = http_service.start().fuse() => {},
+		_ = hangup.recv().fuse() => {
+			println!("Raiden is stopping");
+			return
+		},
+	};
 }
 
 fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
