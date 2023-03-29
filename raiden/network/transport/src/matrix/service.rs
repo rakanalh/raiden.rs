@@ -1,8 +1,6 @@
 use std::{
 	collections::HashMap,
 	pin::Pin,
-	sync::Arc,
-	time::Duration,
 };
 
 use futures::{
@@ -11,39 +9,29 @@ use futures::{
 	FutureExt,
 	StreamExt,
 };
-use matrix_sdk::{
-	config::SyncSettings,
-	ruma::{
-		events::AnyToDeviceEvent,
-		serde::Raw,
-	},
+use raiden_network_messages::messages::{
+	OutgoingMessage,
+	TransportServiceMessage,
 };
-use parking_lot::RwLock;
-use raiden_network_messages::{
-	decode::MessageDecoder,
-	messages::{
-		OutgoingMessage,
-		TransportServiceMessage,
-	},
+use raiden_primitives::types::{
+	MessageIdentifier,
+	QueueIdentifier,
 };
-use raiden_primitives::types::QueueIdentifier;
-use raiden_transition::{
-	manager::StateManager,
-	Transitioner,
-};
+use raiden_storage::matrix::MatrixStorage;
+use raiden_transition::messages::MessageHandler;
 use tokio::{
 	select,
+	signal::unix::{
+		signal,
+		SignalKind,
+	},
 	sync::mpsc::{
 		self,
 		UnboundedSender,
 	},
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::{
-	debug,
-	error,
-	info,
-};
+use tracing::error;
 
 use super::{
 	queue::RetryMessageQueue,
@@ -52,6 +40,7 @@ use super::{
 use crate::{
 	config::TransportConfig,
 	matrix::{
+		queue::QueueOp,
 		MessageContent,
 		MessageType,
 	},
@@ -59,12 +48,25 @@ use crate::{
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 
+struct QueueInfo {
+	op_sender: UnboundedSender<QueueOp>,
+	messages: HashMap<MessageIdentifier, OutgoingMessage>,
+}
+
+impl Into<HashMap<MessageIdentifier, OutgoingMessage>> for QueueInfo {
+	fn into(self) -> HashMap<MessageIdentifier, OutgoingMessage> {
+		self.messages
+	}
+}
+
 pub struct MatrixService {
 	config: TransportConfig,
 	client: MatrixClient,
-	sender: UnboundedSender<TransportServiceMessage>,
-	receiver: UnboundedReceiverStream<TransportServiceMessage>,
-	message_queues: HashMap<QueueIdentifier, UnboundedSender<(QueueIdentifier, OutgoingMessage)>>,
+	matrix_storage: MatrixStorage,
+	message_handler: MessageHandler,
+	our_sender: UnboundedSender<TransportServiceMessage>,
+	queue_receiver: UnboundedReceiverStream<TransportServiceMessage>,
+	messages: HashMap<QueueIdentifier, QueueInfo>,
 	running_futures: FuturesUnordered<BoxFuture<'static, ()>>,
 }
 
@@ -72,6 +74,8 @@ impl MatrixService {
 	pub fn new(
 		config: TransportConfig,
 		client: MatrixClient,
+		matrix_storage: MatrixStorage,
+		message_handler: MessageHandler,
 	) -> (Self, UnboundedSender<TransportServiceMessage>) {
 		let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -79,157 +83,159 @@ impl MatrixService {
 			Self {
 				config,
 				client,
-				sender: sender.clone(),
-				receiver: UnboundedReceiverStream::new(receiver),
-				message_queues: HashMap::new(),
+				matrix_storage,
+				message_handler,
+				messages: HashMap::new(),
+				our_sender: sender.clone(),
+				queue_receiver: UnboundedReceiverStream::new(receiver),
 				running_futures: FuturesUnordered::new(),
 			},
 			sender,
 		)
 	}
 
-	async fn create_message_queue_if_not_exists(&mut self, queue_identifier: QueueIdentifier) {
-		if let None = self.message_queues.get(&queue_identifier) {
-			let (queue, sender) = RetryMessageQueue::new(self.sender.clone(), self.config.clone());
+	pub fn init_from_storage(&mut self) -> Result<(), String> {
+		// Get last sync token
+		let sync_token = self.matrix_storage.get_sync_token().map_err(|e| format!("{:?}", e))?;
+		self.client.set_sync_token(sync_token);
+
+		let messages: HashMap<QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self
+			.matrix_storage
+			.get_messages()
+			.map_err(|e| format!("{:?}", e))
+			.and_then(|data| serde_json::from_str(&data).map_err(|e| format!("{:?}", e)))?;
+
+		for (queue_identifier, messages) in messages.iter() {
+			self.ensure_message_queue(queue_identifier.clone(), messages.clone());
+			let queue_info =
+				self.messages.get(queue_identifier).expect("Should already be crealted");
+			for message in messages.values() {
+				let _ = queue_info.op_sender.send(QueueOp::Enqueue(message.message_identifier));
+			}
+		}
+
+		Ok(())
+	}
+
+	fn ensure_message_queue(
+		&mut self,
+		queue_identifier: QueueIdentifier,
+		messages: HashMap<MessageIdentifier, OutgoingMessage>,
+	) {
+		if let None = self.messages.get(&queue_identifier) {
+			let (queue, sender) =
+				RetryMessageQueue::new(self.our_sender.clone(), self.config.clone());
 			self.running_futures.push(Box::pin(queue.run()));
 
-			self.message_queues.insert(queue_identifier, sender);
+			self.messages
+				.entry(queue_identifier)
+				.or_insert(QueueInfo { op_sender: sender, messages });
 		}
 	}
 
-	pub async fn run(
-		mut self,
-		state_manager: Arc<RwLock<StateManager>>,
-		transition_service: Arc<Transitioner>,
-		message_decoder: MessageDecoder,
-	) {
-		let mut sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
+	pub async fn run(mut self) {
+		let mut hangup = match signal(SignalKind::interrupt()) {
+			Ok(s) => s,
+			Err(e) => {
+				eprintln!("Could not instantiate listener for hangup signal: {:?}", e);
+				return
+			},
+		};
 		loop {
 			select! {
+				_ = hangup.recv().fuse() => {
+					let messages: HashMap<QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self.messages.into_iter().map(|(queue_identifier, queue_info)| (queue_identifier, queue_info.messages)).collect();
+					let messages_data = match serde_json::to_string(&messages) {
+						Ok(data) => data,
+						Err(e) => {
+							error!("Could not serialize messages for storage: {:?}", e);
+							return
+						}
+					};
+					if let Err(e) = self.matrix_storage.set_sync_token(self.client.get_sync_token()) {
+						error!("Could not store matrix sync token: {:?}", e);
+					}
+					if let Err(e) = self.matrix_storage.store_messages(messages_data) {
+						error!("Could not store matrix messages: {:?}", e);
+					}
+					return
+				},
 				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
-				response = self.client.sync_once(sync_settings.clone()).fuse() => {
-					match response {
-						Ok(response) => {
-							let to_device_events = response.to_device.events;
-							info!("Received {} network messages", to_device_events.len());
-							for to_device_event in to_device_events.iter() {
-								self.process_event(state_manager.clone(), transition_service.clone(), message_decoder.clone(), to_device_event).await;
-							}
-							let sync_token = response.next_batch;
-							sync_settings = SyncSettings::new().timeout(Duration::from_secs(30)).token(sync_token);
-						},
+				messages = self.client.get_new_messages().fuse() => {
+					let messages = match messages {
+						Ok(messages) => messages,
 						Err(e) => {
 							error!("Sync error: {:?}", e);
+							continue;
 						}
+					};
+
+					for message in messages {
+						let _ = self.message_handler.handle(message).await;
 					}
 				},
-				message = self.receiver.next() => {
+				message = self.queue_receiver.next() => {
 					match message {
 						Some(TransportServiceMessage::Enqueue((queue_identifier, message))) => {
-							self.create_message_queue_if_not_exists(queue_identifier.clone()).await;
-							let _ = self.message_queues
+							self.ensure_message_queue(queue_identifier.clone(), HashMap::new());
+							let _ = self.messages
 								.get(&queue_identifier)
 								.expect("Queue should have been created before.")
-								.send((queue_identifier, message));
+								.op_sender
+								.send(QueueOp::Enqueue(message.message_identifier));
 						},
-						Some(TransportServiceMessage::Send(message)) => {
-							let message_json = match serde_json::to_string(&message) {
-								Ok(json) => json,
-								Err(e) => {
-									error!("Could not serialize message: {:?}", e);
-									continue;
+						Some(TransportServiceMessage::Dequeue((queue_identifier, message_identifier))) => {
+							if let Some(queue_identifier) = queue_identifier {
+								let queue_info = self.messages
+									.get_mut(&queue_identifier)
+									.expect("Queue should exist.");
+
+								let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
+
+								queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
+							} else {
+								for queue_info in self.messages.values_mut() {
+									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
+									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
 								}
-							};
-							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
-							let json = match serde_json::to_string(&content) {
-								Ok(json) => json,
-								Err(e) => {
-									error!("Could not serialize message: {:?}", e);
-									continue;
-								}
-							};
-							if let Err(e) = self.client.send(json, message.recipient_metadata).await {
-								error!("Could not send message {:?}", e);
-							};
+							}
+						},
+						Some(TransportServiceMessage::Send(message_identifier)) => {
+							let message_by_identifier = self.messages
+								.values()
+								.find_map(|queue_info| {
+									queue_info
+										.messages
+										.values()
+										.find(|m| m.message_identifier == message_identifier)
+								})
+								.cloned();
+							if let Some(message) = message_by_identifier {
+								let message_json = match serde_json::to_string(&message) {
+									Ok(json) => json,
+									Err(e) => {
+										error!("Could not serialize message: {:?}", e);
+										continue;
+									}
+								};
+								println!("Sending message: {:?}", message_json);
+								let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
+								let json = match serde_json::to_string(&content) {
+									Ok(json) => json,
+									Err(e) => {
+										error!("Could not serialize message: {:?}", e);
+										continue;
+									}
+								};
+								if let Err(e) = self.client.send(json, message.recipient_metadata).await {
+									error!("Could not send message {:?}", e);
+								};
+							}
 						},
 						_ => {}
 					}
 				}
 			}
 		}
-	}
-
-	pub async fn process_event(
-		&self,
-		state_manager: Arc<RwLock<StateManager>>,
-		transitioner: Arc<Transitioner>,
-		message_decoder: MessageDecoder,
-		event: &Raw<AnyToDeviceEvent>,
-	) {
-		match event.get_field::<String>("type") {
-			Ok(Some(message_type)) => {
-				let event_body = event.json().get();
-
-				let map: HashMap<String, serde_json::Value> = match serde_json::from_str(event_body)
-				{
-					Ok(map) => map,
-					Err(e) => {
-						error!("Could not parse message {}: {}", message_type, e);
-						return
-					},
-				};
-
-				let content = match map.get("content").map(|obj| obj.get("body")).flatten() {
-					Some(value) => value,
-					None => {
-						error!("Message {} has no body: {:?}", message_type, map);
-						return
-					},
-				};
-
-				let s = content.as_str().unwrap().to_owned();
-				for line in s.lines() {
-					let map: HashMap<String, serde_json::Value> = match serde_json::from_str(&line)
-					{
-						Ok(map) => map,
-						Err(e) => {
-							error!("Cannot parse JSON: {:?}\n{}", e, line);
-							continue
-						},
-					};
-
-					let message_type = match map.get("type").map(|v| v.as_str()).flatten() {
-						Some(message_type) => message_type,
-						None => {
-							error!("Cannot find type field: {}", line);
-							continue
-						},
-					};
-
-					let chain_state = state_manager.read().current_state.clone();
-					let state_changes = match message_decoder
-						.decode(chain_state, line.to_string())
-						.await
-					{
-						Ok(message) => message,
-						Err(e) => {
-							error!("Could not decode message({}): {} {}", message_type, e, line);
-							return
-						},
-					};
-
-					for state_change in state_changes {
-						debug!("Transition state change: {:?}", state_change);
-						transitioner.transition(state_change).await;
-					}
-				}
-			},
-			Ok(None) => {
-				error!("Invalid event. Field 'type' does not exist");
-			},
-			Err(e) => {
-				error!("Invalid event: {:?}", e);
-			},
-		};
 	}
 }

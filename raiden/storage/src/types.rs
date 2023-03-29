@@ -4,6 +4,8 @@ use ulid::Ulid;
 
 use crate::errors::StorageError;
 
+pub type Result<T> = std::result::Result<T, StorageError>;
+
 #[derive(Clone, Copy, Debug)]
 pub struct StorageID {
 	pub(crate) inner: Ulid,
@@ -36,7 +38,7 @@ impl Into<String> for StorageID {
 impl TryFrom<String> for StorageID {
 	type Error = StorageError;
 
-	fn try_from(value: String) -> Result<Self, Self::Error> {
+	fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
 		Ok(Self { inner: Ulid::from_string(&value).map_err(StorageError::ID)? })
 	}
 }

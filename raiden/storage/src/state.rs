@@ -23,10 +23,11 @@ use ulid::Ulid;
 use crate::{
 	errors::StorageError,
 	sqlite,
-	types::StorageID,
+	types::{
+		Result,
+		StorageID,
+	},
 };
-
-pub type Result<T> = std::result::Result<T, StorageError>;
 
 pub struct StateChangeRecord {
 	pub identifier: StorageID,

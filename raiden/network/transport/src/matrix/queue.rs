@@ -9,11 +9,8 @@ use chrono::{
 	Duration,
 };
 use futures::StreamExt;
-use raiden_network_messages::messages::{
-	OutgoingMessage,
-	TransportServiceMessage,
-};
-use raiden_primitives::types::QueueIdentifier;
+use raiden_network_messages::messages::TransportServiceMessage;
+use raiden_primitives::types::MessageIdentifier;
 use serde::{
 	Deserialize,
 	Serialize,
@@ -81,18 +78,21 @@ impl TimeoutGenerator {
 	}
 }
 
+pub(crate) enum QueueOp {
+	Enqueue(MessageIdentifier),
+	Dequeue(MessageIdentifier),
+}
+
 #[derive(Serialize, Deserialize)]
-struct MessageData {
-	pub(self) message: OutgoingMessage,
+struct QueuedMessageData {
+	pub(self) message_identifier: MessageIdentifier,
 	pub(self) timeout_generator: TimeoutGenerator,
 }
 
-type MessageInfo = (QueueIdentifier, OutgoingMessage);
-
-pub struct RetryMessageQueue {
+pub(crate) struct RetryMessageQueue {
 	transport_sender: UnboundedSender<TransportServiceMessage>,
-	queue: Vec<MessageData>,
-	channel_receiver: UnboundedReceiver<MessageInfo>,
+	queue: Vec<QueuedMessageData>,
+	channel_receiver: UnboundedReceiver<QueueOp>,
 	retry_timeout: u8,
 	retry_timeout_max: u8,
 	retry_count: u32,
@@ -102,7 +102,7 @@ impl RetryMessageQueue {
 	pub fn new(
 		transport_sender: UnboundedSender<TransportServiceMessage>,
 		transport_config: TransportConfig,
-	) -> (Self, UnboundedSender<MessageInfo>) {
+	) -> (Self, UnboundedSender<QueueOp>) {
 		let (channel_sender, channel_receiver) = mpsc::unbounded_channel();
 		(
 			Self {
@@ -117,17 +117,22 @@ impl RetryMessageQueue {
 		)
 	}
 
-	pub fn enqueue(&mut self, message: OutgoingMessage) {
-		if self
-			.queue
-			.iter()
-			.any(|m| m.message.message_identifier == message.message_identifier)
-		{
+	fn process_queue_message(&mut self, queue_message: QueueOp) {
+		match queue_message {
+			QueueOp::Enqueue(message_identifier) => {
+				self.enqueue(message_identifier);
+			},
+			QueueOp::Dequeue(message_identifier) => self.dequeue(message_identifier),
+		}
+	}
+
+	fn enqueue(&mut self, message_identifier: MessageIdentifier) {
+		if self.queue.iter().any(|m| m.message_identifier == message_identifier) {
 			return
 		}
 
-		self.queue.push(MessageData {
-			message,
+		self.queue.push(QueuedMessageData {
+			message_identifier,
 			timeout_generator: TimeoutGenerator::new(
 				self.retry_count,
 				self.retry_timeout,
@@ -136,22 +141,29 @@ impl RetryMessageQueue {
 		});
 	}
 
+	fn dequeue(&mut self, message_identifier: MessageIdentifier) {
+		self.queue.retain(|data| data.message_identifier != message_identifier);
+	}
+
 	pub async fn run(mut self) {
 		let delay = IntervalStream::new(interval(StdDuration::from_millis(1000)));
 		tokio::pin!(delay);
 
 		loop {
 			select! {
-				Some((_queue_identifier, message)) = self.channel_receiver.recv() => {
-					self.enqueue(message);
+				Some(queue_message) = self.channel_receiver.recv() => {
+					self.process_queue_message(queue_message);
+					if self.queue.is_empty() {
+						return;
+					}
 				}
 				_ = &mut delay.next() => {
 					if self.queue.is_empty() {
-						continue;
+						return;
 					}
 					for message_data in self.queue.iter_mut().by_ref() {
 						if message_data.timeout_generator.ready() {
-							let _ = self.transport_sender.send(TransportServiceMessage::Send(message_data.message.clone()));
+							let _ = self.transport_sender.send(TransportServiceMessage::Send(message_data.message_identifier));
 						}
 					};
 				}

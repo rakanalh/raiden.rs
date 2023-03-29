@@ -1,6 +1,10 @@
 use std::{
-	collections::BTreeMap,
+	collections::{
+		BTreeMap,
+		HashMap,
+	},
 	fmt::Display,
+	time::Duration,
 };
 
 use matrix_sdk::{
@@ -8,9 +12,9 @@ use matrix_sdk::{
 		RequestConfig,
 		SyncSettings,
 	},
-	deserialized_responses::SyncResponse,
 	ruma::{
 		api::client::to_device::send_event_to_device,
+		events::AnyToDeviceEvent,
 		serde::Raw,
 		to_device::DeviceIdOrAllDevices,
 		OwnedUserId,
@@ -20,12 +24,18 @@ use matrix_sdk::{
 	Error,
 };
 use raiden_blockchain::keys::PrivateKey;
+use raiden_network_messages::messages::IncomingMessage;
 use raiden_primitives::{
 	traits::Stringify,
 	types::AddressMetadata,
 };
 use reqwest::Url;
 use serde::Serialize;
+use serde_json::Value;
+use tracing::{
+	error,
+	info,
+};
 use web3::signing::Key;
 
 use crate::TransportError;
@@ -55,6 +65,7 @@ pub struct MatrixClient {
 	client: Client,
 	private_key: PrivateKey,
 	server_name: String,
+	next_sync_token: String,
 }
 
 impl MatrixClient {
@@ -68,7 +79,19 @@ impl MatrixClient {
 		}
 		let client = Client::new(homeserver_url.clone()).await.unwrap();
 
-		Self { client, private_key, server_name }
+		Self { client, private_key, server_name, next_sync_token: String::new() }
+	}
+
+	pub fn set_sync_token(&mut self, sync_token: String) {
+		self.next_sync_token = sync_token;
+	}
+
+	pub fn get_sync_token(&self) -> String {
+		self.next_sync_token.clone()
+	}
+
+	pub fn private_key(&self) -> PrivateKey {
+		self.private_key.clone()
 	}
 
 	pub async fn init(&self) -> Result<(), TransportError> {
@@ -101,8 +124,29 @@ impl MatrixClient {
 		Ok(())
 	}
 
-	pub async fn sync_once(&self, settings: SyncSettings<'_>) -> Result<SyncResponse, Error> {
-		self.client.sync_once(settings).await
+	pub async fn get_new_messages(&mut self) -> Result<Vec<IncomingMessage>, Error> {
+		let sync_settings = SyncSettings::new()
+			.timeout(Duration::from_secs(30))
+			.token(self.next_sync_token.clone());
+		let response = self.client.sync_once(sync_settings).await?;
+
+		let to_device_events = response.to_device.events;
+		info!("Received {} network messages", to_device_events.len());
+
+		let mut messages = vec![];
+		for to_device_event in to_device_events.iter() {
+			let message = match self.process_event(to_device_event).await {
+				Ok(message) => message,
+				Err(e) => {
+					error!("Could not parse message: {:?}", e);
+					continue
+				},
+			};
+			messages.extend(message);
+		}
+		self.next_sync_token = response.next_batch;
+
+		Ok(messages)
 	}
 
 	pub fn address_metadata(&self) -> AddressMetadata {
@@ -143,5 +187,58 @@ impl MatrixClient {
 			.map_err(TransportError::Send)?;
 
 		Ok(())
+	}
+
+	async fn process_event(
+		&self,
+		event: &Raw<AnyToDeviceEvent>,
+	) -> Result<Vec<IncomingMessage>, String> {
+		let event_body = event.json().get();
+
+		let content: Value = serde_json::from_str(event_body)
+			.and_then(|map: HashMap<String, Value>| {
+				map.get("content")
+					.ok_or(serde::de::Error::custom("Could not find message content"))
+					.cloned()
+			})
+			.and_then(|content| {
+				content
+					.get("body")
+					.ok_or(serde::de::Error::custom("Could not find message body"))
+					.cloned()
+			})
+			.map_err(|e| format!("{:?}", e))?;
+
+		// let map: HashMap<String, serde_json::Value> = match
+		// serde_json::from_str(event_body) {
+		// 	Ok(map) => map,
+		// 	Err(e) => {
+		// 		error!("Could not parse message {}: {}", message_type, e);
+		// 		return
+		// 	},
+		// };
+
+		// let content = match map.get("content").map(|obj| obj.get("body")).flatten() {
+		// 	Some(value) => value,
+		// 	None => {
+		// 		error!("Message {} has no body: {:?}", message_type, map);
+		// 		return
+		// 	},
+		// };
+
+		let mut messages = vec![];
+		let s = content.as_str().unwrap().to_owned();
+		for line in s.lines() {
+			let message: IncomingMessage = match line.to_string().try_into() {
+				Ok(message) => message,
+				Err(e) => {
+					error!("Could not decode message: {} {}", e, line);
+					continue
+				},
+			};
+			messages.push(message);
+		}
+
+		Ok(messages)
 	}
 }
