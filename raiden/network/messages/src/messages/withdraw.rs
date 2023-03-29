@@ -97,10 +97,6 @@ impl SignedMessage for WithdrawRequest {
 		bytes
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
-	}
-
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
@@ -166,10 +162,6 @@ impl SignedMessage for WithdrawConfirmation {
 		bytes.extend_from_slice(&total_withdraw);
 		bytes.extend_from_slice(&expiration);
 		bytes
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -242,10 +234,6 @@ impl SignedMessage for WithdrawExpired {
 		bytes.extend_from_slice(&total_withdraw);
 		bytes.extend_from_slice(&expiration);
 		bytes
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {

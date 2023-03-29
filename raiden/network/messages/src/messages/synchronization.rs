@@ -45,10 +45,6 @@ impl SignedMessage for Processed {
 		bytes
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
-	}
-
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
@@ -72,10 +68,6 @@ impl SignedMessage for Delivered {
 		bytes.extend_from_slice(&[0, 0, 0]);
 		bytes.extend_from_slice(&self.delivered_message_identifier.to_be_bytes());
 		bytes
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {

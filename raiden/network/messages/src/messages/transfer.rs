@@ -107,10 +107,6 @@ impl SignedMessage for SecretRequest {
 		bytes
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
-	}
-
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
@@ -147,10 +143,6 @@ impl SignedMessage for SecretReveal {
 		bytes.extend(message_identifier);
 		bytes.extend(&self.secret.0);
 		bytes
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -218,10 +210,6 @@ impl SignedMessage for LockExpired {
 			MessageTypeId::BalanceProof,
 		)
 		.0
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -302,10 +290,6 @@ impl SignedMessage for Unlock {
 			MessageTypeId::BalanceProof,
 		)
 		.0
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -416,7 +400,14 @@ impl SignedMessage for LockedTransfer {
 		.0
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
+	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
+		self.signature = self.sign_message(key)?.to_bytes().into();
+		Ok(())
+	}
+}
+
+impl SignedEnvelopeMessage for LockedTransfer {
+	fn message_hash(&self) -> H256 {
 		let mut b = vec![];
 
 		let message_identifier = self.message_identifier.to_be_bytes();
@@ -436,21 +427,9 @@ impl SignedMessage for LockedTransfer {
 			b.extend(secrethash.as_bytes());
 		}
 		b.extend(encode(&[Token::Uint(self.lock.amount.into())]));
-		b
-	}
+		b.extend_from_slice(&self.metadata.hash().unwrap_or_default());
 
-	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes().into();
-		Ok(())
-	}
-}
-
-impl SignedEnvelopeMessage for LockedTransfer {
-	fn message_hash(&self) -> H256 {
-		let mut packed_data = self.bytes_to_pack();
-		packed_data.extend_from_slice(&self.metadata.hash().unwrap_or_default());
-
-		H256::from_slice(&keccak256(&packed_data))
+		H256::from_slice(&keccak256(&b))
 	}
 }
 
