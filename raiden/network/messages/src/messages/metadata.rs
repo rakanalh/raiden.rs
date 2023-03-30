@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use raiden_blockchain::secret::encrypt_secret;
 use raiden_primitives::types::{
 	Address,
 	AddressMetadata,
@@ -14,8 +15,6 @@ use serde::{
 	Serialize,
 };
 use web3::signing::keccak256;
-
-use crate::decode::encrypt_secret;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RouteMetadata {

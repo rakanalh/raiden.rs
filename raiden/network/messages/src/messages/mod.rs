@@ -46,7 +46,8 @@ impl Into<[u8; 1]> for CmdId {
 #[derive(Debug)]
 pub enum TransportServiceMessage {
 	Enqueue((QueueIdentifier, OutgoingMessage)),
-	Send(OutgoingMessage),
+	Dequeue((Option<QueueIdentifier>, MessageIdentifier)),
+	Send(MessageIdentifier),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
