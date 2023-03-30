@@ -63,7 +63,6 @@ pub struct MatrixService {
 	config: TransportConfig,
 	client: MatrixClient,
 	matrix_storage: MatrixStorage,
-	message_handler: MessageHandler,
 	our_sender: UnboundedSender<TransportServiceMessage>,
 	queue_receiver: UnboundedReceiverStream<TransportServiceMessage>,
 	messages: HashMap<QueueIdentifier, QueueInfo>,
@@ -75,7 +74,6 @@ impl MatrixService {
 		config: TransportConfig,
 		client: MatrixClient,
 		matrix_storage: MatrixStorage,
-		message_handler: MessageHandler,
 	) -> (Self, UnboundedSender<TransportServiceMessage>) {
 		let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -84,7 +82,6 @@ impl MatrixService {
 				config,
 				client,
 				matrix_storage,
-				message_handler,
 				messages: HashMap::new(),
 				our_sender: sender.clone(),
 				queue_receiver: UnboundedReceiverStream::new(receiver),
@@ -97,13 +94,22 @@ impl MatrixService {
 	pub fn init_from_storage(&mut self) -> Result<(), String> {
 		// Get last sync token
 		let sync_token = self.matrix_storage.get_sync_token().map_err(|e| format!("{:?}", e))?;
-		self.client.set_sync_token(sync_token);
+		if !sync_token.trim().is_empty() {
+			self.client.set_sync_token(sync_token);
+		}
 
 		let messages: HashMap<QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self
 			.matrix_storage
 			.get_messages()
-			.map_err(|e| format!("{:?}", e))
-			.and_then(|data| serde_json::from_str(&data).map_err(|e| format!("{:?}", e)))?;
+			.map_err(|e| format!("Error initializing transport from storage: {:?}", e))
+			.and_then(|data| {
+				if !data.is_empty() {
+					serde_json::from_str(&data)
+						.map_err(|e| format!("Error initializing transport from storage: {:?}", e))
+				} else {
+					Ok(HashMap::new())
+				}
+			})?;
 
 		for (queue_identifier, messages) in messages.iter() {
 			self.ensure_message_queue(queue_identifier.clone(), messages.clone());
@@ -133,7 +139,7 @@ impl MatrixService {
 		}
 	}
 
-	pub async fn run(mut self) {
+	pub async fn run(mut self, message_handler: MessageHandler) {
 		let mut hangup = match signal(SignalKind::interrupt()) {
 			Ok(s) => s,
 			Err(e) => {
@@ -171,7 +177,7 @@ impl MatrixService {
 					};
 
 					for message in messages {
-						let _ = self.message_handler.handle(message).await;
+						let _ = message_handler.handle(message).await;
 					}
 				},
 				message = self.queue_receiver.next() => {

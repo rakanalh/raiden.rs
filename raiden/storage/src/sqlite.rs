@@ -42,15 +42,9 @@ CREATE TABLE IF NOT EXISTS runs (
 ";
 
 pub(super) const DB_CREATE_MATRIX_CONFIG: &str = "
-CREATE TABLE IF NOT EXISTS matrix_config (
-    sync_token TEXT
-);
-INSERT INTO matrix_config(sync_token) VALUES('');
+CREATE TABLE IF NOT EXISTS matrix_config (sync_token TEXT);
 ";
 
 pub(super) const DB_CREATE_MATRIX_MESSAGES: &str = "
-CREATE TABLE IF NOT EXISTS matrix_messages (
-    data JSON,
-);
-INSERT INTO matrix_messages(data) VALUES('');
+CREATE TABLE IF NOT EXISTS matrix_messages (data TEXT);
 ";

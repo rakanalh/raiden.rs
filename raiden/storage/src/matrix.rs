@@ -52,7 +52,11 @@ impl MatrixStorage {
 	}
 
 	pub fn set_sync_token(&self, sync_token: String) -> Result<()> {
-		let sql = format!("UPDATE matrix_config SET sync_token=?1");
+		let sql = if let Err(_) = self.get_messages() {
+			format!("INSERT INTO matrix_config(sync_token) VALUES(?1)")
+		} else {
+			format!("UPDATE matrix_config SET sync_token=?1")
+		};
 		self.conn
 			.lock()
 			.map_err(|_| StorageError::CannotLock)?
@@ -72,7 +76,11 @@ impl MatrixStorage {
 	}
 
 	pub fn store_messages(&self, messages: String) -> Result<()> {
-		let sql = format!("UPDATE matrix_messages SET data=?1");
+		let sql = if let Err(_) = self.get_messages() {
+			format!("INSERT INTO matrix_messages(data) VALUES(?1)")
+		} else {
+			format!("UPDATE matrix_messages SET data=?1")
+		};
 		self.conn
 			.lock()
 			.map_err(|_| StorageError::CannotLock)?

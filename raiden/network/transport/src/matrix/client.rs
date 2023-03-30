@@ -125,9 +125,10 @@ impl MatrixClient {
 	}
 
 	pub async fn get_new_messages(&mut self) -> Result<Vec<IncomingMessage>, Error> {
-		let sync_settings = SyncSettings::new()
-			.timeout(Duration::from_secs(30))
-			.token(self.next_sync_token.clone());
+		let mut sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
+		if !self.next_sync_token.is_empty() {
+			sync_settings = sync_settings.token(self.next_sync_token.clone());
+		}
 		let response = self.client.sync_once(sync_settings).await?;
 
 		let to_device_events = response.to_device.events;
