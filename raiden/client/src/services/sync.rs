@@ -109,7 +109,6 @@ impl SyncService {
 				to_block,
 			);
 
-
 			let logs = match self.raiden.web3.eth().logs((filter).clone()).await {
 				Ok(logs) => logs,
 				Err(e) => {

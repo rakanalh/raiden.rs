@@ -27,7 +27,6 @@ use raiden_client::services::{
 	BlockMonitorService,
 	SyncService,
 };
-use raiden_network_messages::decode::MessageDecoder;
 use raiden_pathfinding::{
 	self,
 	config::PFSConfig,
@@ -36,6 +35,7 @@ use raiden_primitives::types::ChainID;
 use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transition::{
 	events::EventHandler,
+	messages::MessageHandler,
 	Transitioner,
 };
 use structopt::StructOpt;
@@ -164,7 +164,7 @@ async fn main() {
 		},
 	};
 
-	let storage = match init_storage(datadir) {
+	let storage = match init_storage(datadir.clone()) {
 		Ok(storage) => storage,
 		Err(e) => {
 			eprintln!("Error creating contracts manager: {}", e);
@@ -183,7 +183,7 @@ async fn main() {
 		match init_state_manager(contracts_manager.clone(), storage, chain_id, account.clone()) {
 			Ok(result) => result,
 			Err(e) => {
-				eprintln!("{}", e);
+				eprintln!("Error initializing state: {:?}", e);
 				process::exit(1);
 			},
 		};
@@ -223,6 +223,7 @@ async fn main() {
 		cli.matrix_transport_config.retry_count,
 		cli.matrix_transport_config.retry_timeout_max,
 		account.clone(),
+		datadir,
 	)
 	.await
 	{
@@ -255,14 +256,6 @@ async fn main() {
 		},
 	};
 
-	let message_decoder = MessageDecoder {
-		private_key: account.private_key(),
-		our_address: account.address(),
-		proxy_manager: proxy_manager.clone(),
-		secret_registry_address: default_addresses.secret_registry,
-		pathfinding_service_url: cli.services_config.pathfinding_service_address.clone(),
-	};
-
 	// #
 	// # Initialize Raiden
 	// #
@@ -273,7 +266,7 @@ async fn main() {
 		account: account.clone(),
 		metadata: our_metadata,
 		pfs_config: PFSConfig {
-			url: cli.services_config.pathfinding_service_address,
+			url: cli.services_config.pathfinding_service_address.clone(),
 			info: pfs_info,
 			maximum_fee: cli.services_config.pathfinding_max_fee,
 			iou_timeout: cli.services_config.pathfinding_iou_timeout.into(),
@@ -297,7 +290,14 @@ async fn main() {
 		transport_sender.clone(),
 		default_addresses,
 	);
-	let transitioner = Arc::new(Transitioner::new(raiden.state_manager.clone(), event_handler));
+	let transitioner = Arc::new(Transitioner::new(state_manager.clone(), event_handler));
+	let message_handler = MessageHandler::new(
+		account.private_key(),
+		cli.services_config.pathfinding_service_address,
+		transport_sender.clone(),
+		state_manager.clone(),
+		transitioner.clone(),
+	);
 
 	let ws = match WebSocket::new(&eth_rpc_socket_endpoint).await {
 		Ok(ws) => ws,
@@ -344,7 +344,7 @@ async fn main() {
 	};
 	select! {
 		_ = block_monitor_service.start().fuse() => {},
-		_ = transport_service.run(state_manager, transitioner, message_decoder).fuse() => {},
+		_ = transport_service.run(message_handler).fuse() => {},
 		_  = http_service.start().fuse() => {},
 		_ = hangup.recv().fuse() => {
 			println!("Raiden is stopping");

@@ -41,7 +41,10 @@ use raiden_primitives::types::{
 	ChainID,
 	DefaultAddresses,
 };
-use raiden_storage::state::StateStorage;
+use raiden_storage::{
+	matrix::MatrixStorage,
+	state::StateStorage,
+};
 use raiden_transition::manager::StateManager;
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
@@ -102,6 +105,7 @@ pub async fn init_transport(
 	retry_count: u32,
 	retry_timeout_max: u8,
 	account: Account<Http>,
+	storage_path: PathBuf,
 ) -> Result<(MatrixService, UnboundedSender<TransportServiceMessage>, AddressMetadata), String> {
 	let homeserver_url = if homeserver_url == MATRIX_AUTO_SELECT_SERVER {
 		let servers = get_default_matrix_servers(environment_type)
@@ -117,6 +121,14 @@ pub async fn init_transport(
 		retry_count,
 		matrix: MatrixTransportConfig { homeserver_url: homeserver_url.clone() },
 	};
+
+	let conn = Connection::open(storage_path.join("raiden.db"))
+		.map_err(|e| format!("Could not connect to database: {}", e))?;
+	let storage = MatrixStorage::new(conn);
+	storage
+		.setup_database()
+		.map_err(|e| format!("Failed to setup storage: {}", e))?;
+
 	let matrix_client = MatrixClient::new(homeserver_url, account.private_key()).await;
 
 	matrix_client
@@ -126,7 +138,10 @@ pub async fn init_transport(
 
 	let our_metadata = matrix_client.address_metadata();
 
-	let (transport_service, sender) = MatrixService::new(transport_config, matrix_client);
+	let (mut transport_service, sender) =
+		MatrixService::new(transport_config, matrix_client, storage);
+
+	transport_service.init_from_storage()?;
 
 	Ok((transport_service, sender, our_metadata))
 }

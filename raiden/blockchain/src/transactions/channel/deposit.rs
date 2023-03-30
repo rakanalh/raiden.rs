@@ -233,11 +233,10 @@ where
 	async fn submit(
 		&self,
 		params: Self::Params,
-		data: Self::Data,
+		_data: Self::Data,
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let allowance = data.amount_to_deposit + 1;
 		let nonce = self.account.next_nonce().await;
 
 		self.token_network
