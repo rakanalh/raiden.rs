@@ -78,6 +78,7 @@ impl TimeoutGenerator {
 	}
 }
 
+#[derive(Debug)]
 pub(crate) enum QueueOp {
 	Enqueue(MessageIdentifier),
 	Dequeue(MessageIdentifier),
@@ -130,7 +131,6 @@ impl RetryMessageQueue {
 		if self.queue.iter().any(|m| m.message_identifier == message_identifier) {
 			return
 		}
-
 		self.queue.push(QueuedMessageData {
 			message_identifier,
 			timeout_generator: TimeoutGenerator::new(
@@ -154,12 +154,12 @@ impl RetryMessageQueue {
 				Some(queue_message) = self.channel_receiver.recv() => {
 					self.process_queue_message(queue_message);
 					if self.queue.is_empty() {
-						return;
+						continue;
 					}
 				}
 				_ = &mut delay.next() => {
 					if self.queue.is_empty() {
-						return;
+						continue;
 					}
 					for message_data in self.queue.iter_mut().by_ref() {
 						if message_data.timeout_generator.ready() {
