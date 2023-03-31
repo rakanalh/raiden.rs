@@ -76,11 +76,16 @@ pub fn init_state_manager(
 		.get_deployed(contracts::ContractIdentifier::SecretRegistry)
 		.map_err(|e| format!("Could not find secret registry deployment info: {:?}", e))?;
 
+	let service_registry_deployed_contract = contracts_manager
+		.get_deployed(contracts::ContractIdentifier::ServiceRegistry)
+		.map_err(|e| format!("Could not find service registry deployment info: {:?}", e))?;
+
 	let one_to_n_deployed_contract = contracts_manager
 		.get_deployed(contracts::ContractIdentifier::OneToN)
 		.map_err(|e| format!("Could not find OneToN deployment info: {:?}", e))?;
 
 	let default_addresses = DefaultAddresses {
+		service_registry: service_registry_deployed_contract.address,
 		secret_registry: secret_registry_deployed_contract.address,
 		token_network_registry: token_network_registry_deployed_contract.address,
 		one_to_n: one_to_n_deployed_contract.address,
