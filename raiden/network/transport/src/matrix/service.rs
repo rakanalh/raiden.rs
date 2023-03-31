@@ -93,7 +93,7 @@ impl MatrixService {
 
 	pub fn init_from_storage(&mut self) -> Result<(), String> {
 		// Get last sync token
-		let sync_token = self.matrix_storage.get_sync_token().map_err(|e| format!("{:?}", e))?;
+		let sync_token = self.matrix_storage.get_sync_token().unwrap_or(String::new());
 		if !sync_token.trim().is_empty() {
 			self.client.set_sync_token(sync_token);
 		}
@@ -184,21 +184,20 @@ impl MatrixService {
 					match message {
 						Some(TransportServiceMessage::Enqueue((queue_identifier, message))) => {
 							self.ensure_message_queue(queue_identifier.clone(), HashMap::new());
-							let _ = self.messages
-								.get(&queue_identifier)
-								.expect("Queue should have been created before.")
+							let queue = self.messages
+								.get_mut(&queue_identifier)
+								.expect("Queue should have been created before.");
+							let _ = queue
 								.op_sender
 								.send(QueueOp::Enqueue(message.message_identifier));
+							queue.messages.insert(message.message_identifier, message);
 						},
 						Some(TransportServiceMessage::Dequeue((queue_identifier, message_identifier))) => {
 							if let Some(queue_identifier) = queue_identifier {
-								let queue_info = self.messages
-									.get_mut(&queue_identifier)
-									.expect("Queue should exist.");
-
-								let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
-
-								queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
+								if let Some(queue_info) = self.messages.get_mut(&queue_identifier) {
+									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
+									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
+								}
 							} else {
 								for queue_info in self.messages.values_mut() {
 									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
@@ -224,7 +223,6 @@ impl MatrixService {
 										continue;
 									}
 								};
-								println!("Sending message: {:?}", message_json);
 								let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
 								let json = match serde_json::to_string(&content) {
 									Ok(json) => json,
