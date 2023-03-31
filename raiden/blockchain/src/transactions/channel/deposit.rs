@@ -32,6 +32,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ChannelSetTotalDepositTransactionData {
+	pub(crate) current_balance: TokenAmount,
 	pub(crate) channel_identifier: ChannelIdentifier,
 	pub(crate) amount_to_deposit: TokenAmount,
 	pub(crate) channel_onchain_details: ChannelData,
@@ -74,6 +75,9 @@ where
 		params: Self::Params,
 		at_block_hash: BlockHash,
 	) -> Result<Self::Data, ProxyError> {
+		let current_balance =
+			self.token.balance_of(self.account.address(), Some(at_block_hash)).await?;
+
 		let channel_identifier = self
 			.token_network
 			.get_channel_identifier(self.account.address(), params.partner, at_block_hash)
@@ -140,6 +144,7 @@ where
 		let amount_to_deposit = params.total_deposit - our_details.deposit;
 
 		Ok(ChannelSetTotalDepositTransactionData {
+			current_balance,
 			channel_identifier,
 			channel_onchain_details,
 			amount_to_deposit,
@@ -159,6 +164,14 @@ where
 		data: Self::Data,
 		at_block_hash: BlockHash,
 	) -> Result<(), ProxyError> {
+		if data.current_balance < data.amount_to_deposit {
+			return Err(ProxyError::BrokenPrecondition(format!(
+				"new_total_deposit - previous_total_deposit = {} \
+                 cannot be larger than the available balance {}.",
+				data.amount_to_deposit, data.current_balance,
+			)))
+		}
+
 		if data.channel_identifier != params.channel_identifier {
 			return Err(ProxyError::BrokenPrecondition(format!(
 				"There is a channel open between \
@@ -233,10 +246,18 @@ where
 	async fn submit(
 		&self,
 		params: Self::Params,
-		_data: Self::Data,
+		data: Self::Data,
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
+		self.token
+			.approve(
+				self.account.clone(),
+				self.token_network.contract.address(),
+				data.amount_to_deposit,
+			)
+			.await?;
+
 		let nonce = self.account.next_nonce().await;
 
 		self.token_network

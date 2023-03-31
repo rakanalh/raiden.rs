@@ -195,9 +195,6 @@ where
 		total_deposit: TokenAmount,
 		block_hash: BlockHash,
 	) -> Result<()> {
-		self.token_proxy
-			.approve(account.clone(), self.contract.address(), total_deposit)
-			.await?;
 		let set_total_deposit_transaction = ChannelSetTotalDepositTransaction {
 			web3: self.web3.clone(),
 			account: account.clone(),
