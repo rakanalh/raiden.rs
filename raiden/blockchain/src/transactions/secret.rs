@@ -132,7 +132,7 @@ where
 			.await?;
 
 		if secret_registeration_block <= Some(failed_at_blocknumber.into()) {
-			return Err(ProxyError::BrokenPrecondition(format!("Secret was already registered",)))
+			return Err(ProxyError::Recoverable(format!("Secret was already registered",)))
 		}
 
 		return Err(ProxyError::Recoverable(format!("withdraw failed for an unknown reason")))
