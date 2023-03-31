@@ -380,6 +380,12 @@ impl MessageHandler {
 					message_identifier: message.delivered_message_identifier,
 				})])
 			},
+			messages::MessageInner::PFSCapacityUpdate(_) |
+			messages::MessageInner::PFSFeeUpdate(_) => {
+				// We should not receive those messages.
+				// IGNORE
+				Ok(vec![])
+			},
 		}
 	}
 }
