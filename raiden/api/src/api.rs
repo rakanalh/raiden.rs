@@ -461,8 +461,6 @@ impl Api {
 			.await
 			.map_err(ApiError::Proxy)?;
 
-		let deposit_increase = total_deposit - channel_state.our_state.contract_balance;
-
 		let channel_participant_deposit_limit = token_network_proxy
 			.channel_participant_deposit_limit(blockhash)
 			.await
@@ -484,6 +482,14 @@ impl Api {
 			return Err(ApiError::State(format!("Total deposit did not increase.")))
 		}
 
+		if total_deposit < channel_state.our_state.contract_balance {
+			return Err(ApiError::State(format!(
+				"The new total deposit {:?} is less than the current total deposit {:?}",
+				total_deposit, channel_state.our_state.contract_balance,
+			)))
+		}
+
+		let deposit_increase = total_deposit - channel_state.our_state.contract_balance;
 		// If this check succeeds it does not imply the `deposit` will
 		// succeed, since the `deposit` transaction may race with another
 		// transaction.
