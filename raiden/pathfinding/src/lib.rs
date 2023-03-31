@@ -9,6 +9,7 @@ use chrono::{
 };
 use derive_more::Display;
 use raiden_primitives::{
+	serializers::u256_to_str,
 	traits::{
 		Stringify,
 		ToBytes,
@@ -102,6 +103,7 @@ pub enum RoutingError {
 pub struct PFSRequest {
 	from: String,
 	to: String,
+	#[serde(serialize_with = "u256_to_str")]
 	value: TokenAmount,
 	max_paths: usize,
 	iou: Option<IOU>,
@@ -417,7 +419,7 @@ pub async fn get_random_pfs(
 		.ever_made_deposits_len(None)
 		.await
 		.map_err(|e| RoutingError::ServiceRegistry(e))?;
-	let mut indicies_to_try: Vec<u32> = (0..number_of_addresses.as_u32()).collect();
+	let mut indicies_to_try: Vec<u64> = (0..number_of_addresses.as_u64()).collect();
 	indicies_to_try.shuffle(&mut rand::thread_rng());
 
 	while let Some(index) = indicies_to_try.pop() {
@@ -432,7 +434,7 @@ pub async fn get_random_pfs(
 
 async fn get_valid_pfs_url(
 	service_registry: ServiceRegistryProxy<Http>,
-	index_in_service_registry: u32,
+	index_in_service_registry: u64,
 	pathfinding_max_fee: TokenAmount,
 ) -> Result<String, RoutingError> {
 	let address = service_registry

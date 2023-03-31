@@ -18,6 +18,11 @@ pub use chain_id::*;
 mod numeric;
 pub use numeric::*;
 
+use crate::{
+	deserializers::u256_from_str,
+	serializers::u256_to_str,
+};
+
 pub type BalanceProofData = (Locksroot, Nonce, TokenAmount, LockedAmount);
 
 pub type BalanceHash = H256;
@@ -86,6 +91,7 @@ pub type TransactionHash = H256;
 pub struct CanonicalIdentifier {
 	pub chain_identifier: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: ChannelIdentifier,
 }
 
@@ -124,4 +130,5 @@ pub struct DefaultAddresses {
 	pub token_network_registry: Address,
 	pub secret_registry: Address,
 	pub one_to_n: Address,
+	pub service_registry: Address,
 }

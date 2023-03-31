@@ -11,6 +11,7 @@ use raiden_network_messages::{
 		LockedTransfer,
 		MessageInner,
 		OutgoingMessage,
+		PFSCapacityUpdate,
 		Processed,
 		SecretRequest,
 		SecretReveal,
@@ -31,6 +32,8 @@ use raiden_primitives::{
 	},
 	traits::ToBytes,
 	types::{
+		Address,
+		AddressMetadata,
 		BalanceHash,
 		Bytes,
 		DefaultAddresses,
@@ -517,6 +520,14 @@ impl EventHandler {
 				}
 			},
 			Event::PaymentSentSuccess(_) => todo!(),
+			Event::UpdatedServicesAddresses(inner) => {
+				// TODO
+				todo!()
+			},
+			Event::ExpireServicesAddresses(inner) => {
+				// TODO
+				todo!()
+			},
 			Event::PaymentReceivedSuccess(inner) => {
 				event!(
 					Level::INFO,
@@ -591,6 +602,30 @@ impl EventHandler {
 			Event::UnlockClaimSuccess(_) => {},
 			Event::UnlockSuccess(_) => {},
 			Event::UpdatedServicesAddresses(_) => todo!(),
+			Event::SendPFSUpdate(canonical_identifier, update_fee_schedule) => {
+				let chain_state = &self.state_manager.read().current_state;
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					chain_state,
+					canonical_identifier,
+				) {
+					Some(channel_state) => channel_state,
+					None => return,
+				};
+
+				let mut capacity_message: PFSCapacityUpdate = channel_state.clone().into();
+				let _ = capacity_message.sign(private_key);
+				let message = OutgoingMessage {
+					message_identifier: 0,
+					recipient: Address::zero(),
+					recipient_metadata: AddressMetadata {
+						user_id: String::new(),
+						displayname: String::new(),
+						capabilities: String::new(),
+					},
+					inner: MessageInner::PFSCapacityUpdate(capacity_message),
+				};
+				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
+			},
 			Event::ErrorInvalidActionCoopSettle(e) => {
 				error!("{}", e.reason);
 			},
