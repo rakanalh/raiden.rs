@@ -17,11 +17,13 @@ use web3::signing::{
 };
 
 mod metadata;
+mod pathfinding;
 mod synchronization;
 mod transfer;
 mod withdraw;
 
 pub use metadata::*;
+pub use pathfinding::*;
 pub use synchronization::*;
 pub use transfer::*;
 pub use withdraw::*;
@@ -48,6 +50,7 @@ pub enum TransportServiceMessage {
 	Enqueue((QueueIdentifier, OutgoingMessage)),
 	Dequeue((Option<QueueIdentifier>, MessageIdentifier)),
 	Send(MessageIdentifier),
+	Broadcast(OutgoingMessage),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -61,6 +64,8 @@ pub enum MessageInner {
 	WithdrawRequest(WithdrawRequest),
 	WithdrawConfirmation(WithdrawConfirmation),
 	WithdrawExpired(WithdrawExpired),
+	PFSCapacityUpdate(PFSCapacityUpdate),
+	PFSFeeUpdate(PFSFeeUpdate),
 	Processed(Processed),
 	Delivered(Delivered),
 }
