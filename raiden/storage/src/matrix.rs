@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use rusqlite::{
 	params,
 	Connection,
+	Error,
 };
 
 use crate::{
@@ -52,7 +53,7 @@ impl MatrixStorage {
 	}
 
 	pub fn set_sync_token(&self, sync_token: String) -> Result<()> {
-		let sql = if let Err(_) = self.get_messages() {
+		let sql = if let Err(_) = self.get_sync_token() {
 			format!("INSERT INTO matrix_config(sync_token) VALUES(?1)")
 		} else {
 			format!("UPDATE matrix_config SET sync_token=?1")
@@ -71,7 +72,15 @@ impl MatrixStorage {
 			.prepare("SELECT data FROM matrix_messages")
 			.map_err(|e| StorageError::Sql(e))?;
 
-		let messages: String = stmt.query_row([], |r| r.get(0)).map_err(StorageError::Sql)?;
+		let messages: String = match stmt.query_row([], |r| r.get(0)) {
+			Ok(messages) => messages,
+			Err(e) =>
+				if let Error::QueryReturnedNoRows = e {
+					return Ok(String::new())
+				} else {
+					return Err(StorageError::Sql(e))
+				},
+		};
 		Ok(messages)
 	}
 
