@@ -21,6 +21,7 @@ use raiden_primitives::types::{
 	TokenAmount,
 	TokenNetworkRegistryAddress,
 	TransactionHash,
+	U256,
 };
 use serde::{
 	Deserialize,
@@ -360,5 +361,5 @@ pub struct ReceiveProcessed {
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct UpdateServicesAddresses {
 	pub service: Address,
-	pub valid_till: BlockNumber,
+	pub valid_till: U256,
 }

@@ -293,6 +293,7 @@ async fn main() {
 	});
 
 	let event_handler = EventHandler::new(
+		raiden.web3.clone(),
 		account.clone(),
 		state_manager.clone(),
 		proxy_manager.clone(),

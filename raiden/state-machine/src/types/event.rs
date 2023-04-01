@@ -19,6 +19,7 @@ use raiden_primitives::types::{
 	TokenAmount,
 	TokenNetworkAddress,
 	TokenNetworkRegistryAddress,
+	U256,
 };
 use serde::{
 	Deserialize,
@@ -450,5 +451,5 @@ pub struct ErrorUnexpectedReveal {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct UpdatedServicesAddresses {
 	pub service_address: Address,
-	pub validity: BlockNumber,
+	pub validity: U256,
 }

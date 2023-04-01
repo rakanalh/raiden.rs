@@ -40,6 +40,7 @@ use raiden_primitives::{
 		Address,
 		AddressMetadata,
 		BalanceHash,
+		BlockId,
 		Bytes,
 		DefaultAddresses,
 		MessageHash,
@@ -65,12 +66,15 @@ use tracing::{
 use web3::{
 	signing::Key,
 	transports::Http,
+	types::BlockNumber,
+	Web3,
 };
 
 use crate::manager::StateManager;
 
 #[derive(Clone)]
 pub struct EventHandler {
+	web3: Web3<Http>,
 	account: Account<Http>,
 	state_manager: Arc<RwLock<StateManager>>,
 	proxy_manager: Arc<ProxyManager>,
@@ -80,13 +84,14 @@ pub struct EventHandler {
 
 impl EventHandler {
 	pub fn new(
+		web3: Web3<Http>,
 		account: Account<Http>,
 		state_manager: Arc<RwLock<StateManager>>,
 		proxy_manager: Arc<ProxyManager>,
 		transport: UnboundedSender<TransportServiceMessage>,
 		default_addresses: DefaultAddresses,
 	) -> Self {
-		Self { account, state_manager, proxy_manager, transport, default_addresses }
+		Self { web3, account, state_manager, proxy_manager, transport, default_addresses }
 	}
 
 	pub async fn handle_event(&self, event: Event) {
@@ -541,12 +546,20 @@ impl EventHandler {
 				// Do Nothing
 			},
 			Event::UpdatedServicesAddresses(inner) => {
-				// TODO
-				todo!()
+				let _ = self.transport.send(TransportServiceMessage::UpdateServiceAddresses(
+					inner.service_address,
+					inner.validity,
+				));
 			},
 			Event::ExpireServicesAddresses(inner) => {
-				// TODO
-				todo!()
+				if let Ok(Some(block)) =
+					self.web3.eth().block(BlockId::Number(BlockNumber::Latest)).await
+				{
+					let _ = self.transport.send(TransportServiceMessage::ExpireServiceAddresses(
+						block.timestamp,
+						block.number.expect("Block number should be set").into(),
+					));
+				}
 			},
 			Event::PaymentReceivedSuccess(inner) => {
 				event!(
@@ -619,7 +632,6 @@ impl EventHandler {
 					.transport
 					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
 			},
-			Event::UpdatedServicesAddresses(_) => todo!(),
 			Event::SendPFSUpdate(canonical_identifier, update_fee_schedule) => {
 				let chain_state = &self.state_manager.read().current_state;
 				let channel_state = match views::get_channel_by_canonical_identifier(

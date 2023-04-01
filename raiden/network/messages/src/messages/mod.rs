@@ -2,9 +2,11 @@ use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::{
 	Address,
 	AddressMetadata,
+	BlockNumber,
 	MessageIdentifier,
 	QueueIdentifier,
 	H256,
+	U256,
 };
 use serde::{
 	Deserialize,
@@ -53,6 +55,8 @@ pub enum TransportServiceMessage {
 	Dequeue((Option<QueueIdentifier>, MessageIdentifier)),
 	Send(MessageIdentifier),
 	Broadcast(OutgoingMessage),
+	UpdateServiceAddresses(Address, U256),
+	ExpireServiceAddresses(U256, BlockNumber),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
