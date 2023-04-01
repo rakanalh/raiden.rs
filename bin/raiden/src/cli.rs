@@ -110,7 +110,7 @@ pub struct CliServicesConfig {
 	pub pathfinding_service_random_address: bool,
 	#[structopt(long, required = false, default_value = "")]
 	pub pathfinding_service_address: String,
-	#[structopt(long, required = false, default_value = "0")]
+	#[structopt(long, required = false, default_value = "1")]
 	pub pathfinding_max_paths: usize,
 	#[structopt(long, required = false, default_value = "0")]
 	pub pathfinding_max_fee: TokenAmount,
