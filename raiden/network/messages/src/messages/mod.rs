@@ -17,12 +17,14 @@ use web3::signing::{
 };
 
 mod metadata;
+mod monitoring_service;
 mod pathfinding;
 mod synchronization;
 mod transfer;
 mod withdraw;
 
 pub use metadata::*;
+pub use monitoring_service::*;
 pub use pathfinding::*;
 pub use synchronization::*;
 pub use transfer::*;

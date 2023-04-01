@@ -385,7 +385,7 @@ impl SignedMessage for LockedTransfer {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
 			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
-				.unwrap();
+				.expect("Balance hash should be generated");
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,

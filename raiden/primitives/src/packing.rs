@@ -12,11 +12,13 @@ use crate::types::{
 	BlockExpiration,
 	Bytes,
 	CanonicalIdentifier,
+	ChainID,
 	MessageHash,
 	MessageTypeId,
 	Nonce,
 	Signature,
 	TokenAmount,
+	TokenNetworkAddress,
 };
 
 pub fn pack_balance_proof(
@@ -71,6 +73,27 @@ pub fn pack_withdraw(
 		Token::Uint(total_withdraw),
 		Token::Uint(expiration_block.into()),
 	]));
+
+	Bytes(b)
+}
+
+pub fn pack_reward_proof(
+	monitoring_service_contract_address: Address,
+	chain_id: ChainID,
+	token_network_address: TokenNetworkAddress,
+	non_closing_participant: Address,
+	non_closing_signature: Signature,
+	reward_amount: TokenAmount,
+) -> Bytes {
+	let mut b = vec![];
+
+	b.extend(monitoring_service_contract_address.as_bytes());
+	b.extend(encode(&[Token::Uint(chain_id.into())]));
+	b.extend(encode(&[Token::Uint(U256::from(MessageTypeId::MSReward as u8))]));
+	b.extend(token_network_address.as_bytes());
+	b.extend(non_closing_participant.as_bytes());
+	b.extend(non_closing_signature.0);
+	b.extend(encode(&[Token::Uint(reward_amount)]));
 
 	Bytes(b)
 }
