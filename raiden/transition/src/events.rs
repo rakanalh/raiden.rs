@@ -520,7 +520,21 @@ impl EventHandler {
 					);
 				}
 			},
-			Event::PaymentSentSuccess(_) => todo!(),
+			Event::PaymentSentSuccess(inner) => {
+				event!(
+					Level::INFO,
+					reason = "Payment Sent",
+					to = format!("{:?}", inner.target),
+					amount = format!("{}", inner.amount),
+				);
+			},
+			Event::UnlockClaimSuccess(inner) => {
+				// TODO
+				todo!()
+			},
+			Event::UnlockSuccess(_) => {
+				// Do Nothing
+			},
 			Event::UpdatedServicesAddresses(inner) => {
 				// TODO
 				todo!()
@@ -600,8 +614,6 @@ impl EventHandler {
 					.transport
 					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
 			},
-			Event::UnlockClaimSuccess(_) => {},
-			Event::UnlockSuccess(_) => {},
 			Event::UpdatedServicesAddresses(_) => todo!(),
 			Event::SendPFSUpdate(canonical_identifier, update_fee_schedule) => {
 				let chain_state = &self.state_manager.read().current_state;
