@@ -634,11 +634,7 @@ impl EventHandler {
 				let message = OutgoingMessage {
 					message_identifier: 0,
 					recipient: Address::zero(),
-					recipient_metadata: AddressMetadata {
-						user_id: String::new(),
-						displayname: String::new(),
-						capabilities: String::new(),
-					},
+					recipient_metadata: AddressMetadata::default(),
 					inner: MessageInner::PFSCapacityUpdate(capacity_message),
 				};
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
@@ -652,11 +648,7 @@ impl EventHandler {
 				let message = OutgoingMessage {
 					message_identifier: 0,
 					recipient: Address::zero(),
-					recipient_metadata: AddressMetadata {
-						user_id: String::new(),
-						displayname: String::new(),
-						capabilities: String::new(),
-					},
+					recipient_metadata: AddressMetadata::default(),
 					inner: MessageInner::PFSFeeUpdate(fee_message),
 				};
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));

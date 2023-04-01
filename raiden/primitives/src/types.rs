@@ -118,7 +118,7 @@ impl Into<[u8; 1]> for MessageTypeId {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AddressMetadata {
 	pub user_id: String,
 	pub displayname: String,
