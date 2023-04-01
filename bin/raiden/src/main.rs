@@ -285,7 +285,7 @@ async fn main() {
 	};
 	let raiden = Arc::new(Raiden {
 		web3,
-		config,
+		config: config.clone(),
 		contracts_manager,
 		proxy_manager: proxy_manager.clone(),
 		state_manager: state_manager.clone(),
@@ -297,9 +297,9 @@ async fn main() {
 		state_manager.clone(),
 		proxy_manager.clone(),
 		transport_sender.clone(),
-		default_addresses,
+		default_addresses.clone(),
 	);
-	let transitioner = Arc::new(Transitioner::new(state_manager.clone(), event_handler));
+	let transitioner = Arc::new(Transitioner::new(state_manager.clone(), event_handler.clone()));
 	let message_handler = MessageHandler::new(
 		account.private_key(),
 		cli.services_config.pathfinding_service_address,
@@ -315,6 +315,14 @@ async fn main() {
 			process::exit(1);
 		},
 	};
+
+	init_channel_fees(
+		state_manager,
+		event_handler,
+		default_addresses.token_network_registry,
+		config.mediation_config.clone(),
+	)
+	.await;
 
 	let mut sync_service = SyncService::new(raiden.clone(), transitioner.clone());
 	let latest_block_number = raiden.web3.eth().block_number().await.unwrap();

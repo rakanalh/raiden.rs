@@ -37,16 +37,30 @@ use raiden_pathfinding::config::{
 	ServicesConfig,
 };
 use raiden_primitives::types::{
+	Address,
 	AddressMetadata,
 	BlockNumber,
 	ChainID,
 	DefaultAddresses,
 };
+use raiden_state_machine::{
+	machine::channel::calculate_imbalance_fees,
+	types::{
+		ChannelStatus,
+		Event,
+		FeeScheduleState,
+		MediationFeeConfig,
+	},
+	views,
+};
 use raiden_storage::{
 	matrix::MatrixStorage,
 	state::StateStorage,
 };
-use raiden_transition::manager::StateManager;
+use raiden_transition::{
+	events::EventHandler,
+	manager::StateManager,
+};
 use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;
@@ -102,6 +116,57 @@ pub fn init_state_manager(
 	.map_err(|e| format!("Failed to initialize state: {}", e))?;
 
 	Ok((Arc::new(SyncRwLock::new(state_manager)), block_number, default_addresses))
+}
+
+pub async fn init_channel_fees(
+	state_manager: Arc<SyncRwLock<StateManager>>,
+	event_handler: EventHandler,
+	registry_address: Address,
+	mut fee_config: MediationFeeConfig,
+) {
+	let mut chain_state = state_manager.read().current_state.clone();
+	let token_addresses = views::get_token_identifiers(&chain_state, registry_address);
+	let token_network_registry =
+		match chain_state.identifiers_to_tokennetworkregistries.get_mut(&registry_address) {
+			Some(tnr) => tnr,
+			None => return,
+		};
+
+	for token_address in token_addresses {
+		let token_network = match token_network_registry
+			.tokennetworkaddresses_to_tokennetworks
+			.values_mut()
+			.find(|tn| tn.token_address == token_address)
+		{
+			Some(tn) => tn,
+			None => continue,
+		};
+
+		for channel in token_network.channelidentifiers_to_channels.values_mut() {
+			if channel.status() != ChannelStatus::Opened {
+				continue
+			}
+
+			let flat_fee = fee_config.get_flat_fee(&channel.token_address);
+			let proportional_fee = fee_config.get_proportional_fee(&channel.token_address);
+			let propertional_imbalance_fee =
+				fee_config.get_proportional_imbalance_fee(&channel.token_address);
+			let imbalance_penalty =
+				calculate_imbalance_fees(channel.capacity(), propertional_imbalance_fee);
+			channel.fee_schedule = FeeScheduleState {
+				cap_fees: fee_config.cap_meditation_fees,
+				flat: flat_fee,
+				proportional: proportional_fee,
+				imbalance_penalty,
+			};
+
+			event_handler
+				.handle_event(Event::SendPFSUpdate(channel.canonical_identifier.clone(), true))
+				.await;
+		}
+	}
+
+	state_manager.write().current_state = chain_state.clone();
 }
 
 pub async fn init_transport(
