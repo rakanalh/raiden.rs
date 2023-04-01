@@ -4,6 +4,7 @@ use std::{
 };
 
 use raiden_primitives::types::{
+	DefaultAddresses,
 	H160,
 	H256,
 	U64,
@@ -20,6 +21,7 @@ use super::contracts::{
 };
 
 pub fn filters_from_chain_state(
+	default_addresses: DefaultAddresses,
 	contracts_manager: Arc<ContractsManager>,
 	chain_state: ChainState,
 	from_block: U64,
@@ -30,21 +32,24 @@ pub fn filters_from_chain_state(
 		.clone()
 		.flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values());
 
-	let _channels =
-		token_networks.clone().flat_map(|tn| tn.channelidentifiers_to_channels.values());
-
-	let tnr_contract: ethabi::Contract = contracts_manager
+	let token_network_registry_contract: ethabi::Contract = contracts_manager
 		.get(ContractIdentifier::TokenNetworkRegistry)
 		.try_into()
 		.unwrap();
-	let tn_contract: ethabi::Contract =
+	let token_network_contract: ethabi::Contract =
+		contracts_manager.get(ContractIdentifier::TokenNetwork).try_into().unwrap();
+
+	let service_registry_contract: ethabi::Contract =
 		contracts_manager.get(ContractIdentifier::TokenNetwork).try_into().unwrap();
 
 	let mut addresses: Vec<H160> = token_network_registries.map(|t| t.address).collect();
 	addresses.extend(token_networks.map(|tn| tn.address));
+	addresses.push(default_addresses.service_registry);
 
-	let mut topics: Vec<H256> = tnr_contract.events().map(|e| e.signature()).collect();
-	topics.extend(tn_contract.events().map(|e| e.signature()));
+	let mut topics: Vec<H256> =
+		token_network_registry_contract.events().map(|e| e.signature()).collect();
+	topics.extend(token_network_contract.events().map(|e| e.signature()));
+	topics.extend(service_registry_contract.events().map(|e| e.signature()));
 
 	FilterBuilder::default()
 		.address(addresses)

@@ -103,6 +103,7 @@ impl SyncService {
 
 			let mut current_state = self.raiden.state_manager.read().current_state.clone();
 			let filter = filters_from_chain_state(
+				self.raiden.config.addresses.clone(),
 				self.raiden.contracts_manager.clone(),
 				current_state.clone(),
 				from_block,
