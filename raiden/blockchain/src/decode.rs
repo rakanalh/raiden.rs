@@ -72,7 +72,7 @@ impl EventDecoder {
 			// "ChannelUnlocked" => self.channel_unlocked(chain_state, event, storage).await,
 			"NonClosingBalanceProofUpdated" =>
 				self.channel_non_closing_balance_proof_updated(chain_state, event),
-			"RegisteredService" => self.registered_service(chain_state, event).await,
+			"RegisteredService" => self.registered_service(chain_state, event),
 			_ => Err(DecodeError(format!("Event {} unknown", event.name))),
 		}
 	}
@@ -110,7 +110,7 @@ impl EventDecoder {
 
 	fn registered_service(
 		&self,
-		chain_state: &ChainState,
+		_chain_state: &ChainState,
 		event: Event,
 	) -> Result<Option<StateChange>> {
 		let service_address = match event.data.get("service_address") {
@@ -121,15 +121,18 @@ impl EventDecoder {
 					event.name,
 				))),
 		};
-		let valid_till = match event.data.get("valid_till") {
-			Some(Token::Uint(valid_till)) => valid_till.clone(),
+		let valid_till: u64 = match event.data.get("valid_till") {
+			Some(Token::Uint(valid_till)) => valid_till.clone().as_u64(),
 			_ =>
 				return Err(DecodeError(format!(
 					"{} event has an invalid `valid_till` block",
 					event.name,
 				))),
 		};
-		Ok(Some(UpdateServicesAddresses { service: service_address, valid_til }))
+		Ok(Some(
+			UpdateServicesAddresses { service: service_address, valid_till: valid_till.into() }
+				.into(),
+		))
 	}
 
 	fn channel_opened(

@@ -980,7 +980,7 @@ fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<Toke
 }
 
 #[allow(dead_code)]
-fn calculate_imbalance_fees(
+pub fn calculate_imbalance_fees(
 	channel_capacity: TokenAmount,
 	proportional_imbalance_fee: TokenAmount,
 ) -> Option<Vec<(TokenAmount, FeeAmount)>> {
@@ -1002,7 +1002,6 @@ fn calculate_imbalance_fees(
 	}
 
 	let max_imbalance_fee = max_imbalance_fee / TokenAmount::from(1_000_000);
-	// assert proportional_imbalance_fee / 1e6 <= maximum_slope / 2, "Too high imbalance fee"
 
 	// calculate function parameters
 	let s = maximum_slope;
@@ -1025,7 +1024,7 @@ fn calculate_imbalance_fees(
 #[allow(dead_code)]
 fn update_fee_schedule_after_balance_change(
 	channel_state: &mut ChannelState,
-	fee_config: MediationFeeConfig,
+	fee_config: &mut MediationFeeConfig,
 ) {
 	let proportional_imbalance_fee =
 		fee_config.get_proportional_imbalance_fee(&channel_state.token_address);

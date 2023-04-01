@@ -360,5 +360,5 @@ pub struct ReceiveProcessed {
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct UpdateServicesAddresses {
 	pub service: Address,
-	pub valid_til: u32,
+	pub valid_till: BlockNumber,
 }

@@ -449,5 +449,5 @@ pub struct ErrorUnexpectedReveal {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, IntoEvent)]
 pub struct UpdatedServicesAddresses {
 	pub service_address: Address,
-	pub validity: u32,
+	pub validity: BlockNumber,
 }

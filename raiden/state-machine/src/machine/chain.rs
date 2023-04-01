@@ -718,7 +718,7 @@ fn handle_update_services_addresses(
 ) -> TransitionResult {
 	let event = UpdatedServicesAddresses {
 		service_address: state_change.service,
-		validity: state_change.valid_til,
+		validity: state_change.valid_till,
 	};
 	Ok(ChainTransition { new_state: chain_state, events: vec![event.into()] })
 }
