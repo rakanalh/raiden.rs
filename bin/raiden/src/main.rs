@@ -213,9 +213,25 @@ async fn main() {
 		cap_meditation_fees: cli.mediation_fees.cap_mediation_fees,
 	};
 
+	let proxy_manager = match ProxyManager::new(web3.clone(), contracts_manager.clone()) {
+		Ok(pm) => Arc::new(pm),
+		Err(e) => {
+			eprintln!("Failed to initialize proxy manager: {}", e);
+			process::exit(1);
+		},
+	};
+
 	// #
 	// # Initialize transport
 	// #
+	let services_registry_proxy =
+		match proxy_manager.service_registry(default_addresses.service_registry).await {
+			Ok(proxy) => proxy,
+			Err(e) => {
+				eprintln!("Could not instantiate services registry: {:?}", e);
+				process::exit(1);
+			},
+		};
 	let (transport_service, transport_sender, our_metadata) = match init_transport(
 		cli.environment_type.into(),
 		cli.matrix_transport_config.matrix_server,
@@ -224,20 +240,13 @@ async fn main() {
 		cli.matrix_transport_config.retry_timeout_max,
 		account.clone(),
 		datadir,
+		services_registry_proxy,
 	)
 	.await
 	{
 		Ok(result) => result,
 		Err(e) => {
 			eprintln!("{}", e);
-			process::exit(1);
-		},
-	};
-
-	let proxy_manager = match ProxyManager::new(web3.clone(), contracts_manager.clone()) {
-		Ok(pm) => Arc::new(pm),
-		Err(e) => {
-			eprintln!("Failed to initialize proxy manager: {}", e);
 			process::exit(1);
 		},
 	};

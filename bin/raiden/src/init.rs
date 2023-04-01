@@ -12,6 +12,7 @@ use raiden_blockchain::{
 	proxies::{
 		Account,
 		ProxyManager,
+		ServiceRegistryProxy,
 	},
 };
 use raiden_network_messages::messages::TransportServiceMessage;
@@ -111,6 +112,7 @@ pub async fn init_transport(
 	retry_timeout_max: u8,
 	account: Account<Http>,
 	storage_path: PathBuf,
+	service_registry_proxy: ServiceRegistryProxy<Http>,
 ) -> Result<(MatrixService, UnboundedSender<TransportServiceMessage>, AddressMetadata), String> {
 	let homeserver_url = if homeserver_url == MATRIX_AUTO_SELECT_SERVER {
 		let servers = get_default_matrix_servers(environment_type)
@@ -134,7 +136,8 @@ pub async fn init_transport(
 		.setup_database()
 		.map_err(|e| format!("Failed to setup storage: {}", e))?;
 
-	let matrix_client = MatrixClient::new(homeserver_url, account.private_key()).await;
+	let mut matrix_client = MatrixClient::new(homeserver_url, account.private_key()).await;
+	let _ = matrix_client.populate_services_addresses(service_registry_proxy).await;
 
 	matrix_client
 		.init()
