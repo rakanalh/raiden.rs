@@ -100,7 +100,7 @@ pub struct RequestMonitoring {
 }
 
 impl RequestMonitoring {
-	fn from_balance_proof(
+	pub fn from_balance_proof(
 		balance_proof: BalanceProofState,
 		non_closing_participant: Address,
 		reward_amount: TokenAmount,

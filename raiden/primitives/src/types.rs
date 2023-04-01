@@ -131,4 +131,5 @@ pub struct DefaultAddresses {
 	pub secret_registry: Address,
 	pub one_to_n: Address,
 	pub service_registry: Address,
+	pub monitoring_service: Address,
 }

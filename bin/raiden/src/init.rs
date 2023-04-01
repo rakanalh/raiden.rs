@@ -95,6 +95,10 @@ pub fn init_state_manager(
 		.get_deployed(contracts::ContractIdentifier::ServiceRegistry)
 		.map_err(|e| format!("Could not find service registry deployment info: {:?}", e))?;
 
+	let monitoring_service_deployed_contract = contracts_manager
+		.get_deployed(contracts::ContractIdentifier::MonitoringService)
+		.map_err(|e| format!("Could not find monitoring service deployment info: {:?}", e))?;
+
 	let one_to_n_deployed_contract = contracts_manager
 		.get_deployed(contracts::ContractIdentifier::OneToN)
 		.map_err(|e| format!("Could not find OneToN deployment info: {:?}", e))?;
@@ -104,6 +108,7 @@ pub fn init_state_manager(
 		secret_registry: secret_registry_deployed_contract.address,
 		token_network_registry: token_network_registry_deployed_contract.address,
 		one_to_n: one_to_n_deployed_contract.address,
+		monitoring_service: monitoring_service_deployed_contract.address,
 	};
 
 	let (state_manager, block_number) = StateManager::restore_or_init_state(

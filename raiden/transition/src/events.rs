@@ -14,6 +14,7 @@ use raiden_network_messages::{
 		PFSCapacityUpdate,
 		PFSFeeUpdate,
 		Processed,
+		RequestMonitoring,
 		SecretRequest,
 		SecretReveal,
 		SignedMessage,
@@ -26,7 +27,10 @@ use raiden_network_messages::{
 	to_message,
 };
 use raiden_primitives::{
-	constants::LOCKSROOT_OF_NO_LOCKS,
+	constants::{
+		LOCKSROOT_OF_NO_LOCKS,
+		MONITORING_REWARD,
+	},
 	packing::{
 		pack_balance_proof_message,
 		pack_withdraw,
@@ -654,6 +658,26 @@ impl EventHandler {
 						capabilities: String::new(),
 					},
 					inner: MessageInner::PFSFeeUpdate(fee_message),
+				};
+				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
+			},
+			Event::SendMSUpdate(balance_proof) => {
+				let mut monitoring_message = RequestMonitoring::from_balance_proof(
+					balance_proof,
+					self.account.address(),
+					*MONITORING_REWARD,
+					self.default_addresses.monitoring_service,
+				);
+				let _ = monitoring_message.sign(private_key);
+				let message = OutgoingMessage {
+					message_identifier: 0,
+					recipient: Address::zero(),
+					recipient_metadata: AddressMetadata {
+						user_id: String::new(),
+						displayname: String::new(),
+						capabilities: String::new(),
+					},
+					inner: MessageInner::MSUpdate(monitoring_message),
 				};
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 			},

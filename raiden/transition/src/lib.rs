@@ -110,7 +110,7 @@ impl Transitioner {
 		}
 
 		if let Some(balance_proof) = balance_proof {
-			self.update_monitoring_service(balance_proof);
+			self.update_monitoring_service(balance_proof).await;
 		}
 
 		for canonical_identifier in pfs_capacity_updates {
@@ -122,7 +122,8 @@ impl Transitioner {
 		}
 	}
 
-	fn update_monitoring_service(&self, balance_proof: BalanceProofState) {
+	async fn update_monitoring_service(&self, balance_proof: BalanceProofState) {
+		self.event_handler.handle_event(Event::SendMSUpdate(balance_proof)).await;
 	}
 
 	async fn send_pfs_update(

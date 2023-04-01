@@ -260,6 +260,16 @@ impl MatrixService {
 									};
 									(message_json, "PATH_FINDING")
 								},
+								messages::MessageInner::MSUpdate(inner) => {
+									let message_json = match serde_json::to_string(&inner) {
+										Ok(json) => json,
+										Err(e) => {
+											error!("Could not serialize message: {:?}", e);
+											continue;
+										}
+									};
+									(message_json, "MONITORING")
+								},
 								_ => {
 									// No other messages should be broadcasted
 									return

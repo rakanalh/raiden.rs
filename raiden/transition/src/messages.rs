@@ -381,7 +381,8 @@ impl MessageHandler {
 				})])
 			},
 			messages::MessageInner::PFSCapacityUpdate(_) |
-			messages::MessageInner::PFSFeeUpdate(_) => {
+			messages::MessageInner::PFSFeeUpdate(_) |
+			messages::MessageInner::MSUpdate(_) => {
 				// We should not receive those messages.
 				// IGNORE
 				Ok(vec![])

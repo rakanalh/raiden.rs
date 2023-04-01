@@ -50,6 +50,7 @@ pub enum Event {
 	SendSecretReveal(SendSecretReveal),
 	SendUnlock(SendUnlock),
 	SendPFSUpdate(CanonicalIdentifier, bool),
+	SendMSUpdate(BalanceProofState),
 	SendProcessed(SendProcessed),
 	UnlockSuccess(UnlockSuccess),
 	UnlockClaimSuccess(UnlockClaimSuccess),

@@ -68,6 +68,7 @@ pub enum MessageInner {
 	WithdrawExpired(WithdrawExpired),
 	PFSCapacityUpdate(PFSCapacityUpdate),
 	PFSFeeUpdate(PFSFeeUpdate),
+	MSUpdate(RequestMonitoring),
 	Processed(Processed),
 	Delivered(Delivered),
 }
