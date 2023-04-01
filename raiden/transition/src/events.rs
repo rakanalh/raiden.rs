@@ -69,6 +69,7 @@ use web3::{
 
 use crate::manager::StateManager;
 
+#[derive(Clone)]
 pub struct EventHandler {
 	account: Account<Http>,
 	state_manager: Arc<RwLock<StateManager>>,
