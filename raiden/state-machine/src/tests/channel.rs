@@ -5,7 +5,12 @@ use std::ops::{
 
 use raiden_primitives::types::{
 	Address,
-	Bytes,
+	BalanceHash,
+	CanonicalIdentifier,
+	Locksroot,
+	MessageHash,
+	Nonce,
+	TokenAmount,
 	TransactionHash,
 	H256,
 	U256,
@@ -24,7 +29,6 @@ use crate::{
 		ActionChannelWithdraw,
 		BalanceProofState,
 		Block,
-		CanonicalIdentifier,
 		ContractReceiveChannelBatchUnlock,
 		ContractReceiveChannelClosed,
 		ContractReceiveChannelDeposit,
@@ -273,13 +277,13 @@ fn test_channel_closed() {
 	);
 
 	let balance_proof_state = BalanceProofState {
-		nonce: U256::from(1u64),
-		transferred_amount: U256::zero(),
-		locked_amount: U256::zero(),
-		locksroot: Bytes::default(),
+		nonce: Nonce::from(1u64),
+		transferred_amount: TokenAmount::zero(),
+		locked_amount: TokenAmount::zero(),
+		locksroot: Locksroot::default(),
 		canonical_identifier: canonical_identifier.clone(),
-		balance_hash: H256::zero(),
-		message_hash: Some(H256::zero()),
+		balance_hash: BalanceHash::zero(),
+		message_hash: Some(MessageHash::zero()),
 		signature: None,
 		sender: Some(Address::zero()),
 	};
@@ -490,15 +494,15 @@ fn test_channel_settled() {
 	);
 
 	let block_hash = H256::random();
-	let our_locksroot = Bytes(vec![1u8; 32]);
+	let our_locksroot = Locksroot::from_slice(&vec![1u8; 32]);
 
 	let state_change = ContractReceiveChannelSettled {
 		transaction_hash: Some(H256::random()),
 		block_number: U64::from(1u64),
 		block_hash,
 		canonical_identifier: canonical_identifier.clone(),
-		our_onchain_locksroot: Bytes::default(),
-		partner_onchain_locksroot: Bytes::default(),
+		our_onchain_locksroot: Locksroot::default(),
+		partner_onchain_locksroot: Locksroot::default(),
 	};
 	let result = chain::state_transition(chain_state.clone(), state_change.into())
 		.expect("Channel settled should succeed");
@@ -512,7 +516,7 @@ fn test_channel_settled() {
 		block_hash,
 		canonical_identifier: canonical_identifier.clone(),
 		our_onchain_locksroot: our_locksroot.clone(),
-		partner_onchain_locksroot: Bytes::default(),
+		partner_onchain_locksroot: Locksroot::default(),
 	};
 	let result = chain::state_transition(chain_state.clone(), state_change.into())
 		.expect("Channel settled should succeed");
@@ -583,7 +587,7 @@ fn test_channel_batch_unlock() {
 		canonical_identifier: canonical_identifier.clone(),
 		receiver: channel_state.our_state.address,
 		sender: channel_state.partner_state.address,
-		locksroot: Bytes::default(),
+		locksroot: Locksroot::default(),
 		unlocked_amount: U256::from(100u64),
 		returned_tokens: U256::zero(),
 		transaction_hash: Some(TransactionHash::zero()),

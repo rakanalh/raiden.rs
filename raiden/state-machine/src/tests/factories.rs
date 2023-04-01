@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use raiden_primitives::types::{
 	Address,
+	CanonicalIdentifier,
 	ChainID,
 	TokenAddress,
 	TokenNetworkAddress,
@@ -18,7 +19,6 @@ use crate::{
 	},
 	machine::chain,
 	types::{
-		CanonicalIdentifier,
 		ChainState,
 		ChannelEndState,
 		ChannelState,
