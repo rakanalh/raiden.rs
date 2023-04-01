@@ -23,11 +23,18 @@ use matrix_sdk::{
 	Client,
 	Error,
 };
-use raiden_blockchain::keys::PrivateKey;
+use raiden_blockchain::{
+	keys::PrivateKey,
+	proxies::ServiceRegistryProxy,
+};
 use raiden_network_messages::messages::IncomingMessage;
 use raiden_primitives::{
 	traits::Stringify,
-	types::AddressMetadata,
+	types::{
+		Address,
+		AddressMetadata,
+		BlockNumber,
+	},
 };
 use reqwest::Url;
 use serde::Serialize;
@@ -36,7 +43,10 @@ use tracing::{
 	error,
 	info,
 };
-use web3::signing::Key;
+use web3::{
+	signing::Key,
+	transports::Http,
+};
 
 use crate::TransportError;
 
@@ -66,6 +76,7 @@ pub struct MatrixClient {
 	private_key: PrivateKey,
 	server_name: String,
 	next_sync_token: String,
+	services_addresses: HashMap<Address, BlockNumber>,
 }
 
 impl MatrixClient {
@@ -79,7 +90,13 @@ impl MatrixClient {
 		}
 		let client = Client::new(homeserver_url.clone()).await.unwrap();
 
-		Self { client, private_key, server_name, next_sync_token: String::new() }
+		Self {
+			client,
+			private_key,
+			server_name,
+			next_sync_token: String::new(),
+			services_addresses: HashMap::new(),
+		}
 	}
 
 	pub fn set_sync_token(&mut self, sync_token: String) {
@@ -124,6 +141,36 @@ impl MatrixClient {
 		Ok(())
 	}
 
+	pub async fn populate_services_addresses(
+		&mut self,
+		service_registry_proxy: ServiceRegistryProxy<Http>,
+	) {
+		let services_len = match service_registry_proxy.ever_made_deposits_len(None).await {
+			Ok(length) => length.as_u64(),
+			Err(e) => {
+				error!("Could not populate services addresses: {:?}", e);
+				return
+			},
+		};
+		for i in 0..services_len {
+			if let Ok(address) = service_registry_proxy.ever_made_deposits(i, None).await {
+				if let Ok(has_valid_registration) =
+					service_registry_proxy.has_valid_registration(address, None).await
+				{
+					if !has_valid_registration {
+						continue
+					}
+
+					if let Ok(validity) =
+						service_registry_proxy.service_valid_til(address, None).await
+					{
+						self.services_addresses.insert(address, validity.as_u64().into());
+					}
+				}
+			}
+		}
+	}
+
 	pub async fn get_new_messages(&mut self) -> Result<Vec<IncomingMessage>, Error> {
 		let mut sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
 		if !self.next_sync_token.is_empty() {
@@ -151,10 +198,13 @@ impl MatrixClient {
 	}
 
 	pub fn address_metadata(&self) -> AddressMetadata {
-		let user_id =
-			format!("@0x{}:{}", hex::encode(self.private_key.address()), self.server_name);
+		let user_id = self.make_user_id(&self.private_key.address());
 		let displayname = self.private_key.sign_message(user_id.as_bytes()).unwrap().as_string();
 		AddressMetadata { user_id, displayname, capabilities: "".to_owned() }
+	}
+
+	pub fn make_user_id(&self, address: &Address) -> String {
+		format!("@0x{}:{}", hex::encode(address), self.server_name)
 	}
 
 	pub async fn send(
@@ -186,6 +236,47 @@ impl MatrixClient {
 			.send(request, Some(RequestConfig::default()))
 			.await
 			.map_err(TransportError::Send)?;
+
+		Ok(())
+	}
+
+	pub async fn broadcast(
+		&self,
+		data: String,
+		device_id: DeviceIdOrAllDevices,
+	) -> Result<(), TransportError> {
+		let user_ids: Vec<String> = self
+			.services_addresses
+			.keys()
+			.map(|address| self.make_user_id(address))
+			.collect();
+
+		let data = match Raw::from_json_string(data) {
+			Ok(d) => d,
+			Err(e) => return Err(TransportError::Other(format!("{:?}", e))),
+		};
+
+		let mut messages = BTreeMap::new();
+		messages.insert(device_id, data);
+		for user_id in user_ids {
+			let user_id: OwnedUserId = user_id
+				.as_str()
+				.try_into()
+				.map_err(|e| TransportError::Other(format!("{:?}", e)))?;
+			let mut destination = BTreeMap::new();
+			destination.insert(user_id, messages.clone());
+
+			let transaction_id = TransactionId::new();
+			let request = send_event_to_device::v3::Request::new_raw(
+				"m.room.message",
+				&transaction_id,
+				destination,
+			);
+			self.client
+				.send(request, Some(RequestConfig::default()))
+				.await
+				.map_err(TransportError::Send)?;
+		}
 
 		Ok(())
 	}

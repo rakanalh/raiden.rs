@@ -16,9 +16,10 @@ canonical_json = { version = "0.5.0" }
 chrono = { version = "0.4.24", default-features = false, features = [ "serde" ] }
 derive_more = { version = "0.99.11", default-features = false }
 hex = { version = "0.4.3" }
-thiserror = { version = "1.0", default-features = false }
 serde = { version = "1.0.136", default-features = false, features = [ "derive" ] }
+serde-rlp = "0.1.4"
 serde_json = { version = "1.0.59", default-features = false }
+thiserror = { version = "1.0", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
 
 # Raiden

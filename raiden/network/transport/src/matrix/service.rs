@@ -9,7 +9,9 @@ use futures::{
 	FutureExt,
 	StreamExt,
 };
+use matrix_sdk::ruma::to_device::DeviceIdOrAllDevices;
 use raiden_network_messages::messages::{
+	self,
 	OutgoingMessage,
 	TransportServiceMessage,
 };
@@ -236,6 +238,46 @@ impl MatrixService {
 								};
 							}
 						},
+						Some(TransportServiceMessage::Broadcast(message)) => {
+							let (message_json, device_id) = match message.inner {
+								messages::MessageInner::PFSCapacityUpdate(inner) => {
+									let message_json = match serde_json::to_string(&inner) {
+										Ok(json) => json,
+										Err(e) => {
+											error!("Could not serialize message: {:?}", e);
+											continue;
+										}
+									};
+									(message_json, "PATH_FINDING")
+								},
+								messages::MessageInner::PFSFeeUpdate(inner) => {
+									let message_json = match serde_json::to_string(&inner) {
+										Ok(json) => json,
+										Err(e) => {
+											error!("Could not serialize message: {:?}", e);
+											continue;
+										}
+									};
+									(message_json, "PATH_FINDING")
+								},
+								_ => {
+									// No other messages should be broadcasted
+									return
+								}
+							};
+
+							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
+							let json = match serde_json::to_string(&content) {
+								Ok(json) => json,
+								Err(e) => {
+									error!("Could not serialize message: {:?}", e);
+									continue;
+								}
+							};
+							if let Err(e) = self.client.broadcast(json, DeviceIdOrAllDevices::DeviceId(device_id.into())).await {
+								error!("Could not broadcast message {:?}", e);
+							};
+						}
 						_ => {}
 					}
 				}

@@ -1,4 +1,7 @@
-use chrono::NaiveDateTime;
+use chrono::{
+	NaiveDateTime,
+	Utc,
+};
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	serializers::u256_to_str,
@@ -23,6 +26,7 @@ use serde::{
 	Deserialize,
 	Serialize,
 };
+use serde_rlp::ser::to_bytes as rlp_to_bytes;
 use web3::signing::SigningError;
 
 use super::SignedMessage;
@@ -114,4 +118,57 @@ pub struct PFSFeeUpdate {
 	pub fee_schedule: FeeScheduleState,
 	pub timestamp: NaiveDateTime,
 	pub signature: Signature,
+}
+
+impl From<ChannelState> for PFSFeeUpdate {
+	fn from(channel: ChannelState) -> Self {
+		Self {
+			canonical_identifier: channel.canonical_identifier,
+			updating_participant: channel.our_state.address,
+			fee_schedule: channel.fee_schedule,
+			timestamp: Utc::now().naive_local(),
+			signature: Signature::default(),
+		}
+	}
+}
+
+impl SignedMessage for PFSFeeUpdate {
+	fn bytes_to_sign(&self) -> Vec<u8> {
+		let chain_id: Vec<u8> = self.canonical_identifier.chain_identifier.into();
+
+		let mut channel_identifier = [0u8; 32];
+		self.canonical_identifier
+			.channel_identifier
+			.to_big_endian(&mut channel_identifier);
+
+		let imbalance_penalty =
+			if let Some(imbalance_penalty) = &self.fee_schedule.imbalance_penalty {
+				let imbalance_penalty: Vec<_> =
+					imbalance_penalty.iter().map(|(a, b)| (a.as_u128(), b.as_u128())).collect();
+				rlp_to_bytes(&imbalance_penalty).expect("Should be able to serialize")
+			} else {
+				rlp_to_bytes(&0u128).unwrap()
+			};
+
+		let mut bytes = vec![];
+		bytes.extend_from_slice(&chain_id);
+		bytes.extend_from_slice(self.canonical_identifier.token_network_address.as_bytes());
+		bytes.extend_from_slice(&channel_identifier);
+		bytes.extend_from_slice(self.updating_participant.as_bytes());
+		bytes.push(self.fee_schedule.cap_fees as u8);
+		bytes.extend_from_slice(&self.fee_schedule.flat.to_bytes());
+		bytes.extend_from_slice(&self.fee_schedule.proportional.to_bytes());
+		bytes.extend_from_slice(&imbalance_penalty);
+		bytes.extend_from_slice(
+			&serde_json::to_string(&self.timestamp)
+				.expect("Serialize date/time should work")
+				.into_bytes(),
+		);
+		bytes
+	}
+
+	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
+		self.signature = self.sign_message(key)?.to_bytes().into();
+		Ok(())
+	}
 }
