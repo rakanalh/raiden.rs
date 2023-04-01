@@ -12,6 +12,7 @@ use raiden_network_messages::{
 		MessageInner,
 		OutgoingMessage,
 		PFSCapacityUpdate,
+		PFSFeeUpdate,
 		Processed,
 		SecretRequest,
 		SecretReveal,
@@ -613,7 +614,7 @@ impl EventHandler {
 				};
 
 				let mut capacity_message: PFSCapacityUpdate = channel_state.clone().into();
-				let _ = capacity_message.sign(private_key);
+				let _ = capacity_message.sign(private_key.clone());
 				let message = OutgoingMessage {
 					message_identifier: 0,
 					recipient: Address::zero(),
@@ -623,6 +624,24 @@ impl EventHandler {
 						capabilities: String::new(),
 					},
 					inner: MessageInner::PFSCapacityUpdate(capacity_message),
+				};
+				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
+
+				if !update_fee_schedule {
+					return
+				}
+
+				let mut fee_message: PFSFeeUpdate = channel_state.clone().into();
+				let _ = fee_message.sign(private_key);
+				let message = OutgoingMessage {
+					message_identifier: 0,
+					recipient: Address::zero(),
+					recipient_metadata: AddressMetadata {
+						user_id: String::new(),
+						displayname: String::new(),
+						capabilities: String::new(),
+					},
+					inner: MessageInner::PFSFeeUpdate(fee_message),
 				};
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 			},
