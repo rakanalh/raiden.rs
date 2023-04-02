@@ -5,6 +5,7 @@ use std::{
 
 use derive_more::Display;
 use raiden_primitives::{
+	serializers::u256_to_str,
 	traits::ToBytes,
 	types::{
 		Address,
@@ -719,7 +720,9 @@ pub struct CoopSettleState {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct FeeScheduleState {
 	pub cap_fees: bool,
+	#[serde(serialize_with = "u256_to_str")]
 	pub flat: U256,
+	#[serde(serialize_with = "u256_to_str")]
 	pub proportional: U256,
 	pub imbalance_penalty: Option<Vec<(U256, U256)>>,
 	//penalty_func: Option<u64>,

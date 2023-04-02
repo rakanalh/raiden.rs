@@ -32,6 +32,7 @@ use web3::signing::SigningError;
 use super::SignedMessage;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct PFSCapacityUpdate {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub updating_participant: Address,
@@ -112,6 +113,7 @@ impl SignedMessage for PFSCapacityUpdate {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct PFSFeeUpdate {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub updating_participant: Address,
@@ -147,7 +149,7 @@ impl SignedMessage for PFSFeeUpdate {
 					imbalance_penalty.iter().map(|(a, b)| (a.as_u128(), b.as_u128())).collect();
 				rlp_to_bytes(&imbalance_penalty).expect("Should be able to serialize")
 			} else {
-				rlp_to_bytes(&0u128).unwrap()
+				rlp_to_bytes(&0u64).unwrap()
 			};
 
 		let mut bytes = vec![];

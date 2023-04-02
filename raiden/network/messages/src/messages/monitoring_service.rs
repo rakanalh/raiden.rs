@@ -89,6 +89,7 @@ impl SignedMessage for SignedBlindedBalanceProof {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub struct RequestMonitoring {
 	pub balance_proof: SignedBlindedBalanceProof,
 	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
