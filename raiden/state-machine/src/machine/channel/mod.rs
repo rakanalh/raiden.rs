@@ -961,7 +961,6 @@ fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: To
 }
 
 /// Returns a list of numbers from start to stop (inclusive).
-#[allow(dead_code)]
 fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<TokenAmount> {
 	// assert num > 1, "Must generate at least one step"
 	// assert start <= stop, "start must be smaller than stop"
@@ -979,7 +978,6 @@ fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<Toke
 	result
 }
 
-#[allow(dead_code)]
 pub fn calculate_imbalance_fees(
 	channel_capacity: TokenAmount,
 	proportional_imbalance_fee: TokenAmount,
