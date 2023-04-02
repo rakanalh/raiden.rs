@@ -165,11 +165,11 @@ pub fn make_route_state(
 	chain_state: ChainState,
 	token_network_address: TokenNetworkAddress,
 ) -> Option<RouteState> {
-	if route.nodes.len() < 2 {
+	if route.path.len() < 2 {
 		return None
 	}
 
-	let partner_address = route.nodes[1];
+	let partner_address = route.path[1];
 	// Prevent back routing
 	if let Some(previous_address) = previous_address {
 		if partner_address == previous_address {
@@ -191,7 +191,7 @@ pub fn make_route_state(
 	}
 
 	return Some(RouteState {
-		route: route.nodes,
+		route: route.path,
 		address_to_metadata: route.address_metadata,
 		swaps: HashMap::new(),
 		estimated_fee: route.estimated_fee,

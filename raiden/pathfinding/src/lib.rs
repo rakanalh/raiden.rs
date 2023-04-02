@@ -9,6 +9,7 @@ use chrono::{
 };
 use derive_more::Display;
 use raiden_primitives::{
+	deserializers::u256_from_str,
 	serializers::u256_to_str,
 	traits::{
 		Stringify,
@@ -51,7 +52,6 @@ use web3::{
 };
 
 pub mod config;
-pub mod iou;
 pub mod routing;
 pub mod types;
 
@@ -69,8 +69,10 @@ use crate::{
 		PFSInfo,
 		ServicesConfig,
 	},
-	iou::IOU,
-	types::RoutingMode,
+	types::{
+		RoutingMode,
+		IOU,
+	},
 };
 
 const MAX_PATHS_QUERY_ATTEMPT: usize = 2;
@@ -119,8 +121,9 @@ pub struct PFSNetworkInfo {
 
 #[derive(Debug, Deserialize)]
 pub struct PFSPath {
-	pub nodes: Vec<Address>,
+	pub path: Vec<Address>,
 	pub address_metadata: HashMap<Address, AddressMetadata>,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub estimated_fee: TokenAmount,
 }
 
@@ -205,21 +208,22 @@ impl PFS {
 	) -> Result<PFSPathsResponse, RoutingError> {
 		let client = reqwest::Client::new();
 		let token_network_address = token_network_address.to_checksummed();
-		let response: PFSPathsResponse = client
+		let response = client
 			.post(format!("{}/api/v1/{}/paths", &self.pfs_config.url, token_network_address))
 			.json(&payload)
 			.send()
 			.await
 			.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
-			})?
-			.json()
-			.await
-			.map_err(|e| {
-				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?;
 
-		Ok(response)
+		if response.status() == 200 {
+			Ok(response.json().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?)
+		} else {
+			Err(RoutingError::PFServiceRequestFailed(format!("Error")))
+		}
 	}
 
 	pub async fn create_current_iou(
