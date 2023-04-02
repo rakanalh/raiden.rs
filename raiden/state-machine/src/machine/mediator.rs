@@ -123,7 +123,7 @@ pub(super) fn is_safe_to_wait(
 
 /// Return the amount after fees are taken.
 fn get_amount_without_fees(
-	_amount_with_fees: TokenAmount,
+	amount_with_fees: TokenAmount,
 	channel_in: &ChannelState,
 	channel_out: &ChannelState,
 ) -> Result<Option<TokenAmount>, String> {
@@ -141,7 +141,6 @@ fn get_amount_without_fees(
 	// TODO
 	// let fee_func = FeeScheduleState::mediation_fee_func()?;
 	// let amount_with_fees = find_intersection();
-	let amount_with_fees = TokenAmount::zero();
 
 	Ok(Some(amount_with_fees))
 }
