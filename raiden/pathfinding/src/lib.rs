@@ -26,7 +26,6 @@ use raiden_primitives::{
 		OneToNAddress,
 		TokenAmount,
 		TokenNetworkAddress,
-		TokenNetworkRegistryAddress,
 	},
 };
 use rand::prelude::SliceRandom;
@@ -109,14 +108,6 @@ pub struct PFSRequest {
 	value: TokenAmount,
 	max_paths: usize,
 	iou: Option<IOU>,
-}
-
-#[derive(Deserialize)]
-pub struct PFSNetworkInfo {
-	chain_id: ChainID,
-	token_network_registry_address: TokenNetworkRegistryAddress,
-	user_deposit_address: Address,
-	confirmed_block_number: BlockNumber,
 }
 
 #[derive(Debug, Deserialize)]
