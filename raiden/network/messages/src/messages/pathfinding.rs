@@ -13,6 +13,7 @@ use raiden_primitives::{
 		RevealTimeout,
 		Signature,
 		TokenAmount,
+		U256,
 	},
 };
 use raiden_state_machine::{
@@ -73,18 +74,15 @@ impl From<ChannelState> for PFSCapacityUpdate {
 
 impl SignedMessage for PFSCapacityUpdate {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let chain_id: Vec<u8> = self.canonical_identifier.chain_identifier.into();
+		let chain_id: U256 = self.canonical_identifier.chain_identifier.into();
 
 		let mut channel_identifier = [0u8; 32];
 		self.canonical_identifier
 			.channel_identifier
 			.to_big_endian(&mut channel_identifier);
 
-		let mut updating_nonce = [0u8; 32];
-		self.updating_nonce.to_big_endian(&mut updating_nonce);
-
-		let mut other_nonce = [0u8; 32];
-		self.other_nonce.to_big_endian(&mut other_nonce);
+		let updating_nonce = self.updating_nonce.as_u64().to_be_bytes();
+		let other_nonce = self.other_nonce.as_u64().to_be_bytes();
 
 		let mut updating_capacity = [0u8; 32];
 		self.updating_capacity.to_big_endian(&mut updating_capacity);
@@ -92,8 +90,10 @@ impl SignedMessage for PFSCapacityUpdate {
 		let mut other_capacity = [0u8; 32];
 		self.other_capacity.to_big_endian(&mut other_capacity);
 
+		let reveal_timeout: U256 = self.reveal_timeout.into();
+
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&chain_id);
+		bytes.extend_from_slice(&chain_id.to_bytes());
 		bytes.extend_from_slice(self.canonical_identifier.token_network_address.as_bytes());
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.updating_participant.as_bytes());
@@ -102,7 +102,8 @@ impl SignedMessage for PFSCapacityUpdate {
 		bytes.extend_from_slice(&other_nonce);
 		bytes.extend_from_slice(&updating_capacity);
 		bytes.extend_from_slice(&other_capacity);
-		bytes.extend_from_slice(&self.reveal_timeout.as_bytes());
+		bytes.extend_from_slice(&reveal_timeout.to_bytes());
+
 		bytes
 	}
 
@@ -136,8 +137,7 @@ impl From<ChannelState> for PFSFeeUpdate {
 
 impl SignedMessage for PFSFeeUpdate {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let chain_id: Vec<u8> = self.canonical_identifier.chain_identifier.into();
-
+		let chain_id: U256 = self.canonical_identifier.chain_identifier.into();
 		let mut channel_identifier = [0u8; 32];
 		self.canonical_identifier
 			.channel_identifier
@@ -152,8 +152,11 @@ impl SignedMessage for PFSFeeUpdate {
 				rlp_to_bytes(&0u64).unwrap()
 			};
 
+		let mut timestamp = self.timestamp.to_string();
+		let timestamp: String = timestamp.drain(0..timestamp.len() - 2).collect();
+
 		let mut bytes = vec![];
-		bytes.extend_from_slice(&chain_id);
+		bytes.extend_from_slice(&chain_id.to_bytes());
 		bytes.extend_from_slice(self.canonical_identifier.token_network_address.as_bytes());
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.updating_participant.as_bytes());
@@ -161,11 +164,7 @@ impl SignedMessage for PFSFeeUpdate {
 		bytes.extend_from_slice(&self.fee_schedule.flat.to_bytes());
 		bytes.extend_from_slice(&self.fee_schedule.proportional.to_bytes());
 		bytes.extend_from_slice(&imbalance_penalty);
-		bytes.extend_from_slice(
-			&serde_json::to_string(&self.timestamp)
-				.expect("Serialize date/time should work")
-				.into_bytes(),
-		);
+		bytes.extend_from_slice(&timestamp.into_bytes());
 		bytes
 	}
 
