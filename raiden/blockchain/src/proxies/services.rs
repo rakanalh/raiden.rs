@@ -29,7 +29,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	pub async fn ever_made_deposits(&self, index: u64, block: Option<H256>) -> Result<Address> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
-			.query("everMadeDeposits", (index,), None, Options::default(), block)
+			.query("ever_made_deposits", (index,), None, Options::default(), block)
 			.await
 			.map_err(Into::into)
 	}
