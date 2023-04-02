@@ -538,8 +538,7 @@ impl EventHandler {
 				);
 			},
 			Event::UnlockClaimSuccess(inner) => {
-				// TODO
-				todo!()
+				// Do Nothing
 			},
 			Event::UnlockSuccess(_) => {
 				// Do Nothing
