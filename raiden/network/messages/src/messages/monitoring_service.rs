@@ -76,7 +76,7 @@ impl SignedMessage for SignedBlindedBalanceProof {
 				token_network_address: self.token_network_address,
 				channel_identifier: self.channel_identifier,
 			},
-			MessageTypeId::BalanceProof,
+			MessageTypeId::BalanceProofUpdate,
 			self.signature.clone(),
 		)
 		.0
