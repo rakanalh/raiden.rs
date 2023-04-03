@@ -139,6 +139,9 @@ fn subdispatch_to_initiator_transfer(
 				.remove(&initiator_state.transfer.lock.secrethash);
 		},
 	}
+	if let Some(channel_state) = sub_iteration.channel_state {
+		utils::update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
+	}
 
 	Ok(InitiatorManagerTransition {
 		new_state: Some(payment_state),
