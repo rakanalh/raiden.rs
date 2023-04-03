@@ -208,16 +208,19 @@ impl MatrixService {
 							}
 						},
 						Some(TransportServiceMessage::Send(message_identifier)) => {
-							let message_by_identifier = self.messages
+							let messages_by_identifier: Vec<OutgoingMessage> = self.messages
 								.values()
-								.find_map(|queue_info| {
-									queue_info
+								.filter_map(|queue_info| {
+									Some(queue_info
 										.messages
 										.values()
-										.find(|m| m.message_identifier == message_identifier)
+										.filter(|m| m.message_identifier == message_identifier)
+										.cloned()
+										.collect::<Vec<_>>())
 								})
-								.cloned();
-							if let Some(message) = message_by_identifier {
+								.flatten()
+								.collect();
+							for message in messages_by_identifier {
 								let message_json = match serde_json::to_string(&message) {
 									Ok(json) => json,
 									Err(e) => {
