@@ -1009,16 +1009,22 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
 		Some(sender) => views::get_address_metadata(sender, from_transfer.route_states.clone()),
 		None => None,
 	};
-	if let Ok(locked_transfer_event) = channel::handle_receive_locked_transfer(
+	match channel::handle_receive_locked_transfer(
 		&mut payer_channel,
 		from_transfer.clone(),
 		payer_address_metadata,
 	) {
-		utils::update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
-		events.push(locked_transfer_event);
-	} else {
-		return Ok(MediatorTransition { new_state: None, chain_state, events: vec![] })
-	}
+		Ok(locked_transfer_event) => {
+			utils::update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
+			events.push(locked_transfer_event);
+		},
+		Err((error, locked_transfer_error_events)) =>
+			return Ok(MediatorTransition {
+				new_state: None,
+				chain_state,
+				events: locked_transfer_error_events,
+			}),
+	};
 
 	let block_number = chain_state.block_number;
 	let iteration =
