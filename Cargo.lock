@@ -2548,7 +2548,6 @@ dependencies = [
  "raiden-storage",
  "raiden-transition",
  "routerify",
- "rpassword",
  "rusqlite",
  "serde",
  "serde_json",
@@ -2571,7 +2570,6 @@ dependencies = [
  "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
- "raiden-storage",
  "raiden-transition",
  "rand 0.8.5",
  "thiserror",
@@ -2604,7 +2602,6 @@ dependencies = [
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
- "serde",
  "serde_json",
  "thiserror",
  "tokio",
@@ -2621,7 +2618,6 @@ dependencies = [
  "raiden-blockchain",
  "raiden-primitives",
  "raiden-state-machine",
- "raiden-storage",
  "raiden-transition",
  "serde_json",
  "tracing",
@@ -2642,16 +2638,12 @@ version = "0.1.0"
 dependencies = [
  "canonical_json",
  "chrono",
- "derive_more",
- "hex",
  "raiden-blockchain",
- "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
  "serde",
  "serde-rlp",
  "serde_json",
- "thiserror",
  "web3",
 ]
 
@@ -2664,11 +2656,9 @@ dependencies = [
  "futures",
  "hex",
  "matrix-sdk",
- "parking_lot 0.11.2",
  "raiden-blockchain",
  "raiden-network-messages",
  "raiden-primitives",
- "raiden-state-machine",
  "raiden-storage",
  "raiden-transition",
  "reqwest",
@@ -2718,7 +2708,6 @@ name = "raiden-state-machine"
 version = "0.1.0"
 dependencies = [
  "derive_more",
- "ethabi",
  "raiden-macros",
  "raiden-primitives",
  "rand_chacha 0.3.1",
@@ -2730,14 +2719,10 @@ dependencies = [
 name = "raiden-storage"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "derive_more",
- "futures",
- "parking_lot 0.11.2",
  "raiden-primitives",
  "raiden-state-machine",
  "rusqlite",
- "serde",
  "serde_json",
  "ulid",
 ]
@@ -2746,9 +2731,6 @@ dependencies = [
 name = "raiden-transition"
 version = "0.1.0"
 dependencies = [
- "async-trait",
- "derive_more",
- "futures",
  "parking_lot 0.11.2",
  "raiden-blockchain",
  "raiden-network-messages",
@@ -2756,10 +2738,6 @@ dependencies = [
  "raiden-primitives",
  "raiden-state-machine",
  "raiden-storage",
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror",
  "tokio",
  "tracing",
  "web3",
@@ -3734,7 +3712,6 @@ version = "0.0.1"
 dependencies = [
  "raiden-bin-common",
  "raiden-blockchain",
- "raiden-client",
  "raiden-primitives",
  "rpassword",
  "structopt",

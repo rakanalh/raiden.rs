@@ -17,7 +17,6 @@ chrono = { version = "0.4.19", default-features = false, features = [ "clock" ] 
 futures = { version = "0.3.21", default-features = false }
 hex = { version = "0.4.3" }
 matrix-sdk = { version = "0.6.1", default-features = false, features = ["native-tls", "e2e-encryption"] }
-parking_lot = { version = "0.11.2", default-features = false }
 thiserror = { version = "1.0", default-features = false }
 reqwest = { version = "0.11.4", default-features = false, features = ["json"] }
 serde = { version = "1.0.136", default-features = false, features = [ "derive" ] }
@@ -31,6 +30,5 @@ web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
 raiden-blockchain = { path = "../../blockchain" }
 raiden-primitives = { path = "../../primitives" }
 raiden-network-messages = { path = "../../network/messages" }
-raiden-state-machine = { path = "../../state-machine" }
 raiden-storage = { path = "../../storage" }
 raiden-transition = { path = "../../transition" }
