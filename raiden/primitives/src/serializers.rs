@@ -3,9 +3,12 @@ use serde::{
 	Serializer,
 };
 
-use crate::types::{
-	ChainID,
-	U64,
+use crate::{
+	traits::ToChecksummed,
+	types::{
+		ChainID,
+		U64,
+	},
 };
 
 impl Serialize for ChainID {
@@ -18,6 +21,15 @@ impl Serialize for ChainID {
 	}
 }
 
+impl Serialize for U64 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_str(&self.to_string())
+	}
+}
+
 pub fn u256_to_str<T, S>(v: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
 	T: ToString,
@@ -26,11 +38,10 @@ where
 	serializer.serialize_str(&v.to_string())
 }
 
-impl Serialize for U64 {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: Serializer,
-	{
-		serializer.serialize_str(&self.to_string())
-	}
+pub fn to_checksummed_str<T, S>(v: &T, serializer: S) -> Result<S::Ok, S::Error>
+where
+	T: ToChecksummed,
+	S: Serializer,
+{
+	serializer.serialize_str(&v.to_checksummed())
 }
