@@ -124,6 +124,12 @@ pub struct PFSPathsResponse {
 	result: Vec<PFSPath>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct PFSErrorResponse {
+	#[serde(rename = "errors")]
+	msg: String,
+}
+
 pub struct PFS {
 	chain_id: ChainID,
 	pfs_config: PFSConfig,
@@ -213,7 +219,10 @@ impl PFS {
 				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?)
 		} else {
-			Err(RoutingError::PFServiceRequestFailed(format!("Error")))
+			let error_response: PFSErrorResponse = response.json().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?;
+			Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
 		}
 	}
 
