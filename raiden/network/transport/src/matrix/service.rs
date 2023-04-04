@@ -23,10 +23,6 @@ use raiden_storage::matrix::MatrixStorage;
 use raiden_transition::messages::MessageHandler;
 use tokio::{
 	select,
-	signal::unix::{
-		signal,
-		SignalKind,
-	},
 	sync::mpsc::{
 		self,
 		UnboundedSender,
@@ -142,34 +138,13 @@ impl MatrixService {
 	}
 
 	pub async fn run(mut self, message_handler: MessageHandler) {
-		let mut hangup = match signal(SignalKind::interrupt()) {
-			Ok(s) => s,
-			Err(e) => {
-				eprintln!("Could not instantiate listener for hangup signal: {:?}", e);
-				return
-			},
-		};
 		loop {
 			select! {
-				_ = hangup.recv().fuse() => {
-					let messages: HashMap<QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self.messages.into_iter().map(|(queue_identifier, queue_info)| (queue_identifier, queue_info.messages)).collect();
-					let messages_data = match serde_json::to_string(&messages) {
-						Ok(data) => data,
-						Err(e) => {
-							error!("Could not serialize messages for storage: {:?}", e);
-							return
-						}
-					};
+				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
+				messages = self.client.get_new_messages().fuse() => {
 					if let Err(e) = self.matrix_storage.set_sync_token(self.client.get_sync_token()) {
 						error!("Could not store matrix sync token: {:?}", e);
 					}
-					if let Err(e) = self.matrix_storage.store_messages(messages_data) {
-						error!("Could not store matrix messages: {:?}", e);
-					}
-					return
-				},
-				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
-				messages = self.client.get_new_messages().fuse() => {
 					let messages = match messages {
 						Ok(messages) => messages,
 						Err(e) => {
@@ -193,6 +168,7 @@ impl MatrixService {
 								.op_sender
 								.send(QueueOp::Enqueue(message.message_identifier));
 							queue.messages.insert(message.message_identifier, message);
+							self.store_messages();
 						},
 						Some(TransportServiceMessage::Dequeue((queue_identifier, message_identifier))) => {
 							if let Some(queue_identifier) = queue_identifier {
@@ -206,6 +182,7 @@ impl MatrixService {
 									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
 								}
 							}
+							self.store_messages();
 						},
 						Some(TransportServiceMessage::Send(message_identifier)) => {
 							let messages_by_identifier: Vec<OutgoingMessage> = self.messages
@@ -295,6 +272,24 @@ impl MatrixService {
 					}
 				}
 			}
+		}
+	}
+
+	fn store_messages(&self) {
+		let messages: HashMap<&QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self
+			.messages
+			.iter()
+			.map(|(queue_identifier, queue_info)| (queue_identifier, queue_info.messages.clone()))
+			.collect();
+		let messages_data = match serde_json::to_string(&messages) {
+			Ok(data) => data,
+			Err(e) => {
+				error!("Could not serialize messages for storage: {:?}", e);
+				return
+			},
+		};
+		if let Err(e) = self.matrix_storage.store_messages(messages_data) {
+			error!("Could not store messages: {:?}", e);
 		}
 	}
 }
