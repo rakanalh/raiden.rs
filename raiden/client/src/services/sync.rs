@@ -99,7 +99,7 @@ impl SyncService {
 				end_block_number,
 			);
 
-			debug!("Querying from blocks {} to {}", from_block, to_block);
+			debug!("Query chain events {} to {}", from_block, to_block);
 
 			let mut current_state = self.raiden.state_manager.read().current_state.clone();
 			let filter = filters_from_chain_state(
@@ -137,7 +137,9 @@ impl SyncService {
 				match decoder.as_state_change(event.clone(), &current_state.clone(), storage).await
 				{
 					Ok(Some(state_change)) => {
-						self.transition_service.transition(state_change).await;
+						if let Err(e) = self.transition_service.transition(state_change).await {
+							error!("{}", e);
+						}
 					},
 					Err(e) => {
 						warn!(
@@ -164,7 +166,9 @@ impl SyncService {
 				block_hash: block.hash.unwrap(),
 				gas_limit: block.gas_limit,
 			};
-			self.transition_service.transition(block_state_change.into()).await;
+			if let Err(e) = self.transition_service.transition(block_state_change.into()).await {
+				error!("{}", e);
+			}
 
 			from_block = to_block + 1u64.into();
 			self.block_batch_size_adjuster.increase();

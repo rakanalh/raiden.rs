@@ -4,7 +4,10 @@ use futures::StreamExt;
 use raiden_api::raiden::Raiden;
 use raiden_state_machine::types::Block;
 use raiden_transition::Transitioner;
-use tracing::debug;
+use tracing::{
+	debug,
+	error,
+};
 use web3::{
 	transports::WebSocket,
 	Web3,
@@ -35,7 +38,7 @@ impl BlockMonitorService {
 		let mut block_stream = match self.web3.eth_subscribe().subscribe_new_heads().await {
 			Ok(stream) => stream,
 			Err(_) => {
-				println!("Failed to get stream");
+				error!("Failed to get stream");
 				return
 			},
 		};
@@ -57,7 +60,10 @@ impl BlockMonitorService {
 					block_hash,
 					gas_limit: header.gas_limit,
 				};
-				self.transition_service.transition(block_state_change.into()).await;
+				if let Err(e) = self.transition_service.transition(block_state_change.into()).await
+				{
+					error!("{}", e);
+				}
 				self.sync_service.sync(current_block_number, block_number.into()).await;
 			}
 		}

@@ -90,7 +90,7 @@ impl MessageHandler {
 
 		for state_change in state_changes {
 			debug!("Transition state change: {:?}", state_change);
-			self.transition_service.transition(state_change).await;
+			self.transition_service.transition(state_change).await?
 		}
 
 		Ok(())

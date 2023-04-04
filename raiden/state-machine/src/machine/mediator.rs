@@ -1018,7 +1018,7 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
 			utils::update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
 			events.push(locked_transfer_event);
 		},
-		Err((error, locked_transfer_error_events)) =>
+		Err((_error, locked_transfer_error_events)) =>
 			return Ok(MediatorTransition {
 				new_state: None,
 				chain_state,

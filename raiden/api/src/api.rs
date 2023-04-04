@@ -54,7 +54,10 @@ use raiden_state_machine::{
 use raiden_transition::Transitioner;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{
+	error,
+	info,
+};
 use web3::transports::Http;
 
 use crate::{
@@ -259,7 +262,8 @@ impl Api {
 			Some(channel_state) => channel_state,
 			None => return Err(ApiError::State(format!("Channel was not found"))),
 		};
-		self.transition_service
+		if let Err(e) = self
+			.transition_service
 			.transition(
 				ActionChannelSetRevealTimeout {
 					canonical_identifier: channel_state.canonical_identifier.clone(),
@@ -267,7 +271,10 @@ impl Api {
 				}
 				.into(),
 			)
-			.await;
+			.await
+		{
+			return Err(ApiError::State(e))
+		}
 
 		Ok(channel_details)
 	}
@@ -690,7 +697,11 @@ impl Api {
 
 		match action_initiator_init {
 			Ok(action_init_initiator) => {
-				self.transition_service.transition(action_init_initiator.into()).await;
+				if let Err(e) =
+					self.transition_service.transition(action_init_initiator.into()).await
+				{
+					error!("{}", e);
+				}
 			},
 			Err(e) => {
 				self.payments_registry

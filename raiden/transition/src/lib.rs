@@ -7,7 +7,6 @@ use raiden_state_machine::types::{
 	Event,
 	StateChange,
 };
-use tracing::error;
 
 use crate::{
 	events::EventHandler,
@@ -28,21 +27,14 @@ impl Transitioner {
 		Self { state_manager, event_handler }
 	}
 
-	// TODO: Should return Result
-	pub async fn transition(&self, state_change: StateChange) {
-		let transition_result = self.state_manager.write().transition(state_change.clone());
-		match transition_result {
-			Ok(events) => {
-				self.trigger_state_change_effects(state_change, events.clone()).await;
-				for event in events {
-					self.event_handler.handle_event(event).await;
-				}
-			},
-			Err(e) => {
-				// Maybe use an informant service for error logging
-				error!("Error transitioning: {:?}", e);
-			},
+	pub async fn transition(&self, state_change: StateChange) -> Result<(), String> {
+		let events =
+			self.state_manager.write().transition(state_change.clone()).map_err(|e| e.msg)?;
+		self.trigger_state_change_effects(state_change, events.clone()).await;
+		for event in events {
+			self.event_handler.handle_event(event).await;
 		}
+		Ok(())
 	}
 
 	async fn trigger_state_change_effects(&self, state_change: StateChange, events: Vec<Event>) {

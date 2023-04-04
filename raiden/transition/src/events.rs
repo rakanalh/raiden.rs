@@ -549,7 +549,7 @@ impl EventHandler {
 					inner.validity,
 				));
 			},
-			Event::ExpireServicesAddresses(inner) => {
+			Event::ExpireServicesAddresses(_inner) => {
 				if let Ok(Some(block)) =
 					self.web3.eth().block(BlockId::Number(BlockNumber::Latest)).await
 				{
