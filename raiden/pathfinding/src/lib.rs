@@ -1,7 +1,4 @@
-use std::{
-	collections::HashMap,
-	str::FromStr,
-};
+use std::collections::HashMap;
 
 use chrono::Utc;
 use derive_more::Display;
@@ -125,6 +122,11 @@ pub struct PFSPathsResponse {
 pub struct PFSErrorResponse {
 	#[serde(rename = "errors")]
 	msg: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PFSLastIOUResponse {
+	last_iou: IOU,
 }
 
 pub struct PFS {
@@ -274,8 +276,8 @@ impl PFS {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
 			})?;
 
-		let response = if response.status() == 200 {
-			response.json::<HashMap<String, String>>().await.map_err(|e| {
+		let response: PFSLastIOUResponse = if response.status() == 200 {
+			response.json().await.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?
 		} else if response.status() == 404 {
@@ -287,52 +289,14 @@ impl PFS {
 			return Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
 		};
 
-		let sender = Address::from_slice(
-			response.get("sender").ok_or(RoutingError::PFServiceInvalidResponse)?.as_bytes(),
-		);
-		let receiver = Address::from_slice(
-			response
-				.get("receiver")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes(),
-		);
-		let one_to_n_address = Address::from_slice(
-			response
-				.get("one_to_n_address")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes(),
-		);
-		let amount = TokenAmount::from_dec_str(
-			&response.get("amount").ok_or(RoutingError::PFServiceInvalidResponse)?,
-		)
-		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let expiration_block = BlockNumber::from_str(
-			response
-				.get("expiration_block")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_str(),
-		)
-		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let chain_id = ChainID::from_str(
-			response.get("chain_id").ok_or(RoutingError::PFServiceInvalidResponse)?.as_str(),
-		)
-		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let signature = Bytes(
-			response
-				.get("signature")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes()
-				.to_vec(),
-		);
-
 		Ok(Some(IOU {
-			sender,
-			receiver,
-			one_to_n_address,
-			amount,
-			expiration_block,
-			chain_id,
-			signature: Some(signature),
+			sender: response.last_iou.sender,
+			receiver: response.last_iou.receiver,
+			one_to_n_address: response.last_iou.one_to_n_address,
+			amount: response.last_iou.amount,
+			expiration_block: response.last_iou.expiration_block,
+			chain_id: response.last_iou.chain_id,
+			signature: response.last_iou.signature,
 		}))
 	}
 

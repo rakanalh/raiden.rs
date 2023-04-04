@@ -1,5 +1,6 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
+	deserializers::u256_from_str,
 	packing::pack_one_to_n_iou,
 	serializers::{
 		to_checksummed_str,
@@ -38,7 +39,7 @@ pub struct IOU {
 	pub receiver: Address,
 	#[serde(serialize_with = "to_checksummed_str")]
 	pub one_to_n_address: OneToNAddress,
-	#[serde(serialize_with = "u256_to_str")]
+	#[serde(serialize_with = "u256_to_str", deserialize_with = "u256_from_str")]
 	pub amount: TokenAmount,
 	pub expiration_block: BlockExpiration,
 	pub chain_id: ChainID,
