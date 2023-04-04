@@ -1,5 +1,10 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
+	packing::pack_one_to_n_iou,
+	serializers::{
+		to_checksummed_str,
+		u256_to_str,
+	},
 	traits::ToBytes,
 	types::{
 		Address,
@@ -19,8 +24,6 @@ use web3::signing::{
 	Key,
 };
 
-const IOU_MESSAGE_TYPE_ID: u8 = 5;
-
 #[derive(Copy, Clone, PartialEq)]
 pub enum RoutingMode {
 	PFS,
@@ -29,9 +32,13 @@ pub enum RoutingMode {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IOU {
+	#[serde(serialize_with = "to_checksummed_str")]
 	pub sender: Address,
+	#[serde(serialize_with = "to_checksummed_str")]
 	pub receiver: Address,
+	#[serde(serialize_with = "to_checksummed_str")]
 	pub one_to_n_address: OneToNAddress,
+	#[serde(serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub expiration_block: BlockExpiration,
 	pub chain_id: ChainID,
@@ -40,23 +47,15 @@ pub struct IOU {
 
 impl IOU {
 	pub fn sign(&mut self, private_key: PrivateKey) -> Result<(), signing::SigningError> {
-		let mut amount = [];
-		self.amount.to_big_endian(&mut amount);
-		let mut expiration_block = [];
-		self.expiration_block.to_big_endian(&mut expiration_block);
-
-		let chain_id: u64 = self.chain_id.clone().into();
-		let chain_id_bytes: Vec<u8> = self.chain_id.clone().into();
-
-		let mut message = vec![];
-		message.extend_from_slice(self.one_to_n_address.as_bytes());
-		message.extend(chain_id_bytes);
-		message.push(IOU_MESSAGE_TYPE_ID);
-		message.extend_from_slice(self.sender.as_bytes());
-		message.extend_from_slice(self.receiver.as_bytes());
-		message.extend(amount);
-		message.extend(expiration_block);
-		let signature = private_key.sign(&message, Some(chain_id))?;
+		let data = pack_one_to_n_iou(
+			self.one_to_n_address,
+			self.sender,
+			self.receiver,
+			self.amount,
+			self.expiration_block,
+			self.chain_id,
+		);
+		let signature = private_key.sign_message(&data.0)?;
 		self.signature = Some(Bytes(signature.to_bytes()));
 		Ok(())
 	}

@@ -3,10 +3,7 @@ use std::{
 	str::FromStr,
 };
 
-use chrono::{
-	DateTime,
-	Utc,
-};
+use chrono::Utc;
 use derive_more::Display;
 use raiden_primitives::{
 	deserializers::u256_from_str,
@@ -90,7 +87,7 @@ pub enum RoutingError {
 	NoUsableChannels,
 	#[display(fmt = "Malformed matrix server for Pathfinding service")]
 	MalformedMatrixUrl,
-	#[display(fmt = "Failed to sign IOU")]
+	#[display(fmt = "Failed to sign IOU: {:?}", _0)]
 	Signing(SigningError),
 	#[display(fmt = "Service registry error: {}", _0)]
 	ServiceRegistry(ProxyError),
@@ -240,18 +237,23 @@ impl PFS {
 		}
 
 		let latest_iou = self.get_last_iou(token_network_address, our_address).await?;
-
-		self.update_iou(latest_iou, offered_fee, None).await
+		if let Some(latest_iou) = latest_iou {
+			self.update_iou(latest_iou, offered_fee, None).await
+		} else {
+			self.make_iou(our_address, one_to_n_address, block_number, offered_fee).await
+		}
 	}
 
 	pub async fn get_last_iou(
 		&self,
 		token_network_address: TokenNetworkAddress,
 		sender: Address,
-	) -> Result<IOU, RoutingError> {
-		let timestamp = Utc::now();
+	) -> Result<Option<IOU>, RoutingError> {
+		let mut timestamp = Utc::now().naive_local().to_string();
+		let timestamp: String = timestamp.drain(0..timestamp.len() - 2).collect();
+
 		let signature = self
-			.iou_signature_data(sender, self.pfs_config.info.payment_address, timestamp)
+			.iou_signature_data(sender, self.pfs_config.info.payment_address, timestamp.clone())
 			.map_err(RoutingError::Signing)?;
 
 		let client = reqwest::Client::new();
@@ -261,8 +263,8 @@ impl PFS {
 				format!("{}/api/v1/{}/payment/iou", self.pfs_config.url, token_network_address),
 			)
 			.query(&[
-				("sender", sender.to_string()),
-				("receiver", self.pfs_config.info.payment_address.to_string()),
+				("sender", sender.to_checksummed()),
+				("receiver", self.pfs_config.info.payment_address.to_checksummed()),
 				("timestamp", timestamp.to_string()),
 				("signature", signature.as_string()),
 			])
@@ -270,12 +272,20 @@ impl PFS {
 			.await
 			.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
+			})?;
+
+		let response = if response.status() == 200 {
+			response.json::<HashMap<String, String>>().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?
-			.json::<HashMap<String, String>>()
-			.await
-			.map_err(|e| {
+		} else if response.status() == 404 {
+			return Ok(None)
+		} else {
+			let error_response: PFSErrorResponse = response.json().await.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?;
+			return Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
+		};
 
 		let sender = Address::from_slice(
 			response.get("sender").ok_or(RoutingError::PFServiceInvalidResponse)?.as_bytes(),
@@ -315,7 +325,7 @@ impl PFS {
 				.to_vec(),
 		);
 
-		Ok(IOU {
+		Ok(Some(IOU {
 			sender,
 			receiver,
 			one_to_n_address,
@@ -323,7 +333,7 @@ impl PFS {
 			expiration_block,
 			chain_id,
 			signature: Some(signature),
-		})
+		}))
 	}
 
 	pub async fn make_iou(
@@ -366,16 +376,13 @@ impl PFS {
 		&self,
 		sender: Address,
 		receiver: Address,
-		timestamp: DateTime<Utc>,
+		timestamp: String,
 	) -> Result<Bytes, SigningError> {
-		let timestamp = format!("{}", timestamp.format("%+"));
-		let chain_id = self.chain_id.clone().into();
-
 		let mut data = vec![];
 		data.extend_from_slice(sender.as_bytes());
 		data.extend_from_slice(receiver.as_bytes());
 		data.extend_from_slice(timestamp.as_bytes());
-		Ok(Bytes(self.private_key.sign(&data, Some(chain_id))?.to_bytes()))
+		Ok(Bytes(self.private_key.sign_message(&data)?.to_bytes()))
 	}
 }
 
