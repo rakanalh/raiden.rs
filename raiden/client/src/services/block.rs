@@ -4,10 +4,7 @@ use futures::StreamExt;
 use raiden_api::raiden::Raiden;
 use raiden_state_machine::types::Block;
 use raiden_transition::Transitioner;
-use tracing::{
-	debug,
-	error,
-};
+use tracing::error;
 use web3::{
 	transports::WebSocket,
 	Web3,
@@ -52,7 +49,6 @@ impl BlockMonitorService {
 					Some(hash) => hash,
 					None => continue,
 				};
-				debug!("New Block {}", block_number);
 				let current_block_number =
 					self.raiden.state_manager.read().current_state.block_number;
 				let block_state_change = Block {
