@@ -29,7 +29,10 @@ use raiden_client::services::{
 };
 use raiden_pathfinding::{
 	self,
-	config::PFSConfig,
+	config::{
+		PFSConfig,
+		ServicesConfig,
+	},
 };
 use raiden_primitives::types::ChainID;
 use raiden_state_machine::types::MediationFeeConfig;
@@ -251,10 +254,11 @@ async fn main() {
 		},
 	};
 
+	let services_config: ServicesConfig = cli.services_config.clone().into();
 	let pfs_info = match init_pfs_info(
 		contracts_manager.clone(),
 		proxy_manager.clone(),
-		cli.services_config.clone().into(),
+		services_config.clone(),
 	)
 	.await
 	{
@@ -277,9 +281,9 @@ async fn main() {
 		pfs_config: PFSConfig {
 			url: cli.services_config.pathfinding_service_address.clone(),
 			info: pfs_info,
-			maximum_fee: cli.services_config.pathfinding_max_fee,
-			iou_timeout: cli.services_config.pathfinding_iou_timeout.into(),
-			max_paths: cli.services_config.pathfinding_max_paths,
+			maximum_fee: services_config.pathfinding_max_fee,
+			iou_timeout: services_config.pathfinding_iou_timeout.into(),
+			max_paths: services_config.pathfinding_max_paths,
 		},
 		addresses: default_addresses.clone(),
 	};

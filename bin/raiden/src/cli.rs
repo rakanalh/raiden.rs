@@ -12,9 +12,17 @@ use raiden_pathfinding::{
 	config::ServicesConfig,
 	types::RoutingMode,
 };
-use raiden_primitives::types::{
-	Address,
-	TokenAmount,
+use raiden_primitives::{
+	constants::{
+		PFS_DEFAULT_IOU_TIMEOUT,
+		PFS_DEFAULT_MAX_FEE,
+		PFS_DEFAULT_MAX_PATHS,
+	},
+	types::{
+		Address,
+		TokenAmount,
+		U256,
+	},
 };
 use structopt::{
 	clap::arg_enum,
@@ -110,7 +118,7 @@ pub struct CliServicesConfig {
 	pub pathfinding_service_random_address: bool,
 	#[structopt(long, required = false, default_value = "")]
 	pub pathfinding_service_address: String,
-	#[structopt(long, required = false, default_value = "1")]
+	#[structopt(long, required = false, default_value = "0")]
 	pub pathfinding_max_paths: usize,
 	#[structopt(long, required = false, default_value = "0")]
 	pub pathfinding_max_fee: TokenAmount,
@@ -122,13 +130,28 @@ pub struct CliServicesConfig {
 
 impl From<CliServicesConfig> for ServicesConfig {
 	fn from(s: CliServicesConfig) -> ServicesConfig {
+		let max_paths = if s.pathfinding_max_paths < 1 {
+			*PFS_DEFAULT_MAX_PATHS
+		} else {
+			s.pathfinding_max_paths
+		};
+		let max_fee = if s.pathfinding_max_fee == U256::zero() {
+			*PFS_DEFAULT_MAX_FEE
+		} else {
+			s.pathfinding_max_fee
+		};
+		let iou_timeout = if s.pathfinding_iou_timeout == 0 {
+			*PFS_DEFAULT_IOU_TIMEOUT
+		} else {
+			s.pathfinding_iou_timeout.into()
+		};
 		ServicesConfig {
 			routing_mode: s.routing_mode.into(),
 			pathfinding_service_random_address: s.pathfinding_service_random_address,
 			pathfinding_service_address: s.pathfinding_service_address,
-			pathfinding_max_paths: s.pathfinding_max_paths,
-			pathfinding_max_fee: s.pathfinding_max_fee,
-			pathfinding_iou_timeout: s.pathfinding_iou_timeout.into(),
+			pathfinding_max_paths: max_paths,
+			pathfinding_max_fee: max_fee,
+			pathfinding_iou_timeout: iou_timeout,
 			monitoring_enabled: s.monitoring_enabled,
 		}
 	}
