@@ -16,6 +16,7 @@ use crate::types::{
 	MessageHash,
 	MessageTypeId,
 	Nonce,
+	OneToNAddress,
 	Signature,
 	TokenAmount,
 	TokenNetworkAddress,
@@ -94,6 +95,25 @@ pub fn pack_reward_proof(
 	b.extend(non_closing_participant.as_bytes());
 	b.extend(non_closing_signature.0);
 	b.extend(encode(&[Token::Uint(reward_amount)]));
+
+	Bytes(b)
+}
+
+pub fn pack_one_to_n_iou(
+	one_to_n_address: OneToNAddress,
+	sender: Address,
+	receiver: Address,
+	amount: TokenAmount,
+	expiration_block: BlockExpiration,
+	chain_id: ChainID,
+) -> Bytes {
+	let mut b = one_to_n_address.as_bytes().to_vec();
+	b.extend(encode(&[Token::Uint(chain_id.into())]));
+	b.extend(encode(&[Token::Uint(U256::from(MessageTypeId::IOU as u8))]));
+	b.extend(sender.as_bytes());
+	b.extend(receiver.as_bytes());
+	b.extend(encode(&[Token::Uint(amount)]));
+	b.extend(encode(&[Token::Uint(expiration_block.into())]));
 
 	Bytes(b)
 }
