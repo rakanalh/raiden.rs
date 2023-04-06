@@ -21,6 +21,10 @@ use raiden_primitives::types::{
 };
 use raiden_storage::matrix::MatrixStorage;
 use raiden_transition::messages::MessageHandler;
+use serde::{
+	Deserialize,
+	Serialize,
+};
 use tokio::{
 	select,
 	sync::mpsc::{
@@ -45,6 +49,11 @@ use crate::{
 };
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
+
+#[derive(Serialize, Deserialize)]
+struct StorageMessages {
+	messages: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>>,
+}
 
 struct QueueInfo {
 	op_sender: UnboundedSender<QueueOp>,
@@ -96,20 +105,29 @@ impl MatrixService {
 			self.client.set_sync_token(sync_token);
 		}
 
-		let messages: HashMap<QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self
+		let storage_messages: HashMap<
+			QueueIdentifier,
+			HashMap<MessageIdentifier, OutgoingMessage>,
+		> = self
 			.matrix_storage
 			.get_messages()
 			.map_err(|e| format!("Error initializing transport from storage: {:?}", e))
 			.and_then(|data| {
 				if !data.is_empty() {
-					serde_json::from_str(&data)
-						.map_err(|e| format!("Error initializing transport from storage: {:?}", e))
+					let data: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>> =
+						serde_json::from_str(&data).map_err(|e| {
+							format!("Error initializing transport from storage: {:?}", e)
+						})?;
+					Ok(data
+						.into_iter()
+						.map(|(k, v)| (serde_json::from_str(&k).expect("Should deserialize"), v))
+						.collect())
 				} else {
 					Ok(HashMap::new())
 				}
 			})?;
 
-		for (queue_identifier, messages) in messages.iter() {
+		for (queue_identifier, messages) in storage_messages.iter() {
 			self.ensure_message_queue(queue_identifier.clone(), messages.clone());
 			let queue_info =
 				self.messages.get(queue_identifier).expect("Should already be crealted");
@@ -145,6 +163,7 @@ impl MatrixService {
 					if let Err(e) = self.matrix_storage.set_sync_token(self.client.get_sync_token()) {
 						error!("Could not store matrix sync token: {:?}", e);
 					}
+
 					let messages = match messages {
 						Ok(messages) => messages,
 						Err(e) => {
@@ -258,12 +277,18 @@ impl MatrixService {
 	}
 
 	fn store_messages(&self) {
-		let messages: HashMap<&QueueIdentifier, HashMap<MessageIdentifier, OutgoingMessage>> = self
+		let messages: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>> = self
 			.messages
 			.iter()
-			.map(|(queue_identifier, queue_info)| (queue_identifier, queue_info.messages.clone()))
+			.map(|(queue_identifier, queue_info)| {
+				(
+					serde_json::to_string(&queue_identifier.clone()).expect("Should serialize"),
+					queue_info.messages.clone(),
+				)
+			})
 			.collect();
-		let messages_data = match serde_json::to_string(&messages) {
+		let storage_messages = StorageMessages { messages };
+		let messages_data = match serde_json::to_string(&storage_messages) {
 			Ok(data) => data,
 			Err(e) => {
 				error!("Could not serialize messages for storage: {:?}", e);
