@@ -370,6 +370,8 @@ impl MatrixService {
 			let incoming_message_identifier = match &incoming_message.inner {
 				MessageInner::Delivered(inner) => inner.delivered_message_identifier,
 				MessageInner::Processed(inner) => inner.message_identifier,
+				MessageInner::SecretRequest(inner) => inner.message_identifier,
+				MessageInner::SecretReveal(inner) => inner.message_identifier,
 				MessageInner::LockExpired(inner) => inner.message_identifier,
 				MessageInner::Unlock(inner) => inner.message_identifier,
 				MessageInner::WithdrawRequest(inner) => inner.message_identifier,
