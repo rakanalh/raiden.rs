@@ -1,7 +1,6 @@
 use raiden_primitives::types::{
 	BlockNumber,
 	CanonicalIdentifier,
-	QueueIdentifier,
 	SecretHash,
 	TokenNetworkAddress,
 	H256,
@@ -14,7 +13,6 @@ use super::{
 	target,
 };
 use crate::{
-	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	errors::StateTransitionError,
 	machine::{
 		channel,
@@ -47,7 +45,6 @@ use crate::{
 		ReceiveWithdrawConfirmation,
 		ReceiveWithdrawExpired,
 		ReceiveWithdrawRequest,
-		SendMessageEvent,
 		StateChange,
 		TargetTask,
 		TokenNetworkState,
@@ -65,77 +62,6 @@ type TransitionResult = std::result::Result<ChainTransition, StateTransitionErro
 pub struct ChainTransition {
 	pub new_state: ChainState,
 	pub events: Vec<Event>,
-}
-
-/// Check if the message exists in queue with ID `queueid` and exclude if found.
-fn inplace_delete_message(queue: &mut Vec<SendMessageEvent>, state_change: &StateChange) {
-	for (index, message) in queue.clone().iter().enumerate() {
-		// A withdraw request is only confirmed by a withdraw confirmation.
-		// This is done because Processed is not an indicator that the partner has
-		// processed and **accepted** our withdraw request. Receiving
-		// `Processed` here would cause the withdraw request to be removed
-		// from the queue although the confirmation may have not been sent.
-		// This is avoided by waiting for the confirmation before removing
-		// the withdraw request.
-		if let SendMessageEvent::SendWithdrawRequest(_) = message {
-			if !matches!(state_change, StateChange::ReceiveWithdrawConfirmation(_)) {
-				continue
-			}
-		}
-
-		let message_type_identifier = match message {
-			SendMessageEvent::SendLockExpired(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendLockedTransfer(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendSecretReveal(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendSecretRequest(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendUnlock(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendWithdrawRequest(message_inner) =>
-				message_inner.message_identifier,
-			SendMessageEvent::SendWithdrawConfirmation(message_inner) =>
-				message_inner.message_identifier,
-			SendMessageEvent::SendWithdrawExpired(message_inner) =>
-				message_inner.message_identifier,
-			SendMessageEvent::SendProcessed(message_inner) => message_inner.message_identifier,
-		};
-		let state_change_message_identifier = match state_change {
-			StateChange::ReceiveDelivered(inner) => inner.message_identifier,
-			StateChange::ReceiveProcessed(inner) => inner.message_identifier,
-			StateChange::ReceiveTransferCancelRoute(inner) => inner.transfer.message_identifier,
-			StateChange::ReceiveTransferRefund(inner) => inner.transfer.message_identifier,
-			StateChange::ReceiveLockExpired(inner) => inner.message_identifier,
-			StateChange::ReceiveUnlock(inner) => inner.message_identifier,
-			StateChange::ReceiveWithdrawRequest(inner) => inner.message_identifier,
-			StateChange::ReceiveWithdrawConfirmation(inner) => inner.message_identifier,
-			StateChange::ReceiveWithdrawExpired(inner) => inner.message_identifier,
-			_ => 0,
-		};
-		if message_type_identifier == state_change_message_identifier {
-			queue.remove(index);
-		}
-	}
-}
-
-fn inplace_delete_message_queue(
-	chain_state: &mut ChainState,
-	state_change: &StateChange,
-	queue_id: &QueueIdentifier,
-) {
-	let mut queue = match chain_state.queueids_to_queues.get(&queue_id) {
-		Some(queue) => queue.clone(),
-		None => return,
-	};
-
-	if queue.is_empty() {
-		chain_state.queueids_to_queues.remove(&queue_id);
-	}
-
-	inplace_delete_message(&mut queue, state_change);
-
-	if queue.is_empty() {
-		chain_state.queueids_to_queues.remove(&queue_id);
-		return
-	}
-	chain_state.queueids_to_queues.insert(queue_id.clone(), queue);
 }
 
 fn subdispatch_by_canonical_id(
@@ -595,22 +521,12 @@ fn handle_token_network_state_change(
 }
 
 fn handle_contract_receive_channel_closed(
-	mut chain_state: ChainState,
+	chain_state: ChainState,
 	state_change: ContractReceiveChannelClosed,
 	block_number: U64,
 	block_hash: H256,
 ) -> TransitionResult {
 	let token_network_address = state_change.canonical_identifier.token_network_address;
-	if let Some(channel_state) = views::get_channel_by_canonical_identifier(
-		&chain_state,
-		state_change.canonical_identifier.clone(),
-	) {
-		let queue_identifier = QueueIdentifier {
-			recipient: channel_state.partner_state.address,
-			canonical_identifier: state_change.canonical_identifier.clone(),
-		};
-		chain_state.queueids_to_queues.remove(&queue_identifier);
-	}
 	handle_token_network_state_change(
 		chain_state,
 		token_network_address,
@@ -690,25 +606,16 @@ fn handle_receive_withdraw_expired(
 }
 
 fn handle_receive_delivered(
-	mut chain_state: ChainState,
-	state_change: ReceiveDelivered,
+	chain_state: ChainState,
+	_state_change: ReceiveDelivered,
 ) -> TransitionResult {
-	let queue_id = QueueIdentifier {
-		recipient: state_change.sender,
-		canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-	};
-	inplace_delete_message_queue(&mut chain_state, &state_change.into(), &queue_id);
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
 fn handle_receive_processed(
-	mut chain_state: ChainState,
-	state_change: ReceiveProcessed,
+	chain_state: ChainState,
+	_state_change: ReceiveProcessed,
 ) -> TransitionResult {
-	for queue_id in chain_state.queueids_to_queues.clone().keys() {
-		inplace_delete_message_queue(&mut chain_state, &state_change.clone().into(), queue_id);
-	}
-
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
@@ -937,21 +844,6 @@ fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
 			},
 			_ => {},
 		}
-
-		let queue_identifier = match event {
-			Event::SendWithdrawExpired(inner) => inner.inner.queue_identifier(),
-			Event::SendWithdrawRequest(inner) => inner.inner.queue_identifier(),
-			Event::SendLockedTransfer(inner) => inner.inner.queue_identifier(),
-			Event::SendLockExpired(inner) => inner.inner.queue_identifier(),
-			Event::SendSecretRequest(inner) => inner.inner.queue_identifier(),
-			Event::SendSecretReveal(inner) => inner.inner.queue_identifier(),
-			Event::SendUnlock(inner) => inner.inner.queue_identifier(),
-			Event::SendProcessed(inner) => inner.inner.queue_identifier(),
-			_ => continue,
-		};
-		let queue =
-			chain_state.queueids_to_queues.entry(queue_identifier).or_insert_with(|| vec![]);
-		queue.push(event.clone().try_into().expect("Should work"));
 	}
 }
 

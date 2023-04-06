@@ -30,7 +30,6 @@ use raiden_primitives::{
 		Nonce,
 		PaymentIdentifier,
 		ProportionalFeeAmount,
-		QueueIdentifier,
 		RevealTimeout,
 		Secret,
 		SecretHash,
@@ -48,10 +47,7 @@ use serde::{
 	Serialize,
 };
 
-use super::{
-	ContractSendEvent,
-	SendMessageEvent,
-};
+use super::ContractSendEvent;
 use crate::{
 	constants::{
 		DEFAULT_MEDIATION_FLAT_FEE,
@@ -209,7 +205,6 @@ pub struct ChainState {
 	pub block_hash: BlockHash,
 	pub our_address: Address,
 	pub identifiers_to_tokennetworkregistries: HashMap<Address, TokenNetworkRegistryState>,
-	pub queueids_to_queues: HashMap<QueueIdentifier, Vec<SendMessageEvent>>,
 	pub payment_mapping: PaymentMappingState,
 	pub pending_transactions: Vec<ContractSendEvent>,
 	pub pseudo_random_number_generator: Random,
@@ -227,7 +222,6 @@ impl ChainState {
 			block_number,
 			block_hash,
 			our_address,
-			queueids_to_queues: HashMap::new(),
 			identifiers_to_tokennetworkregistries: HashMap::new(),
 			payment_mapping: PaymentMappingState { secrethashes_to_task: HashMap::new() },
 			pending_transactions: vec![],

@@ -180,7 +180,13 @@ impl MatrixService {
 					};
 
 					for message in messages {
-						if let MessageInner::Processed(_) = message.inner.clone() {
+						if let MessageInner::WithdrawConfirmation(_) = message.inner.clone() {
+							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
+							for queue_identifier in queues {
+								self.inplace_delete_message_queue(message.clone(), &queue_identifier);
+							}
+						}
+						else if let MessageInner::Processed(_) = message.inner.clone() {
 							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
 							for queue_identifier in queues {
 								self.inplace_delete_message_queue(message.clone(), &queue_identifier);
