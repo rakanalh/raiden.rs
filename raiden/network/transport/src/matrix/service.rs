@@ -12,12 +12,19 @@ use futures::{
 use matrix_sdk::ruma::to_device::DeviceIdOrAllDevices;
 use raiden_network_messages::messages::{
 	self,
+	IncomingMessage,
+	MessageInner,
 	OutgoingMessage,
+	SignedMessage,
 	TransportServiceMessage,
 };
-use raiden_primitives::types::{
-	MessageIdentifier,
-	QueueIdentifier,
+use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	signing,
+	types::{
+		MessageIdentifier,
+		QueueIdentifier,
+	},
 };
 use raiden_storage::matrix::MatrixStorage;
 use raiden_transition::messages::MessageHandler;
@@ -173,6 +180,24 @@ impl MatrixService {
 					};
 
 					for message in messages {
+						if let MessageInner::Processed(_) = message.inner.clone() {
+							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
+							for queue_identifier in queues {
+								self.inplace_delete_message_queue(message.clone(), &queue_identifier);
+							}
+						} else if let MessageInner::Delivered(inner) = message.inner.clone() {
+							let sender = match signing::recover(&inner.bytes_to_sign(), &inner.signature.0) {
+								Ok(sender) => sender,
+								Err(e) => {
+									error!("Could not recover address from signature: {}", e);
+									continue
+								}
+							};
+							self.inplace_delete_message_queue(message.clone(), &QueueIdentifier {
+								recipient: sender,
+								canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+							});
+						}
 						let _ = message_handler.handle(message).await;
 					}
 				},
@@ -217,6 +242,7 @@ impl MatrixService {
 								.flatten()
 								.collect();
 							for message in messages_by_identifier {
+								self.send(message).await;
 							}
 						},
 						Some(TransportServiceMessage::Broadcast(message)) => {
@@ -276,6 +302,12 @@ impl MatrixService {
 		}
 	}
 
+	async fn send(&self, message: OutgoingMessage) {
+		if let Err(e) = self.client.send(message.clone(), message.recipient_metadata).await {
+			error!("Could not send message {:?}", e);
+		};
+	}
+
 	fn store_messages(&self) {
 		let messages: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>> = self
 			.messages
@@ -297,6 +329,51 @@ impl MatrixService {
 		};
 		if let Err(e) = self.matrix_storage.store_messages(messages_data) {
 			error!("Could not store messages: {:?}", e);
+		}
+	}
+
+	/// Check if the message exists in queue with ID `queueid` and exclude if found.
+	fn inplace_delete_message_queue(
+		&mut self,
+		incoming_message: IncomingMessage,
+		queue_id: &QueueIdentifier,
+	) {
+		let queue = match self.messages.get_mut(&queue_id) {
+			Some(queue) => queue,
+			None => return,
+		};
+
+		if queue.messages.is_empty() {
+			return
+		}
+
+		for (outgoing_message_identifier, outgoing_message) in queue.messages.clone().iter() {
+			// A withdraw request is only confirmed by a withdraw confirmation.
+			// This is done because Processed is not an indicator that the partner has
+			// processed and **accepted** our withdraw request. Receiving
+			// `Processed` here would cause the withdraw request to be removed
+			// from the queue although the confirmation may have not been sent.
+			// This is avoided by waiting for the confirmation before removing
+			// the withdraw request.
+			if let MessageInner::WithdrawRequest(_) = outgoing_message.inner {
+				if !matches!(incoming_message.inner, MessageInner::WithdrawConfirmation(_)) {
+					continue
+				}
+			}
+
+			let incoming_message_identifier = match &incoming_message.inner {
+				MessageInner::Delivered(inner) => inner.delivered_message_identifier,
+				MessageInner::Processed(inner) => inner.message_identifier,
+				MessageInner::LockExpired(inner) => inner.message_identifier,
+				MessageInner::Unlock(inner) => inner.message_identifier,
+				MessageInner::WithdrawRequest(inner) => inner.message_identifier,
+				MessageInner::WithdrawConfirmation(inner) => inner.message_identifier,
+				MessageInner::WithdrawExpired(inner) => inner.message_identifier,
+				_ => 0,
+			};
+			if outgoing_message_identifier == &incoming_message_identifier {
+				queue.messages.remove_entry(&incoming_message_identifier);
+			}
 		}
 	}
 }
