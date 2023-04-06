@@ -8,7 +8,10 @@ use raiden_blockchain::{
 use raiden_network_messages::{
 	messages,
 	messages::{
+		Delivered,
 		IncomingMessage,
+		MessageInner,
+		OutgoingMessage,
 		SignedEnvelopeMessage,
 		SignedMessage,
 		TransportServiceMessage,
@@ -357,6 +360,32 @@ impl MessageHandler {
 				let _ = self
 					.transport_sender
 					.send(TransportServiceMessage::Dequeue((None, message.message_identifier)));
+
+				let sender_metadata = raiden_pathfinding::query_address_metadata(
+					self.pathfinding_service_url.clone(),
+					sender,
+				)
+				.await
+				.map_err(|e| format!("Could not fetch address metadata {:?}: {}", sender, e))?;
+
+				let mut delivered = Delivered {
+					delivered_message_identifier: message.message_identifier,
+					signature: Signature::default(),
+				};
+				let _ = delivered.sign(self.private_key.clone());
+				let delivered = OutgoingMessage {
+					message_identifier: message.message_identifier,
+					recipient: sender,
+					recipient_metadata: sender_metadata,
+					inner: MessageInner::Delivered(delivered),
+				};
+				let _ = self.transport_sender.send(TransportServiceMessage::Enqueue((
+					QueueIdentifier {
+						recipient: sender,
+						canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+					},
+					delivered,
+				)));
 
 				Ok(vec![StateChange::ReceiveProcessed(ReceiveProcessed {
 					sender,
