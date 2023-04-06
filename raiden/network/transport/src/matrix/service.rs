@@ -248,6 +248,15 @@ impl MatrixService {
 								.flatten()
 								.collect();
 							for message in messages_by_identifier {
+								if let MessageInner::Delivered(_) = message.inner.clone() {
+									let queue_identifier = &QueueIdentifier {
+										recipient: message.recipient,
+										canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+									};
+									if let Some(queue) = self.messages.get_mut(queue_identifier) {
+										queue.messages.remove_entry(&message.message_identifier);
+									}
+								}
 								self.send(message).await;
 							}
 						},
