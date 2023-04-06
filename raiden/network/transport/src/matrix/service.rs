@@ -198,24 +198,6 @@ impl MatrixService {
 								.flatten()
 								.collect();
 							for message in messages_by_identifier {
-								let message_json = match serde_json::to_string(&message) {
-									Ok(json) => json,
-									Err(e) => {
-										error!("Could not serialize message: {:?}", e);
-										continue;
-									}
-								};
-								let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
-								let json = match serde_json::to_string(&content) {
-									Ok(json) => json,
-									Err(e) => {
-										error!("Could not serialize message: {:?}", e);
-										continue;
-									}
-								};
-								if let Err(e) = self.client.send(json, message.recipient_metadata).await {
-									error!("Could not send message {:?}", e);
-								};
 							}
 						},
 						Some(TransportServiceMessage::Broadcast(message)) => {

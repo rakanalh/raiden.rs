@@ -27,7 +27,10 @@ use raiden_blockchain::{
 	keys::PrivateKey,
 	proxies::ServiceRegistryProxy,
 };
-use raiden_network_messages::messages::IncomingMessage;
+use raiden_network_messages::messages::{
+	IncomingMessage,
+	OutgoingMessage,
+};
 use raiden_primitives::{
 	traits::Stringify,
 	types::{
@@ -209,10 +212,25 @@ impl MatrixClient {
 
 	pub async fn send(
 		&self,
-		data: String,
+		message: OutgoingMessage,
 		receiver_metadata: AddressMetadata,
 	) -> Result<(), TransportError> {
-		let data = match Raw::from_json_string(data) {
+		let message_json = match serde_json::to_string(&message) {
+			Ok(json) => json,
+			Err(e) => {
+				error!("Could not serialize message: {:?}", e);
+				return Err(TransportError::Other(format!("{}", e)))
+			},
+		};
+		let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
+		let json = match serde_json::to_string(&content) {
+			Ok(json) => json,
+			Err(e) => {
+				error!("Could not serialize message: {:?}", e);
+				return Err(TransportError::Other(format!("{}", e)))
+			},
+		};
+		let data = match Raw::from_json_string(json) {
 			Ok(d) => d,
 			Err(e) => return Err(TransportError::Other(format!("{:?}", e))),
 		};
@@ -300,23 +318,6 @@ impl MatrixClient {
 					.cloned()
 			})
 			.map_err(|e| format!("{:?}", e))?;
-
-		// let map: HashMap<String, serde_json::Value> = match
-		// serde_json::from_str(event_body) {
-		// 	Ok(map) => map,
-		// 	Err(e) => {
-		// 		error!("Could not parse message {}: {}", message_type, e);
-		// 		return
-		// 	},
-		// };
-
-		// let content = match map.get("content").map(|obj| obj.get("body")).flatten() {
-		// 	Some(value) => value,
-		// 	None => {
-		// 		error!("Message {} has no body: {:?}", message_type, map);
-		// 		return
-		// 	},
-		// };
 
 		let mut messages = vec![];
 		let s = content.as_str().unwrap().to_owned();
