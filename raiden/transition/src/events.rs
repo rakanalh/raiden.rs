@@ -537,12 +537,6 @@ impl EventHandler {
 					amount = format!("{}", inner.amount),
 				);
 			},
-			Event::UnlockClaimSuccess(inner) => {
-				// Do Nothing
-			},
-			Event::UnlockSuccess(_) => {
-				// Do Nothing
-			},
 			Event::UpdatedServicesAddresses(inner) => {
 				let _ = self.transport.send(TransportServiceMessage::UpdateServiceAddresses(
 					inner.service_address,
@@ -742,6 +736,12 @@ impl EventHandler {
 			},
 			Event::ErrorUnlockClaimFailed(e) => {
 				error!("{}", e.reason);
+			},
+			Event::UnlockClaimSuccess(inner) => {
+				// Do Nothing
+			},
+			Event::UnlockSuccess(_) => {
+				// Do Nothing
 			},
 		}
 	}
