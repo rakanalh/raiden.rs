@@ -7,6 +7,7 @@ use raiden_primitives::types::{
 	Address,
 	BalanceHash,
 	CanonicalIdentifier,
+	Locksroot,
 };
 use raiden_state_machine::types::{
 	ChainState,
@@ -401,6 +402,100 @@ impl StateStorage {
 					canonical_identifier.channel_identifier.to_string(),
 				),
 				("transfer.balance_hash".to_owned(), balance_hash.to_string()),
+				("recipient".to_owned(), recipient.to_string()),
+			],
+		];
+
+		let mut where_cond = "".to_owned();
+		let mut query_values: Vec<&dyn ToSql> = vec![];
+		let mut group_it = criteria.iter().peekable();
+		while let Some(group) = group_it.next() {
+			where_cond.push_str("(");
+			let mut it = group.iter().enumerate().peekable();
+			while let Some((i, (field, value))) = it.next() {
+				where_cond.push_str(&format!("{}=?{}", field, i + 1));
+				query_values.push(value);
+				if it.peek().is_some() {
+					where_cond.push_str(" AND ");
+				}
+			}
+			where_cond.push_str(")");
+			if group_it.next().is_some() {
+				where_cond.push_str(" OR ")
+			}
+		}
+
+		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+
+		let mut stmt = conn
+			.prepare(&format!(
+				"SELECT identifier, source_statechange_id, data FROM state_events
+                    WHERE {}
+                    ORDER BY identifier DESC
+                    LIMIT 1",
+				where_cond
+			))
+			.map_err(StorageError::Sql)?;
+
+		let mut rows = stmt.query(query_values.as_slice()).map_err(StorageError::Sql)?;
+
+		let row = match rows.next().map_err(StorageError::Sql)? {
+			Some(row) => row,
+			None => return Err(StorageError::Other("Event not found")),
+		};
+
+		let identifier: StorageID =
+			row.get::<usize, String>(0).map_err(StorageError::Sql)?.try_into()?;
+
+		let state_change_identifier: StorageID =
+			row.get::<usize, String>(1).map_err(StorageError::Sql)?.try_into()?;
+
+		let data: String = row.get(2).map_err(StorageError::Sql)?;
+
+		Ok(Some(EventRecord {
+			identifier,
+			state_change_identifier,
+			data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+		}))
+	}
+
+	pub fn get_event_with_balance_proof_by_locksroot(
+		&self,
+		canonical_identifier: CanonicalIdentifier,
+		locksroot: Locksroot,
+		recipient: Address,
+	) -> Result<Option<EventRecord>> {
+		let criteria = vec![
+			vec![
+				(
+					"balance_proof.canonical_identifier.chain_identifier".to_owned(),
+					canonical_identifier.chain_identifier.to_string(),
+				),
+				(
+					"balance_proof.canonical_identifier.token_network_address".to_owned(),
+					canonical_identifier.token_network_address.to_string(),
+				),
+				(
+					"balance_proof.canonical_identifier.channel_identifier".to_owned(),
+					canonical_identifier.channel_identifier.to_string(),
+				),
+				("locksroot".to_owned(), locksroot.to_string()),
+				("recipient".to_owned(), recipient.to_string()),
+			],
+			vec![
+				(
+					"transfer.balance_proof.canonical_identifier.chain_identifier".to_owned(),
+					canonical_identifier.chain_identifier.to_string(),
+				),
+				(
+					"transfer.balance_proof.canonical_identifier.token_network_address".to_owned(),
+					canonical_identifier.token_network_address.to_string(),
+				),
+				(
+					"transfer.balance_proof.canonical_identifier.channel_identifier".to_owned(),
+					canonical_identifier.channel_identifier.to_string(),
+				),
+				("transfer.locksroot".to_owned(), locksroot.to_string()),
 				("recipient".to_owned(), recipient.to_string()),
 			],
 		];
