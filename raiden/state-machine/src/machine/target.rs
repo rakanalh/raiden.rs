@@ -1,6 +1,9 @@
-use raiden_primitives::types::{
-	BlockHash,
-	BlockNumber,
+use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	types::{
+		BlockHash,
+		BlockNumber,
+	},
 };
 
 use super::{
@@ -13,7 +16,6 @@ use super::{
 	},
 };
 use crate::{
-	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	errors::StateTransitionError,
 	types::{
 		ActionInitTarget,

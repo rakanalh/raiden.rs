@@ -1,6 +1,7 @@
 use std::iter;
 
 use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	hashing::hash_secret,
 	types::{
 		Address,
@@ -26,7 +27,6 @@ use super::{
 };
 use crate::{
 	constants::{
-		CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 		PAYEE_STATE_SECRET_KNOWN,
 		PAYEE_STATE_TRANSFER_FINAL,
 		PAYEE_STATE_TRANSFER_PAID,

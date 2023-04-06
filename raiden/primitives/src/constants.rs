@@ -4,10 +4,21 @@ use lazy_static::lazy_static;
 use web3::signing::keccak256;
 
 use crate::types::{
+	Address,
 	BlockTimeout,
 	Bytes,
+	CanonicalIdentifier,
+	ChainID,
+	ChannelIdentifier,
 	Locksroot,
 	TokenAmount,
+	U256,
+};
+
+pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalIdentifier {
+	chain_identifier: ChainID::Private(U256::zero()),
+	token_network_address: Address::zero(),
+	channel_identifier: ChannelIdentifier::zero(),
 };
 
 lazy_static! {

@@ -1,12 +1,15 @@
 use std::ops::Div;
 
-use raiden_primitives::types::{
-	BlockNumber,
-	FeeAmount,
-	MessageIdentifier,
-	Secret,
-	SecretHash,
-	TokenAmount,
+use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	types::{
+		BlockNumber,
+		FeeAmount,
+		MessageIdentifier,
+		Secret,
+		SecretHash,
+		TokenAmount,
+	},
 };
 
 use super::{
@@ -17,7 +20,6 @@ use super::{
 use crate::{
 	constants::{
 		ABSENT_SECRET,
-		CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 		DEFAULT_MEDIATION_FEE_MARGIN,
 		DEFAULT_WAIT_BEFORE_LOCK_REMOVAL,
 		MAX_MEDIATION_FEE_PERC,

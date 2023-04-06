@@ -7,6 +7,7 @@ use std::{
 };
 
 use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	hashing::hash_balance_data,
 	types::{
 		Address,
@@ -55,7 +56,6 @@ use self::{
 };
 use crate::{
 	constants::{
-		CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 		CHANNEL_STATES_PRIOR_TO_CLOSE,
 		NUM_DISCRETISATION_POINTS,
 	},

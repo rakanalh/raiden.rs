@@ -1,10 +1,4 @@
-use raiden_primitives::types::{
-	Address,
-	Bytes,
-	CanonicalIdentifier,
-	ChainID,
-	ChannelIdentifier,
-};
+use raiden_primitives::types::Bytes;
 
 use crate::types::{
 	ChannelStatus,
@@ -61,9 +55,3 @@ pub const PAYER_STATE_SECRET_KNOWN: [PayerState; 3] =
 	[PayerState::SecretRevealed, PayerState::WaitingUnlock, PayerState::BalanceProof];
 pub const PAYER_STATE_TRANSFER_FINAL: [PayerState; 2] =
 	[PayerState::BalanceProof, PayerState::Expired];
-
-pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalIdentifier {
-	chain_identifier: ChainID::Mainnet,
-	token_network_address: Address::zero(),
-	channel_identifier: ChannelIdentifier::zero(),
-};

@@ -15,6 +15,7 @@ use raiden_network_messages::{
 	},
 };
 use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	hashing::{
 		hash_balance_data,
 		hash_secret,
@@ -29,7 +30,6 @@ use raiden_primitives::{
 	},
 };
 use raiden_state_machine::{
-	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	types::{
 		ActionInitMediator,
 		ActionInitTarget,
