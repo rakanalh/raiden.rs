@@ -1146,7 +1146,7 @@ fn handle_offchain_secret_reveal(
 	};
 
 	let is_valid = utils::is_valid_secret_reveal(&state_change, mediator_state.secrethash);
-	let is_secret_known = mediator_state.secret.is_none();
+	let is_secret_unknown = mediator_state.secret.is_none();
 
 	if mediator_state.transfers_pair.is_empty() {
 		// This will not happen during normal operation, but attackers might
@@ -1180,7 +1180,7 @@ fn handle_offchain_secret_reveal(
 		chain_state.block_number,
 	);
 
-	if is_secret_known && is_valid && !has_payer_transfer_expired {
+	if is_secret_unknown && is_valid && !has_payer_transfer_expired {
 		return secret_learned(
 			chain_state,
 			mediator_state,
