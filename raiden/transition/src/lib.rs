@@ -16,6 +16,7 @@ use crate::{
 pub mod events;
 pub mod manager;
 pub mod messages;
+pub mod utils;
 
 pub struct Transitioner {
 	state_manager: Arc<RwLock<StateManager>>,
