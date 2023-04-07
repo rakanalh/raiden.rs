@@ -483,27 +483,19 @@ impl EventDecoder {
 		let mut canonical_identifier = None;
 		for channel_identifier in channel_identifiers {
 			if partner == participant1 {
-				let criteria = vec![
-					(
-						"balance_proof.canonical_identifier.chain_identifier".to_owned(),
-						format!("{}", chain_state.chain_id),
-					),
-					(
-						"balance_proof.canonical_identifier.token_network_address".to_owned(),
-						format!("{}", token_network_address),
-					),
-					(
-						"balance_proof.canonical_identifier.channel_identifier".to_owned(),
-						format!("{}", channel_identifier),
-					),
-					("balance_proof.locksroot".to_owned(), format!("{:?}", locksroot)),
-					("balance_proof.sender".to_owned(), format!("{}", participant1)),
-				];
-				let state_change_record =
-					match storage.get_latest_state_change_by_data_field(criteria) {
-						Ok(Some(state_change_record)) => state_change_record,
-						_ => continue,
-					};
+				let state_change_record = match storage
+					.get_state_change_with_balance_proof_by_locksroot(
+						CanonicalIdentifier {
+							chain_identifier: chain_state.chain_id,
+							token_network_address,
+							channel_identifier: *channel_identifier,
+						},
+						locksroot,
+						partner,
+					) {
+					Ok(Some(state_change_record)) => state_change_record,
+					_ => continue,
+				};
 
 				canonical_identifier = match state_change_record.data {
 					StateChange::ActionInitMediator(inner) =>
@@ -601,13 +593,5 @@ impl EventDecoder {
 			participants_details.our_details.locksroot,
 			participants_details.partner_details.locksroot,
 		))
-	}
-
-	#[allow(dead_code)]
-	fn get_state_change_with_balance_proof_by_locksroot() {
-	}
-
-	#[allow(dead_code)]
-	fn get_event_with_balance_proof_by_locks_root() {
 	}
 }
