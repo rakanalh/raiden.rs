@@ -14,6 +14,7 @@ use raiden_pathfinding::{
 };
 use raiden_primitives::{
 	hashing::hash_secret,
+	payments::PaymentsRegistry,
 	types::{
 		Address,
 		BlockTimeout,
@@ -61,7 +62,6 @@ use tracing::{
 use web3::transports::Http;
 
 use crate::{
-	payments::PaymentsRegistry,
 	raiden::Raiden,
 	utils::{
 		random_identifier,

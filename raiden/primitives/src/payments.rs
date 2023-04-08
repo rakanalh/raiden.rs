@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use raiden_primitives::types::{
+use tokio::sync::oneshot;
+
+use crate::types::{
 	Address,
 	PaymentIdentifier,
 	TokenAmount,
 	TokenNetworkAddress,
 };
-use tokio::sync::oneshot;
 
 pub struct Payment {
 	pub identifier: PaymentIdentifier,

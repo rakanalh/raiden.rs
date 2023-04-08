@@ -3,6 +3,7 @@ pub mod deserializers;
 pub mod hashing;
 pub mod impls;
 pub mod packing;
+pub mod payments;
 pub mod serializers;
 pub mod signing;
 pub mod traits;

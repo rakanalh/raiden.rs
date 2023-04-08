@@ -9,7 +9,6 @@ use std::{
 use futures::FutureExt;
 use raiden_api::{
 	api::Api,
-	payments::PaymentsRegistry,
 	raiden::{
 		Raiden,
 		RaidenConfig,
@@ -34,7 +33,10 @@ use raiden_pathfinding::{
 		ServicesConfig,
 	},
 };
-use raiden_primitives::types::ChainID;
+use raiden_primitives::{
+	payments::PaymentsRegistry,
+	types::ChainID,
+};
 use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transition::{
 	events::EventHandler,
@@ -293,6 +295,7 @@ async fn main() {
 		transport: transport_sender.clone(),
 	});
 
+	let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));
 	let event_handler = EventHandler::new(
 		raiden.web3.clone(),
 		account.clone(),
@@ -300,6 +303,7 @@ async fn main() {
 		proxy_manager.clone(),
 		transport_sender.clone(),
 		default_addresses.clone(),
+		payments_registry.clone(),
 	);
 	let transitioner = Arc::new(Transitioner::new(state_manager.clone(), event_handler.clone()));
 	let message_handler = MessageHandler::new(
@@ -339,7 +343,6 @@ async fn main() {
 				process::exit(1);
 			},
 		};
-	let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));
 	let api = Api::new(raiden.clone(), transitioner.clone(), payments_registry);
 
 	let socket: SocketAddr = match format!("{}:{}", cli.http_host, cli.http_port).parse() {

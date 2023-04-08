@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use parking_lot::RwLock as SyncRwLock;
 use raiden_blockchain::{
 	proxies::{
 		Account,
@@ -37,6 +37,7 @@ use raiden_primitives::{
 		pack_balance_proof_message,
 		pack_withdraw,
 	},
+	payments::PaymentsRegistry,
 	traits::ToBytes,
 	types::{
 		Address,
@@ -60,7 +61,10 @@ use raiden_state_machine::{
 	},
 	views,
 };
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{
+	mpsc::UnboundedSender,
+	RwLock,
+};
 use tracing::{
 	error,
 	event,
@@ -83,22 +87,32 @@ use crate::{
 pub struct EventHandler {
 	web3: Web3<Http>,
 	account: Account<Http>,
-	state_manager: Arc<RwLock<StateManager>>,
+	state_manager: Arc<SyncRwLock<StateManager>>,
 	proxy_manager: Arc<ProxyManager>,
 	transport: UnboundedSender<TransportServiceMessage>,
 	default_addresses: DefaultAddresses,
+	payment_registry: Arc<RwLock<PaymentsRegistry>>,
 }
 
 impl EventHandler {
 	pub fn new(
 		web3: Web3<Http>,
 		account: Account<Http>,
-		state_manager: Arc<RwLock<StateManager>>,
+		state_manager: Arc<SyncRwLock<StateManager>>,
 		proxy_manager: Arc<ProxyManager>,
 		transport: UnboundedSender<TransportServiceMessage>,
 		default_addresses: DefaultAddresses,
+		payment_registry: Arc<RwLock<PaymentsRegistry>>,
 	) -> Self {
-		Self { web3, account, state_manager, proxy_manager, transport, default_addresses }
+		Self {
+			web3,
+			account,
+			state_manager,
+			proxy_manager,
+			transport,
+			default_addresses,
+			payment_registry,
+		}
 	}
 
 	pub async fn handle_event(&self, event: Event) {
@@ -853,6 +867,7 @@ impl EventHandler {
 					to = format!("{:?}", inner.target),
 					amount = format!("{}", inner.amount),
 				);
+				self.payment_registry.write().await.complete(inner.target, inner.identifier);
 			},
 			Event::UpdatedServicesAddresses(inner) => {
 				let _ = self.transport.send(TransportServiceMessage::UpdateServiceAddresses(
