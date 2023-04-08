@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use raiden_blockchain::proxies::{
-	Account,
-	ProxyManager,
+use raiden_blockchain::{
+	proxies::{
+		Account,
+		ProxyManager,
+	},
+	transactions::WithdrawInput,
 };
 use raiden_network_messages::{
 	messages::{
@@ -425,7 +428,88 @@ impl EventHandler {
 				}
 			},
 			Event::ContractSendChannelCoopSettle(inner) => {
-				// Call
+				let chain_state = self.state_manager.read().current_state.clone();
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					inner.canonical_identifier.clone(),
+				) {
+					Some(channel_state) => channel_state,
+					None => {
+						error!("ContractSendChannelWithdraw for non-existent channel");
+						return
+					},
+				};
+
+				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+					Ok(proxy) => proxy,
+					Err(e) => {
+						error!("Something went wrong constructing channel proxy {:?}", e);
+						return
+					},
+				};
+
+				let participant_withdraw_data = pack_withdraw(
+					inner.canonical_identifier.clone(),
+					channel_state.our_state.address,
+					inner.our_total_withdraw,
+					inner.expiration,
+				);
+				let our_initiator_signature =
+					match self.account.private_key().sign_message(&participant_withdraw_data.0) {
+						Ok(signature) => signature,
+						Err(e) => {
+							error!("Could not sign our withdraw data: {:?}", e);
+							return
+						},
+					};
+
+				let withdraw_initiator = WithdrawInput {
+					initiator: channel_state.our_state.address,
+					total_withdraw: inner.our_total_withdraw,
+					expiration_block: inner.expiration,
+					initiator_signature: Bytes(our_initiator_signature.to_bytes()),
+					partner_signature: inner.signature_our_withdraw.clone(),
+				};
+
+				let partner_withdraw_data = pack_withdraw(
+					inner.canonical_identifier.clone(),
+					channel_state.partner_state.address,
+					inner.partner_total_withdraw,
+					inner.expiration,
+				);
+				let our_partner_signature =
+					match self.account.private_key().sign_message(&partner_withdraw_data.0) {
+						Ok(signature) => signature,
+						Err(e) => {
+							error!("Could not sign partner withdraw data: {:?}", e);
+							return
+						},
+					};
+
+				let withdraw_partner = WithdrawInput {
+					initiator: channel_state.partner_state.address,
+					total_withdraw: inner.partner_total_withdraw,
+					expiration_block: inner.expiration,
+					initiator_signature: inner.signature_partner_withdraw.clone(),
+					partner_signature: Bytes(our_partner_signature.to_bytes()),
+				};
+
+				if let Err(e) = channel_proxy
+					.coop_settle(
+						self.account.clone(),
+						channel_state.canonical_identifier.channel_identifier,
+						withdraw_partner,
+						withdraw_initiator,
+						inner.triggered_by_blockhash,
+					)
+					.await
+				{
+					event!(
+						Level::ERROR,
+						reason = "Channel update transfer transaction failed",
+						error = format!("{:?}", e),
+					);
+				}
 			},
 			Event::ContractSendChannelUpdateTransfer(inner) => {
 				let partner_signature = match &inner.balance_proof.signature {

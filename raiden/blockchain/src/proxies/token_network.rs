@@ -52,6 +52,8 @@ use crate::{
 	transactions::{
 		ChannelCloseTransaction,
 		ChannelCloseTransactionParams,
+		ChannelCoopSettleTransaction,
+		ChannelCoopSettleTransactionParams,
 		ChannelOpenTransaction,
 		ChannelOpenTransactionParams,
 		ChannelSetTotalDepositTransaction,
@@ -65,6 +67,7 @@ use crate::{
 		ChannelUpdateTransferTransaction,
 		ChannelUpdateTransferTransactionParams,
 		Transaction,
+		WithdrawInput,
 	},
 };
 
@@ -346,6 +349,33 @@ where
 					sender,
 					receiver,
 					pending_locks,
+				},
+				block_hash,
+			)
+			.await?)
+	}
+
+	pub async fn coop_settle(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		withdraw_partner: WithdrawInput,
+		withdraw_initiator: WithdrawInput,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		let coop_settle_transaction = ChannelCoopSettleTransaction {
+			web3: self.web3.clone(),
+			account,
+			token_network: self.clone(),
+			gas_metadata: self.gas_metadata.clone(),
+		};
+
+		Ok(coop_settle_transaction
+			.execute(
+				ChannelCoopSettleTransactionParams {
+					channel_identifier,
+					withdraw_partner,
+					withdraw_initiator,
 				},
 				block_hash,
 			)

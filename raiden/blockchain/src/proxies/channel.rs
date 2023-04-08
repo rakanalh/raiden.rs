@@ -20,6 +20,7 @@ use super::{
 	},
 	TokenNetworkProxy,
 };
+use crate::transactions::WithdrawInput;
 
 #[derive(Clone)]
 pub struct ChannelProxy<T: Transport> {
@@ -146,6 +147,25 @@ where
 	) -> Result<TransactionHash> {
 		self.token_network
 			.unlock(account, channel_identifier, sender, receiver, pending_locks, block_hash)
+			.await
+	}
+
+	pub async fn coop_settle(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		withdraw_partner: WithdrawInput,
+		withdraw_initiator: WithdrawInput,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		self.token_network
+			.coop_settle(
+				account,
+				channel_identifier,
+				withdraw_partner,
+				withdraw_initiator,
+				block_hash,
+			)
 			.await
 	}
 }
