@@ -32,7 +32,7 @@ pub(super) fn compute_locks_without(
 	None
 }
 
-pub(super) fn compute_locksroot(locks: &PendingLocksState) -> Locksroot {
+pub fn compute_locksroot(locks: &PendingLocksState) -> Locksroot {
 	let locks: Vec<&[u8]> = locks.locks.iter().map(|lock| lock.0.as_slice()).collect();
 	let hash = keccak256(&locks.concat());
 	Locksroot::from_slice(&hash)

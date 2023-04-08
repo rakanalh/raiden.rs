@@ -22,7 +22,10 @@ use raiden_primitives::types::{
 	H256,
 	U256,
 };
-use raiden_state_machine::types::ChannelStatus;
+use raiden_state_machine::types::{
+	ChannelStatus,
+	PendingLocksState,
+};
 use tokio::sync::{
 	Mutex,
 	RwLock,
@@ -57,6 +60,8 @@ use crate::{
 		ChannelSetTotalWithdrawTransactionParams,
 		ChannelSettleTransaction,
 		ChannelSettleTransactionParams,
+		ChannelUnlockTransaction,
+		ChannelUnlockTransactionParams,
 		ChannelUpdateTransferTransaction,
 		ChannelUpdateTransferTransactionParams,
 		Transaction,
@@ -312,6 +317,35 @@ where
 					partner_transferred_amount,
 					partner_locked_amount,
 					partner_locksroot,
+				},
+				block_hash,
+			)
+			.await?)
+	}
+
+	pub async fn unlock(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		sender: Address,
+		receiver: Address,
+		pending_locks: PendingLocksState,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		let unlock_transaction = ChannelUnlockTransaction {
+			web3: self.web3.clone(),
+			account,
+			token_network: self.clone(),
+			gas_metadata: self.gas_metadata.clone(),
+		};
+
+		Ok(unlock_transaction
+			.execute(
+				ChannelUnlockTransactionParams {
+					channel_identifier,
+					sender,
+					receiver,
+					pending_locks,
 				},
 				block_hash,
 			)

@@ -50,6 +50,8 @@ use raiden_primitives::{
 };
 use raiden_state_machine::{
 	types::{
+		ChainState,
+		ChannelEndState,
 		Event,
 		StateChange,
 	},
@@ -69,7 +71,10 @@ use web3::{
 	Web3,
 };
 
-use crate::manager::StateManager;
+use crate::{
+	manager::StateManager,
+	utils::channel_state_until_state_change,
+};
 
 #[derive(Clone)]
 pub struct EventHandler {
@@ -497,7 +502,235 @@ impl EventHandler {
 				}
 			},
 			Event::ContractSendChannelBatchUnlock(inner) => {
-				// Call
+				let chain_state = self.state_manager.read().current_state.clone();
+				let channel_state = match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					inner.canonical_identifier.clone(),
+				) {
+					Some(channel_state) => channel_state,
+					None => {
+						error!("ContractSendChannelWithdraw for non-existent channel");
+						return
+					},
+				};
+
+				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+					Ok(proxy) => proxy,
+					Err(e) => {
+						error!("Something went wrong constructing channel proxy {:?}", e);
+						return
+					},
+				};
+
+				let our_address = channel_state.our_state.address;
+				let our_locksroot = channel_state.our_state.onchain_locksroot;
+
+				let partner_address = channel_state.partner_state.address;
+				let partner_locksroot = channel_state.partner_state.onchain_locksroot;
+
+				let search_events = our_locksroot != *LOCKSROOT_OF_NO_LOCKS;
+				let search_state_changes = partner_locksroot != *LOCKSROOT_OF_NO_LOCKS;
+
+				if !search_events && !search_state_changes {
+					event! {
+						Level::WARN,
+						reason = "Onchain unlock already mined",
+						channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string(),
+						participant = inner.sender.to_string(),
+					};
+				}
+
+				// Update old channel state with lock information from current state
+				// Call this after settlement, when you need to work on an older locksroot
+				// because the channel has been settled with an outdated balance proof.
+				fn update_lock_info(
+					old_state: &mut ChannelEndState,
+					new_state: &ChannelEndState,
+					chain_state: &ChainState,
+				) {
+					// After settlement, no unlocks can be processed. So all locks that are
+					// still present in the balance proof are locked, unless their secret is
+					// registered on-chain.
+					for (secret, unlock) in &old_state.secrethashes_to_onchain_unlockedlocks {
+						old_state
+							.secrethashes_to_lockedlocks
+							.insert(secret.clone(), unlock.lock.clone());
+					}
+
+					old_state.secrethashes_to_unlockedlocks.clear();
+
+					// In the time between the states, some locks might have been unlocked
+					// on-chain. Update their state to "on-chain unlocked".
+					for (secret, updated_unlock) in &new_state.secrethashes_to_onchain_unlockedlocks
+					{
+						old_state.secrethashes_to_lockedlocks.remove_entry(&secret);
+						old_state
+							.secrethashes_to_onchain_unlockedlocks
+							.insert(secret.clone(), updated_unlock.clone());
+					}
+
+					// If we don't have a task for the secret, then that lock can't be
+					// relevant to us, anymore. Otherwise, we would not have deleted the
+					// payment task.
+					// One case where this is necessary: We are a mediator and didn't unlock
+					// the payee's BP, but the secret has been registered on-chain. We
+					// will receive an Unlock from the payer and delete our MediatorTask,
+					// since we got our tokens. After deleting the task, we won't listen for
+					// on-chain unlocks, so we wrongly consider the tokens in the outgoing
+					// channel to be ours and send an on-chain unlock although we won't
+					// unlock any tokens to our benefit.
+
+					old_state.secrethashes_to_lockedlocks = old_state
+						.secrethashes_to_lockedlocks
+						.clone()
+						.into_iter()
+						.filter(|(secret, _)| {
+							chain_state.payment_mapping.secrethashes_to_task.contains_key(secret)
+						})
+						.collect();
+				}
+
+				if search_state_changes {
+					let state_change_record = match self
+						.state_manager
+						.read()
+						.storage
+						.get_state_change_with_balance_proof_by_locksroot(
+							channel_state.canonical_identifier.clone(),
+							partner_locksroot,
+							partner_address,
+						) {
+						Ok(Some(record)) => record,
+						Ok(None) => {
+							error!("Channel batch unlock: Failed to find state that matches the current channel locksroot");
+							return
+						},
+						Err(e) => {
+							error!("Channel settle: storage error {}", e);
+							return
+						},
+					};
+
+					let state_change_identifier = state_change_record.identifier;
+					let mut restored_channel_state = match channel_state_until_state_change(
+						self.state_manager.read().storage.clone(),
+						channel_state.canonical_identifier.clone(),
+						state_change_identifier,
+					) {
+						Some(channel_state) => channel_state,
+						None => {
+							event!(
+								Level::ERROR,
+								reason = "Channel was not found before state change",
+								state_change = format!("{}", state_change_identifier),
+							);
+							return
+						},
+					};
+					update_lock_info(
+						&mut restored_channel_state.partner_state,
+						&channel_state.partner_state,
+						&chain_state,
+					);
+
+					let gain: TokenAmount = restored_channel_state
+						.partner_state
+						.secrethashes_to_onchain_unlockedlocks
+						.values()
+						.map(|unlock| unlock.lock.amount)
+						.fold(TokenAmount::zero(), |current, next| current.saturating_add(next));
+
+					if gain > TokenAmount::zero() {
+						if let Err(e) = channel_proxy
+							.unlock(
+								self.account.clone(),
+								channel_state.canonical_identifier.channel_identifier,
+								partner_address,
+								our_address,
+								restored_channel_state.partner_state.pending_locks,
+								inner.triggered_by_blockhash,
+							)
+							.await
+						{
+							event!(
+								Level::ERROR,
+								reason = "Channel unlock transaction failed",
+								error = format!("{:?}", e),
+							);
+						}
+					}
+				}
+
+				if search_events {
+					let event_record = match self
+						.state_manager
+						.read()
+						.storage
+						.get_event_with_balance_proof_by_locksroot(
+							channel_state.canonical_identifier.clone(),
+							our_locksroot,
+							partner_address,
+						) {
+						Ok(Some(record)) => record,
+						Ok(None) => {
+							error!("Channel batch unlock: Failed to find state that matches the current channel locksroot");
+							return
+						},
+						Err(e) => {
+							error!("Channel settle: storage error {}", e);
+							return
+						},
+					};
+
+					let state_change_identifier = event_record.state_change_identifier;
+					let mut restored_channel_state = match channel_state_until_state_change(
+						self.state_manager.read().storage.clone(),
+						channel_state.canonical_identifier.clone(),
+						state_change_identifier,
+					) {
+						Some(channel_state) => channel_state,
+						None => {
+							event!(
+								Level::ERROR,
+								reason = "Channel was not found before state change",
+								state_change = format!("{}", state_change_identifier),
+							);
+							return
+						},
+					};
+					update_lock_info(
+						&mut restored_channel_state.our_state,
+						&channel_state.our_state,
+						&chain_state,
+					);
+
+					let gain: TokenAmount = restored_channel_state
+						.our_state
+						.secrethashes_to_lockedlocks
+						.values()
+						.map(|lock| lock.amount)
+						.fold(TokenAmount::zero(), |current, next| current.saturating_add(next));
+
+					if gain > TokenAmount::zero() {
+						if let Err(e) = channel_proxy
+							.unlock(
+								self.account.clone(),
+								channel_state.canonical_identifier.channel_identifier,
+								our_address,
+								partner_address,
+								restored_channel_state.our_state.pending_locks,
+								inner.triggered_by_blockhash,
+							)
+							.await
+						{
+							event!(
+								Level::ERROR,
+								reason = "Channel unlock transaction failed",
+								error = format!("{:?}", e),
+							);
+						}
+					}
+				}
 			},
 			Event::ContractSendSecretReveal(inner) => {
 				let secret_registry = match self
@@ -737,7 +970,7 @@ impl EventHandler {
 			Event::ErrorUnlockClaimFailed(e) => {
 				error!("{}", e.reason);
 			},
-			Event::UnlockClaimSuccess(inner) => {
+			Event::UnlockClaimSuccess(_) => {
 				// Do Nothing
 			},
 			Event::UnlockSuccess(_) => {

@@ -10,6 +10,7 @@ use raiden_primitives::types::{
 	TokenAmount,
 	TransactionHash,
 };
+use raiden_state_machine::types::PendingLocksState;
 use web3::Transport;
 
 use super::{
@@ -131,6 +132,20 @@ where
 				non_closing_signature,
 				block_hash,
 			)
+			.await
+	}
+
+	pub async fn unlock(
+		&self,
+		account: Account<T>,
+		channel_identifier: ChannelIdentifier,
+		sender: Address,
+		receiver: Address,
+		pending_locks: PendingLocksState,
+		block_hash: BlockHash,
+	) -> Result<TransactionHash> {
+		self.token_network
+			.unlock(account, channel_identifier, sender, receiver, pending_locks, block_hash)
 			.await
 	}
 }
