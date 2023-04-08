@@ -192,16 +192,12 @@ pub async fn init_transport(
 }
 
 pub async fn init_pfs_info(
-	contracts_manager: Arc<ContractsManager>,
+	default_addresses: DefaultAddresses,
 	proxy_manager: Arc<ProxyManager>,
 	services_config: ServicesConfig,
 ) -> Result<PFSInfo, String> {
-	let service_registry_deployed_contract = contracts_manager
-		.get_deployed(contracts::ContractIdentifier::ServiceRegistry)
-		.map_err(|e| format!("Could not find service registry deployment info {:?}", e))?;
-
 	let service_registry = proxy_manager
-		.service_registry(service_registry_deployed_contract.address)
+		.service_registry(default_addresses.service_registry)
 		.await
 		.map_err(|e| format!("Could not create service registry {:?}", e))?;
 

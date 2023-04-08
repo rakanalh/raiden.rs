@@ -253,7 +253,7 @@ async fn main() {
 
 	let services_config: ServicesConfig = cli.services_config.clone().into();
 	let pfs_info = match init_pfs_info(
-		contracts_manager.clone(),
+		default_addresses.clone(),
 		proxy_manager.clone(),
 		services_config.clone(),
 	)
