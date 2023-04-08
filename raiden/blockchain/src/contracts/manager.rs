@@ -7,6 +7,7 @@ use ethabi::Event;
 use raiden_primitives::types::{
 	Address,
 	ChainID,
+	DefaultAddresses,
 	U64,
 };
 use serde_json::{
@@ -134,6 +135,30 @@ impl ContractsManager {
 
 	pub fn get(&self, contract_identifier: ContractIdentifier) -> Contract {
 		self.contracts.get(&contract_identifier.to_string()).map(|c| c.clone()).unwrap()
+	}
+
+	pub fn deployed_addresses(&self) -> Result<DefaultAddresses> {
+		let token_network_registry_deployed_contract =
+			self.get_deployed(ContractIdentifier::TokenNetworkRegistry)?;
+
+		let secret_registry_deployed_contract =
+			self.get_deployed(ContractIdentifier::SecretRegistry)?;
+
+		let service_registry_deployed_contract =
+			self.get_deployed(ContractIdentifier::ServiceRegistry)?;
+
+		let monitoring_service_deployed_contract =
+			self.get_deployed(ContractIdentifier::MonitoringService)?;
+
+		let one_to_n_deployed_contract = self.get_deployed(ContractIdentifier::OneToN)?;
+
+		Ok(DefaultAddresses {
+			service_registry: service_registry_deployed_contract.address,
+			secret_registry: secret_registry_deployed_contract.address,
+			token_network_registry: token_network_registry_deployed_contract.address,
+			one_to_n: one_to_n_deployed_contract.address,
+			monitoring_service: monitoring_service_deployed_contract.address,
+		})
 	}
 
 	pub fn get_deployed(

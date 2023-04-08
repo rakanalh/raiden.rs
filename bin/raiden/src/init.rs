@@ -6,7 +6,7 @@ use std::{
 use parking_lot::RwLock as SyncRwLock;
 use raiden_blockchain::{
 	contracts::{
-		self,
+		ContractIdentifier,
 		ContractsManager,
 	},
 	proxies::{
@@ -79,40 +79,19 @@ pub fn init_state_manager(
 	chain_id: ChainID,
 	account: Account<Http>,
 ) -> Result<(Arc<SyncRwLock<StateManager>>, BlockNumber, DefaultAddresses), String> {
-	let token_network_registry_deployed_contract = contracts_manager
-		.get_deployed(contracts::ContractIdentifier::TokenNetworkRegistry)
-		.map_err(|e| format!("Could not find token network registry deployment info: {:?}", e))?;
+	let default_addresses = contracts_manager
+		.deployed_addresses()
+		.map_err(|e| format!("Failed to construct default deployed addresses: {:?}", e))?;
 
-	let secret_registry_deployed_contract = contracts_manager
-		.get_deployed(contracts::ContractIdentifier::SecretRegistry)
-		.map_err(|e| format!("Could not find secret registry deployment info: {:?}", e))?;
-
-	let service_registry_deployed_contract = contracts_manager
-		.get_deployed(contracts::ContractIdentifier::ServiceRegistry)
-		.map_err(|e| format!("Could not find service registry deployment info: {:?}", e))?;
-
-	let monitoring_service_deployed_contract = contracts_manager
-		.get_deployed(contracts::ContractIdentifier::MonitoringService)
-		.map_err(|e| format!("Could not find monitoring service deployment info: {:?}", e))?;
-
-	let one_to_n_deployed_contract = contracts_manager
-		.get_deployed(contracts::ContractIdentifier::OneToN)
-		.map_err(|e| format!("Could not find OneToN deployment info: {:?}", e))?;
-
-	let default_addresses = DefaultAddresses {
-		service_registry: service_registry_deployed_contract.address,
-		secret_registry: secret_registry_deployed_contract.address,
-		token_network_registry: token_network_registry_deployed_contract.address,
-		one_to_n: one_to_n_deployed_contract.address,
-		monitoring_service: monitoring_service_deployed_contract.address,
-	};
-
+	let token_network_registry_contract = contracts_manager
+		.get_deployed(ContractIdentifier::TokenNetworkRegistry)
+		.map_err(|e| format!("Could not find token network registry contract: {:?}", e))?;
 	let (state_manager, block_number) = StateManager::restore_or_init_state(
 		storage,
 		chain_id,
 		account.address(),
-		token_network_registry_deployed_contract.address,
-		token_network_registry_deployed_contract.block,
+		default_addresses.token_network_registry,
+		token_network_registry_contract.block,
 	)
 	.map_err(|e| format!("Failed to initialize state: {}", e))?;
 
