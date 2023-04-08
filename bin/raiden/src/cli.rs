@@ -5,6 +5,10 @@ use std::{
 
 use raiden_bin_common::parse_address;
 use raiden_network_transport::{
+	config::{
+		MatrixTransportConfig,
+		TransportConfig,
+	},
 	matrix::constants::MATRIX_AUTO_SELECT_SERVER,
 	types::EnvironmentType,
 };
@@ -167,6 +171,17 @@ pub struct CliMatrixTransportConfig {
 	pub retry_timeout: u8,
 	#[structopt(long, default_value = "60")]
 	pub retry_timeout_max: u8,
+}
+
+impl Into<TransportConfig> for CliMatrixTransportConfig {
+	fn into(self) -> TransportConfig {
+		TransportConfig {
+			retry_timeout: self.retry_timeout,
+			retry_timeout_max: self.retry_timeout_max,
+			retry_count: self.retry_count,
+			matrix: MatrixTransportConfig { homeserver_url: self.matrix_server },
+		}
+	}
 }
 
 #[derive(StructOpt, Debug)]

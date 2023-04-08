@@ -237,10 +237,7 @@ async fn main() {
 		};
 	let (transport_service, transport_sender, our_metadata) = match init_transport(
 		cli.environment_type.into(),
-		cli.matrix_transport_config.matrix_server,
-		cli.matrix_transport_config.retry_timeout,
-		cli.matrix_transport_config.retry_count,
-		cli.matrix_transport_config.retry_timeout_max,
+		cli.matrix_transport_config.into(),
 		account.clone(),
 		datadir,
 		services_registry_proxy,

@@ -17,10 +17,7 @@ use raiden_blockchain::{
 };
 use raiden_network_messages::messages::TransportServiceMessage;
 use raiden_network_transport::{
-	config::{
-		MatrixTransportConfig,
-		TransportConfig,
-	},
+	config::TransportConfig,
 	matrix::{
 		constants::MATRIX_AUTO_SELECT_SERVER,
 		utils::{
@@ -176,27 +173,18 @@ pub async fn init_channel_fees(
 
 pub async fn init_transport(
 	environment_type: EnvironmentType,
-	homeserver_url: String,
-	retry_timeout: u8,
-	retry_count: u32,
-	retry_timeout_max: u8,
+	transport_config: TransportConfig,
 	account: Account<Http>,
 	storage_path: PathBuf,
 	service_registry_proxy: ServiceRegistryProxy<Http>,
 ) -> Result<(MatrixService, UnboundedSender<TransportServiceMessage>, AddressMetadata), String> {
-	let homeserver_url = if homeserver_url == MATRIX_AUTO_SELECT_SERVER {
+	let homeserver_url = if transport_config.matrix.homeserver_url == MATRIX_AUTO_SELECT_SERVER {
 		let servers = get_default_matrix_servers(environment_type)
 			.await
 			.map_err(|e| format!("Could not fetch default matrix servers: {:?}", e))?;
 		select_best_server(servers)
 	} else {
-		homeserver_url
-	};
-	let transport_config = TransportConfig {
-		retry_timeout,
-		retry_timeout_max,
-		retry_count,
-		matrix: MatrixTransportConfig { homeserver_url: homeserver_url.clone() },
+		transport_config.matrix.homeserver_url.clone()
 	};
 
 	let conn = Connection::open(storage_path.join("raiden.db"))
