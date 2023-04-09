@@ -1,9 +1,17 @@
-use raiden_primitives::types::{
-	RevealTimeout,
-	SettleTimeout,
-	TokenAddress,
-	TokenAmount,
-	TokenNetworkAddress,
+use raiden_primitives::{
+	serializers::{
+		to_checksummed_str,
+		u256_to_str,
+	},
+	types::{
+		ChannelIdentifier,
+		PaymentIdentifier,
+		RevealTimeout,
+		SettleTimeout,
+		TokenAddress,
+		TokenAmount,
+		TokenNetworkAddress,
+	},
 };
 use raiden_state_machine::{
 	types::{
@@ -21,6 +29,43 @@ use web3::types::{
 #[derive(Serialize)]
 pub struct AddressResponse {
 	pub our_address: Address,
+}
+
+#[derive(Serialize)]
+pub struct VersionResponse {
+	pub version: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+pub struct SettingsResponse {
+	pub pathfinding_service_address: String,
+}
+
+#[derive(Serialize)]
+pub struct ConnectionManager {
+	#[serde(serialize_with = "u256_to_str")]
+	pub sum_deposits: TokenAmount,
+	pub channels: u32,
+}
+
+#[derive(Serialize)]
+pub struct TransferView {
+	pub payment_identifier: PaymentIdentifier,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub token_address: TokenAddress,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub token_network_address: TokenNetworkAddress,
+	#[serde(serialize_with = "u256_to_str")]
+	pub channel_identifier: ChannelIdentifier,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub initiator: Address,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub target: Address,
+	#[serde(serialize_with = "u256_to_str")]
+	pub transferred_amount: TokenAmount,
+	#[serde(serialize_with = "u256_to_str")]
+	pub locked_amount: TokenAmount,
+	pub role: String,
 }
 
 #[derive(Serialize)]
