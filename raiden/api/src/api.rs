@@ -96,7 +96,7 @@ pub enum ApiError {
 }
 
 pub struct Api {
-	raiden: Arc<Raiden>,
+	pub raiden: Arc<Raiden>,
 	transition_service: Arc<Transitioner>,
 	payments_registry: Arc<RwLock<PaymentsRegistry>>,
 }

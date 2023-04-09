@@ -73,6 +73,7 @@ pub struct DeployedContract {
 }
 
 pub struct ContractsManager {
+	version: String,
 	contracts: HashMap<String, Contract>,
 	deployment: Map<String, Value>,
 	deployment_services: Map<String, Value>,
@@ -99,6 +100,11 @@ impl ContractsManager {
 		let contracts_deployment_services: serde_json::Value =
 			serde_json::from_str(chain_deployment_services)?;
 
+		let contracts_version = contracts_specs
+			.get("contracts_version")
+			.ok_or(ContractDefError::SpecNotFound)?
+			.as_str()
+			.ok_or(ContractDefError::SpecNotFound)?;
 		let specs_map = contracts_specs
 			.get("contracts")
 			.ok_or(ContractDefError::SpecNotFound)?
@@ -118,6 +124,7 @@ impl ContractsManager {
 			.ok_or(ContractDefError::SpecNotFound)?;
 
 		let mut manager = Self {
+			version: contracts_version.to_string(),
 			contracts: HashMap::new(),
 			deployment: deployment.clone(),
 			deployment_services: deployment_services.clone(),
@@ -150,14 +157,18 @@ impl ContractsManager {
 		let monitoring_service_deployed_contract =
 			self.get_deployed(ContractIdentifier::MonitoringService)?;
 
+		let user_deposit_deployed_contract = self.get_deployed(ContractIdentifier::UserDeposit)?;
+
 		let one_to_n_deployed_contract = self.get_deployed(ContractIdentifier::OneToN)?;
 
 		Ok(DefaultAddresses {
+			contracts_version: self.version.clone(),
 			service_registry: service_registry_deployed_contract.address,
 			secret_registry: secret_registry_deployed_contract.address,
 			token_network_registry: token_network_registry_deployed_contract.address,
 			one_to_n: one_to_n_deployed_contract.address,
 			monitoring_service: monitoring_service_deployed_contract.address,
+			user_deposit: user_deposit_deployed_contract.address,
 		})
 	}
 

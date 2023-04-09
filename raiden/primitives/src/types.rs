@@ -125,11 +125,19 @@ pub struct AddressMetadata {
 	pub capabilities: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct DefaultAddresses {
+	pub contracts_version: String,
+	#[serde(rename = "token_network_registry_address")]
 	pub token_network_registry: Address,
+	#[serde(rename = "secret_registry_address")]
 	pub secret_registry: Address,
+	#[serde(rename = "one_to_n_address")]
 	pub one_to_n: Address,
+	#[serde(rename = "service_registry_address")]
 	pub service_registry: Address,
+	#[serde(rename = "user_deposit_address")]
+	pub user_deposit: Address,
+	#[serde(rename = "monitoring_service_address")]
 	pub monitoring_service: Address,
 }
