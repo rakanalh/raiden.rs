@@ -137,7 +137,8 @@ impl SyncService {
 				match decoder.as_state_change(event.clone(), &current_state.clone(), storage).await
 				{
 					Ok(Some(state_change)) => {
-						if let Err(e) = self.transition_service.transition(state_change).await {
+						if let Err(e) = self.transition_service.transition(vec![state_change]).await
+						{
 							error!("{}", e);
 						}
 					},
@@ -166,7 +167,9 @@ impl SyncService {
 				block_hash: block.hash.unwrap(),
 				gas_limit: block.gas_limit,
 			};
-			if let Err(e) = self.transition_service.transition(block_state_change.into()).await {
+			if let Err(e) =
+				self.transition_service.transition(vec![block_state_change.into()]).await
+			{
 				error!("{}", e);
 			}
 

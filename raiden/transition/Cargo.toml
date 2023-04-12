@@ -12,6 +12,7 @@ rust-version = "1.59"
 
 [dependencies]
 # 3rd-Party
+futures = { version = "0.3.21", default-features = false }
 parking_lot = { version = "0.11.2", default-features = false }
 tokio = { version = "1.0", default-features = false }
 tracing = { version = "0.1.37", default-features = false }

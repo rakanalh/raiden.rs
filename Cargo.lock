@@ -2700,6 +2700,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.6",
+ "tokio",
  "web3",
 ]
 
@@ -2731,6 +2732,7 @@ dependencies = [
 name = "raiden-transition"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "parking_lot 0.11.2",
  "raiden-blockchain",
  "raiden-network-messages",

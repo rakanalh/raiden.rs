@@ -56,7 +56,8 @@ impl BlockMonitorService {
 					block_hash,
 					gas_limit: header.gas_limit,
 				};
-				if let Err(e) = self.transition_service.transition(block_state_change.into()).await
+				if let Err(e) =
+					self.transition_service.transition(vec![block_state_change.into()]).await
 				{
 					error!("{}", e);
 				}
