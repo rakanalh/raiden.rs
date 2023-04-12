@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use web3::{
 	ethabi::{
 		encode,

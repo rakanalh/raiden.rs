@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 pub trait ToBytes {
 	fn to_bytes(&self) -> Vec<u8>;
 }

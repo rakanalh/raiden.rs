@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::ops::Mul;
 
 use lazy_static::lazy_static;
