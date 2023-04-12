@@ -270,6 +270,38 @@ pub fn get_addresses_to_channels(
 	channels
 }
 
+pub fn filter_channels_by_partner_address(
+	chain_state: &ChainState,
+	registry_address: TokenNetworkAddress,
+	token_address: TokenAddress,
+	partner_addresses: Vec<Address>,
+) -> Vec<&ChannelState> {
+	let token_network =
+		match get_token_network_by_token_address(chain_state, registry_address, token_address) {
+			Some(token_network) => token_network,
+			None => return vec![],
+		};
+
+	let mut channels = vec![];
+	for partner in partner_addresses {
+		if let Some(channels_identifiers) =
+			token_network.partneraddresses_to_channelidentifiers.get(&partner)
+		{
+			for channel_id in channels_identifiers {
+				if let Some(channel_state) =
+					token_network.channelidentifiers_to_channels.get(channel_id)
+				{
+					if channel_state.status() != ChannelStatus::Unusable {
+						channels.push(channel_state);
+					}
+				}
+			}
+		}
+	}
+
+	channels
+}
+
 pub fn get_address_metadata(
 	recipient_address: Address,
 	route_states: Vec<RouteState>,
