@@ -98,7 +98,11 @@ impl ProxyManager {
 				token_network_registry_contract.abi.as_slice(),
 			)
 			.map_err(ContractDefError::ABI)?;
-			let proxy = TokenNetworkRegistryProxy::new(token_network_registry_web3_contract);
+			let proxy = TokenNetworkRegistryProxy::new(
+				self.web3.clone(),
+				self.gas_metadata.clone(),
+				token_network_registry_web3_contract,
+			);
 			let mut token_network_registries = self.token_network_registries.write().await;
 			token_network_registries.insert(token_network_registry_address, proxy);
 		}

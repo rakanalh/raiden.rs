@@ -1,5 +1,6 @@
 mod channel;
 mod secret;
+mod token;
 
 pub use channel::*;
 use raiden_primitives::types::{
@@ -7,6 +8,7 @@ use raiden_primitives::types::{
 	U256,
 };
 pub use secret::*;
+pub use token::*;
 
 use crate::proxies::ProxyError;
 

@@ -48,6 +48,14 @@ impl<T: Transport> TokenProxy<T> {
 			.map_err(Into::into)
 	}
 
+	pub async fn total_supply(&self, block: Option<H256>) -> Result<U256> {
+		let block = block.map(|b| BlockId::Hash(b));
+		self.contract
+			.query("totalSupply", (), None, Options::default(), block)
+			.await
+			.map_err(Into::into)
+	}
+
 	pub async fn balance_of(&self, address: Address, block: Option<H256>) -> Result<U256> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
