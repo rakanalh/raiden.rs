@@ -1045,7 +1045,7 @@ impl Api {
 			.await
 			.map_err(ApiError::ContractSpec)?;
 
-		let chain_state = &self.raiden.state_manager.read().current_state;
+		let chain_state = self.raiden.state_manager.read().current_state.clone();
 		let confirmed_block_identifier = chain_state.block_hash.clone();
 		let block_number = chain_state.block_number.clone();
 		drop(chain_state);

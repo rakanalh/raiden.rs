@@ -189,9 +189,17 @@ async fn main() {
 				eprintln!("Could not unlock account: {}", e);
 				process::exit(1);
 			}
-
+			let current_block = web3
+				.eth()
+				.block(raiden_primitives::types::BlockId::Number(web3::types::BlockNumber::Latest))
+				.await
+				.ok()
+				.flatten()
+				.expect("Should fetch latest block")
+				.hash
+				.expect("Should contain latest block hash");
 			match user_deposit
-				.deposit(account, private_key.address(), new_total_deposit.into())
+				.deposit(account, token_proxy, new_total_deposit.into(), current_block)
 				.await
 			{
 				Ok(hash) => {

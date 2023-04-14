@@ -347,11 +347,8 @@ pub async fn partners_by_token_address(req: Request<Body>) -> Result<Response<Bo
 
 pub async fn user_deposit(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
-	let account = account(&req);
 	let contracts_manager = contracts_manager(&req);
 	let addresses = unwrap!(contracts_manager.deployed_addresses());
-	let state_manager = state_manager(&req);
-	let current_state = state_manager.read().current_state.clone();
 
 	let params: UserDepositParams = unwrap!(body_to_params(req).await);
 
@@ -380,12 +377,14 @@ pub async fn user_deposit(req: Request<Body>) -> Result<Response<Body>, HttpErro
 	}
 
 	let result = if let Some(total_deposit) = params.total_deposit {
-		api.deposit_to_udc(addresses.user_deposit, total_deposit).await;
+		unwrap!(api.deposit_to_udc(addresses.user_deposit, total_deposit).await);
 	} else if let Some(planned_withdraw_amount) = params.planned_withdraw_amount {
-		api.plan_withdraw_from_udc(addresses.user_deposit, planned_withdraw_amount)
-			.await;
+		unwrap!(
+			api.plan_withdraw_from_udc(addresses.user_deposit, planned_withdraw_amount)
+				.await
+		);
 	} else if let Some(withdraw_amount) = params.withdraw_amount {
-		api.withdraw_from_udc(withdraw_amount).await;
+		unwrap!(api.withdraw_from_udc(addresses.user_deposit, withdraw_amount).await);
 	} else {
 		return unwrap!(Err(Error::Param(format!(
 			"Nothing to do. Should either provide total_deposit, planned_withdraw_amount or withdraw_amount argument"

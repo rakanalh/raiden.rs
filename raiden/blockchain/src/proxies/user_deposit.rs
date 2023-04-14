@@ -62,7 +62,7 @@ where
 		Self { web3, gas_metadata, contract, lock: Arc::new(RwLock::new(true)) }
 	}
 
-	pub async fn token_address(&self, block: Option<H256>) -> Result<Address> {
+	pub async fn token_address(&self, block: Option<BlockHash>) -> Result<Address> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
 			.query("token", (), None, Options::default(), block)
@@ -70,7 +70,7 @@ where
 			.map_err(Into::into)
 	}
 
-	pub async fn balance(&self, owner: Address, block: Option<H256>) -> Result<U256> {
+	pub async fn balance(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
 			.query("balances", (owner,), None, Options::default(), block)
@@ -78,7 +78,7 @@ where
 			.map_err(Into::into)
 	}
 
-	pub async fn total_deposit(&self, owner: Address, block: Option<H256>) -> Result<U256> {
+	pub async fn total_deposit(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
 			.query("total_deposit", (owner,), None, Options::default(), block)
@@ -86,7 +86,7 @@ where
 			.map_err(Into::into)
 	}
 
-	pub async fn whole_balance(&self, block: Option<H256>) -> Result<U256> {
+	pub async fn whole_balance(&self, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
 			.query("whole_balance", (), None, Options::default(), block)
@@ -94,7 +94,7 @@ where
 			.map_err(Into::into)
 	}
 
-	pub async fn whole_balance_limit(&self, block: Option<H256>) -> Result<U256> {
+	pub async fn whole_balance_limit(&self, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract
 			.query("whole_balance_limit", (), None, Options::default(), block)
@@ -105,7 +105,7 @@ where
 	pub async fn withdraw_plan(
 		&self,
 		address: Address,
-		block: Option<H256>,
+		block: Option<BlockHash>,
 	) -> Result<WithdrawPlan> {
 		let block = block.map(|b| BlockId::Hash(b));
 		let (withdraw_amount, withdraw_block): (TokenAmount, U256) = self
