@@ -241,7 +241,7 @@ where
 
 		self.account
 			.check_for_insufficient_eth(
-				self.gas_metadata.get("TokenNetwork.openChannel").into(),
+				self.gas_metadata.get("TokenNetwork.updateNonClosingBalanceProof").into(),
 				failed_at_blocknumber,
 			)
 			.await?;
