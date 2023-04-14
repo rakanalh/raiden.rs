@@ -183,7 +183,11 @@ impl ProxyManager {
 				user_deposit_contract.abi.as_slice(),
 			)
 			.map_err(ContractDefError::ABI)?;
-			let proxy = UserDeposit::new(self.web3.clone(), user_deposit_web3_contract);
+			let proxy = UserDeposit::new(
+				self.web3.clone(),
+				self.gas_metadata.clone(),
+				user_deposit_web3_contract,
+			);
 			let mut user_deposit = self.user_deposit.write().await;
 			user_deposit.insert(user_deposit_address, proxy);
 		}

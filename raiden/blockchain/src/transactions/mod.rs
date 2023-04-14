@@ -1,16 +1,20 @@
 mod channel;
 mod secret;
 mod token;
+mod user_deposit;
 
-pub use channel::*;
 use raiden_primitives::types::{
 	H256,
 	U256,
 };
-pub use secret::*;
-pub use token::*;
 
 use crate::proxies::ProxyError;
+pub use crate::transactions::{
+	channel::*,
+	secret::*,
+	token::*,
+	user_deposit::*,
+};
 
 #[async_trait::async_trait]
 pub trait Transaction {
