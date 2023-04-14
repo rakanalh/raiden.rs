@@ -28,10 +28,14 @@ use raiden_state_machine::views::{
 	get_token_network_by_token_address,
 };
 use routerify::ext::RequestExt;
+use tracing::debug;
 
 use super::{
 	error::Error,
-	request::InitiatePaymentParams,
+	request::{
+		InitiatePaymentParams,
+		UserDepositParams,
+	},
 	response::{
 		ConnectionManager,
 		SettingsResponse,
@@ -51,6 +55,7 @@ use crate::{
 		},
 		response::{
 			self,
+			ChannelResponse,
 			VersionResponse,
 		},
 		utils::{
@@ -211,8 +216,34 @@ pub async fn channels(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	json_response!(&channels)
 }
 
-pub async fn connections(req: Request<Body>) -> Result<Response<Body>, HttpError> {
-	todo!()
+pub async fn connections_leave(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+	let api = api(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap!(contracts_manager.deployed_addresses());
+
+	let token_address = req.param("token_address");
+	let token_address: TokenAddress =
+		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address")))));
+
+	debug!(
+		message = "Leaving token network",
+		registry_address = addresses.token_network_registry.to_checksummed(),
+		token_address = token_address.to_checksummed(),
+	);
+
+	let closed_channels = unwrap!(api
+		.token_network_leave(addresses.token_network_registry, token_address)
+		.await
+		.map_err(|e| Error::Other(format!("Could not leave token network: {:?}", e))));
+
+	let mut closed_channel_result = vec![];
+	for channel_state in closed_channels {
+		let result: ChannelResponse = channel_state.into();
+		closed_channel_result.push(result);
+	}
+
+	json_response!(closed_channel_result)
 }
 
 pub async fn connections_info(req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -254,7 +285,27 @@ pub async fn tokens(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 }
 
 pub async fn register_token(req: Request<Body>) -> Result<Response<Body>, HttpError> {
-	todo!()
+	let api = api(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap!(contracts_manager.deployed_addresses());
+
+	let token_address = req.param("token_address");
+	let token_address: TokenAddress =
+		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address")))));
+
+	debug!(
+		message = "Registering a new token",
+		registry_address = addresses.token_network_registry.to_checksummed(),
+		token_address = token_address.to_checksummed(),
+	);
+
+	let token_network_address = unwrap!(api
+		.token_network_register(addresses.token_network_registry, token_address)
+		.await
+		.map_err(|e| Error::Other(format!("Could not register token network: {:?}", e))));
+
+	json_response!(token_network_address)
 }
 
 pub async fn partners_by_token_address(req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -295,7 +346,52 @@ pub async fn partners_by_token_address(req: Request<Body>) -> Result<Response<Bo
 }
 
 pub async fn user_deposit(req: Request<Body>) -> Result<Response<Body>, HttpError> {
-	todo!()
+	let api = api(&req);
+	let account = account(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let state_manager = state_manager(&req);
+	let current_state = state_manager.read().current_state.clone();
+
+	let params: UserDepositParams = unwrap!(body_to_params(req).await);
+
+	if params.total_deposit.is_some() && params.planned_withdraw_amount.is_some() {
+		return unwrap!(Err(Error::Param(format!(
+			"Cannot deposit to UDC and plan a withdraw at the same time"
+		))))
+	}
+	if params.total_deposit.is_some() && params.withdraw_amount.is_some() {
+		return unwrap!(Err(Error::Param(format!(
+			"Cannot deposit to UDC and withdraw at the same time"
+		))))
+	}
+	if params.planned_withdraw_amount.is_some() && params.withdraw_amount.is_some() {
+		return unwrap!(Err(Error::Param(format!(
+			"Cannot withdraw from UDC and plan a withdraw at the same time"
+		))))
+	}
+	if params.total_deposit.is_none() &&
+		params.planned_withdraw_amount.is_none() &&
+		params.withdraw_amount.is_none()
+	{
+		return unwrap!(Err(Error::Param(format!(
+			"Nothing to do. Should either provide total_deposit, planned_withdraw_amount or withdraw_amount argument"
+		))))
+	}
+
+	let result = if let Some(total_deposit) = params.total_deposit {
+		api.deposit_to_udc(addresses.user_deposit, total_deposit).await;
+	} else if let Some(planned_withdraw_amount) = params.planned_withdraw_amount {
+		api.plan_withdraw_from_udc(addresses.user_deposit, planned_withdraw_amount)
+			.await;
+	} else if let Some(withdraw_amount) = params.withdraw_amount {
+		api.withdraw_from_udc(withdraw_amount).await;
+	} else {
+		return unwrap!(Err(Error::Param(format!(
+			"Nothing to do. Should either provide total_deposit, planned_withdraw_amount or withdraw_amount argument"
+		))));
+	};
+	json_response!(result)
 }
 
 pub async fn status(_req: Request<Body>) -> Result<Response<Body>, HttpError> {

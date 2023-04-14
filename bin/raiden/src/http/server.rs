@@ -82,7 +82,7 @@ fn router(raiden: Arc<Raiden>, api: Arc<Api>) -> Router<Body, Error> {
 		.get("/api/v1/channels/:token_address", endpoints::channels)
 		.get("/api/v1/channels/:token_address/:partner_address", endpoints::channels)
 		.get("/api/v1/connections", endpoints::connections_info)
-		.get("/api/v1/connections/:token_address", endpoints::connections)
+		.get("/api/v1/connections/:token_address", endpoints::connections_leave)
 		.get("/api/v1/notifications", endpoints::notifications)
 		.get("/api/v1/payments", endpoints::payments)
 		.get("/api/v1/payments/:token_address", endpoints::payments)

@@ -70,15 +70,22 @@ pub struct TransferView {
 
 #[derive(Serialize)]
 pub struct ChannelResponse {
+	#[serde(serialize_with = "u256_to_str")]
 	channel_identifier: U256,
+	#[serde(serialize_with = "to_checksummed_str")]
 	token_network_address: TokenNetworkAddress,
+	#[serde(serialize_with = "to_checksummed_str")]
 	token_address: TokenAddress,
+	#[serde(serialize_with = "to_checksummed_str")]
 	partner_address: Address,
 	settle_timeout: SettleTimeout,
 	reveal_timeout: RevealTimeout,
+	#[serde(serialize_with = "u256_to_str")]
 	balance: TokenAmount,
 	state: ChannelStatus,
+	#[serde(serialize_with = "u256_to_str")]
 	total_deposit: TokenAmount,
+	#[serde(serialize_with = "u256_to_str")]
 	total_withdraw: TokenAmount,
 }
 

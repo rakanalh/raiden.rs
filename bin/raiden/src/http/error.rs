@@ -9,5 +9,7 @@ pub(crate) enum Error {
 	#[error("`{0}`")]
 	Serialization(serde_json::Error),
 	#[error("Error: `{0}`")]
+	Param(String),
+	#[error("Error: `{0}`")]
 	Other(String),
 }

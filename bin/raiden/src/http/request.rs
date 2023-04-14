@@ -44,6 +44,19 @@ pub struct ChannelPatchParams {
 }
 
 #[derive(Deserialize)]
+pub struct UserDepositParams {
+	#[serde(default)]
+	#[serde(deserialize_with = "u256_from_optional_str")]
+	pub total_deposit: Option<TokenAmount>,
+	#[serde(default)]
+	#[serde(deserialize_with = "u256_from_optional_str")]
+	pub planned_withdraw_amount: Option<TokenAmount>,
+	#[serde(default)]
+	#[serde(deserialize_with = "u256_from_optional_str")]
+	pub withdraw_amount: Option<TokenAmount>,
+}
+
+#[derive(Deserialize)]
 pub struct InitiatePaymentParams {
 	#[serde(deserialize_with = "u256_from_str")]
 	pub amount: TokenAmount,
