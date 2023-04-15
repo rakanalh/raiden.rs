@@ -97,7 +97,7 @@ fn router(raiden: Arc<Raiden>, api: Arc<Api>) -> Router<Body, Error> {
 		.get("/api/v1/settings", endpoints::settings)
 		.get("/api/v1/tokens", endpoints::tokens)
 		.put("/api/v1/tokens/:token_address", endpoints::register_token)
-		.get("/api/v1/tokens/:token_address/:partner_address", endpoints::partners_by_token_address)
+		.get("/api/v1/tokens/:token_address/partners", endpoints::partners_by_token_address)
 		.post("/api/v1/user_deposit", endpoints::user_deposit)
 		.get("/api/v1/status", endpoints::status)
 		.get("/api/v1/version", endpoints::version)
