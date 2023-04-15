@@ -243,13 +243,11 @@ where
 		Ok(())
 	}
 
-	async fn submit(
+	async fn execute_prerequisite(
 		&self,
-		params: Self::Params,
+		_params: Self::Params,
 		data: Self::Data,
-		gas_estimate: GasLimit,
-		gas_price: GasPrice,
-	) -> Result<Self::Output, ProxyError> {
+	) -> Result<(), ProxyError> {
 		self.token
 			.approve(
 				self.account.clone(),
@@ -257,7 +255,16 @@ where
 				data.amount_to_deposit,
 			)
 			.await?;
+		Ok(())
+	}
 
+	async fn submit(
+		&self,
+		params: Self::Params,
+		_data: Self::Data,
+		gas_estimate: GasLimit,
+		gas_price: GasPrice,
+	) -> Result<Self::Output, ProxyError> {
 		let nonce = self.account.next_nonce().await;
 
 		self.token_network

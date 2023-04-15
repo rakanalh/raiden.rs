@@ -55,6 +55,14 @@ pub trait Transaction {
 		data: Self::Data,
 	) -> Result<(U256, U256), ()>;
 
+	async fn execute_prerequisite(
+		&self,
+		_params: Self::Params,
+		_data: Self::Data,
+	) -> Result<(), ProxyError> {
+		Ok(())
+	}
+
 	async fn execute(
 		&self,
 		params: Self::Params,
@@ -64,10 +72,12 @@ pub trait Transaction {
 		if let Ok(_) =
 			self.validate_preconditions(params.clone(), data.clone(), at_block_hash).await
 		{
-			if let Ok((gas_estimate, gas_price)) =
-				self.estimate_gas(params.clone(), data.clone()).await
-			{
-				return self.submit(params, data, gas_estimate, gas_price).await
+			if self.execute_prerequisite(params.clone(), data.clone()).await.is_ok() {
+				if let Ok((gas_estimate, gas_price)) =
+					self.estimate_gas(params.clone(), data.clone()).await
+				{
+					return self.submit(params, data, gas_estimate, gas_price).await
+				}
 			}
 		}
 

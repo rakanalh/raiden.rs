@@ -67,6 +67,8 @@ where
 			.total_deposit(self.account.address(), Some(at_block_hash))
 			.await?;
 
+		println!("Previous: {:?}", previous_total_deposit);
+
 		let whole_balance = self.user_deposit.whole_balance(Some(at_block_hash)).await?;
 
 		let whole_balance_limit =
@@ -91,6 +93,7 @@ where
 	) -> Result<(), ProxyError> {
 		let amount_to_deposit = params.total_deposit - data.previous_total_deposit;
 
+		println!("New: {:?}", params.total_deposit);
 		if params.total_deposit <= data.previous_total_deposit {
 			return Err(ProxyError::BrokenPrecondition(format!("Total deposit did not increase")))
 		}
@@ -115,26 +118,42 @@ where
 		Ok(())
 	}
 
-	async fn submit(
+	async fn execute_prerequisite(
 		&self,
 		params: Self::Params,
 		data: Self::Data,
-		gas_estimate: GasLimit,
-		gas_price: GasPrice,
-	) -> Result<Self::Output, ProxyError> {
+	) -> Result<(), ProxyError> {
 		let amount_to_deposit = params.total_deposit - data.previous_total_deposit;
+		println!("Approving {:?}", amount_to_deposit);
 		self.token
 			.approve(self.account.clone(), self.user_deposit.contract.address(), amount_to_deposit)
 			.await?;
+		println!(
+			"Approval: {:?}",
+			self.token
+				.allowance(self.account.address(), self.user_deposit.contract.address(), None)
+				.await
+		);
 
+		Ok(())
+	}
+
+	async fn submit(
+		&self,
+		params: Self::Params,
+		_data: Self::Data,
+		gas_estimate: GasLimit,
+		gas_price: GasPrice,
+	) -> Result<Self::Output, ProxyError> {
 		let nonce = self.account.next_nonce().await;
 
+		println!("SUBMITTING TRANSACTION");
 		let receipt = self
 			.user_deposit
 			.contract
 			.signed_call_with_confirmations(
 				"deposit",
-				(self.user_deposit.contract.address(), params.total_deposit),
+				(self.account.address(), params.total_deposit),
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
 					opt.gas = Some(gas_estimate);
@@ -189,25 +208,20 @@ where
 		let allowance = self
 			.token
 			.allowance(
-				self.user_deposit.contract.address(),
 				self.account.address(),
+				self.user_deposit.contract.address(),
 				Some(failed_at_blockhash),
 			)
 			.await?;
 
-		if allowance < amount_to_deposit {
-			return Err(ProxyError::Recoverable(format!(
-				"The allowance of the {} deposit changed. \
-                Check concurrent deposits \
-                for the same token network but different proxies.",
-				amount_to_deposit,
-			)))
-		}
+		println!("Allowance: {:?}", allowance);
 
 		if allowance < amount_to_deposit {
 			return Err(ProxyError::Recoverable(format!(
-				"The allowance is insufficient. Available: {:?}, Needed: {:?}",
-				allowance, amount_to_deposit
+				"The allowance of the {} deposit changed, previous is: {}. \
+                Check concurrent deposits \
+                for the same token network but different proxies.",
+				amount_to_deposit, allowance
 			)))
 		}
 
@@ -243,7 +257,7 @@ where
 			.contract
 			.estimate_gas(
 				"deposit",
-				(self.user_deposit.contract.address(), params.total_deposit),
+				(self.account.address(), params.total_deposit),
 				self.account.address(),
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
