@@ -279,7 +279,11 @@ pub async fn tokens(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 
 	let chain_state = &state_manager.read().current_state;
 
-	let tokens = views::get_token_identifiers(chain_state, addresses.token_network_registry);
+	let tokens: Vec<_> =
+		views::get_token_identifiers(chain_state, addresses.token_network_registry)
+			.iter()
+			.map(|t| t.to_checksummed())
+			.collect();
 
 	json_response!(tokens)
 }
