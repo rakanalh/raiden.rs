@@ -493,7 +493,24 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 		.await
 	);
 
-	json_response!(unwrap!(serde_json::to_string(&channel_state)))
+	let chain_state = &state_manager.read().current_state.clone();
+	let token_network = unwrap!(views::get_token_network_by_token_address(
+		chain_state,
+		addresses.token_network_registry,
+		token_address,
+	)
+	.ok_or(Error::Other(format!("Token network not found"))));
+
+	if let Some(channel_state) = views::get_channel_by_token_network_and_partner(
+		chain_state,
+		token_network.address,
+		partner_address,
+	) {
+		let channel_state: ChannelResponse = channel_state.clone().into();
+		json_response!(channel_state)
+	} else {
+		unwrap!(Err(Error::Other(format!("Channel is no longer found"))))
+	}
 }
 
 pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
