@@ -168,54 +168,66 @@ pub async fn channels(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let addresses = unwrap!(contracts_manager.deployed_addresses());
 
 	let token_address = req.param("token_address");
-	let partner_address = req.param("partner_address");
 
 	let chain_state = &state_manager.read().current_state;
 
-	let channels: Vec<response::ChannelResponse> =
-		if token_address.is_some() && partner_address.is_some() {
-			let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
-				token_address.unwrap().trim_start_matches("0x")
-			)
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
-			let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
-				partner_address.unwrap().trim_start_matches("0x")
-			)
-			.map_err(|_| Error::Other(format!("Invalid partner address")))));
+	let channels: Vec<response::ChannelResponse> = if token_address.is_some() {
+		let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
+			token_address.unwrap().trim_start_matches("0x")
+		)
+		.map_err(|_| Error::Other(format!("Invalid token address")))));
+		let token_network = unwrap!(get_token_network_by_token_address(
+			&chain_state,
+			addresses.token_network_registry,
+			token_address
+		)
+		.ok_or(Error::Other(format!("Could not find token network by token address"))));
 
-			views::get_channel_state_for(
-				&chain_state,
-				addresses.token_network_registry,
-				token_address,
-				partner_address,
-			)
-			.into_iter()
+		token_network
+			.channelidentifiers_to_channels
+			.values()
 			.map(|c| c.clone().into())
 			.collect()
-		} else if token_address.is_some() {
-			let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
-				token_address.unwrap().trim_start_matches("0x")
-			)
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
-			let token_network = unwrap!(get_token_network_by_token_address(
-				&chain_state,
-				addresses.token_network_registry,
-				token_address
-			)
-			.ok_or(Error::Other(format!("Could not find token network by token address"))));
-
-			token_network
-				.channelidentifiers_to_channels
-				.values()
-				.map(|c| c.clone().into())
-				.collect()
-		} else {
-			views::get_channels(&chain_state).iter().map(|c| c.clone().into()).collect()
-		};
+	} else {
+		views::get_channels(&chain_state).iter().map(|c| c.clone().into()).collect()
+	};
 
 	json_response!(&channels)
 }
 
+pub async fn channel_by_partner_address(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+	let state_manager = state_manager(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap!(contracts_manager.deployed_addresses());
+
+	let token_address = req.param("token_address");
+	let partner_address = req.param("partner_address");
+
+	let chain_state = &state_manager.read().current_state;
+
+	let token_address: TokenAddress =
+		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address")))));
+
+	let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
+		partner_address.unwrap().trim_start_matches("0x")
+	)
+	.map_err(|_| Error::Other(format!("Invalid partner address")))));
+
+	let channel_state = views::get_channel_state_for(
+		&chain_state,
+		addresses.token_network_registry,
+		token_address,
+		partner_address,
+	);
+
+	if let Some(channel_state) = channel_state {
+		let channel_state: ChannelResponse = channel_state.clone().into();
+		json_response!(channel_state)
+	} else {
+		unwrap!(Err(Error::Other(format!("Channel does not exist"))))
+	}
+}
 pub async fn connections_leave(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let contracts_manager = contracts_manager(&req);
@@ -406,9 +418,6 @@ pub async fn status(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
 pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let account = account(&req);
-	let state_manager = state_manager(&req);
-	let current_state = state_manager.read().current_state.clone();
-	let _our_address = current_state.our_address;
 
 	let params: ChannelOpenParams = unwrap!(body_to_params(req).await);
 
@@ -451,17 +460,30 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 	let api = api(&req);
 	let account = account(&req);
 	let state_manager = state_manager(&req);
-	let current_state = state_manager.read().current_state.clone();
-	let _our_address = current_state.our_address;
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap!(contracts_manager.deployed_addresses());
+
+	let registry_address = addresses.token_network_registry;
+
+	let token_address = req.param("token_address");
+	let partner_address = req.param("partner_address");
+	let token_address: TokenAddress =
+		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address")))));
+
+	let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
+		partner_address.unwrap().trim_start_matches("0x")
+	)
+	.map_err(|_| Error::Other(format!("Invalid partner address")))));
 
 	let params: ChannelPatchParams = unwrap!(body_to_params(req).await);
 
-	let channel_state = unwrap!(
+	unwrap!(
 		api.update_channel(
 			account,
-			params.registry_address,
-			params.token_address,
-			params.partner_address,
+			registry_address,
+			token_address,
+			partner_address,
 			params.reveal_timeout,
 			params.total_deposit,
 			params.total_withdraw,

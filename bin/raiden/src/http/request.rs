@@ -30,9 +30,6 @@ pub struct ChannelOpenParams {
 
 #[derive(Deserialize)]
 pub struct ChannelPatchParams {
-	pub registry_address: Address,
-	pub token_address: TokenAddress,
-	pub partner_address: Address,
 	#[serde(default)]
 	#[serde(deserialize_with = "u256_from_optional_str")]
 	pub total_deposit: Option<TokenAmount>,

@@ -78,9 +78,12 @@ fn router(raiden: Arc<Raiden>, api: Arc<Api>) -> Router<Body, Error> {
 		.get("/api/v1/contracts", endpoints::contracts)
 		.get("/api/v1/channels", endpoints::channels)
 		.put("/api/v1/channels", endpoints::create_channel)
-		.patch("/api/v1/channels", endpoints::channel_update)
 		.get("/api/v1/channels/:token_address", endpoints::channels)
-		.get("/api/v1/channels/:token_address/:partner_address", endpoints::channels)
+		.get(
+			"/api/v1/channels/:token_address/:partner_address",
+			endpoints::channel_by_partner_address,
+		)
+		.patch("/api/v1/channels/:token_address/:partner_address", endpoints::channel_update)
 		.get("/api/v1/connections", endpoints::connections_info)
 		.get("/api/v1/connections/:token_address", endpoints::connections_leave)
 		.get("/api/v1/notifications", endpoints::notifications)
