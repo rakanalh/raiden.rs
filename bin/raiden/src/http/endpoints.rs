@@ -23,9 +23,12 @@ use raiden_primitives::{
 		TokenAmount,
 	},
 };
-use raiden_state_machine::views::{
-	self,
-	get_token_network_by_token_address,
+use raiden_state_machine::{
+	types::Event,
+	views::{
+		self,
+		get_token_network_by_token_address,
+	},
 };
 use routerify::ext::RequestExt;
 use tracing::debug;
@@ -38,6 +41,7 @@ use super::{
 	},
 	response::{
 		ConnectionManager,
+		ResponsePaymentSentSuccess,
 		SettingsResponse,
 	},
 	utils::{
@@ -56,6 +60,9 @@ use crate::{
 		response::{
 			self,
 			ChannelResponse,
+			ResponsePaymentHistory,
+			ResponsePaymentReceivedSuccess,
+			ResponsePaymentSentFailed,
 			VersionResponse,
 		},
 		utils::{
@@ -514,10 +521,93 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 }
 
 pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
-	let _token_address = req.param("token_address");
-	let _partner_address = req.param("partner_address");
+	let state_manager = state_manager(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap!(contracts_manager.deployed_addresses());
 
-	Ok(Response::default())
+	let token_address = req.param("token_address");
+	let partner_address = req.param("partner_address");
+
+	let chain_state = &state_manager.read().current_state.clone();
+
+	let token_network = if token_address.is_some() {
+		let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
+			token_address.unwrap().trim_start_matches("0x")
+		)
+		.map_err(|_| Error::Other(format!("Invalid token address")))));
+
+		let token_network = views::get_token_network_by_token_address(
+			chain_state,
+			addresses.token_network_registry,
+			token_address,
+		);
+		if token_network.is_none() {
+			unwrap!(Err(Error::Other(format!(
+				"Token address does not match a Raiden token network"
+			))));
+		}
+		token_network
+	} else {
+		None
+	};
+
+	let partner_address = if partner_address.is_some() {
+		let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
+			partner_address.unwrap().trim_start_matches("0x")
+		)
+		.map_err(|_| Error::Other(format!("Invalid partner address")))));
+		Some(partner_address)
+	} else {
+		None
+	};
+
+	let token_network_address = token_network.map(|n| n.address);
+	let events = unwrap!(state_manager
+		.read()
+		.storage
+		.get_events_payment_history_with_timestamps(token_network_address, partner_address,)
+		.map_err(|e| Error::Other(format!("{:?}", e))));
+
+	let mut payment_history: Vec<ResponsePaymentHistory> = vec![];
+	for event_record in events {
+		match event_record.data {
+			Event::PaymentSentSuccess(e) => {
+				let token_network =
+					views::get_token_network_by_address(chain_state, e.token_network_address)
+						.expect("Token network should exist");
+				let mut result: ResponsePaymentSentSuccess = e.into();
+				result.log_time = Some(event_record.timestamp);
+				result.token_address = Some(token_network.token_address);
+				result.identifier = Some(event_record.identifier.to_string());
+				payment_history.push(ResponsePaymentHistory::SentSuccess(result))
+			},
+			Event::PaymentReceivedSuccess(e) => {
+				let token_network =
+					views::get_token_network_by_address(chain_state, e.token_network_address)
+						.expect("Token network should exist");
+				let mut result: ResponsePaymentReceivedSuccess = e.into();
+				result.log_time = Some(event_record.timestamp);
+				result.token_address = Some(token_network.token_address);
+				result.identifier = Some(event_record.identifier.to_string());
+				payment_history.push(ResponsePaymentHistory::ReceivedSuccess(result))
+			},
+			Event::ErrorPaymentSentFailed(e) => {
+				let token_network =
+					views::get_token_network_by_address(chain_state, e.token_network_address)
+						.expect("Token network should exist");
+				let mut result: ResponsePaymentSentFailed = e.into();
+				result.log_time = Some(event_record.timestamp);
+				result.token_address = Some(token_network.token_address);
+				result.identifier = Some(event_record.identifier.to_string());
+				payment_history.push(ResponsePaymentHistory::SentFailed(result))
+			},
+			_ => {
+				unwrap!(Err(Error::Other(format!("Unexpected event"))))
+			},
+		};
+	}
+
+	json_response!(payment_history)
 }
 
 pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, HttpError> {

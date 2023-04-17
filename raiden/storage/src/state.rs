@@ -1,13 +1,19 @@
 use std::{
 	convert::TryInto,
+	str::FromStr,
 	sync::Mutex,
 };
 
+use chrono::{
+	NaiveDateTime,
+	Utc,
+};
 use raiden_primitives::types::{
 	Address,
 	BalanceHash,
 	CanonicalIdentifier,
 	Locksroot,
+	TokenNetworkAddress,
 };
 use raiden_state_machine::types::{
 	ChainState,
@@ -39,6 +45,7 @@ pub struct EventRecord {
 	pub identifier: StorageID,
 	pub state_change_identifier: StorageID,
 	pub data: Event,
+	pub timestamp: NaiveDateTime,
 }
 
 pub struct SnapshotRecord {
@@ -149,14 +156,19 @@ impl StateStorage {
 		let serialized_events =
 			serde_json::to_string(&events).map_err(StorageError::SerializationError)?;
 		let sql = format!(
-			"INSERT INTO state_events(identifier, source_statechange_id, data) VALUES(?1, ?2, ?3)"
+			"INSERT INTO state_events(identifier, source_statechange_id, data, timestamp) VALUES(?1, ?2, ?3, ?4)"
 		);
 		self.conn
 			.lock()
 			.map_err(|_| StorageError::CannotLock)?
 			.execute(
 				&sql,
-				params![&Ulid::new().to_string(), &state_change_id.to_string(), serialized_events],
+				params![
+					&Ulid::new().to_string(),
+					&state_change_id.to_string(),
+					serialized_events,
+					Utc::now().naive_local().to_string()
+				],
 			)
 			.map_err(|e| StorageError::Sql(e))?;
 		Ok(())
@@ -426,6 +438,7 @@ impl StateStorage {
 			identifier,
 			state_change_identifier,
 			data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+			timestamp: Utc::now().naive_local(),
 		}))
 	}
 
@@ -520,6 +533,7 @@ impl StateStorage {
 			identifier,
 			state_change_identifier,
 			data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+			timestamp: Utc::now().naive_local(),
 		}))
 	}
 
@@ -614,6 +628,118 @@ impl StateStorage {
 			identifier,
 			state_change_identifier,
 			data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+			timestamp: Utc::now().naive_local(),
 		}))
+	}
+
+	pub fn get_events_payment_history_with_timestamps(
+		&self,
+		event_types: Vec<&str>,
+		token_network_address: Option<TokenNetworkAddress>,
+		partner_address: Option<Address>,
+	) -> Result<Vec<EventRecord>> {
+		let token_network_address = token_network_address.map(|a| a.to_string());
+		let partner_address = partner_address.map(|a| a.to_string());
+
+		let mut params: Vec<&dyn ToSql> = vec![];
+		let event_types = event_types.join(",");
+		params.push(&event_types);
+
+		let binding = (token_network_address, partner_address);
+		let query = match binding {
+			(Some(ref token_network_address), Some(ref partner_address)) => {
+				let query = "
+                        SELECT
+                            identifier, data, source_statechange_id, timestamp
+                        FROM
+                            state_events
+                        WHERE
+                            json_extract(data, '$.type') IN (?1)
+                        AND
+                            json_extract(data, '$.token_network_address') LIKE ?2
+                        AND
+                            (
+                                json_extract(data, '$.target') LIKE ?3
+                                OR
+                                json_extract(data, '$.initiator') LIKE ?3
+                            )
+                        ORDER BY identifier ASC";
+
+				params.push(token_network_address);
+				params.push(partner_address);
+				query
+			},
+			(Some(ref token_network_address), None) => {
+				let query = "
+                        SELECT
+                            identifier, data, source_statechange_id, timestamp
+                        FROM
+                            state_events
+                        WHERE
+                            json_extract(data, '$.type') IN ({})
+                        AND
+                            json_extract(data, '$.token_network_address') LIKE ?
+                        ORDER BY identifier ASC
+                        ";
+				params.push(token_network_address);
+				query
+			},
+			(None, Some(ref partner_address)) => {
+				let query = "
+                        SELECT
+                            identifier, data, source_statechange_id, timestamp
+                        FROM
+                            state_events
+                        WHERE
+                            json_extract(data, '$.type') IN ({})
+                        AND
+                            (
+                            json_extract(data, '$.target') LIKE ?
+                            OR
+                            json_extract(data, '$.initiator') LIKE ?
+                            )
+                        ORDER BY identifier ASC
+                        ";
+				params.push(partner_address);
+				query
+			},
+			(None, None) => {
+				let query = "
+                        SELECT
+                            identifier, data, source_statechange_id, timestamp
+                        FROM
+                            state_events
+                        WHERE
+                            json_extract(data, '$.type') IN ({})
+                        ORDER BY identifier ASC
+                    ";
+				query
+			},
+		};
+
+		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+		let mut stmt = conn.prepare(query).map_err(StorageError::Sql)?;
+
+		let mut rows = stmt.query(params.as_slice()).map_err(StorageError::Sql)?;
+
+		let mut events = vec![];
+
+		while let Ok(Some(row)) = rows.next() {
+			let identifier: String = row.get(0).map_err(StorageError::Sql)?;
+			let data: String = row.get(1).map_err(StorageError::Sql)?;
+			let state_change_identifier: StorageID =
+				row.get::<usize, String>(2).map_err(StorageError::Sql)?.try_into()?;
+			let timestamp: String = row.get(3).map_err(StorageError::Sql)?;
+			let timestamp = NaiveDateTime::from_str(&timestamp)
+				.map_err(|_| StorageError::Other("Could not parse timestamp"))?;
+			events.push(EventRecord {
+				identifier: identifier.try_into()?,
+				data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+				state_change_identifier,
+				timestamp,
+			})
+		}
+
+		Ok(events)
 	}
 }

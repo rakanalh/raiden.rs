@@ -17,9 +17,13 @@ use raiden_state_machine::{
 	types::{
 		ChannelState,
 		ChannelStatus,
+		ErrorPaymentSentFailed,
+		PaymentReceivedSuccess,
+		PaymentSentSuccess,
 	},
 	views,
 };
+use raiden_storage::state::NaiveDateTime;
 use serde::Serialize;
 use web3::types::{
 	Address,
@@ -113,4 +117,89 @@ impl From<ChannelState> for ChannelResponse {
 			balance: views::channel_balance(&channel.our_state, &channel.partner_state),
 		}
 	}
+}
+
+#[derive(Serialize)]
+pub struct ResponsePaymentSentSuccess {
+	pub event: String,
+	pub identifier: Option<String>,
+	pub log_time: Option<NaiveDateTime>,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub token_address: Option<TokenAddress>,
+	#[serde(serialize_with = "u256_to_str")]
+	pub amount: TokenAmount,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub target: Address,
+}
+
+impl From<PaymentSentSuccess> for ResponsePaymentSentSuccess {
+	fn from(value: PaymentSentSuccess) -> Self {
+		Self {
+			event: "EventPaymentSentSuccess".to_owned(),
+			identifier: None,
+			log_time: None,
+			token_address: None,
+			amount: value.amount,
+			target: value.target,
+		}
+	}
+}
+
+#[derive(Serialize)]
+pub struct ResponsePaymentReceivedSuccess {
+	pub event: String,
+	pub identifier: Option<String>,
+	pub log_time: Option<NaiveDateTime>,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub token_address: Option<TokenAddress>,
+	#[serde(serialize_with = "u256_to_str")]
+	pub amount: TokenAmount,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub initiator: Address,
+}
+
+impl From<PaymentReceivedSuccess> for ResponsePaymentReceivedSuccess {
+	fn from(value: PaymentReceivedSuccess) -> Self {
+		Self {
+			event: "EventPaymentReceivedSuccess".to_owned(),
+			identifier: None,
+			log_time: None,
+			token_address: None,
+			amount: value.amount,
+			initiator: value.initiator,
+		}
+	}
+}
+
+#[derive(Serialize)]
+pub struct ResponsePaymentSentFailed {
+	pub event: String,
+	pub identifier: Option<String>,
+	pub log_time: Option<NaiveDateTime>,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub token_address: Option<TokenAddress>,
+	pub reason: String,
+	#[serde(serialize_with = "to_checksummed_str")]
+	pub target: Address,
+}
+
+impl From<ErrorPaymentSentFailed> for ResponsePaymentSentFailed {
+	fn from(value: ErrorPaymentSentFailed) -> Self {
+		Self {
+			event: "EventPaymentSentFailed".to_owned(),
+			identifier: None,
+			log_time: None,
+			token_address: None,
+			reason: value.reason,
+			target: value.target,
+		}
+	}
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum ResponsePaymentHistory {
+	SentFailed(ResponsePaymentSentFailed),
+	SentSuccess(ResponsePaymentSentSuccess),
+	ReceivedSuccess(ResponsePaymentReceivedSuccess),
 }
