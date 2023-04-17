@@ -74,7 +74,8 @@ impl From<SendWithdrawRequest> for WithdrawRequest {
 
 impl SignedMessage for WithdrawRequest {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let chain_id: Vec<u8> = self.chain_id.into();
+		let message_type_id: U256 = (MessageTypeId::Withdraw as u64).into();
+		let chain_id: U256 = self.chain_id.into();
 
 		let mut nonce = [0u8; 32];
 		self.nonce.to_big_endian(&mut nonce);
@@ -89,7 +90,8 @@ impl SignedMessage for WithdrawRequest {
 
 		let mut bytes = vec![];
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
-		bytes.extend_from_slice(&chain_id);
+		bytes.extend_from_slice(&chain_id.to_bytes());
+		bytes.extend_from_slice(&message_type_id.to_bytes());
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.participant.as_bytes());
 		bytes.extend_from_slice(&total_withdraw);
@@ -141,10 +143,8 @@ impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
 
 impl SignedMessage for WithdrawConfirmation {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let chain_id: Vec<u8> = self.chain_id.into();
-
-		let mut nonce = [0u8; 32];
-		self.nonce.to_big_endian(&mut nonce);
+		let message_type_id: U256 = (MessageTypeId::Withdraw as u64).into();
+		let chain_id: U256 = self.chain_id.into();
 
 		let mut channel_identifier = [0u8; 32];
 		self.channel_identifier.to_big_endian(&mut channel_identifier);
@@ -156,7 +156,8 @@ impl SignedMessage for WithdrawConfirmation {
 
 		let mut bytes = vec![];
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
-		bytes.extend_from_slice(&chain_id);
+		bytes.extend_from_slice(&chain_id.to_bytes());
+		bytes.extend_from_slice(&message_type_id.to_bytes());
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.participant.as_bytes());
 		bytes.extend_from_slice(&total_withdraw);
@@ -208,8 +209,8 @@ impl From<SendWithdrawExpired> for WithdrawExpired {
 
 impl SignedMessage for WithdrawExpired {
 	fn bytes_to_sign(&self) -> Vec<u8> {
-		let chain_id: Vec<u8> = self.chain_id.into();
-		let message_type_id: [u8; 1] = MessageTypeId::Withdraw.into();
+		let chain_id: U256 = self.chain_id.into();
+		let message_type_id: U256 = (MessageTypeId::Withdraw as u64).into();
 
 		let mut nonce = [0u8; 32];
 		self.nonce.to_big_endian(&mut nonce);
@@ -227,8 +228,8 @@ impl SignedMessage for WithdrawExpired {
 		bytes.extend_from_slice(&nonce);
 		bytes.extend_from_slice(&self.message_identifier.to_be_bytes());
 		bytes.extend_from_slice(self.token_network_address.as_bytes());
-		bytes.extend_from_slice(&chain_id);
-		bytes.extend_from_slice(&message_type_id);
+		bytes.extend_from_slice(&chain_id.to_bytes());
+		bytes.extend_from_slice(&message_type_id.to_bytes());
 		bytes.extend_from_slice(&channel_identifier);
 		bytes.extend_from_slice(self.participant.as_bytes());
 		bytes.extend_from_slice(&total_withdraw);

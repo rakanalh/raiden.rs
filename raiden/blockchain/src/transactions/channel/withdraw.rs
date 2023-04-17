@@ -16,6 +16,7 @@ use raiden_primitives::{
 		GasPrice,
 		Signature,
 		TokenAmount,
+		U256,
 		U64,
 	},
 };
@@ -255,7 +256,7 @@ where
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
 		let nonce = self.account.next_nonce().await;
-
+		let expiration_block: U256 = params.expiration_block.into();
 		self.token_network
 			.contract
 			.signed_call_with_confirmations(
@@ -264,7 +265,7 @@ where
 					params.channel_identifier,
 					params.participant,
 					params.total_withdraw,
-					params.expiration_block.0,
+					expiration_block,
 					params.participant_signature.0,
 					params.participant2_signature.0,
 				),
@@ -373,6 +374,7 @@ where
 		let nonce = self.account.peek_next_nonce().await;
 		let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
 
+		let expiration_block: U256 = params.expiration_block.into();
 		self.token_network
 			.contract
 			.estimate_gas(
@@ -381,7 +383,7 @@ where
 					params.channel_identifier,
 					params.participant,
 					params.total_withdraw,
-					params.expiration_block.0,
+					expiration_block,
 					params.participant_signature.0,
 					params.participant2_signature.0,
 				),

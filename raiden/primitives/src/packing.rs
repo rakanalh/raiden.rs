@@ -68,14 +68,13 @@ pub fn pack_withdraw(
 ) -> Bytes {
 	let mut b = vec![];
 
-	b.extend(encode(&[
-		Token::Address(canonical_identifier.token_network_address),
-		Token::Uint(canonical_identifier.chain_identifier.into()),
-		Token::Uint(canonical_identifier.channel_identifier),
-		Token::Address(participant),
-		Token::Uint(total_withdraw),
-		Token::Uint(expiration_block.into()),
-	]));
+	b.extend(canonical_identifier.token_network_address.as_bytes());
+	b.extend(encode(&[Token::Uint(canonical_identifier.chain_identifier.into())]));
+	b.extend(encode(&[Token::Uint(U256::from(MessageTypeId::Withdraw as u8))]));
+	b.extend(encode(&[Token::Uint(canonical_identifier.channel_identifier)]));
+	b.extend(participant.as_bytes());
+	b.extend(encode(&[Token::Uint(total_withdraw)]));
+	b.extend(encode(&[Token::Uint(expiration_block.into())]));
 
 	Bytes(b)
 }
