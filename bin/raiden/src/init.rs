@@ -46,6 +46,7 @@ use raiden_state_machine::{
 		Event,
 		FeeScheduleState,
 		MediationFeeConfig,
+		PFSUpdate,
 	},
 	views,
 };
@@ -142,7 +143,10 @@ pub async fn init_channel_fees(
 			};
 
 			event_handler
-				.handle_event(Event::SendPFSUpdate(channel.canonical_identifier.clone(), true))
+				.handle_event(Event::SendPFSUpdate(PFSUpdate {
+					canonical_identifier: channel.canonical_identifier.clone(),
+					update_fee_schedule: true,
+				}))
 				.await;
 		}
 	}

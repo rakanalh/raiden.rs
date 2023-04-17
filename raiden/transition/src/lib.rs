@@ -4,6 +4,7 @@ use futures::future::join_all;
 use parking_lot::RwLock;
 use raiden_state_machine::types::{
 	Event,
+	PFSUpdate,
 	StateChange,
 };
 
@@ -112,11 +113,17 @@ impl Transitioner {
 		}
 
 		for canonical_identifier in pfs_capacity_updates {
-			events.push(Event::SendPFSUpdate(canonical_identifier, false));
+			events.push(Event::SendPFSUpdate(PFSUpdate {
+				canonical_identifier,
+				update_fee_schedule: false,
+			}));
 		}
 
 		for canonical_identifier in pfs_fee_updates {
-			events.push(Event::SendPFSUpdate(canonical_identifier, true));
+			events.push(Event::SendPFSUpdate(PFSUpdate {
+				canonical_identifier,
+				update_fee_schedule: true,
+			}));
 		}
 
 		let mut tasks = vec![];

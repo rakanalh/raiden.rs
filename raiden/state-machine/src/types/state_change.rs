@@ -45,6 +45,7 @@ use crate::types::{
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(tag = "type")]
 pub enum StateChange {
 	Block(Block),
 	ActionInitChain(ActionInitChain),

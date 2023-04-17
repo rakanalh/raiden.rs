@@ -29,9 +29,11 @@ use serde::{
 use super::{
 	BalanceProofState,
 	LockedTransferState,
+	PFSUpdate,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[serde(tag = "type")]
 pub enum Event {
 	ContractSendChannelClose(ContractSendChannelClose),
 	ContractSendChannelCoopSettle(ContractSendChannelCoopSettle),
@@ -50,7 +52,7 @@ pub enum Event {
 	SendSecretRequest(SendSecretRequest),
 	SendSecretReveal(SendSecretReveal),
 	SendUnlock(SendUnlock),
-	SendPFSUpdate(CanonicalIdentifier, bool),
+	SendPFSUpdate(PFSUpdate),
 	SendMSUpdate(BalanceProofState),
 	SendProcessed(SendProcessed),
 	UnlockSuccess(UnlockSuccess),

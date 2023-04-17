@@ -956,11 +956,11 @@ impl EventHandler {
 					.transport
 					.send(TransportServiceMessage::Enqueue((queue_identifier, message)));
 			},
-			Event::SendPFSUpdate(canonical_identifier, update_fee_schedule) => {
+			Event::SendPFSUpdate(pfs_update) => {
 				let chain_state = &self.state_manager.read().current_state;
 				let channel_state = match views::get_channel_by_canonical_identifier(
 					chain_state,
-					canonical_identifier,
+					pfs_update.canonical_identifier,
 				) {
 					Some(channel_state) => channel_state,
 					None => return,
@@ -976,7 +976,7 @@ impl EventHandler {
 				};
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 
-				if !update_fee_schedule {
+				if !pfs_update.update_fee_schedule {
 					return
 				}
 

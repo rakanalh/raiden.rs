@@ -792,3 +792,9 @@ pub struct LockedTransferState {
 	pub balance_proof: BalanceProofState,
 	pub secret: Option<Secret>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct PFSUpdate {
+	pub canonical_identifier: CanonicalIdentifier,
+	pub update_fee_schedule: bool,
+}
