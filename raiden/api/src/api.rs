@@ -610,7 +610,8 @@ impl Api {
 		};
 
 		if let Err(e) = self.transition_service.transition(vec![state_change.into()]).await {
-			error!(message = format!("{:?}", e))
+			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		if let Err(e) = waiting::wait_for_withdraw_complete(
@@ -621,7 +622,8 @@ impl Api {
 		)
 		.await
 		{
-			error!(message = format!("{:?}", e))
+			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		Ok(())
@@ -660,7 +662,8 @@ impl Api {
 		};
 
 		if let Err(e) = self.transition_service.transition(vec![state_change.into()]).await {
-			error!(message = format!("{:?}", e))
+			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		Ok(())
@@ -731,7 +734,8 @@ impl Api {
 		)
 		.await
 		{
-			error!(message = format!("{:?}", e))
+			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 		Ok(token_network_address)
 	}
@@ -814,14 +818,16 @@ impl Api {
 			.collect();
 
 		if let Err(e) = self.transition_service.transition(close_state_changes).await {
-			error!(message = format!("{:?}", e))
+			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		if let Err(e) =
 			waiting::wait_for_close(self.raiden.state_manager.clone(), canonical_ids, retry_timeout)
 				.await
 		{
-			error!(message = format!("{:?}", e))
+			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		Ok(())
@@ -862,6 +868,7 @@ impl Api {
 
 		if let Err(e) = self.transition_service.transition(coop_settle_state_changes).await {
 			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		let settling_channel_ids: Vec<CanonicalIdentifier> =
@@ -891,6 +898,7 @@ impl Api {
 		.await
 		{
 			error!(message = format!("{:?}", e));
+			return Err(ApiError::State(format!("{:?}", e)))
 		}
 
 		let chain_state = self.raiden.state_manager.read().current_state.clone();
@@ -926,12 +934,14 @@ impl Api {
 			.total_deposit(self.raiden.config.account.address(), Some(confirmed_block_identifier))
 			.await
 			.map_err(ApiError::Proxy)?;
+
 		let deposit_increase = new_total_deposit - current_total_deposit;
 
 		let whole_balance = user_deposit_proxy
 			.whole_balance(Some(confirmed_block_identifier))
 			.await
 			.map_err(ApiError::Proxy)?;
+
 		let whole_balance_limit = user_deposit_proxy
 			.whole_balance_limit(Some(confirmed_block_identifier))
 			.await
@@ -941,12 +951,14 @@ impl Api {
 			.token_address(Some(confirmed_block_identifier))
 			.await
 			.map_err(ApiError::Proxy)?;
+
 		let token_proxy = self
 			.raiden
 			.proxy_manager
 			.token(token_address)
 			.await
 			.map_err(ApiError::ContractSpec)?;
+
 		let balance = token_proxy
 			.balance_of(self.raiden.config.account.address(), Some(confirmed_block_identifier))
 			.await
@@ -984,6 +996,7 @@ impl Api {
 			.await
 		{
 			error!("Failed to set a new total deposit for UDC: {:?}", e);
+			return Err(ApiError::Proxy(e))
 		}
 		Ok(())
 	}
@@ -1028,6 +1041,7 @@ impl Api {
 			.await
 		{
 			error!("Failed to set a new total deposit for UDC: {:?}", e);
+			return Err(ApiError::Proxy(e))
 		}
 
 		Ok(())
@@ -1088,6 +1102,7 @@ impl Api {
 			.await
 		{
 			error!("Failed to set a new total deposit for UDC: {:?}", e);
+			return Err(ApiError::Proxy(e))
 		}
 
 		Ok(())
@@ -1222,6 +1237,7 @@ impl Api {
 					self.transition_service.transition(vec![action_init_initiator.into()]).await
 				{
 					error!("{}", e);
+					return Err(ApiError::State(e))
 				}
 			},
 			Err(e) => {
