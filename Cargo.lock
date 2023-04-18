@@ -2720,6 +2720,7 @@ dependencies = [
 name = "raiden-storage"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "derive_more",
  "raiden-primitives",
  "raiden-state-machine",
@@ -3181,6 +3182,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c4b1eaf239b47034fb450ee9cdedd7d0226571689d8823030c4b6c2cb407152"
 dependencies = [
  "bitflags",
+ "chrono",
  "fallible-iterator",
  "fallible-streaming-iterator",
  "hashlink",
