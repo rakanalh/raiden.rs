@@ -354,19 +354,23 @@ pub async fn query_address_metadata(
 	url: String,
 	address: Address,
 ) -> Result<AddressMetadata, RoutingError> {
-	let metadata =
+	let response =
 		reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.to_checksummed()))
 			.await
 			.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
-			})?
-			.json::<AddressMetadata>()
-			.await
-			.map_err(|e| {
-				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?;
 
-	Ok(metadata)
+	if response.status() == 200 {
+		Ok(response.json().await.map_err(|e| {
+			RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+		})?)
+	} else {
+		let error_response: PFSErrorResponse = response.json().await.map_err(|e| {
+			RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+		})?;
+		Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
+	}
 }
 
 pub async fn configure_pfs(
