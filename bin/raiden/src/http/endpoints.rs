@@ -37,10 +37,12 @@ use super::{
 	error::Error,
 	request::{
 		InitiatePaymentParams,
+		MintTokenParams,
 		UserDepositParams,
 	},
 	response::{
 		ConnectionManager,
+		ResponseEvent,
 		ResponsePaymentSentSuccess,
 		SettingsResponse,
 	},
@@ -608,6 +610,40 @@ pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	}
 
 	json_response!(payment_history)
+}
+
+pub async fn mint_token(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+	let api = api(&req);
+
+	let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
+		req.param("token_address").unwrap().trim_start_matches("0x")
+	)
+	.map_err(|_| Error::Other(format!("Invalid token address")))));
+
+	let params: MintTokenParams = unwrap!(body_to_params(req).await);
+	let transaction_hash =
+		unwrap!(api.mint_token_for(token_address, params.to, params.value,).await);
+
+	json_response!(transaction_hash)
+}
+
+pub async fn raiden_events(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+	let state_manager = state_manager(&req);
+
+	let events: Vec<ResponseEvent> = unwrap!(state_manager
+		.read()
+		.storage
+		.get_events_with_timestamps()
+		.map_err(|e| Error::Other(format!("{:?}", e))))
+	.into_iter()
+	.map(|e| e.into())
+	.collect();
+
+	json_response!(events)
+}
+
+pub async fn shutdown(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+	unwrap!(Err(Error::Other(format!("Not implemented"))))
 }
 
 pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, HttpError> {

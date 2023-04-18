@@ -40,6 +40,7 @@ use raiden_primitives::{
 		TokenAmount,
 		TokenNetworkAddress,
 		TokenNetworkRegistryAddress,
+		TransactionHash,
 	},
 };
 use raiden_state_machine::{
@@ -1252,6 +1253,27 @@ impl Api {
 		let _ = payment_completed.await;
 
 		Ok(())
+	}
+
+	pub async fn mint_token_for(
+		&self,
+		token_address: TokenAddress,
+		to: Address,
+		value: TokenAmount,
+	) -> Result<TransactionHash, ApiError> {
+		let token_proxy = self
+			.raiden
+			.proxy_manager
+			.token(token_address)
+			.await
+			.map_err(ApiError::ContractSpec)?;
+
+		let transaction_hash = token_proxy
+			.mint_for(self.raiden.config.account.clone(), to, value)
+			.await
+			.map_err(ApiError::Proxy)?;
+
+		Ok(transaction_hash)
 	}
 
 	fn check_invalid_channel_timeouts(

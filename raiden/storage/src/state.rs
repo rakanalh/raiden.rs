@@ -631,6 +631,39 @@ impl StateStorage {
 		}))
 	}
 
+	pub fn get_events_with_timestamps(&self) -> Result<Vec<EventRecord>> {
+		let query = "
+            SELECT
+                identifier, data, source_statechange_id, timestamp
+            FROM
+                state_events
+            ORDER BY identifier ASC
+        ";
+
+		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+		let mut stmt = conn.prepare(query).map_err(StorageError::Sql)?;
+		let mut rows = stmt.query(params![]).map_err(StorageError::Sql)?;
+
+		let mut events = vec![];
+
+		while let Ok(Some(row)) = rows.next() {
+			let identifier: String = row.get(0).map_err(StorageError::Sql)?;
+			let data: String = row.get(1).map_err(StorageError::Sql)?;
+			let state_change_identifier: StorageID =
+				row.get::<usize, String>(2).map_err(StorageError::Sql)?.try_into()?;
+			let timestamp: NaiveDateTime = row.get(3).map_err(StorageError::Sql)?;
+
+			events.push(EventRecord {
+				identifier: identifier.try_into()?,
+				data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,
+				state_change_identifier,
+				timestamp,
+			})
+		}
+
+		Ok(events)
+	}
+
 	pub fn get_events_payment_history_with_timestamps(
 		&self,
 		token_network_address: Option<TokenNetworkAddress>,

@@ -62,3 +62,10 @@ pub struct InitiatePaymentParams {
 	pub secret_hash: Option<SecretHash>,
 	pub lock_timeout: Option<BlockTimeout>,
 }
+
+#[derive(Deserialize)]
+pub struct MintTokenParams {
+	#[serde(deserialize_with = "u256_from_str")]
+	pub value: TokenAmount,
+	pub to: Address,
+}

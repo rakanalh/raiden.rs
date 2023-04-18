@@ -18,12 +18,16 @@ use raiden_state_machine::{
 		ChannelState,
 		ChannelStatus,
 		ErrorPaymentSentFailed,
+		Event,
 		PaymentReceivedSuccess,
 		PaymentSentSuccess,
 	},
 	views,
 };
-use raiden_storage::state::NaiveDateTime;
+use raiden_storage::state::{
+	EventRecord,
+	NaiveDateTime,
+};
 use serde::Serialize;
 use web3::types::{
 	Address,
@@ -202,4 +206,16 @@ pub enum ResponsePaymentHistory {
 	SentFailed(ResponsePaymentSentFailed),
 	SentSuccess(ResponsePaymentSentSuccess),
 	ReceivedSuccess(ResponsePaymentReceivedSuccess),
+}
+
+#[derive(Serialize)]
+pub struct ResponseEvent {
+	pub event: Event,
+	pub log_time: NaiveDateTime,
+}
+
+impl From<EventRecord> for ResponseEvent {
+	fn from(value: EventRecord) -> Self {
+		Self { event: value.data, log_time: value.timestamp }
+	}
 }
