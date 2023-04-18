@@ -1,13 +1,10 @@
 use std::{
 	convert::TryInto,
-	str::FromStr,
 	sync::Mutex,
 };
 
-use chrono::{
-	NaiveDateTime,
-	Utc,
-};
+pub use chrono::NaiveDateTime;
+use chrono::Utc;
 use raiden_primitives::types::{
 	Address,
 	BalanceHash,
@@ -41,6 +38,7 @@ pub struct StateChangeRecord {
 	pub data: StateChange,
 }
 
+#[derive(Debug)]
 pub struct EventRecord {
 	pub identifier: StorageID,
 	pub state_change_identifier: StorageID,
@@ -153,24 +151,25 @@ impl StateStorage {
 	}
 
 	pub fn store_events(&self, state_change_id: StorageID, events: Vec<Event>) -> Result<()> {
-		let serialized_events =
-			serde_json::to_string(&events).map_err(StorageError::SerializationError)?;
-		let sql = format!(
-			"INSERT INTO state_events(identifier, source_statechange_id, data, timestamp) VALUES(?1, ?2, ?3, ?4)"
-		);
-		self.conn
-			.lock()
-			.map_err(|_| StorageError::CannotLock)?
-			.execute(
+		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
+
+		for event in events {
+			let serialized_event =
+				serde_json::to_string(&event).map_err(StorageError::SerializationError)?;
+			let sql = format!(
+                "INSERT INTO state_events(identifier, source_statechange_id, data, timestamp) VALUES(?1, ?2, ?3, ?4)"
+            );
+			conn.execute(
 				&sql,
 				params![
 					&Ulid::new().to_string(),
 					&state_change_id.to_string(),
-					serialized_events,
-					Utc::now().naive_local().to_string()
+					serialized_event,
+					Utc::now().naive_local()
 				],
 			)
 			.map_err(|e| StorageError::Sql(e))?;
+		}
 		Ok(())
 	}
 
@@ -634,7 +633,6 @@ impl StateStorage {
 
 	pub fn get_events_payment_history_with_timestamps(
 		&self,
-		event_types: Vec<&str>,
 		token_network_address: Option<TokenNetworkAddress>,
 		partner_address: Option<Address>,
 	) -> Result<Vec<EventRecord>> {
@@ -642,8 +640,6 @@ impl StateStorage {
 		let partner_address = partner_address.map(|a| a.to_string());
 
 		let mut params: Vec<&dyn ToSql> = vec![];
-		let event_types = event_types.join(",");
-		params.push(&event_types);
 
 		let binding = (token_network_address, partner_address);
 		let query = match binding {
@@ -654,14 +650,14 @@ impl StateStorage {
                         FROM
                             state_events
                         WHERE
-                            json_extract(data, '$.type') IN (?1)
+                            json_extract(data, '$.type') IN ('PaymentReceivedSuccess', 'PaymentSentFailed', 'PaymentSentSuccess')
                         AND
-                            json_extract(data, '$.token_network_address') LIKE ?2
+                            json_extract(data, '$.token_network_address') LIKE ?1
                         AND
                             (
-                                json_extract(data, '$.target') LIKE ?3
+                                json_extract(data, '$.target') LIKE ?2
                                 OR
-                                json_extract(data, '$.initiator') LIKE ?3
+                                json_extract(data, '$.initiator') LIKE ?2
                             )
                         ORDER BY identifier ASC";
 
@@ -676,9 +672,9 @@ impl StateStorage {
                         FROM
                             state_events
                         WHERE
-                            json_extract(data, '$.type') IN ({})
+                            json_extract(data, '$.type') IN ('PaymentReceivedSuccess', 'PaymentSentFailed', 'PaymentSentSuccess')
                         AND
-                            json_extract(data, '$.token_network_address') LIKE ?
+                            json_extract(data, '$.token_network_address') LIKE ?1
                         ORDER BY identifier ASC
                         ";
 				params.push(token_network_address);
@@ -691,12 +687,12 @@ impl StateStorage {
                         FROM
                             state_events
                         WHERE
-                            json_extract(data, '$.type') IN ({})
+                            json_extract(data, '$.type') IN ('PaymentReceivedSuccess', 'PaymentSentFailed', 'PaymentSentSuccess')
                         AND
                             (
-                            json_extract(data, '$.target') LIKE ?
+                            json_extract(data, '$.target') LIKE ?1
                             OR
-                            json_extract(data, '$.initiator') LIKE ?
+                            json_extract(data, '$.initiator') LIKE ?1
                             )
                         ORDER BY identifier ASC
                         ";
@@ -710,7 +706,7 @@ impl StateStorage {
                         FROM
                             state_events
                         WHERE
-                            json_extract(data, '$.type') IN ({})
+                            json_extract(data, '$.type') IN ('PaymentReceivedSuccess', 'PaymentSentFailed', 'PaymentSentSuccess')
                         ORDER BY identifier ASC
                     ";
 				query
@@ -729,9 +725,7 @@ impl StateStorage {
 			let data: String = row.get(1).map_err(StorageError::Sql)?;
 			let state_change_identifier: StorageID =
 				row.get::<usize, String>(2).map_err(StorageError::Sql)?.try_into()?;
-			let timestamp: String = row.get(3).map_err(StorageError::Sql)?;
-			let timestamp = NaiveDateTime::from_str(&timestamp)
-				.map_err(|_| StorageError::Other("Could not parse timestamp"))?;
+			let timestamp: NaiveDateTime = row.get(3).map_err(StorageError::Sql)?;
 			events.push(EventRecord {
 				identifier: identifier.try_into()?,
 				data: serde_json::from_str(&data).map_err(StorageError::SerializationError)?,

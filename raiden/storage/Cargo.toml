@@ -12,8 +12,9 @@ rust-version = "1.59"
 
 [dependencies]
 # 3rd-Party
+chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.11", default-features = false }
-rusqlite = { version = "0.25.3", default-features = false }
+rusqlite = { version = "0.25.3", default-features = false, features = [ "chrono" ] }
 serde_json = { version = "1.0.59", default-features = false }
 ulid = { version = "0.4.1", default-features = false }
 
