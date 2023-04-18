@@ -11,7 +11,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     container:
-      image: rust:1.59
+      image: rust:1.68
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -34,7 +34,7 @@ jobs:
     needs: fmt
     runs-on: ubuntu-latest
     container:
-      image: rust:1.59
+      image: rust:1.68
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -53,7 +53,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     container:
-      image: rust:1.59
+      image: rust:1.68
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -76,7 +76,7 @@ jobs:
     needs: fmt
     runs-on: ubuntu-latest
     container:
-      image: rust:1.59
+      image: rust:1.68
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
