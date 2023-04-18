@@ -74,3 +74,13 @@ impl ToChecksummed for Address {
 		})
 	}
 }
+
+impl ToChecksummed for Option<Address> {
+	fn to_checksummed(&self) -> String {
+		if let Some(address) = self {
+			address.to_checksummed()
+		} else {
+			String::new()
+		}
+	}
+}
