@@ -145,15 +145,15 @@ fn get_amount_without_fees(
 	Ok(Some(amount_with_fees))
 }
 
-/// Given a payer transfer tries the given route to proceed with the mediation.
-///
-/// Args:
-///     payer_transfer: The transfer received from the payer_channel.
-///     channelidentifiers_to_channels: All the channels available for this
-///         transfer.
-///
-///     pseudo_random_generator: Number generator to generate a message id.
-///     block_number: The current block number.
+// Given a payer transfer tries the given route to proceed with the mediation.
+//
+// Args:
+//     payer_transfer: The transfer received from the payer_channel.
+//     channelidentifiers_to_channels: All the channels available for this
+//         transfer.
+//
+//     pseudo_random_generator: Number generator to generate a message id.
+//     block_number: The current block number.
 fn forward_transfer_pair(
 	chain_state: &mut ChainState,
 	payer_transfer: &LockedTransferState,
@@ -393,28 +393,28 @@ fn events_to_remove_expired_locks(
 	Ok(events)
 }
 
-/// Reveal the secret off-chain.
-///
-/// The secret is revealed off-chain even if there is a pending transaction to
-/// reveal it on-chain, this allows the unlock to happen off-chain, which is
-/// faster.
-///
-/// This node is named N, suppose there is a mediated transfer with two refund
-/// transfers, one from B and one from C:
-///
-///     A-N-B...B-N-C..C-N-D
-///
-/// Under normal operation N will first learn the secret from D, then reveal to
-/// C, wait for C to inform the secret is known before revealing it to B, and
-/// again wait for B before revealing the secret to A.
-///
-/// If B somehow sent a reveal secret before C and D, then the secret will be
-/// revealed to A, but not C and D, meaning the secret won't be propagated
-/// forward. Even if D sent a reveal secret at about the same time, the secret
-/// will only be revealed to B upon confirmation from C.
-///
-/// If the proof doesn't arrive in time and the lock's expiration is at risk, N
-/// won't lose tokens since it knows the secret can go on-chain at any time.
+// Reveal the secret off-chain.
+//
+// The secret is revealed off-chain even if there is a pending transaction to
+// reveal it on-chain, this allows the unlock to happen off-chain, which is
+// faster.
+//
+// This node is named N, suppose there is a mediated transfer with two refund
+// transfers, one from B and one from C:
+//
+//     A-N-B...B-N-C..C-N-D
+//
+// Under normal operation N will first learn the secret from D, then reveal to
+// C, wait for C to inform the secret is known before revealing it to B, and
+// again wait for B before revealing the secret to A.
+//
+// If B somehow sent a reveal secret before C and D, then the secret will be
+// revealed to A, but not C and D, meaning the secret won't be propagated
+// forward. Even if D sent a reveal secret at about the same time, the secret
+// will only be revealed to B upon confirmation from C.
+//
+// If the proof doesn't arrive in time and the lock's expiration is at risk, N
+// won't lose tokens since it knows the secret can go on-chain at any time.
 fn events_for_secret_reveal(
 	transfers_pair: &mut Vec<MediationPairState>,
 	secret: Secret,

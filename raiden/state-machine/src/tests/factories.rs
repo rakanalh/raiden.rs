@@ -43,7 +43,6 @@ pub fn empty_chain_state() -> ChainState {
 		block_hash: H256::zero(),
 		our_address: Address::random(),
 		identifiers_to_tokennetworkregistries: HashMap::new(),
-		queueids_to_queues: HashMap::new(),
 		payment_mapping: PaymentMappingState { secrethashes_to_task: HashMap::new() },
 		pending_transactions: vec![],
 		pseudo_random_number_generator: Random::new(),

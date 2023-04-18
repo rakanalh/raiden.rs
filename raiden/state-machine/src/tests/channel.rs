@@ -19,7 +19,10 @@ use raiden_primitives::types::{
 
 use crate::{
 	constants::DEFAULT_REVEAL_TIMEOUT,
-	machine::chain,
+	machine::{
+		chain,
+		channel::utils::compute_locksroot,
+	},
 	tests::factories::{
 		chain_state_with_token_network,
 		channel_state,
@@ -41,6 +44,7 @@ use crate::{
 		ErrorInvalidActionSetRevealTimeout,
 		ErrorInvalidActionWithdraw,
 		MediationFeeConfig,
+		PendingLocksState,
 		PendingWithdrawState,
 		SendMessageEventInner,
 		SendWithdrawExpired,
@@ -90,6 +94,7 @@ fn test_open_channel_new_block_with_expired_withdraws() {
 		.get_mut(&channel_identifier)
 		.expect("Channel should exist");
 
+	channel_state.our_state.contract_balance = TokenAmount::from(1000);
 	channel_state.our_state.withdraws_pending.insert(
 		U256::from(100u64),
 		PendingWithdrawState {
@@ -280,7 +285,7 @@ fn test_channel_closed() {
 		nonce: Nonce::from(1u64),
 		transferred_amount: TokenAmount::zero(),
 		locked_amount: TokenAmount::zero(),
-		locksroot: Locksroot::default(),
+		locksroot: compute_locksroot(&PendingLocksState { locks: vec![] }),
 		canonical_identifier: canonical_identifier.clone(),
 		balance_hash: BalanceHash::zero(),
 		message_hash: Some(MessageHash::zero()),
@@ -341,7 +346,7 @@ fn test_channel_withdraw() {
 		token_network_address,
 		channel_identifier,
 	};
-	let chain_state = channel_state(
+	let mut chain_state = channel_state(
 		chain_state,
 		token_network_registry_address,
 		token_network_address,
@@ -349,11 +354,23 @@ fn test_channel_withdraw() {
 		channel_identifier,
 	);
 
-	let channel_state =
-		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
-			.expect("Channel should exist");
+	let token_network_registry_state = chain_state
+		.identifiers_to_tokennetworkregistries
+		.get_mut(&token_network_registry_address)
+		.expect("Registry should exist");
+	let token_network_state = token_network_registry_state
+		.tokennetworkaddresses_to_tokennetworks
+		.get_mut(&token_network_address)
+		.expect("token network should exist");
+	let mut channel_state = token_network_state
+		.channelidentifiers_to_channels
+		.get_mut(&channel_identifier)
+		.expect("Channel should exist");
 
 	assert_eq!(channel_state.our_state.contract_balance, U256::zero());
+
+	channel_state.our_state.contract_balance = TokenAmount::from(1000);
+	channel_state.partner_state.contract_balance = TokenAmount::from(1000);
 
 	let state_change = ContractReceiveChannelWithdraw {
 		canonical_identifier: canonical_identifier.clone(),

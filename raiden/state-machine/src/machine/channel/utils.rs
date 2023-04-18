@@ -6,7 +6,7 @@ use crate::types::{
 	PendingLocksState,
 };
 
-pub(super) fn compute_locks_with(
+pub(crate) fn compute_locks_with(
 	pending_locks: &mut PendingLocksState,
 	lock: HashTimeLockState,
 ) -> Option<PendingLocksState> {
@@ -19,7 +19,7 @@ pub(super) fn compute_locks_with(
 	None
 }
 
-pub(super) fn compute_locks_without(
+pub(crate) fn compute_locks_without(
 	pending_locks: &mut PendingLocksState,
 	lock: &HashTimeLockState,
 ) -> Option<PendingLocksState> {
