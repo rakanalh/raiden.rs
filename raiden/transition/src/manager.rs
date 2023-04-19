@@ -10,6 +10,14 @@ use raiden_primitives::types::{
 use raiden_state_machine::{
 	errors::StateTransitionError,
 	machine::chain,
+	storage::{
+		types::{
+			StorageError,
+			StorageID,
+		},
+		StateStorage,
+		SNAPSHOT_STATE_CHANGE_COUNT,
+	},
 	types::{
 		ActionInitChain,
 		ChainState,
@@ -18,12 +26,6 @@ use raiden_state_machine::{
 		StateChange,
 		TokenNetworkRegistryState,
 	},
-};
-use raiden_storage::{
-	constants::SNAPSHOT_STATE_CHANGE_COUNT,
-	errors::StorageError,
-	state::StateStorage,
-	types::StorageID,
 };
 use tracing::debug;
 

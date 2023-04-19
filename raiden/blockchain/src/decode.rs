@@ -13,6 +13,7 @@ use raiden_primitives::types::{
 };
 use raiden_state_machine::{
 	constants,
+	storage::StateStorage,
 	types::{
 		ChainState,
 		ChannelState,
@@ -34,7 +35,6 @@ use raiden_state_machine::{
 	},
 	views,
 };
-use raiden_storage::state::StateStorage;
 use thiserror::Error;
 
 use super::{

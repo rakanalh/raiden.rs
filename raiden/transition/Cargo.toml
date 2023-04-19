@@ -24,4 +24,3 @@ raiden-primitives = { path = "../primitives" }
 raiden-network-messages = { path = "../network/messages" }
 raiden-pathfinding = { path = "../pathfinding" }
 raiden-state-machine = { path = "../state-machine" }
-raiden-storage = { path = "../storage" }

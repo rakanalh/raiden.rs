@@ -3,15 +3,15 @@ use std::sync::Arc;
 use raiden_primitives::types::CanonicalIdentifier;
 use raiden_state_machine::{
 	machine::chain,
+	storage::{
+		types::StorageID,
+		StateStorage,
+	},
 	types::{
 		ChainState,
 		ChannelState,
 	},
 	views,
-};
-use raiden_storage::{
-	state::StateStorage,
-	types::StorageID,
 };
 
 fn restore_state(

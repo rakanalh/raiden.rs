@@ -25,5 +25,4 @@ web3 = { version = "0.18.0", default-features = false, features = [ "http", "sig
 
 # Raiden
 raiden-primitives = { path = "../primitives" }
-raiden-state-machine = { path = "../state-machine" }
-raiden-storage = { path = "../storage" }
+raiden-state-machine = { path = "../state-machine", features = [ "storage" ] }
