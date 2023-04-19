@@ -26,7 +26,6 @@ use raiden_primitives::{
 		QueueIdentifier,
 	},
 };
-use raiden_storage::matrix::MatrixStorage;
 use raiden_transition::messages::MessageHandler;
 use serde::{
 	Deserialize,
@@ -44,6 +43,7 @@ use tracing::error;
 
 use super::{
 	queue::RetryMessageQueue,
+	storage::MatrixStorage,
 	MatrixClient,
 };
 use crate::{

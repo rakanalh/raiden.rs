@@ -14,6 +14,10 @@ use raiden_primitives::{
 	},
 };
 use raiden_state_machine::{
+	storage::{
+		types::EventRecord,
+		NaiveDateTime,
+	},
 	types::{
 		ChannelState,
 		ChannelStatus,
@@ -23,10 +27,6 @@ use raiden_state_machine::{
 		PaymentSentSuccess,
 	},
 	views,
-};
-use raiden_storage::state::{
-	EventRecord,
-	NaiveDateTime,
 };
 use serde::Serialize;
 use web3::types::{
