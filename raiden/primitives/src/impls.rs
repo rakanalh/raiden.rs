@@ -16,6 +16,7 @@ use crate::traits::{
 	Stringify,
 	ToBytes,
 	ToChecksummed,
+	ToPexAddress,
 };
 
 impl ToBytes for U256 {
@@ -82,5 +83,11 @@ impl ToChecksummed for Option<Address> {
 		} else {
 			String::new()
 		}
+	}
+}
+
+impl ToPexAddress for Address {
+	fn pex(&self) -> String {
+		hex::encode(&self.to_string()[..8])
 	}
 }

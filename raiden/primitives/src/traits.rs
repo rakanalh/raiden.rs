@@ -11,3 +11,7 @@ pub trait Stringify {
 pub trait ToChecksummed {
 	fn to_checksummed(&self) -> String;
 }
+
+pub trait ToPexAddress {
+	fn pex(&self) -> String;
+}
