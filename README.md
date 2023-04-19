@@ -1,7 +1,7 @@
 # Raiden.rs
 
-[![continuous-integration](https://github.com/rakanalh/raiden-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/rakanalh/raiden-rust/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/rakanalh/raiden-rust/branch/main/graph/badge.svg?token=Jyi76olOco)](https://codecov.io/gh/rakanalh/raiden-rust)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/rakanalh/raiden.rs/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/rakanalh/raiden.rs/tree/main)
+[![codecov](https://codecov.io/gh/rakanalh/raiden.rs/branch/main/graph/badge.svg?token=Jyi76olOco)](https://codecov.io/gh/rakanalh/raiden.rs)
 
 The **UNOFFICIAL** Raiden client implementation in Rust
 
