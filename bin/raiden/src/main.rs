@@ -35,6 +35,7 @@ use raiden_pathfinding::{
 };
 use raiden_primitives::{
 	payments::PaymentsRegistry,
+	traits::ToPexAddress,
 	types::ChainID,
 };
 use raiden_state_machine::types::MediationFeeConfig;
@@ -100,14 +101,6 @@ async fn main() {
 
 	let _ = tracing::subscriber::set_global_default(subscriber);
 
-	match setup_data_directory(cli.datadir.clone()) {
-		Err(e) => {
-			eprintln!("Error initializing data directory: {}", e);
-			process::exit(1);
-		},
-		_ => {},
-	};
-
 	info!("Welcome to Raiden");
 
 	// #
@@ -161,18 +154,10 @@ async fn main() {
 	// #
 	// # Initialize state manager
 	// #
-	let datadir = match expanduser::expanduser(cli.datadir.to_string_lossy()) {
+	let mut datadir = match expanduser::expanduser(cli.datadir.to_string_lossy()) {
 		Ok(p) => p,
 		Err(e) => {
 			eprintln!("Error expanding data directory: {}", e);
-			process::exit(1);
-		},
-	};
-
-	let storage = match init_storage(datadir.clone()) {
-		Ok(storage) => storage,
-		Err(e) => {
-			eprintln!("Error creating contracts manager: {}", e);
 			process::exit(1);
 		},
 	};
@@ -184,14 +169,48 @@ async fn main() {
 			process::exit(1);
 		},
 	};
-	let (state_manager, sync_start_block_number, default_addresses) =
-		match init_state_manager(contracts_manager.clone(), storage, chain_id, account.clone()) {
-			Ok(result) => result,
-			Err(e) => {
-				eprintln!("Error initializing state: {:?}", e);
-				process::exit(1);
-			},
-		};
+	let default_addresses = match contracts_manager.deployed_addresses() {
+		Ok(addresses) => addresses,
+		Err(e) => {
+			eprintln!("Failed to construct default deployed addresses: {:?}", e);
+			process::exit(1);
+		},
+	};
+
+	let mut datadir = cli.datadir;
+	datadir.push(format!("node_{}", account.address().pex()));
+	datadir.push(format!("netid_{}", chain_id.to_string()));
+	datadir.push(format!("network_{}", default_addresses.token_network_registry.pex()));
+
+	match setup_data_directory(datadir.clone()) {
+		Err(e) => {
+			eprintln!("Error initializing data directory: {}", e);
+			process::exit(1);
+		},
+		_ => {},
+	};
+
+	let storage = match init_storage(datadir.clone()) {
+		Ok(storage) => storage,
+		Err(e) => {
+			eprintln!("Error creating contracts manager: {}", e);
+			process::exit(1);
+		},
+	};
+
+	let (state_manager, sync_start_block_number) = match init_state_manager(
+		contracts_manager.clone(),
+		default_addresses.clone(),
+		storage,
+		chain_id,
+		account.clone(),
+	) {
+		Ok(result) => result,
+		Err(e) => {
+			eprintln!("Error initializing state: {:?}", e);
+			process::exit(1);
+		},
+	};
 
 	// #
 	// # Initialize PFS

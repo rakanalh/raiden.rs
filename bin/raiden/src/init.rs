@@ -20,6 +20,7 @@ use raiden_network_transport::{
 	config::TransportConfig,
 	matrix::{
 		constants::MATRIX_AUTO_SELECT_SERVER,
+		storage::MatrixStorage,
 		utils::{
 			get_default_matrix_servers,
 			select_best_server,
@@ -41,6 +42,7 @@ use raiden_primitives::types::{
 	DefaultAddresses,
 };
 use raiden_state_machine::{
+	storage::StateStorage,
 	types::{
 		ChannelStatus,
 		Event,
@@ -49,10 +51,6 @@ use raiden_state_machine::{
 		PFSUpdate,
 	},
 	views,
-};
-use raiden_storage::{
-	matrix::MatrixStorage,
-	state::StateStorage,
 };
 use raiden_transition::{
 	events::EventHandler,
@@ -76,17 +74,15 @@ pub fn init_storage(datadir: PathBuf) -> Result<Arc<StateStorage>, String> {
 
 pub fn init_state_manager(
 	contracts_manager: Arc<ContractsManager>,
+	default_addresses: DefaultAddresses,
 	storage: Arc<StateStorage>,
 	chain_id: ChainID,
 	account: Account<Http>,
-) -> Result<(Arc<SyncRwLock<StateManager>>, BlockNumber, DefaultAddresses), String> {
-	let default_addresses = contracts_manager
-		.deployed_addresses()
-		.map_err(|e| format!("Failed to construct default deployed addresses: {:?}", e))?;
-
+) -> Result<(Arc<SyncRwLock<StateManager>>, BlockNumber), String> {
 	let token_network_registry_contract = contracts_manager
 		.get_deployed(ContractIdentifier::TokenNetworkRegistry)
 		.map_err(|e| format!("Could not find token network registry contract: {:?}", e))?;
+
 	let (state_manager, block_number) = StateManager::restore_or_init_state(
 		storage,
 		chain_id,
@@ -96,7 +92,7 @@ pub fn init_state_manager(
 	)
 	.map_err(|e| format!("Failed to initialize state: {}", e))?;
 
-	Ok((Arc::new(SyncRwLock::new(state_manager)), block_number, default_addresses))
+	Ok((Arc::new(SyncRwLock::new(state_manager)), block_number))
 }
 
 pub async fn init_channel_fees(
@@ -170,7 +166,7 @@ pub async fn init_transport(
 		transport_config.matrix.homeserver_url.clone()
 	};
 
-	let conn = Connection::open(storage_path.join("raiden.db"))
+	let conn = Connection::open(storage_path.join("matrix.db"))
 		.map_err(|e| format!("Could not connect to database: {}", e))?;
 	let storage = MatrixStorage::new(conn);
 	storage

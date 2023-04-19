@@ -2545,7 +2545,6 @@ dependencies = [
  "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
- "raiden-storage",
  "raiden-transition",
  "routerify",
  "rusqlite",
@@ -2601,7 +2600,6 @@ dependencies = [
  "hex",
  "raiden-primitives",
  "raiden-state-machine",
- "raiden-storage",
  "serde_json",
  "thiserror",
  "tokio",
@@ -2653,21 +2651,23 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "derive_more",
  "futures",
  "hex",
  "matrix-sdk",
  "raiden-blockchain",
  "raiden-network-messages",
  "raiden-primitives",
- "raiden-storage",
  "raiden-transition",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tokio-stream",
  "tracing",
+ "ulid",
  "web3",
 ]
 
@@ -2708,25 +2708,16 @@ dependencies = [
 name = "raiden-state-machine"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "derive_more",
  "raiden-macros",
  "raiden-primitives",
  "rand_chacha 0.3.1",
- "serde",
- "web3",
-]
-
-[[package]]
-name = "raiden-storage"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "derive_more",
- "raiden-primitives",
- "raiden-state-machine",
  "rusqlite",
+ "serde",
  "serde_json",
  "ulid",
+ "web3",
 ]
 
 [[package]]
@@ -2740,7 +2731,6 @@ dependencies = [
  "raiden-pathfinding",
  "raiden-primitives",
  "raiden-state-machine",
- "raiden-storage",
  "tokio",
  "tracing",
  "web3",
@@ -3678,11 +3668,12 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.1.43"
+version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8a50ef2360fbd1eeb0ecd46795a87a19024eb4b53c5dc916ca1fd95fe62438"
+checksum = "1b797afad3f312d1c66a56d11d0316f916356d11bd158fbc6ca6389ff6bf805a"
 dependencies = [
  "libc",
+ "wasi 0.10.0+wasi-snapshot-preview1",
  "winapi",
 ]
 
@@ -4052,6 +4043,12 @@ name = "wasi"
 version = "0.9.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
+
+[[package]]
+name = "wasi"
+version = "0.10.0+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "wasi"

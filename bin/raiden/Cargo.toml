@@ -42,6 +42,5 @@ raiden-network-messages = { path = "../../raiden/network/messages" }
 raiden-network-transport = { path = "../../raiden/network/transport" }
 raiden-pathfinding = { path = "../../raiden/pathfinding" }
 raiden-primitives = { path = "../../raiden/primitives" }
-raiden-state-machine = { path = "../../raiden/state-machine" }
-raiden-storage = { path = "../../raiden/storage" }
+raiden-state-machine = { path = "../../raiden/state-machine", features = [ "storage" ] }
 raiden-transition = { path = "../../raiden/transition" }
