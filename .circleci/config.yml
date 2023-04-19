@@ -1,0 +1,66 @@
+version: 2.1
+
+jobs:
+  fmt:
+    docker:
+      - image: cimg/rust:1.68.2
+    steps:
+      - checkout
+      - restore_cache:
+          key: raiden-cache
+      - run:
+          name: Install nightly toolchain
+          command: rustup default nightly && rustup component add rustfmt
+      - run:
+          name: Check formatting
+          command: cargo fmt --check
+      - save_cache:
+          key: raiden-cache
+          paths:
+            - "~/.cargo"
+            - "./target"
+
+  clippy:
+    docker:
+      - image: cimg/rust:1.68.2
+    steps:
+      - checkout
+      - restore_cache:
+          key: raiden-cache
+      - run:
+          name: Install nightly toolchain
+          command: rustup default nightly
+      - run:
+          name: Clippy
+          command: cargo clippy --all-features --all-targets
+      - save_cache:
+          key: raiden-cache
+          paths:
+            - "~/.cargo"
+            - "./target"
+
+  test:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Pull xd009642/tarpaulin
+          command: docker pull xd009642/tarpaulin:latest
+      - run:
+          name: Generate report
+          command: >
+            docker run --security-opt seccomp=unconfined -e CODECOV_TOKEN=${CODECOV_TOKEN}
+            -v $PWD:/volume xd009642/tarpaulin cargo tarpaulin -v --ciserver circle-ci
+            --out Xml --all-features --workspace --locked
+      - run:
+          name: Upload
+          command: bash <(curl -s https://codecov.io/bash) -Z -f cobertura.xml
+
+workflows:
+  build_and_test:
+    jobs:
+      - fmt
+      - clippy
+      - test:
+          requires:
+            - fmt
