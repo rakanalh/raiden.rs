@@ -67,7 +67,6 @@ pub(crate) fn is_lock_expired(
 	if secret_registered_on_chain {
 		return Err("Lock has been unlocked onchain".to_owned())
 	}
-
 	if block_number < lock_expiration_threshold {
 		return Err(format!(
 			"Current block number ({}) is not larger than \

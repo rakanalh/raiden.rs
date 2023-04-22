@@ -373,7 +373,7 @@ pub(super) fn handle_unlock(
 	channel_state: &mut ChannelState,
 	unlock: ReceiveUnlock,
 	recipient_metadata: Option<AddressMetadata>,
-) -> Result<Event, String> {
+) -> Result<Event, (String, Event)> {
 	Ok(
 		match is_valid_unlock(
 			&channel_state.clone(),
@@ -398,7 +398,10 @@ pub(super) fn handle_unlock(
 				.into()
 			},
 			Err(e) =>
-				ErrorInvalidReceivedUnlock { secrethash: unlock.secrethash, reason: e }.into(),
+				return Err((
+					e.clone(),
+					ErrorInvalidReceivedUnlock { secrethash: unlock.secrethash, reason: e }.into(),
+				)),
 		},
 	)
 }
@@ -412,11 +415,11 @@ fn register_onchain_secret_endstate(
 ) {
 	let mut pending_lock = None;
 	if is_lock_locked(end_state, secrethash) {
-		pending_lock = end_state.secrethashes_to_lockedlocks.get_mut(&secrethash);
+		pending_lock = end_state.secrethashes_to_lockedlocks.get(&secrethash).cloned();
 	}
 
 	if let Some(lock) = end_state.secrethashes_to_unlockedlocks.get_mut(&secrethash) {
-		pending_lock = Some(&mut lock.lock);
+		pending_lock = Some(lock.lock.clone());
 	}
 
 	if let Some(lock) = pending_lock {
@@ -424,10 +427,14 @@ fn register_onchain_secret_endstate(
 			return
 		}
 
+		if should_delete_lock {
+			delete_lock(end_state, secrethash);
+		}
+
 		end_state.secrethashes_to_onchain_unlockedlocks.insert(
 			secrethash,
 			UnlockPartialProofState {
-				secret,
+				secret: secret.clone(),
 				secrethash,
 				lock: lock.clone(),
 				amount: lock.amount,
@@ -435,10 +442,6 @@ fn register_onchain_secret_endstate(
 				encoded: lock.encoded.clone(),
 			},
 		);
-
-		if should_delete_lock {
-			delete_lock(end_state, secrethash);
-		}
 	}
 }
 

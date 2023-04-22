@@ -48,7 +48,7 @@ pub struct TargetTransition {
 	pub events: Vec<Event>,
 }
 
-fn events_for_onchain_secretrevea(
+fn events_for_onchain_secretreveal(
 	target_state: &mut TargetTransferState,
 	channel_state: &ChannelState,
 	block_number: BlockNumber,
@@ -229,7 +229,7 @@ fn handle_block(
 		);
 	} else if secret_known {
 		events.extend(
-			events_for_onchain_secretrevea(
+			events_for_onchain_secretreveal(
 				&mut target_state,
 				&channel_state,
 				state_change.block_number,
@@ -443,8 +443,16 @@ fn handle_unlock(
 	};
 	let recipient_metadata = views::get_address_metadata(sender, transfer.route_states.clone());
 
-	let unlock_event = channel::handle_unlock(&mut channel_state, state_change, recipient_metadata)
-		.map_err(Into::into)?;
+	let unlock_event =
+		match channel::handle_unlock(&mut channel_state, state_change, recipient_metadata) {
+			Ok(unlock_event) => unlock_event,
+			Err((_, error_event)) =>
+				return Ok(TargetTransition {
+					new_state: Some(target_state),
+					chain_state,
+					events: vec![error_event],
+				}),
+		};
 
 	update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 

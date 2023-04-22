@@ -25,6 +25,10 @@ web3 = { version = "0.18.0", default-features = false, features = [ "signing" ] 
 raiden-macros = { path = "../macros" }
 raiden-primitives = { path = "../primitives" }
 
+[dev-dependencies]
+rand = { version = "0.8.4" }
+ethsign = { version = "0.8.0", default-features = true }
+
 [features]
 storage = [
     "chrono",

@@ -162,12 +162,9 @@ pub fn try_new_route(
 
 	let our_address = chain_state.our_address;
 
-	let selected = loop {
-		let route_state = match candidate_route_states.iter().next() {
-			Some(route_state) => route_state,
-			None => break None,
-		};
-
+	let mut selected = None;
+	let mut iterator = candidate_route_states.iter();
+	while let Some(route_state) = iterator.next() {
 		let next_hop_address = match route_state.hop_after(our_address) {
 			Some(next_hop_address) => next_hop_address,
 			None => continue,
@@ -198,9 +195,10 @@ pub fn try_new_route(
 		let is_channel_usable = candidate_channel_state
 			.is_usable_for_new_transfer(amount_with_fee, transfer_description.lock_timeout);
 		if is_channel_usable {
-			break Some((route_state, candidate_channel_state))
+			selected = Some((route_state, candidate_channel_state));
+			break
 		}
-	};
+	}
 
 	let (initiator_state, events) = if let Some((route_state, channel_state)) = selected {
 		let message_identifier = chain_state.pseudo_random_number_generator.next();
@@ -280,7 +278,6 @@ fn handle_block(
 		state_change.block_number,
 		lock_expiration_threshold,
 	);
-
 	let mut events: Vec<Event> = vec![];
 	let (initiator_state, channel_state) = if lock_has_expired.is_ok() &&
 		initiator_state.transfer_state != TransferState::Expired
@@ -339,7 +336,7 @@ fn handle_block(
 	Ok(InitiatorTransition {
 		new_state: initiator_state,
 		channel_state: Some(channel_state),
-		events: vec![],
+		events,
 	})
 }
 
@@ -444,7 +441,7 @@ fn handle_receive_offchain_secret_reveal(
 	.is_ok();
 
 	let mut events = vec![];
-	if valid_reveal && is_channel_open && sent_by_partner && !expired {
+	let new_state = if valid_reveal && is_channel_open && sent_by_partner && !expired {
 		events.extend(
 			events_for_unlock_lock(
 				&initiator_state,
@@ -456,13 +453,12 @@ fn handle_receive_offchain_secret_reveal(
 			)
 			.map_err(Into::into)?,
 		);
-	}
+		None
+	} else {
+		Some(initiator_state)
+	};
 
-	return Ok(InitiatorTransition {
-		new_state: Some(initiator_state),
-		channel_state: Some(channel_state),
-		events,
-	})
+	return Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
 }
 
 fn handle_receive_onchain_secret_reveal(
@@ -497,7 +493,7 @@ fn handle_receive_onchain_secret_reveal(
 	.is_ok();
 
 	let mut events = vec![];
-	if is_lock_unlocked && is_channel_open && !expired {
+	let new_state = if is_lock_unlocked && is_channel_open && !expired {
 		events.extend(
 			events_for_unlock_lock(
 				&initiator_state,
@@ -509,13 +505,12 @@ fn handle_receive_onchain_secret_reveal(
 			)
 			.map_err(Into::into)?,
 		);
-	}
+		None
+	} else {
+		Some(initiator_state)
+	};
 
-	return Ok(InitiatorTransition {
-		new_state: Some(initiator_state),
-		channel_state: Some(channel_state),
-		events,
-	})
+	return Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
 }
 
 pub fn state_transition(

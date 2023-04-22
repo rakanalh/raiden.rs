@@ -7,7 +7,7 @@ use crate::types::{
 	ReceiveSecretReveal,
 };
 
-pub(super) fn update_channel(
+pub(crate) fn update_channel(
 	chain_state: &mut ChainState,
 	channel_state: ChannelState,
 ) -> Result<(), String> {

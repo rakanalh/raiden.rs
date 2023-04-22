@@ -2710,8 +2710,10 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "derive_more",
+ "ethsign",
  "raiden-macros",
  "raiden-primitives",
+ "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rusqlite",
  "serde",

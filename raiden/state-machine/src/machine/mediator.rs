@@ -10,6 +10,7 @@ use raiden_primitives::{
 		BlockNumber,
 		BlockTimeout,
 		CanonicalIdentifier,
+		LockTimeout,
 		Secret,
 		SecretHash,
 		TokenAmount,
@@ -108,7 +109,7 @@ pub(super) fn is_safe_to_wait(
 	if lock_expiration < reveal_timeout {
 		return Err("Lock expiration must be larger than reveal timeout".to_owned())
 	}
-	let lock_timeout = lock_expiration - block_number;
+	let lock_timeout: LockTimeout = lock_expiration.saturating_sub(block_number.into()).into();
 	if lock_timeout > reveal_timeout {
 		return Ok(())
 	}
@@ -308,6 +309,7 @@ fn has_secret_registration_started(
 	let is_secret_registered_onchain = channel_states
 		.iter()
 		.any(|channel_state| channel_state.partner_state.secret_known_onchain(secrethash));
+
 	let has_pending_transaction = transfers_pair
 		.iter()
 		.any(|pair| pair.payer_state == PayerState::WaitingSecretReveal);
@@ -1263,24 +1265,30 @@ fn handle_unlock(
 					mediator_state.routes.clone(),
 				);
 				let mut channel_state = channel_state.clone();
-				if let Ok(handle_unlock_events) = channel::handle_unlock(
+
+				match channel::handle_unlock(
 					&mut channel_state,
 					state_change.clone(),
 					recipient_metadata,
 				) {
-					let _ = update_channel(&mut chain_state, channel_state);
+					Ok(handle_unlock_events) => {
+						let _ = update_channel(&mut chain_state, channel_state);
 
-					events.push(handle_unlock_events);
+						events.push(handle_unlock_events);
 
-					events.push(
-						UnlockClaimSuccess {
-							identifier: pair.payee_transfer.payment_identifier,
-							secrethash: pair.payee_transfer.lock.secrethash,
-						}
-						.into(),
-					);
+						events.push(
+							UnlockClaimSuccess {
+								identifier: pair.payee_transfer.payment_identifier,
+								secrethash: pair.payee_transfer.lock.secrethash,
+							}
+							.into(),
+						);
 
-					pair.payer_state = PayerState::BalanceProof;
+						pair.payer_state = PayerState::BalanceProof;
+					},
+					Err((_, event)) => {
+						events.push(event);
+					},
 				}
 			}
 		}
