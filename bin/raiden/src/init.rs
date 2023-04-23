@@ -42,6 +42,7 @@ use raiden_primitives::types::{
 	DefaultAddresses,
 };
 use raiden_state_machine::{
+	machine::channel::calculate_imbalance_fees,
 	storage::StateStorage,
 	types::{
 		ChannelStatus,
@@ -126,11 +127,12 @@ pub async fn init_channel_fees(
 
 			let flat_fee = fee_config.get_flat_fee(&channel.token_address);
 			let proportional_fee = fee_config.get_proportional_fee(&channel.token_address);
-			let _proportional_imbalance_fee =
+			let proportional_imbalance_fee =
 				fee_config.get_proportional_imbalance_fee(&channel.token_address);
-			// let imbalance_penalty =
-			// 	calculate_imbalance_fees(channel.capacity(), proportional_imbalance_fee);
-			let imbalance_penalty = Some(vec![]);
+
+			let imbalance_penalty =
+				calculate_imbalance_fees(channel.capacity(), proportional_imbalance_fee);
+
 			channel.fee_schedule = FeeScheduleState {
 				cap_fees: fee_config.cap_meditation_fees,
 				flat: flat_fee,

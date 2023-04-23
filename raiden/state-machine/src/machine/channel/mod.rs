@@ -1,9 +1,6 @@
-use std::{
-	cmp::min,
-	ops::{
-		Div,
-		Mul,
-	},
+use std::ops::{
+	Add,
+	Mul,
 };
 
 use raiden_primitives::{
@@ -24,6 +21,11 @@ use raiden_primitives::{
 		SecretHash,
 		TokenAmount,
 	},
+};
+use rug::{
+	ops::Pow,
+	Float,
+	Integer,
 };
 
 use self::{
@@ -964,17 +966,17 @@ fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: To
 }
 
 /// Returns a list of numbers from start to stop (inclusive).
-fn linspace(start: TokenAmount, stop: TokenAmount, num: TokenAmount) -> Vec<TokenAmount> {
+fn linspace(start: Float, stop: Float, num: Float) -> Vec<Float> {
 	// assert num > 1, "Must generate at least one step"
 	// assert start <= stop, "start must be smaller than stop"
 
-	let step = (stop - start) / (num - 1);
+	let step: Float = (stop - start.clone()) / (num.clone() - 1);
 
 	let mut result = vec![];
 
-	let mut i = TokenAmount::zero();
+	let mut i = Integer::from(0);
 	while i < num {
-		result.push(start + i * step);
+		result.push(start.clone() + i.clone() * step.clone());
 		i = i + 1;
 	}
 
@@ -985,6 +987,7 @@ pub fn calculate_imbalance_fees(
 	channel_capacity: TokenAmount,
 	proportional_imbalance_fee: TokenAmount,
 ) -> Option<Vec<(TokenAmount, FeeAmount)>> {
+	const PRECISION: u32 = 500;
 	if proportional_imbalance_fee == TokenAmount::zero() {
 		return None
 	}
@@ -993,39 +996,57 @@ pub fn calculate_imbalance_fees(
 		return None
 	}
 
-	let maximum_slope = TokenAmount::from(10); // 0.1
-	let (max_imbalance_fee, overflow) =
-		channel_capacity.overflowing_mul(proportional_imbalance_fee);
+	let channel_capacity = Float::with_val(PRECISION, channel_capacity.as_u128());
+	let proportional_imbalance_fee =
+		Float::with_val(PRECISION, proportional_imbalance_fee.as_u128());
+	let maximum_slope = Float::with_val(PRECISION, 0.1);
 
-	if overflow {
-		// TODO: Should fail?
-		return None
-	}
-
-	let max_imbalance_fee = max_imbalance_fee / TokenAmount::from(1_000_000);
+	let max_imbalance_fee =
+		(channel_capacity.clone() * proportional_imbalance_fee) / Float::with_val(PRECISION, 1e6);
 
 	// calculate function parameters
 	let s = maximum_slope;
 	let c = max_imbalance_fee;
-	let o = channel_capacity.div(2);
-	let b = o.div(s).div(c);
-	let b = b.min(TokenAmount::from(10)); // limit exponent to keep numerical stability;
-	let a = c / o.pow(b);
-
-	let f = |x: TokenAmount| -> TokenAmount { a * (x - o).pow(b) };
+	let o: Float = channel_capacity.clone() / 2;
+	let b: Float = s * o.clone() / c.clone();
+	let b = b.min(&Float::with_val(PRECISION, 10.0)); // limit exponent to keep numerical stability;
+	let a = c.clone() / o.clone().pow(b.clone());
 
 	// calculate discrete function points
-	let num_base_points = min(NUM_DISCRETISATION_POINTS.into(), channel_capacity + 1);
-	let x_values: Vec<TokenAmount> = linspace(0u64.into(), channel_capacity, num_base_points);
-	let y_values: Vec<TokenAmount> = x_values.iter().map(|x| f(*x)).collect();
-
-	Some(x_values.into_iter().zip(y_values).collect())
+	let cap: Float = channel_capacity.clone().add(1.0);
+	let num_base_points = cap.min(&Float::with_val(PRECISION, NUM_DISCRETISATION_POINTS));
+	let x_values: Vec<Float> =
+		linspace(Float::with_val(PRECISION, 0), channel_capacity, num_base_points);
+	let y_values: Vec<TokenAmount> = x_values
+		.iter()
+		.map(|x| a.clone() * (x - o.clone()).pow(b.clone()))
+		.map(|n| {
+			TokenAmount::from(
+				n.to_integer()
+					.expect("Panic if Integer conversion doesn't work")
+					.to_u128()
+					.expect("Number too large for u128"),
+			)
+		})
+		.collect();
+	let result = x_values
+		.into_iter()
+		.map(|n| {
+			TokenAmount::from(
+				n.to_integer()
+					.expect("POanic if Integer conversion doesn't work")
+					.to_u128()
+					.expect("Number too large for u128"),
+			)
+		})
+		.zip(y_values)
+		.collect();
+	Some(result)
 }
 
-#[allow(dead_code)]
 fn update_fee_schedule_after_balance_change(
 	channel_state: &mut ChannelState,
-	fee_config: &mut MediationFeeConfig,
+	fee_config: &MediationFeeConfig,
 ) {
 	let proportional_imbalance_fee =
 		fee_config.get_proportional_imbalance_fee(&channel_state.token_address);
@@ -1053,7 +1074,7 @@ fn handle_channel_deposit(
 		update_contract_balance(&mut channel_state.partner_state, contract_balance);
 	}
 
-	//update_fee_schedule_after_balance_change(&mut channel_state, state_change.fee_config);
+	update_fee_schedule_after_balance_change(&mut channel_state, &state_change.fee_config);
 
 	Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
@@ -1080,7 +1101,7 @@ fn handle_channel_withdraw(
 	}
 	end_state.onchain_total_withdraw = state_change.total_withdraw;
 
-	// update_fee_schedule_after_balance_change(&mut channel_state, state_change.fee_config);
+	update_fee_schedule_after_balance_change(&mut channel_state, &state_change.fee_config);
 
 	return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }

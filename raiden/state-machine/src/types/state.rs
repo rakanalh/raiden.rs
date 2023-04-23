@@ -329,10 +329,7 @@ impl MediationFeeConfig {
 			.unwrap_or(&DEFAULT_MEDIATION_PROPORTIONAL_FEE.into())
 	}
 
-	pub fn get_proportional_imbalance_fee(
-		&mut self,
-		token_address: &Address,
-	) -> ProportionalFeeAmount {
+	pub fn get_proportional_imbalance_fee(&self, token_address: &Address) -> ProportionalFeeAmount {
 		*self
 			.token_to_proportional_imbalance_fee
 			.get(token_address)
