@@ -88,6 +88,6 @@ impl ToChecksummed for Option<Address> {
 
 impl ToPexAddress for Address {
 	fn pex(&self) -> String {
-		hex::encode(&self.to_string()[..8])
+		hex::encode(&self.to_checksummed()[..8])
 	}
 }

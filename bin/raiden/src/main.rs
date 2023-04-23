@@ -154,14 +154,6 @@ async fn main() {
 	// #
 	// # Initialize state manager
 	// #
-	let mut datadir = match expanduser::expanduser(cli.datadir.to_string_lossy()) {
-		Ok(p) => p,
-		Err(e) => {
-			eprintln!("Error expanding data directory: {}", e);
-			process::exit(1);
-		},
-	};
-
 	let contracts_manager = match contracts::ContractsManager::new(chain_id.clone()) {
 		Ok(contracts_manager) => Arc::new(contracts_manager),
 		Err(e) => {
@@ -177,10 +169,16 @@ async fn main() {
 		},
 	};
 
-	let mut datadir = cli.datadir;
+	let mut datadir = match expanduser::expanduser(cli.datadir.to_string_lossy()) {
+		Ok(p) => p,
+		Err(e) => {
+			eprintln!("Error expanding data directory: {}", e);
+			process::exit(1);
+		},
+	};
 	datadir.push(format!("node_{}", account.address().pex()));
 	datadir.push(format!("netid_{}", chain_id.to_string()));
-	datadir.push(format!("network_{}", default_addresses.token_network_registry.pex()));
+	datadir.push(format!("network_{}/", default_addresses.token_network_registry.pex()));
 
 	match setup_data_directory(datadir.clone()) {
 		Err(e) => {
@@ -397,12 +395,8 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 	let path = expanduser::expanduser(path.to_string_lossy())
 		.map_err(|_| "Failed to expand data directory".to_owned())?;
 
-	if !path.is_dir() {
-		return Err("Datadir has to be a directory".to_owned())
-	}
-
 	if !path.exists() {
-		match fs::create_dir(path.clone()) {
+		match fs::create_dir_all(path.clone()) {
 			Err(e) =>
 				return Err(format!("Could not create directory: {:?} because {}", path.clone(), e)),
 			_ => {},
