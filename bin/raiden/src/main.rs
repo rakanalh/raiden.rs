@@ -54,7 +54,10 @@ use tokio::{
 	sync::RwLock,
 };
 use tracing::info;
-use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::{
+	filter::EnvFilter,
+	prelude::*,
+};
 use web3::{
 	signing::Key,
 	transports::WebSocket,
@@ -80,26 +83,50 @@ use init::*;
 async fn main() {
 	let cli = Opt::from_args();
 
-	let filter = EnvFilter::from_env("RAIDEN_LOG")
-		.add_directive("raiden_api=debug".parse().unwrap())
-		.add_directive("raiden_blockchain=debug".parse().unwrap())
-		.add_directive("raiden_client=debug".parse().unwrap())
-		.add_directive("raiden_state_machine=debug".parse().unwrap())
-		.add_directive("raiden_storage=debug".parse().unwrap())
-		.add_directive("raiden_transition=debug".parse().unwrap())
-		.add_directive("raiden_network_messages=debug".parse().unwrap())
-		.add_directive("raiden_network_transport=debug".parse().unwrap());
+	// Setup logging
+	let mut layers = vec![];
+	if cli.log_json && cli.log_file.is_none() {
+		layers.push(
+			tracing_subscriber::fmt::layer()
+				.json()
+				.with_file(false)
+				.with_line_number(false)
+				.with_thread_ids(false)
+				.with_target(true)
+				.with_filter(get_logging_filter(cli.log_config.clone()))
+				.boxed(),
+		);
+	} else if cli.log_file.is_none() {
+		layers.push(
+			tracing_subscriber::fmt::layer()
+				.pretty()
+				.with_file(false)
+				.with_line_number(false)
+				.with_thread_ids(false)
+				.with_target(true)
+				.with_filter(get_logging_filter(cli.log_config.clone()))
+				.boxed(),
+		);
+	}
+	// Write to file if --log-file is set
+	let _guard = if let Some(log_file) = cli.log_file {
+		let appender = tracing_appender::rolling::daily(
+			log_file.parent().expect("log_file should be a valid path"),
+			log_file.file_name().expect("Log should be a file path"),
+		);
+		let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+		layers.push(
+			tracing_subscriber::fmt::layer()
+				.with_writer(non_blocking)
+				.with_filter(get_logging_filter(cli.log_config.clone()))
+				.boxed(),
+		);
+		Some(guard)
+	} else {
+		None
+	};
 
-	let subscriber = tracing_subscriber::fmt()
-		.with_env_filter(filter)
-		.pretty()
-		.with_file(false)
-		.with_line_number(false)
-		.with_thread_ids(false)
-		.with_target(true)
-		.finish();
-
-	let _ = tracing::subscriber::set_global_default(subscriber);
+	tracing_subscriber::registry().with(layers).init();
 
 	info!("Welcome to Raiden");
 
@@ -110,7 +137,7 @@ async fn main() {
 	let eth_rpc_http_endpoint = match cli.eth_rpc_endpoint.to_http() {
 		Ok(e) => e,
 		Err(e) => {
-			eprintln!("Invalid RPC endpoint: {}", e);
+			tracing::error!("Invalid RPC endpoint: {}", e);
 			process::exit(1);
 		},
 	};
@@ -118,7 +145,7 @@ async fn main() {
 	let eth_rpc_socket_endpoint = match cli.eth_rpc_socket_endpoint.to_socket() {
 		Ok(e) => e,
 		Err(e) => {
-			eprintln!("Invalid RPC endpoint: {}", e);
+			tracing::error!("Invalid RPC endpoint: {}", e);
 			process::exit(1);
 		},
 	};
@@ -138,14 +165,14 @@ async fn main() {
 	{
 		Ok(key) => key,
 		Err(e) => {
-			eprintln!("{}", e);
+			tracing::error!("{}", e);
 			process::exit(1);
 		},
 	};
 	let nonce = match web3.eth().transaction_count(private_key.address(), None).await {
 		Ok(nonce) => nonce - 1,
 		Err(e) => {
-			eprintln!("Failed to fetch nonce: {}", e);
+			tracing::error!("Failed to fetch nonce: {}", e);
 			process::exit(1);
 		},
 	};
@@ -157,14 +184,14 @@ async fn main() {
 	let contracts_manager = match contracts::ContractsManager::new(chain_id.clone()) {
 		Ok(contracts_manager) => Arc::new(contracts_manager),
 		Err(e) => {
-			eprintln!("Error creating contracts manager: {}", e);
+			tracing::error!("Error creating contracts manager: {}", e);
 			process::exit(1);
 		},
 	};
 	let default_addresses = match contracts_manager.deployed_addresses() {
 		Ok(addresses) => addresses,
 		Err(e) => {
-			eprintln!("Failed to construct default deployed addresses: {:?}", e);
+			tracing::error!("Failed to construct default deployed addresses: {:?}", e);
 			process::exit(1);
 		},
 	};
@@ -172,7 +199,7 @@ async fn main() {
 	let mut datadir = match expanduser::expanduser(cli.datadir.to_string_lossy()) {
 		Ok(p) => p,
 		Err(e) => {
-			eprintln!("Error expanding data directory: {}", e);
+			tracing::error!("Error expanding data directory: {}", e);
 			process::exit(1);
 		},
 	};
@@ -182,7 +209,7 @@ async fn main() {
 
 	match setup_data_directory(datadir.clone()) {
 		Err(e) => {
-			eprintln!("Error initializing data directory: {}", e);
+			tracing::error!("Error initializing data directory: {}", e);
 			process::exit(1);
 		},
 		_ => {},
@@ -191,7 +218,7 @@ async fn main() {
 	let storage = match init_storage(datadir.clone()) {
 		Ok(storage) => storage,
 		Err(e) => {
-			eprintln!("Error creating contracts manager: {}", e);
+			tracing::error!("Error creating contracts manager: {}", e);
 			process::exit(1);
 		},
 	};
@@ -205,7 +232,7 @@ async fn main() {
 	) {
 		Ok(result) => result,
 		Err(e) => {
-			eprintln!("Error initializing state: {:?}", e);
+			tracing::error!("Error initializing state: {:?}", e);
 			process::exit(1);
 		},
 	};
@@ -238,7 +265,7 @@ async fn main() {
 	let proxy_manager = match ProxyManager::new(web3.clone(), contracts_manager.clone()) {
 		Ok(pm) => Arc::new(pm),
 		Err(e) => {
-			eprintln!("Failed to initialize proxy manager: {}", e);
+			tracing::error!("Failed to initialize proxy manager: {}", e);
 			process::exit(1);
 		},
 	};
@@ -250,7 +277,7 @@ async fn main() {
 		match proxy_manager.service_registry(default_addresses.service_registry).await {
 			Ok(proxy) => proxy,
 			Err(e) => {
-				eprintln!("Could not instantiate services registry: {:?}", e);
+				tracing::error!("Could not instantiate services registry: {:?}", e);
 				process::exit(1);
 			},
 		};
@@ -265,7 +292,7 @@ async fn main() {
 	{
 		Ok(result) => result,
 		Err(e) => {
-			eprintln!("{}", e);
+			tracing::error!("{}", e);
 			process::exit(1);
 		},
 	};
@@ -280,7 +307,7 @@ async fn main() {
 	{
 		Ok(info) => info,
 		Err(e) => {
-			eprintln!("{}", e);
+			tracing::error!("{}", e);
 			process::exit(1);
 		},
 	};
@@ -334,7 +361,7 @@ async fn main() {
 	let ws = match WebSocket::new(&eth_rpc_socket_endpoint).await {
 		Ok(ws) => ws,
 		Err(e) => {
-			eprintln!("Error connecting to websocket: {:?}", e);
+			tracing::error!("Error connecting to websocket: {:?}", e);
 			process::exit(1);
 		},
 	};
@@ -356,16 +383,16 @@ async fn main() {
 		match BlockMonitorService::new(raiden.clone(), ws, transitioner.clone(), sync_service) {
 			Ok(service) => service,
 			Err(_) => {
-				eprintln!("Could not initialize block monitor service");
+				tracing::error!("Could not initialize block monitor service");
 				process::exit(1);
 			},
 		};
 	let api = Api::new(raiden.clone(), transitioner.clone(), payments_registry);
 
-	let socket: SocketAddr = match format!("{}:{}", cli.http_host, cli.http_port).parse() {
+	let socket: SocketAddr = match cli.api_address.parse() {
 		Ok(socket) => socket,
 		Err(e) => {
-			eprintln!("Error starting HTTP server: {:?}", e);
+			tracing::error!("Error starting HTTP server: {:?}", e);
 			process::exit(1);
 		},
 	};
@@ -376,7 +403,7 @@ async fn main() {
 	let mut hangup = match signal(SignalKind::interrupt()) {
 		Ok(s) => s,
 		Err(e) => {
-			eprintln!("Could not instantiate listener for hangup signal: {:?}", e);
+			tracing::error!("Could not instantiate listener for hangup signal: {:?}", e);
 			return
 		},
 	};
@@ -403,4 +430,16 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 		}
 	}
 	Ok(path.to_path_buf())
+}
+fn get_logging_filter(log_config: String) -> EnvFilter {
+	EnvFilter::from_env("RAIDEN_LOG")
+		.add_directive(format!("raiden_api={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_blockchain={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_client={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_state_machine={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_storage={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_transition={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_network_messages={}", log_config).parse().unwrap())
+		.add_directive(format!("raiden_network_transport={}", log_config).parse().unwrap())
+		.add_directive(format!("hyper={}", log_config).parse().unwrap())
 }
