@@ -100,7 +100,7 @@ pub async fn init_channel_fees(
 	state_manager: Arc<SyncRwLock<StateManager>>,
 	event_handler: EventHandler,
 	registry_address: Address,
-	mut fee_config: MediationFeeConfig,
+	fee_config: MediationFeeConfig,
 ) {
 	let mut chain_state = state_manager.read().current_state.clone();
 	let token_addresses = views::get_token_identifiers(&chain_state, registry_address);
