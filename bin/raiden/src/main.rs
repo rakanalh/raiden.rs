@@ -3,6 +3,7 @@ use std::{
 	net::SocketAddr,
 	path::PathBuf,
 	process,
+	str::FromStr,
 	sync::Arc,
 };
 
@@ -170,7 +171,8 @@ async fn main() {
 		},
 	};
 	let nonce = match web3.eth().transaction_count(private_key.address(), None).await {
-		Ok(nonce) => nonce - 1,
+		Ok(nonce) if !nonce.is_zero() => nonce - 1,
+		Ok(nonce) => nonce,
 		Err(e) => {
 			tracing::error!("Failed to fetch nonce: {}", e);
 			process::exit(1);
@@ -245,19 +247,19 @@ async fn main() {
 			.mediation_fees
 			.flat_fee
 			.into_iter()
-			.map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
+			.map(|(a, v)| (Address::from_str(&a).expect("Address should be parsable"), v.into()))
 			.collect(),
 		token_to_proportional_fee: cli
 			.mediation_fees
 			.proportional_fee
 			.into_iter()
-			.map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
+			.map(|(a, v)| (Address::from_str(&a).expect("Address should be parsable"), v.into()))
 			.collect(),
 		token_to_proportional_imbalance_fee: cli
 			.mediation_fees
 			.proportional_imbalance_fee
 			.into_iter()
-			.map(|(a, v)| (Address::from_slice(a.as_bytes()), v.into()))
+			.map(|(a, v)| (Address::from_str(&a).expect("Address should be parsable"), v.into()))
 			.collect(),
 		cap_meditation_fees: cli.mediation_fees.cap_mediation_fees,
 	};

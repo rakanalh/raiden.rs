@@ -38,10 +38,12 @@ pub async fn unlock_private_key(
 	let private_key = PrivateKey::new(key_filename.clone(), password.clone())
 		.map_err(|e| format!("Could not unlock private key: {:?}", e))?;
 
-	web3.personal()
-		.unlock_account(private_key.address(), &password, None)
-		.await
-		.map_err(|e| format!("Could not unlock account on ethereum node: {:?}", e))?;
+	if !password.is_empty() {
+		web3.personal()
+			.unlock_account(private_key.address(), &password, None)
+			.await
+			.map_err(|e| format!("Could not unlock account on ethereum node: {:?}", e))?;
+	}
 
 	Ok(private_key)
 }

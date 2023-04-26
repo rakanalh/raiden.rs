@@ -60,6 +60,24 @@ fn parse_chain_id(src: &str) -> Result<u64, Box<dyn Error + Send + Sync + 'stati
 	}
 }
 
+fn parse_environment_type(
+	src: &str,
+) -> Result<ArgEnvironmentType, Box<dyn Error + Send + Sync + 'static>> {
+	match src {
+		"development" => Ok(ArgEnvironmentType::Development),
+		"production" => Ok(ArgEnvironmentType::Production),
+		_ => Err(format!("Invalid environment type").into()),
+	}
+}
+
+fn parse_routing_mode(src: &str) -> Result<ArgRoutingMode, Box<dyn Error + Send + Sync + 'static>> {
+	match src {
+		"pfs" => Ok(ArgRoutingMode::PFS),
+		"private" => Ok(ArgRoutingMode::Private),
+		_ => Err(format!("Invalid routing mode").into()),
+	}
+}
+
 arg_enum! {
 	#[derive(Debug, PartialEq)]
 	pub enum ArgEnvironmentType {
@@ -112,8 +130,9 @@ pub struct CliMediationConfig {
 #[derive(StructOpt, Clone, Debug)]
 pub struct CliServicesConfig {
 	#[structopt(
-		possible_values = &ArgRoutingMode::variants(),
-		default_value = "PFS",
+        long,
+		parse(try_from_str = parse_routing_mode),
+		default_value = "pfs",
 		required = false,
 		takes_value = true
 	)]
@@ -129,7 +148,7 @@ pub struct CliServicesConfig {
 	#[structopt(long, required = false, default_value = "0")]
 	pub pathfinding_iou_timeout: u64,
 	#[structopt(long)]
-	pub monitoring_enabled: bool,
+	pub enable_monitoring: bool,
 }
 
 impl From<CliServicesConfig> for ServicesConfig {
@@ -156,7 +175,7 @@ impl From<CliServicesConfig> for ServicesConfig {
 			pathfinding_max_paths: max_paths,
 			pathfinding_max_fee: max_fee,
 			pathfinding_iou_timeout: iou_timeout,
-			monitoring_enabled: s.monitoring_enabled,
+			monitoring_enabled: s.enable_monitoring,
 		}
 	}
 }
@@ -199,14 +218,17 @@ pub struct Opt {
 	pub chain_id: u64,
 
 	#[structopt(
-		possible_values = &ArgEnvironmentType::variants(),
         short("e"),
         long,
-        default_value = "Production",
+        default_value = "production",
+		parse(try_from_str = parse_environment_type),
         required = true,
         takes_value = true
     )]
 	pub environment_type: ArgEnvironmentType,
+
+	#[structopt(long, required = true, takes_value = true)]
+	pub development_environment: String,
 
 	/// Specify the RPC endpoint to interact with.
 	#[structopt(long, required = true, takes_value = true)]
