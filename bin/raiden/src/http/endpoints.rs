@@ -73,7 +73,8 @@ use crate::{
 		},
 	},
 	json_response,
-	unwrap,
+	unwrap_option_or_error,
+	unwrap_result_or_error,
 };
 
 pub async fn address(req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -82,22 +83,25 @@ pub async fn address(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 
 	let response = response::AddressResponse { our_address };
 
-	json_response!(response)
+	json_response!(response, StatusCode::OK)
 }
 
 pub async fn version(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	const CARGO_PKG_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 	let response = VersionResponse { version: CARGO_PKG_VERSION };
 
-	json_response!(response)
+	json_response!(response, StatusCode::OK)
 }
 
 pub async fn contracts(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let contracts_manager = contracts_manager(&req);
 
-	let response = unwrap!(contracts_manager.deployed_addresses());
+	let response = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
-	json_response!(response)
+	json_response!(response, StatusCode::OK)
 }
 
 pub async fn settings(req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -106,18 +110,21 @@ pub async fn settings(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let response =
 		SettingsResponse { pathfinding_service_address: api.raiden.config.pfs_config.url.clone() };
 
-	json_response!(response)
+	json_response!(response, StatusCode::OK)
 }
 
 pub async fn notifications(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let notifications: Vec<String> = vec![];
-	json_response!(notifications)
+	json_response!(notifications, StatusCode::OK)
 }
 
 pub async fn pending_transfers(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req
 		.param("token_address")
@@ -146,7 +153,10 @@ pub async fn pending_transfers(req: Request<Body>) -> Result<Response<Body>, Htt
 			token_address,
 		);
 		if token_network.is_none() {
-			return unwrap!(Err(Error::Other(format!("Token {} not found", token_address))))
+			return unwrap_result_or_error!(
+				Err(Error::Other(format!("Token {} not found", token_address))),
+				StatusCode::NOT_FOUND
+			)
 		}
 		let channel_id = if partner_address.is_some() {
 			let partner_address = partner_address.unwrap();
@@ -157,7 +167,10 @@ pub async fn pending_transfers(req: Request<Body>) -> Result<Response<Body>, Htt
 				partner_address,
 			);
 			if partner_channel.is_none() {
-				return unwrap!(Err(Error::Other(format!("Channel with partner was not found"))))
+				return unwrap_result_or_error!(
+					Err(Error::Other(format!("Channel with partner was not found"))),
+					StatusCode::NOT_FOUND
+				)
 			}
 			Some(partner_channel.unwrap().canonical_identifier.channel_identifier)
 		} else {
@@ -168,29 +181,36 @@ pub async fn pending_transfers(req: Request<Body>) -> Result<Response<Body>, Htt
 		None
 	};
 	let view = transfer_tasks_view(all_tasks, token_address, channel_id);
-	json_response!(view)
+	json_response!(view, StatusCode::OK)
 }
 
 pub async fn channels(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req.param("token_address");
 
 	let chain_state = &state_manager.read().current_state;
 
 	let channels: Vec<response::ChannelResponse> = if token_address.is_some() {
-		let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
-			token_address.unwrap().trim_start_matches("0x")
-		)
-		.map_err(|_| Error::Other(format!("Invalid token address")))));
-		let token_network = unwrap!(get_token_network_by_token_address(
-			&chain_state,
-			addresses.token_network_registry,
-			token_address
-		)
-		.ok_or(Error::Other(format!("Could not find token network by token address"))));
+		let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+			&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+				.map_err(|_| Error::Other(format!("Invalid token address"))),
+			StatusCode::BAD_REQUEST
+		));
+		let token_network = unwrap_result_or_error!(
+			get_token_network_by_token_address(
+				&chain_state,
+				addresses.token_network_registry,
+				token_address
+			)
+			.ok_or(Error::Other(format!("Could not find token network by token address"))),
+			StatusCode::BAD_REQUEST
+		);
 
 		token_network
 			.channelidentifiers_to_channels
@@ -201,27 +221,33 @@ pub async fn channels(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 		views::get_channels(&chain_state).iter().map(|c| c.clone().into()).collect()
 	};
 
-	json_response!(&channels)
+	json_response!(&channels, StatusCode::OK)
 }
 
 pub async fn channel_by_partner_address(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req.param("token_address");
 	let partner_address = req.param("partner_address");
 
 	let chain_state = &state_manager.read().current_state;
 
-	let token_address: TokenAddress =
-		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
 
-	let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
-		partner_address.unwrap().trim_start_matches("0x")
-	)
-	.map_err(|_| Error::Other(format!("Invalid partner address")))));
+	let partner_address: Address = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(partner_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid partner address"))),
+		StatusCode::BAD_REQUEST
+	));
 
 	let channel_state = views::get_channel_state_for(
 		&chain_state,
@@ -232,20 +258,28 @@ pub async fn channel_by_partner_address(req: Request<Body>) -> Result<Response<B
 
 	if let Some(channel_state) = channel_state {
 		let channel_state: ChannelResponse = channel_state.clone().into();
-		json_response!(channel_state)
+		json_response!(channel_state, StatusCode::OK)
 	} else {
-		unwrap!(Err(Error::Other(format!("Channel does not exist"))))
+		unwrap_result_or_error!(
+			Err(Error::Other(format!("Channel does not exist"))),
+			StatusCode::NOT_FOUND
+		)
 	}
 }
 pub async fn connections_leave(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req.param("token_address");
-	let token_address: TokenAddress =
-		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
 
 	debug!(
 		message = "Leaving token network",
@@ -253,10 +287,12 @@ pub async fn connections_leave(req: Request<Body>) -> Result<Response<Body>, Htt
 		token_address = token_address.to_checksummed(),
 	);
 
-	let closed_channels = unwrap!(api
-		.token_network_leave(addresses.token_network_registry, token_address)
-		.await
-		.map_err(|e| Error::Other(format!("Could not leave token network: {:?}", e))));
+	let closed_channels = unwrap_result_or_error!(
+		api.token_network_leave(addresses.token_network_registry, token_address)
+			.await
+			.map_err(|e| Error::Other(format!("Could not leave token network: {:?}", e))),
+		StatusCode::BAD_REQUEST
+	);
 
 	let mut closed_channel_result = vec![];
 	for channel_state in closed_channels {
@@ -264,13 +300,16 @@ pub async fn connections_leave(req: Request<Body>) -> Result<Response<Body>, Htt
 		closed_channel_result.push(result);
 	}
 
-	json_response!(closed_channel_result)
+	json_response!(closed_channel_result, StatusCode::OK)
 }
 
 pub async fn connections_info(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let chain_state = &state_manager.read().current_state;
 
@@ -290,13 +329,14 @@ pub async fn connections_info(req: Request<Body>) -> Result<Response<Body>, Http
 		);
 	}
 
-	json_response!(connection_managers)
+	json_response!(connection_managers, StatusCode::OK)
 }
 
 pub async fn tokens(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses =
+		unwrap_result_or_error!(contracts_manager.deployed_addresses(), StatusCode::BAD_REQUEST);
 
 	let chain_state = &state_manager.read().current_state;
 
@@ -306,18 +346,53 @@ pub async fn tokens(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 			.map(|t| t.to_checksummed())
 			.collect();
 
-	json_response!(tokens)
+	json_response!(tokens, StatusCode::OK)
+}
+
+pub async fn get_token_network_by_token(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+	let state_manager = state_manager(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
+
+	let token_address = req.param("token_address");
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
+
+	let chain_state = &state_manager.read().current_state;
+
+	let token_network_address = unwrap_option_or_error!(
+		views::get_token_network_by_token_address(
+			chain_state,
+			addresses.token_network_registry,
+			token_address,
+		)
+		.map(|t| t.address.to_checksummed()),
+		StatusCode::NOT_FOUND
+	);
+
+	json_response!(token_network_address, StatusCode::OK)
 }
 
 pub async fn register_token(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req.param("token_address");
-	let token_address: TokenAddress =
-		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
 
 	debug!(
 		message = "Registering a new token",
@@ -325,33 +400,43 @@ pub async fn register_token(req: Request<Body>) -> Result<Response<Body>, HttpEr
 		token_address = token_address.to_checksummed(),
 	);
 
-	let token_network_address = unwrap!(api
-		.token_network_register(addresses.token_network_registry, token_address)
-		.await
-		.map_err(|e| Error::Other(format!("Could not register token network: {:?}", e))));
+	let token_network_address = unwrap_result_or_error!(
+		api.token_network_register(addresses.token_network_registry, token_address)
+			.await
+			.map_err(|e| Error::Other(format!("Could not register token network: {:?}", e))),
+		StatusCode::CONFLICT
+	);
 
-	json_response!(token_network_address)
+	json_response!(token_network_address, StatusCode::CREATED)
 }
 
 pub async fn partners_by_token_address(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req.param("token_address");
 
 	let chain_state = &state_manager.read().current_state;
 
-	let token_address: TokenAddress =
-		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
 
-	let token_network = unwrap!(get_token_network_by_token_address(
-		&chain_state,
-		addresses.token_network_registry,
-		token_address
-	)
-	.ok_or(Error::Other(format!("Could not find token network by token address"))));
+	let token_network = unwrap_result_or_error!(
+		get_token_network_by_token_address(
+			&chain_state,
+			addresses.token_network_registry,
+			token_address
+		)
+		.ok_or(Error::Other(format!("Could not find token network by token address"))),
+		StatusCode::BAD_REQUEST
+	);
 
 	let channels: Vec<HashMap<&'static str, String>> = token_network
 		.channelidentifiers_to_channels
@@ -367,70 +452,89 @@ pub async fn partners_by_token_address(req: Request<Body>) -> Result<Response<Bo
 		})
 		.collect();
 
-	json_response!(&channels)
+	json_response!(&channels, StatusCode::OK)
 }
 
 pub async fn user_deposit(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
-	let params: UserDepositParams = unwrap!(body_to_params(req).await);
+	let params: UserDepositParams =
+		unwrap_result_or_error!(body_to_params(req).await, StatusCode::BAD_REQUEST);
 
 	if params.total_deposit.is_some() && params.planned_withdraw_amount.is_some() {
-		return unwrap!(Err(Error::Param(format!(
-			"Cannot deposit to UDC and plan a withdraw at the same time"
-		))))
+		return unwrap_result_or_error!(
+			Err(Error::Param(format!(
+				"Cannot deposit to UDC and plan a withdraw at the same time"
+			))),
+			StatusCode::BAD_REQUEST
+		)
 	}
 	if params.total_deposit.is_some() && params.withdraw_amount.is_some() {
-		return unwrap!(Err(Error::Param(format!(
-			"Cannot deposit to UDC and withdraw at the same time"
-		))))
+		return unwrap_result_or_error!(
+			Err(Error::Param(format!("Cannot deposit to UDC and withdraw at the same time"))),
+			StatusCode::BAD_REQUEST
+		)
 	}
 	if params.planned_withdraw_amount.is_some() && params.withdraw_amount.is_some() {
-		return unwrap!(Err(Error::Param(format!(
-			"Cannot withdraw from UDC and plan a withdraw at the same time"
-		))))
+		return unwrap_result_or_error!(
+			Err(Error::Param(format!(
+				"Cannot withdraw from UDC and plan a withdraw at the same time"
+			))),
+			StatusCode::BAD_REQUEST
+		)
 	}
 	if params.total_deposit.is_none() &&
 		params.planned_withdraw_amount.is_none() &&
 		params.withdraw_amount.is_none()
 	{
-		return unwrap!(Err(Error::Param(format!(
+		return unwrap_result_or_error!(Err(Error::Param(format!(
 			"Nothing to do. Should either provide total_deposit, planned_withdraw_amount or withdraw_amount argument"
-		))))
+		))), StatusCode::BAD_REQUEST)
 	}
 
 	let result = if let Some(total_deposit) = params.total_deposit {
-		unwrap!(api.deposit_to_udc(addresses.user_deposit, total_deposit).await);
+		unwrap_result_or_error!(
+			api.deposit_to_udc(addresses.user_deposit, total_deposit).await,
+			StatusCode::CONFLICT
+		);
 	} else if let Some(planned_withdraw_amount) = params.planned_withdraw_amount {
-		unwrap!(
+		unwrap_result_or_error!(
 			api.plan_withdraw_from_udc(addresses.user_deposit, planned_withdraw_amount)
-				.await
+				.await,
+			StatusCode::CONFLICT
 		);
 	} else if let Some(withdraw_amount) = params.withdraw_amount {
-		unwrap!(api.withdraw_from_udc(addresses.user_deposit, withdraw_amount).await);
+		unwrap_result_or_error!(
+			api.withdraw_from_udc(addresses.user_deposit, withdraw_amount).await,
+			StatusCode::CONFLICT
+		);
 	} else {
-		return unwrap!(Err(Error::Param(format!(
+		return unwrap_result_or_error!(Err(Error::Param(format!(
 			"Nothing to do. Should either provide total_deposit, planned_withdraw_amount or withdraw_amount argument"
-		))));
+		))), StatusCode::CONFLICT);
 	};
-	json_response!(result)
+	json_response!(result, StatusCode::OK)
 }
 
 pub async fn status(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let mut status = HashMap::new();
 	status.insert("status", "ready");
-	json_response!(status)
+	json_response!(status, StatusCode::OK)
 }
 
 pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let account = account(&req);
 
-	let params: ChannelOpenParams = unwrap!(body_to_params(req).await);
+	let params: ChannelOpenParams =
+		unwrap_result_or_error!(body_to_params(req).await, StatusCode::BAD_REQUEST);
 
-	let channel_identifier = unwrap!(
+	let channel_identifier = unwrap_result_or_error!(
 		api.create_channel(
 			account.clone(),
 			params.registry_address,
@@ -440,11 +544,12 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpEr
 			params.reveal_timeout,
 			None,
 		)
-		.await
+		.await,
+		StatusCode::CONFLICT
 	);
 
 	if params.total_deposit.is_some() {
-		unwrap!(
+		unwrap_result_or_error!(
 			api.update_channel(
 				account,
 				params.registry_address,
@@ -456,13 +561,14 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpEr
 				None,
 				None,
 			)
-			.await
+			.await,
+			StatusCode::CONFLICT
 		);
 	}
 
 	let mut data = HashMap::new();
 	data.insert("channel_identifier".to_owned(), channel_identifier);
-	json_response!(data)
+	json_response!(data, StatusCode::CREATED)
 }
 
 pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -470,24 +576,31 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 	let account = account(&req);
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let registry_address = addresses.token_network_registry;
 
 	let token_address = req.param("token_address");
 	let partner_address = req.param("partner_address");
-	let token_address: TokenAddress =
-		Address::from_slice(unwrap!(&hex::decode(token_address.unwrap().trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
 
-	let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
-		partner_address.unwrap().trim_start_matches("0x")
-	)
-	.map_err(|_| Error::Other(format!("Invalid partner address")))));
+	let partner_address: Address = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(partner_address.unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid partner address"))),
+		StatusCode::BAD_REQUEST
+	));
 
-	let params: ChannelPatchParams = unwrap!(body_to_params(req).await);
+	let params: ChannelPatchParams =
+		unwrap_result_or_error!(body_to_params(req).await, StatusCode::BAD_REQUEST);
 
-	unwrap!(
+	unwrap_result_or_error!(
 		api.update_channel(
 			account,
 			registry_address,
@@ -499,16 +612,20 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 			params.state,
 			None,
 		)
-		.await
+		.await,
+		StatusCode::CONFLICT
 	);
 
 	let chain_state = &state_manager.read().current_state.clone();
-	let token_network = unwrap!(views::get_token_network_by_token_address(
-		chain_state,
-		addresses.token_network_registry,
-		token_address,
-	)
-	.ok_or(Error::Other(format!("Token network not found"))));
+	let token_network = unwrap_result_or_error!(
+		views::get_token_network_by_token_address(
+			chain_state,
+			addresses.token_network_registry,
+			token_address,
+		)
+		.ok_or(Error::Other(format!("Token network not found"))),
+		StatusCode::NOT_FOUND
+	);
 
 	if let Some(channel_state) = views::get_channel_by_token_network_and_partner(
 		chain_state,
@@ -516,16 +633,22 @@ pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpEr
 		partner_address,
 	) {
 		let channel_state: ChannelResponse = channel_state.clone().into();
-		json_response!(channel_state)
+		json_response!(channel_state, StatusCode::OK)
 	} else {
-		unwrap!(Err(Error::Other(format!("Channel is no longer found"))))
+		unwrap_result_or_error!(
+			Err(Error::Other(format!("Channel is no longer found"))),
+			StatusCode::CONFLICT
+		)
 	}
 }
 
 pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 	let contracts_manager = contracts_manager(&req);
-	let addresses = unwrap!(contracts_manager.deployed_addresses());
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let token_address = req.param("token_address");
 	let partner_address = req.param("partner_address");
@@ -533,10 +656,11 @@ pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let chain_state = &state_manager.read().current_state.clone();
 
 	let token_network = if token_address.is_some() {
-		let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
-			token_address.unwrap().trim_start_matches("0x")
-		)
-		.map_err(|_| Error::Other(format!("Invalid token address")))));
+		let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+			&hex::decode(token_address.unwrap().trim_start_matches("0x"))
+				.map_err(|_| Error::Other(format!("Invalid token address"))),
+			StatusCode::BAD_REQUEST
+		));
 
 		let token_network = views::get_token_network_by_token_address(
 			chain_state,
@@ -544,9 +668,10 @@ pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 			token_address,
 		);
 		if token_network.is_none() {
-			unwrap!(Err(Error::Other(format!(
-				"Token address does not match a Raiden token network"
-			))));
+			unwrap_result_or_error!(
+				Err(Error::Other(format!("Token address does not match a Raiden token network"))),
+				StatusCode::NOT_FOUND
+			);
 		}
 		token_network
 	} else {
@@ -554,21 +679,25 @@ pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	};
 
 	let partner_address = if partner_address.is_some() {
-		let partner_address: Address = Address::from_slice(unwrap!(&hex::decode(
-			partner_address.unwrap().trim_start_matches("0x")
-		)
-		.map_err(|_| Error::Other(format!("Invalid partner address")))));
+		let partner_address: Address = Address::from_slice(unwrap_result_or_error!(
+			&hex::decode(partner_address.unwrap().trim_start_matches("0x"))
+				.map_err(|_| Error::Other(format!("Invalid partner address"))),
+			StatusCode::BAD_REQUEST
+		));
 		Some(partner_address)
 	} else {
 		None
 	};
 
 	let token_network_address = token_network.map(|n| n.address);
-	let events = unwrap!(state_manager
-		.read()
-		.storage
-		.get_events_payment_history_with_timestamps(token_network_address, partner_address,)
-		.map_err(|e| Error::Other(format!("{:?}", e))));
+	let events = unwrap_result_or_error!(
+		state_manager
+			.read()
+			.storage
+			.get_events_payment_history_with_timestamps(token_network_address, partner_address,)
+			.map_err(|e| Error::Other(format!("{:?}", e))),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let mut payment_history: Vec<ResponsePaymentHistory> = vec![];
 	for event_record in events {
@@ -604,46 +733,59 @@ pub async fn payments(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 				payment_history.push(ResponsePaymentHistory::SentFailed(result))
 			},
 			_ => {
-				unwrap!(Err(Error::Other(format!("Unexpected event"))))
+				unwrap_result_or_error!(
+					Err(Error::Other(format!("Unexpected event"))),
+					StatusCode::CONFLICT
+				)
 			},
 		};
 	}
 
-	json_response!(payment_history)
+	json_response!(payment_history, StatusCode::OK)
 }
 
 pub async fn mint_token(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 
-	let token_address: TokenAddress = Address::from_slice(unwrap!(&hex::decode(
-		req.param("token_address").unwrap().trim_start_matches("0x")
-	)
-	.map_err(|_| Error::Other(format!("Invalid token address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(req.param("token_address").unwrap().trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
 
-	let params: MintTokenParams = unwrap!(body_to_params(req).await);
-	let transaction_hash =
-		unwrap!(api.mint_token_for(token_address, params.to, params.value,).await);
+	let params: MintTokenParams =
+		unwrap_result_or_error!(body_to_params(req).await, StatusCode::BAD_REQUEST);
+	let transaction_hash = unwrap_result_or_error!(
+		api.mint_token_for(token_address, params.to, params.value,).await,
+		StatusCode::CONFLICT
+	);
 
-	json_response!(transaction_hash)
+	json_response!(transaction_hash, StatusCode::OK)
 }
 
 pub async fn raiden_events(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let state_manager = state_manager(&req);
 
-	let events: Vec<ResponseEvent> = unwrap!(state_manager
-		.read()
-		.storage
-		.get_events_with_timestamps()
-		.map_err(|e| Error::Other(format!("{:?}", e))))
+	let events: Vec<ResponseEvent> = unwrap_result_or_error!(
+		state_manager
+			.read()
+			.storage
+			.get_events_with_timestamps()
+			.map_err(|e| Error::Other(format!("{:?}", e))),
+		StatusCode::INTERNAL_SERVER_ERROR
+	)
 	.into_iter()
 	.map(|e| e.into())
 	.collect();
 
-	json_response!(events)
+	json_response!(events, StatusCode::OK)
 }
 
 pub async fn shutdown(req: Request<Body>) -> Result<Response<Body>, HttpError> {
-	unwrap!(Err(Error::Other(format!("Not implemented"))))
+	unwrap_result_or_error!(
+		Err(Error::Other(format!("Not implemented"))),
+		StatusCode::INTERNAL_SERVER_ERROR
+	)
 }
 
 pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -652,25 +794,39 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
 	let contracts_manager = contracts_manager(&req);
 	// let state_manager = state_manager(&req);
 
-	let token_address =
-		unwrap!(req.param("token_address").ok_or(Error::Uri("Missing token address")));
-	let partner_address =
-		unwrap!(req.param("partner_address").ok_or(Error::Uri("Missing partner address")));
+	let token_address = unwrap_result_or_error!(
+		req.param("token_address").ok_or(Error::Uri("Missing token address")),
+		StatusCode::BAD_REQUEST
+	);
+	let partner_address = unwrap_result_or_error!(
+		req.param("partner_address").ok_or(Error::Uri("Missing partner address")),
+		StatusCode::BAD_REQUEST
+	);
 
-	let token_address: TokenAddress =
-		Address::from_slice(unwrap!(&hex::decode(token_address.trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid token address")))));
-	let partner_address: Address =
-		Address::from_slice(unwrap!(&hex::decode(partner_address.trim_start_matches("0x"))
-			.map_err(|_| Error::Other(format!("Invalid partner address")))));
+	let token_address: TokenAddress = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(token_address.trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid token address"))),
+		StatusCode::BAD_REQUEST
+	));
+	let partner_address: Address = Address::from_slice(unwrap_result_or_error!(
+		&hex::decode(partner_address.trim_start_matches("0x"))
+			.map_err(|_| Error::Other(format!("Invalid partner address"))),
+		StatusCode::BAD_REQUEST
+	));
 
-	let params: InitiatePaymentParams = unwrap!(body_to_params(req).await);
+	let params: InitiatePaymentParams =
+		unwrap_result_or_error!(body_to_params(req).await, StatusCode::BAD_REQUEST);
 
-	let default_token_network_registry =
-		unwrap!(get_default_token_network_registry(contracts_manager.clone()));
-	let default_secret_registry = unwrap!(get_default_secret_registry(contracts_manager.clone()));
+	let default_token_network_registry = unwrap_result_or_error!(
+		get_default_token_network_registry(contracts_manager.clone()),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
+	let default_secret_registry = unwrap_result_or_error!(
+		get_default_secret_registry(contracts_manager.clone()),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
-	let payment = unwrap!(
+	let payment = unwrap_result_or_error!(
 		api.initiate_payment(
 			account,
 			default_token_network_registry,
@@ -683,10 +839,14 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
 			params.secret_hash,
 			params.lock_timeout,
 		)
-		.await
+		.await,
+		StatusCode::CONFLICT
 	);
 
-	json_response!(unwrap!(serde_json::to_string(&payment)))
+	json_response!(
+		unwrap_result_or_error!(serde_json::to_string(&payment), StatusCode::INTERNAL_SERVER_ERROR),
+		StatusCode::OK
+	)
 }
 
 fn get_default_token_network_registry(
