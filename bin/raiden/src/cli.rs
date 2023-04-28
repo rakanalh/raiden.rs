@@ -227,7 +227,7 @@ pub struct Opt {
     )]
 	pub environment_type: ArgEnvironmentType,
 
-	#[structopt(long, required = true, takes_value = true)]
+	#[structopt(long, required = false, takes_value = true, default_value = "demo")]
 	pub development_environment: String,
 
 	/// Specify the RPC endpoint to interact with.
