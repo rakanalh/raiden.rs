@@ -22,7 +22,10 @@ use routerify::{
 	Router,
 	RouterService,
 };
-use tracing::debug;
+use tracing::{
+	error,
+	info,
+};
 
 use super::endpoints;
 
@@ -51,13 +54,19 @@ impl HttpServer {
 	}
 }
 
+#[tracing::instrument(skip(req))]
 async fn log_request(req: Request<Body>) -> Result<Request<Body>, Error> {
-	debug!("{} {}", req.method(), req.uri().path());
+	info!(
+		message = "Incoming HTTP request",
+		method = req.method().to_string(),
+		path = req.uri().path()
+	);
 	Ok(req)
 }
 
+#[tracing::instrument(skip(err))]
 async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<Body> {
-	eprintln!("{}", err);
+	error!(message = "Error handling request", error = err);
 	Response::builder()
 		.status(StatusCode::INTERNAL_SERVER_ERROR)
 		.body(Body::from(format!("Something went wrong: {}", err)))
