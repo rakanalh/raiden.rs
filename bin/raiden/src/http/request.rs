@@ -19,11 +19,12 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct ChannelOpenParams {
-	pub registry_address: Address,
+	pub registry_address: Option<Address>,
 	pub partner_address: Address,
 	pub token_address: TokenAddress,
 	pub settle_timeout: Option<SettleTimeout>,
 	pub reveal_timeout: Option<RevealTimeout>,
+	#[serde(default)]
 	#[serde(deserialize_with = "u256_from_optional_str")]
 	pub total_deposit: Option<TokenAmount>,
 }
