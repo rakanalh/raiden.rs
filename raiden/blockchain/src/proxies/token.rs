@@ -87,16 +87,16 @@ impl<T: Transport> TokenProxy<T> {
 
 		let receipt = self
 			.contract
-			.call_with_confirmations(
+			.signed_call_with_confirmations(
 				"approve",
 				(allowed_address, allowance),
-				account.address(),
 				Options::with(|opt| {
 					opt.gas = Some(gas_estimate);
 					opt.nonce = Some(nonce);
 					opt.gas_price = Some(gas_price);
 				}),
 				1,
+				account.private_key(),
 			)
 			.await
 			.map_err(ProxyError::Web3)?;
