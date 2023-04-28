@@ -37,7 +37,10 @@ use raiden_primitives::{
 		pack_balance_proof_message,
 		pack_withdraw,
 	},
-	payments::PaymentsRegistry,
+	payments::{
+		PaymentStatus,
+		PaymentsRegistry,
+	},
 	traits::ToBytes,
 	types::{
 		Address,
@@ -867,7 +870,10 @@ impl EventHandler {
 					to = format!("{:?}", inner.target),
 					amount = format!("{}", inner.amount),
 				);
-				self.payment_registry.write().await.complete(inner.target, inner.identifier);
+				self.payment_registry
+					.write()
+					.await
+					.complete(PaymentStatus::Success(inner.target, inner.identifier));
 			},
 			Event::UpdatedServicesAddresses(inner) => {
 				let _ = self.transport.send(TransportServiceMessage::UpdateServiceAddresses(
@@ -1024,6 +1030,11 @@ impl EventHandler {
 			},
 			Event::ErrorPaymentSentFailed(e) => {
 				error!("{}", e.reason);
+				self.payment_registry.write().await.complete(PaymentStatus::Error(
+					e.target,
+					e.identifier,
+					e.reason,
+				));
 			},
 			Event::ErrorRouteFailed(e) => {
 				event!(

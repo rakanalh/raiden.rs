@@ -11,11 +11,16 @@ use crate::types::{
 	TokenNetworkAddress,
 };
 
+pub enum PaymentStatus {
+	Success(Address, PaymentIdentifier),
+	Error(Address, PaymentIdentifier, String),
+}
+
 pub struct Payment {
 	pub identifier: PaymentIdentifier,
 	pub token_network_address: TokenNetworkAddress,
 	pub amount: TokenAmount,
-	pub notifier: Option<oneshot::Sender<()>>,
+	pub notifier: Option<oneshot::Sender<PaymentStatus>>,
 }
 
 pub struct PaymentsRegistry {
@@ -40,7 +45,7 @@ impl PaymentsRegistry {
 		target: Address,
 		identifier: PaymentIdentifier,
 		amount: TokenAmount,
-	) -> oneshot::Receiver<()> {
+	) -> oneshot::Receiver<PaymentStatus> {
 		let (sender, receiver) = oneshot::channel();
 
 		if let None = self.payments.get(&target) {
@@ -55,7 +60,11 @@ impl PaymentsRegistry {
 		receiver
 	}
 
-	pub fn complete(&mut self, target: Address, identifier: PaymentIdentifier) {
+	pub fn complete(&mut self, status: PaymentStatus) {
+		let (target, identifier) = match status {
+			PaymentStatus::Success(target, identifier) => (target, identifier),
+			PaymentStatus::Error(target, identifier, _) => (target, identifier),
+		};
 		let payments = match self.payments.get_mut(&target) {
 			Some(payments) => payments,
 			None => return,
@@ -67,7 +76,7 @@ impl PaymentsRegistry {
 		};
 
 		if let Some(notifier) = payment.notifier.take() {
-			let _ = notifier.send(());
+			let _ = notifier.send(status);
 		}
 	}
 }

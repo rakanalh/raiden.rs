@@ -21,7 +21,10 @@ use raiden_pathfinding::{
 };
 use raiden_primitives::{
 	hashing::hash_secret,
-	payments::PaymentsRegistry,
+	payments::{
+		PaymentStatus,
+		PaymentsRegistry,
+	},
 	traits::Checksum,
 	types::{
 		Address,
@@ -109,6 +112,13 @@ pub enum ApiError {
 	Routing(RoutingError),
 	#[error("Invalid parameter: `{0}`")]
 	Param(String),
+}
+
+pub struct Payment {
+	pub target: Address,
+	pub payment_identifier: PaymentIdentifier,
+	pub secret: Secret,
+	pub secrethash: SecretHash,
 }
 
 pub struct Api {
@@ -1168,7 +1178,7 @@ impl Api {
 		secret: Option<String>,
 		secret_hash: Option<SecretHash>,
 		lock_timeout: Option<BlockTimeout>,
-	) -> Result<(), ApiError> {
+	) -> Result<Payment, ApiError> {
 		info!(
 			message = "Initiate payment",
 			token_address = token_address.checksum(),
@@ -1295,17 +1305,27 @@ impl Api {
 				}
 			},
 			Err(e) => {
-				self.payments_registry
-					.write()
-					.await
-					.complete(partner_address, payment_identifier);
+				self.payments_registry.write().await.complete(PaymentStatus::Error(
+					partner_address,
+					payment_identifier,
+					e.to_string(),
+				));
 				return Err(e)
 			},
 		}
 
-		let _ = payment_completed.await;
-
-		Ok(())
+		match payment_completed.await {
+			Ok(status) => match status {
+				PaymentStatus::Success(target, identifier) => Ok(Payment {
+					target,
+					payment_identifier: identifier,
+					secret,
+					secrethash: secret_hash,
+				}),
+				PaymentStatus::Error(_target, _identifier, error) => Err(ApiError::State(error)),
+			},
+			Err(e) => Err(ApiError::State(format!("Could not receive payment status: {:?}", e))),
+		}
 	}
 
 	pub async fn mint_token_for(
