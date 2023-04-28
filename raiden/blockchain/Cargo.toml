@@ -20,6 +20,7 @@ ethabi = { version = "16.0.0", default-features = false }
 hex = { version = "0.4.3" }
 serde_json = { version = "1.0.59", default-features = false }
 thiserror = { version = "1.0", default-features = false }
+tracing = { version = "0.1.37", default-features = false }
 tokio = { version = "1.0", features = ["sync", "macros", "time"], default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing" ] }
 

@@ -16,13 +16,11 @@ use tracing::{
 	debug,
 	error,
 	info,
-	warn,
 };
 use web3::types::{
 	BlockId,
 	BlockNumber,
 };
-
 struct BlockBatchSizeConfig {
 	min: u64,
 	_warn_threshold: u64,
@@ -113,17 +111,19 @@ impl SyncService {
 			let logs = match self.raiden.web3.eth().logs((filter).clone()).await {
 				Ok(logs) => logs,
 				Err(e) => {
-					warn!("Error fetching logs: {:?}", e);
+					error!("Error fetching logs: {:?}", e);
 					self.block_batch_size_adjuster.decrease();
 					continue
 				},
 			};
 
+			debug!(message = "Processing blockchain events", count = logs.len());
+
 			for log in logs {
 				let event = match Event::decode(self.raiden.contracts_manager.clone(), &log) {
 					Some(event) => event,
 					None => {
-						warn!("Could not find event that matches log: {:?}", log);
+						error!("Could not find event that matches log: {:?}", log);
 						continue
 					},
 				};
@@ -143,7 +143,7 @@ impl SyncService {
 						}
 					},
 					Err(e) => {
-						warn!(
+						error!(
 							"Error converting chain event to state change: {:?} ({})",
 							e, event.name
 						);
