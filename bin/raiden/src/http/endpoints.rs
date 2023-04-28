@@ -19,6 +19,7 @@ use raiden_primitives::{
 	traits::ToChecksummed,
 	types::{
 		Address,
+		CanonicalIdentifier,
 		TokenAddress,
 		TokenAmount,
 	},
@@ -530,14 +531,23 @@ pub async fn status(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
 pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let api = api(&req);
 	let account = account(&req);
+	let state_manager = state_manager(&req);
+	let contracts_manager = contracts_manager(&req);
+	let addresses = unwrap_result_or_error!(
+		contracts_manager.deployed_addresses(),
+		StatusCode::INTERNAL_SERVER_ERROR
+	);
 
 	let params: ChannelOpenParams =
 		unwrap_result_or_error!(body_to_params(req).await, StatusCode::BAD_REQUEST);
 
+	let token_network_registry =
+		params.registry_address.unwrap_or(addresses.token_network_registry);
+
 	let channel_identifier = unwrap_result_or_error!(
 		api.create_channel(
 			account.clone(),
-			params.registry_address,
+			token_network_registry,
 			params.token_address,
 			params.partner_address,
 			params.settle_timeout,
@@ -552,7 +562,7 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpEr
 		unwrap_result_or_error!(
 			api.update_channel(
 				account,
-				params.registry_address,
+				token_network_registry,
 				params.token_address,
 				params.partner_address,
 				None,
@@ -566,9 +576,31 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpEr
 		);
 	}
 
-	let mut data = HashMap::new();
-	data.insert("channel_identifier".to_owned(), channel_identifier);
-	json_response!(data, StatusCode::CREATED)
+	let chain_state = &state_manager.read().current_state;
+	let token_network = unwrap_option_or_error!(
+		views::get_token_network_by_token_address(
+			&chain_state,
+			token_network_registry,
+			params.token_address
+		),
+		StatusCode::NOT_FOUND
+	);
+	if let Some(channel_state) = views::get_channel_by_canonical_identifier(
+		&chain_state,
+		CanonicalIdentifier {
+			chain_identifier: chain_state.chain_id,
+			token_network_address: token_network.address,
+			channel_identifier,
+		},
+	) {
+		let channel_state: ChannelResponse = channel_state.clone().into();
+		json_response!(channel_state, StatusCode::CREATED)
+	} else {
+		unwrap_result_or_error!(
+			Err(Error::Other(format!("Channel is no longer found"))),
+			StatusCode::CONFLICT
+		)
+	}
 }
 
 pub async fn channel_update(req: Request<Body>) -> Result<Response<Body>, HttpError> {
