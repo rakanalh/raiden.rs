@@ -132,7 +132,8 @@ where
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let nonce = self.account.next_nonce().await;
+		let nonce = self.account.peek_next_nonce().await;
+		self.account.next_nonce().await;
 
 		let leaves_packed = params.pending_locks.locks.iter().fold(vec![], |mut current, lock| {
 			current.extend_from_slice(&lock.0);

@@ -10,6 +10,7 @@ use raiden_primitives::types::{
 	TokenAmount,
 };
 use raiden_state_machine::types::ChannelStatus;
+use tokio::sync::RwLockWriteGuard;
 use web3::{
 	contract::Options,
 	types::BlockNumber,
@@ -265,7 +266,8 @@ where
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let nonce = self.account.next_nonce().await;
+		let nonce = self.account.peek_next_nonce().await;
+		self.account.next_nonce().await;
 
 		self.token_network
 			.contract
@@ -445,5 +447,8 @@ where
 			.await
 			.map(|estimate| (estimate, gas_price))
 			.map_err(|_| ())
+
+	async fn acquire_lock(&self) -> Option<RwLockWriteGuard<bool>> {
+		Some(self.token.lock.write().await)
 	}
 }

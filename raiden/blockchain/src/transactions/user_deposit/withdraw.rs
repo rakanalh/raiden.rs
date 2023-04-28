@@ -99,7 +99,8 @@ where
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let nonce = self.account.next_nonce().await;
+		let nonce = self.account.peek_next_nonce().await;
+		self.account.next_nonce().await;
 
 		let receipt = self
 			.user_deposit
@@ -117,6 +118,7 @@ where
 				self.account.private_key(),
 			)
 			.await?;
+
 		Ok(receipt.transaction_hash)
 	}
 

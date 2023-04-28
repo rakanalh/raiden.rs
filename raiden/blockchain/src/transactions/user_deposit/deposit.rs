@@ -8,6 +8,7 @@ use raiden_primitives::types::{
 	TokenAmount,
 	TransactionHash,
 };
+use tokio::sync::RwLockWriteGuard;
 use web3::{
 	contract::Options,
 	types::BlockNumber,
@@ -67,8 +68,6 @@ where
 			.total_deposit(self.account.address(), Some(at_block_hash))
 			.await?;
 
-		println!("Previous: {:?}", previous_total_deposit);
-
 		let whole_balance = self.user_deposit.whole_balance(Some(at_block_hash)).await?;
 
 		let whole_balance_limit =
@@ -93,7 +92,6 @@ where
 	) -> Result<(), ProxyError> {
 		let amount_to_deposit = params.total_deposit - data.previous_total_deposit;
 
-		println!("New: {:?}", params.total_deposit);
 		if params.total_deposit <= data.previous_total_deposit {
 			return Err(ProxyError::BrokenPrecondition(format!("Total deposit did not increase")))
 		}
@@ -124,16 +122,9 @@ where
 		data: Self::Data,
 	) -> Result<(), ProxyError> {
 		let amount_to_deposit = params.total_deposit - data.previous_total_deposit;
-		println!("Approving {:?}", amount_to_deposit);
 		self.token
 			.approve(self.account.clone(), self.user_deposit.contract.address(), amount_to_deposit)
 			.await?;
-		println!(
-			"Approval: {:?}",
-			self.token
-				.allowance(self.account.address(), self.user_deposit.contract.address(), None)
-				.await
-		);
 
 		Ok(())
 	}
@@ -145,9 +136,9 @@ where
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let nonce = self.account.next_nonce().await;
+		let nonce = self.account.peek_next_nonce().await;
+		self.account.next_nonce().await;
 
-		println!("SUBMITTING TRANSACTION");
 		let receipt = self
 			.user_deposit
 			.contract
@@ -214,8 +205,6 @@ where
 			)
 			.await?;
 
-		println!("Allowance: {:?}", allowance);
-
 		if allowance < amount_to_deposit {
 			return Err(ProxyError::Recoverable(format!(
 				"The allowance of the {} deposit changed, previous is: {}. \
@@ -268,5 +257,8 @@ where
 			.await
 			.map(|estimate| (estimate, gas_price))
 			.map_err(|_| ())
+
+	async fn acquire_lock(&self) -> Option<RwLockWriteGuard<bool>> {
+		Some(self.token.lock.write().await)
 	}
 }

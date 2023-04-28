@@ -179,7 +179,9 @@ where
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let nonce = self.account.next_nonce().await;
+		let nonce = self.account.peek_next_nonce().await;
+		self.account.next_nonce().await;
+
 		let receipt = self
 			.token
 			.contract
@@ -200,6 +202,7 @@ where
 				self.account.private_key(),
 			)
 			.await?;
+
 		let succeeded_at_blockhash = receipt.block_hash.expect("Receipt should include blockhash");
 		if let Ok(token_network_address) = self
 			.token_network_registry

@@ -159,7 +159,8 @@ where
 		gas_estimate: GasLimit,
 		gas_price: GasPrice,
 	) -> Result<Self::Output, ProxyError> {
-		let nonce = self.account.next_nonce().await;
+		let nonce = self.account.peek_next_nonce().await;
+		self.account.next_nonce().await;
 
 		let settle_timeout: U256 = params.settle_timeout.into();
 		let receipt = self

@@ -171,7 +171,6 @@ async fn main() {
 		},
 	};
 	let nonce = match web3.eth().transaction_count(private_key.address(), None).await {
-		Ok(nonce) if !nonce.is_zero() => nonce - 1,
 		Ok(nonce) => nonce,
 		Err(e) => {
 			tracing::error!("Failed to fetch nonce: {}", e);

@@ -38,7 +38,7 @@ impl Nonce {
 
 	pub async fn peek_next(&self) -> U256 {
 		let inner = self.inner.lock().await;
-		*inner + U256::from(1)
+		*inner
 	}
 }
 

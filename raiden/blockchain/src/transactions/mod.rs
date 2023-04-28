@@ -7,6 +7,7 @@ use raiden_primitives::types::{
 	H256,
 	U256,
 };
+use tokio::sync::RwLockWriteGuard;
 
 use crate::proxies::ProxyError;
 pub use crate::transactions::{
@@ -82,5 +83,7 @@ pub trait Transaction {
 		}
 
 		self.validate_postconditions(params, at_block_hash).await
+	async fn acquire_lock(&self) -> Option<RwLockWriteGuard<bool>> {
+		None
 	}
 }

@@ -27,7 +27,7 @@ type Result<T> = std::result::Result<T, ProxyError>;
 pub struct TokenProxy<T: Transport> {
 	web3: Web3<T>,
 	pub(crate) contract: Contract<T>,
-	lock: Arc<RwLock<bool>>,
+	pub(crate) lock: Arc<RwLock<bool>>,
 }
 
 impl<T: Transport> TokenProxy<T> {
@@ -82,8 +82,9 @@ impl<T: Transport> TokenProxy<T> {
 			.await
 			.map_err(ProxyError::ChainError)?;
 
-		let nonce = account.next_nonce().await;
-		let lock = self.lock.write().await;
+		let nonce = account.peek_next_nonce().await;
+		account.next_nonce().await;
+
 		let receipt = self
 			.contract
 			.call_with_confirmations(
@@ -100,13 +101,12 @@ impl<T: Transport> TokenProxy<T> {
 			.await
 			.map_err(ProxyError::Web3)?;
 
-		drop(lock);
-
 		Ok(receipt.transaction_hash)
 	}
 
 	pub async fn mint(&self, account: Account<T>, amount: U256) -> Result<H256> {
 		let nonce = account.peek_next_nonce().await;
+		account.next_nonce().await;
 		let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
 		let gas_estimate = self
 			.contract
@@ -137,6 +137,7 @@ impl<T: Transport> TokenProxy<T> {
 
 	pub async fn mint_for(&self, account: Account<T>, to: Address, amount: U256) -> Result<H256> {
 		let nonce = account.peek_next_nonce().await;
+		account.next_nonce().await;
 		let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
 		let gas_estimate = self
 			.contract
