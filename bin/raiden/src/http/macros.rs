@@ -8,8 +8,10 @@ macro_rules! json_response {
 				.body(Body::from(json))
 				.unwrap()),
 			Err(e) => {
+				let error_msg = format!("{}", e);
+				tracing::debug!(message = "Error processing request", why = error_msg);
 				let mut error_data = HashMap::new();
-				error_data.insert("error", format!("{}", e));
+				error_data.insert("error", error_msg);
 				let error_json = serde_json::to_string(&error_data).unwrap();
 				Ok(Response::builder()
 					.header(header::CONTENT_TYPE, "application/json")
@@ -33,8 +35,10 @@ macro_rules! unwrap_result_or_error {
 		match $data {
 			Ok(obj) => obj,
 			Err(e) => {
+				let error_msg = format!("{}", e);
+				tracing::debug!(message = "Error processing request", why = error_msg);
 				let mut error_data = HashMap::new();
-				error_data.insert("error", format!("{}", e));
+				error_data.insert("error", error_msg);
 				let error_json = serde_json::to_string(&error_data).unwrap();
 				return Ok(Response::builder()
 					.header(header::CONTENT_TYPE, "application/json")
