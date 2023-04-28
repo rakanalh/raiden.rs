@@ -22,7 +22,7 @@ use raiden_pathfinding::{
 use raiden_primitives::{
 	hashing::hash_secret,
 	payments::PaymentsRegistry,
-	traits::ToChecksummed,
+	traits::Checksum,
 	types::{
 		Address,
 		BlockTimeout,
@@ -71,6 +71,7 @@ use raiden_transition::Transitioner;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{
+	debug,
 	error,
 	info,
 };
@@ -138,13 +139,13 @@ impl Api {
 		let current_state = &self.raiden.state_manager.read().current_state.clone();
 
 		info!(
-            "Opening channel. registry_address={}, partner_address={}, token_address={}, settle_timeout={:?}, reveal_timeout={:?}.",
-            registry_address,
-            partner_address,
-            token_address,
-            settle_timeout,
-            reveal_timeout,
-        );
+			message = "Opening channel.",
+			registry_address = registry_address.checksum(),
+			partner_address = partner_address.checksum(),
+			token_address = token_address.checksum(),
+			settle_timeout = settle_timeout.map(|t| t.to_string()),
+			reveal_timeout = reveal_timeout.map(|t| t.to_string()),
+		);
 		let settle_timeout = settle_timeout.unwrap_or(SettleTimeout::from(DEFAULT_SETTLE_TIMEOUT));
 		let reveal_timeout = reveal_timeout.unwrap_or(RevealTimeout::from(DEFAULT_REVEAL_TIMEOUT));
 
@@ -277,6 +278,12 @@ impl Api {
 			Some(channel_state) => channel_state,
 			None => return Err(ApiError::State(format!("Channel was not found"))),
 		};
+
+		debug!(
+			message = "Channel opened",
+			channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string()
+		);
+
 		if let Err(e) = self
 			.transition_service
 			.transition(vec![ActionChannelSetRevealTimeout {
@@ -305,15 +312,15 @@ impl Api {
 		retry_timeout: Option<RetryTimeout>,
 	) -> Result<(), ApiError> {
 		info!(
-            "Patching channel. registry_address={}, partner_Address={}, token_address={}, reveal_timeout={:?}, total_deposit={:?}, total_withdraw={:?}, state={:?}.",
-            registry_address,
-            partner_address,
-            token_address,
-            reveal_timeout,
-            total_deposit,
-            total_withdraw,
-            state,
-        );
+			message = "Patching channel.",
+			registry_address = registry_address.checksum(),
+			partner_address = partner_address.checksum(),
+			token_address = token_address.checksum(),
+			reveal_timeout = reveal_timeout.map(|t| t.to_string()),
+			total_deposit = total_deposit.map(|t| t.to_string()),
+			total_withdraw = total_withdraw.map(|t| t.to_string()),
+			state = state.map(|t| t.to_string()),
+		);
 
 		if reveal_timeout.is_some() && state.is_some() {
 			return Err(ApiError::Param(format!(
@@ -416,8 +423,9 @@ impl Api {
 		retry_timeout: Option<RetryTimeout>,
 	) -> Result<(), ApiError> {
 		info!(
-			"Depositing to channel. channel_identifier={}, total_deposit={:?}.",
-			channel_state.canonical_identifier.channel_identifier, total_deposit,
+			message = "Depositing to channel.",
+			channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string(),
+			total_deposit = total_deposit.to_string(),
 		);
 
 		if channel_state.status() != ChannelStatus::Opened {
@@ -570,6 +578,11 @@ impl Api {
 		channel_state: &ChannelState,
 		total_withdraw: TokenAmount,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Withdraw from channel.",
+			channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string(),
+			total_withdraw = total_withdraw.to_string(),
+		);
 		if channel_state.status() != ChannelStatus::Opened {
 			return Err(ApiError::State(format!("Can't withdraw from a closed channel")))
 		}
@@ -635,6 +648,11 @@ impl Api {
 		channel_state: &ChannelState,
 		reveal_timeout: RevealTimeout,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Set reveal timeout for channel.",
+			channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string(),
+			reveal_timeout = reveal_timeout.to_string(),
+		);
 		if channel_state.status() != ChannelStatus::Opened {
 			return Err(ApiError::State(format!(
 				"Can't update the reveal timeout of a closed channel"
@@ -675,6 +693,10 @@ impl Api {
 		registry_address: Address,
 		channel_state: &ChannelState,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Close channel.",
+			channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string(),
+		);
 		if channel_state.status() != ChannelStatus::Opened {
 			return Err(ApiError::State(format!("Attempted to close an already closed channel")))
 		}
@@ -693,6 +715,11 @@ impl Api {
 		registry_address: Address,
 		token_address: TokenAddress,
 	) -> Result<TokenNetworkAddress, ApiError> {
+		info!(
+			message = "Register token network.",
+			registry_address = registry_address.checksum(),
+			token_address = token_address.checksum(),
+		);
 		if token_address == TokenAddress::zero() {
 			return Err(ApiError::Param(format!("Token address must be non-zero")))
 		}
@@ -746,6 +773,11 @@ impl Api {
 		registry_address: Address,
 		token_address: TokenAddress,
 	) -> Result<Vec<ChannelState>, ApiError> {
+		info!(
+			message = "Leave token network.",
+			registry_address = registry_address.checksum(),
+			token_address = token_address.checksum(),
+		);
 		let chain_state = self.raiden.state_manager.read().current_state.clone();
 		let channels: Vec<ChannelState> = match views::get_token_network_by_token_address(
 			&chain_state,
@@ -758,8 +790,8 @@ impl Api {
 			None =>
 				return Err(ApiError::State(format!(
 					"Token {} is not registered with network {}",
-					token_address.to_checksummed(),
-					registry_address.to_checksummed()
+					token_address.checksum(),
+					registry_address.checksum()
 				))),
 		};
 
@@ -852,7 +884,7 @@ impl Api {
 				Err(e) => {
 					error!(
 						message = "Partner is offline, coop settle is not possible",
-						address = recipient_address.to_checksummed(),
+						address = recipient_address.checksum(),
 						error = format!("{:?}", e),
 					);
 					continue
@@ -921,6 +953,11 @@ impl Api {
 		user_deposit_address: Address,
 		new_total_deposit: TokenAmount,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Deposit to UDC",
+			user_deposit_address = user_deposit_address.checksum(),
+			new_total_deposit = new_total_deposit.to_string(),
+		);
 		let user_deposit_proxy = self
 			.raiden
 			.proxy_manager
@@ -1007,6 +1044,11 @@ impl Api {
 		user_deposit_address: Address,
 		planned_withdraw_amount: TokenAmount,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Plan withdraw from UDC",
+			user_deposit_address = user_deposit_address.checksum(),
+			planned_withdraw_amount = planned_withdraw_amount.to_string(),
+		);
 		let user_deposit_proxy = self
 			.raiden
 			.proxy_manager
@@ -1053,6 +1095,11 @@ impl Api {
 		user_deposit_address: Address,
 		withdraw_amount: TokenAmount,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Withdraw from UDC",
+			user_deposit_address = user_deposit_address.checksum(),
+			withdraw_amount = withdraw_amount.to_string(),
+		);
 		let user_deposit_proxy = self
 			.raiden
 			.proxy_manager
@@ -1122,6 +1169,12 @@ impl Api {
 		secret_hash: Option<SecretHash>,
 		lock_timeout: Option<BlockTimeout>,
 	) -> Result<(), ApiError> {
+		info!(
+			message = "Initiate payment",
+			token_address = token_address.checksum(),
+			partner_address = partner_address.checksum(),
+			amount = amount.to_string(),
+		);
 		if account.address() == partner_address {
 			return Err(ApiError::Param(format!("Address must be different for partner")))
 		}
@@ -1261,6 +1314,12 @@ impl Api {
 		to: Address,
 		value: TokenAmount,
 	) -> Result<TransactionHash, ApiError> {
+		info!(
+			message = "Mint token",
+			token_address = token_address.checksum(),
+			to = to.checksum(),
+			value = value.to_string()
+		);
 		let token_proxy = self
 			.raiden
 			.proxy_manager

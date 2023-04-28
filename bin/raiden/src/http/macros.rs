@@ -11,7 +11,7 @@ macro_rules! json_response {
 				let error_msg = format!("{}", e);
 				tracing::debug!(message = "Error processing request", why = error_msg);
 				let mut error_data = HashMap::new();
-				error_data.insert("error", error_msg);
+				error_data.insert("errors", error_msg);
 				let error_json = serde_json::to_string(&error_data).unwrap();
 				Ok(Response::builder()
 					.header(header::CONTENT_TYPE, "application/json")
@@ -38,7 +38,7 @@ macro_rules! unwrap_result_or_error {
 				let error_msg = format!("{}", e);
 				tracing::debug!(message = "Error processing request", why = error_msg);
 				let mut error_data = HashMap::new();
-				error_data.insert("error", error_msg);
+				error_data.insert("errors", error_msg);
 				let error_json = serde_json::to_string(&error_data).unwrap();
 				return Ok(Response::builder()
 					.header(header::CONTENT_TYPE, "application/json")
@@ -57,7 +57,7 @@ macro_rules! unwrap_option_or_error {
 			Some(obj) => obj,
 			None => {
 				let mut error_data = HashMap::new();
-				error_data.insert("error", format!("Not found"));
+				error_data.insert("errors", format!("Not found"));
 				let error_json = serde_json::to_string(&error_data).unwrap();
 				return Ok(Response::builder()
 					.header(header::CONTENT_TYPE, "application/json")
