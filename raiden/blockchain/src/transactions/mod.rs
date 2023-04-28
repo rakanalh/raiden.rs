@@ -54,7 +54,7 @@ pub trait Transaction {
 		&self,
 		params: Self::Params,
 		data: Self::Data,
-	) -> Result<(U256, U256), ()>;
+	) -> Result<(U256, U256), ProxyError>;
 
 	async fn execute_prerequisite(
 		&self,
@@ -70,19 +70,18 @@ pub trait Transaction {
 		at_block_hash: H256,
 	) -> Result<Self::Output, ProxyError> {
 		let data = self.onchain_data(params.clone(), at_block_hash).await?;
-		if let Ok(_) =
-			self.validate_preconditions(params.clone(), data.clone(), at_block_hash).await
-		{
-			if self.execute_prerequisite(params.clone(), data.clone()).await.is_ok() {
-				if let Ok((gas_estimate, gas_price)) =
-					self.estimate_gas(params.clone(), data.clone()).await
-				{
-					return self.submit(params, data, gas_estimate, gas_price).await
-				}
-			}
-		}
+		self.validate_preconditions(params.clone(), data.clone(), at_block_hash).await?;
 
-		self.validate_postconditions(params, at_block_hash).await
+		let _lock_guard = self.acquire_lock().await;
+
+		self.execute_prerequisite(params.clone(), data.clone()).await?;
+		let (gas_estimate, gas_price) = self.estimate_gas(params.clone(), data.clone()).await?;
+		match self.submit(params.clone(), data, gas_estimate, gas_price).await {
+			Ok(result) => Ok(result),
+			Err(_) => return self.validate_postconditions(params, at_block_hash).await,
+		}
+	}
+
 	async fn acquire_lock(&self) -> Option<RwLockWriteGuard<bool>> {
 		None
 	}

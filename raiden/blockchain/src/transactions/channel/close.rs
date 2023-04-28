@@ -230,9 +230,9 @@ where
 		&self,
 		params: Self::Params,
 		_data: Self::Data,
-	) -> Result<(GasLimit, GasPrice), ()> {
+	) -> Result<(GasLimit, GasPrice), ProxyError> {
 		let nonce = self.account.peek_next_nonce().await;
-		let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
+		let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
 
 		self.token_network
 			.contract
@@ -257,6 +257,6 @@ where
 			)
 			.await
 			.map(|estimate| (estimate, gas_price))
-			.map_err(|_| ())
+			.map_err(ProxyError::ChainError)
 	}
 }

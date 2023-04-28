@@ -33,6 +33,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ChannelSetTotalDepositTransactionData {
+	pub(crate) allowance: TokenAmount,
 	pub(crate) current_balance: TokenAmount,
 	pub(crate) channel_identifier: ChannelIdentifier,
 	pub(crate) amount_to_deposit: TokenAmount,
@@ -74,14 +75,14 @@ where
 	async fn onchain_data(
 		&self,
 		params: Self::Params,
-		at_block_hash: BlockHash,
+		at_blockhash: BlockHash,
 	) -> Result<Self::Data, ProxyError> {
 		let current_balance =
-			self.token.balance_of(self.account.address(), Some(at_block_hash)).await?;
+			self.token.balance_of(self.account.address(), Some(at_blockhash)).await?;
 
 		let channel_identifier = self
 			.token_network
-			.get_channel_identifier(self.account.address(), params.partner, at_block_hash)
+			.get_channel_identifier(self.account.address(), params.partner, at_blockhash)
 			.await?
 			.ok_or(ProxyError::BrokenPrecondition("Block not found".to_string()))?;
 
@@ -91,7 +92,7 @@ where
 				Some(channel_identifier),
 				self.account.address(),
 				params.partner,
-				at_block_hash,
+				at_blockhash,
 			)
 			.await?;
 
@@ -101,7 +102,7 @@ where
 				channel_identifier,
 				self.account.address(),
 				params.partner,
-				Some(at_block_hash),
+				Some(at_blockhash),
 			)
 			.await
 		{
@@ -123,32 +124,42 @@ where
 				channel_identifier,
 				params.partner,
 				self.account.address(),
-				Some(at_block_hash),
+				Some(at_blockhash),
+			)
+			.await?;
+
+		let allowance = self
+			.token
+			.allowance(
+				self.token_network.contract.address(),
+				self.account.address(),
+				Some(at_blockhash),
 			)
 			.await?;
 
 		let network_balance =
-			self.token.balance_of(self.account.address(), Some(at_block_hash)).await?;
+			self.token.balance_of(self.account.address(), Some(at_blockhash)).await?;
 
 		let safety_deprecation_switch =
-			self.token_network.safety_deprecation_switch(at_block_hash).await?;
+			self.token_network.safety_deprecation_switch(at_blockhash).await?;
 
 		let token_network_deposit_limit =
-			self.token_network.token_network_deposit_limit(at_block_hash).await?;
+			self.token_network.token_network_deposit_limit(at_blockhash).await?;
 
 		let channel_participant_deposit_limit =
-			self.token_network.channel_participant_deposit_limit(at_block_hash).await?;
+			self.token_network.channel_participant_deposit_limit(at_blockhash).await?;
 
 		let network_total_deposit =
-			self.token.balance_of(self.account.address(), Some(at_block_hash)).await?;
+			self.token.balance_of(self.account.address(), Some(at_blockhash)).await?;
 
 		let amount_to_deposit = params.total_deposit - our_details.deposit;
 
 		Ok(ChannelSetTotalDepositTransactionData {
+			allowance,
 			current_balance,
 			channel_identifier,
-			channel_onchain_details,
 			amount_to_deposit,
+			channel_onchain_details,
 			our_details,
 			partner_details,
 			network_balance,
@@ -289,6 +300,7 @@ where
 				self.account.private_key(),
 			)
 			.await?;
+
 		Ok(())
 	}
 
@@ -384,21 +396,12 @@ where
 			)))
 		}
 
-		let allowance = self
-			.token
-			.allowance(
-				self.token_network.contract.address(),
-				self.account.address(),
-				Some(failed_at_blockhash),
-			)
-			.await?;
-
-		if allowance < data.amount_to_deposit {
+		if data.allowance < data.amount_to_deposit {
 			return Err(ProxyError::Recoverable(format!(
-				"The allowance of the {} deposit changed. \
+				"The allowance of the {} deposit changed, current: {}. \
                 Check concurrent deposits \
                 for the same token network but different proxies.",
-				data.amount_to_deposit,
+				data.amount_to_deposit, data.allowance,
 			)))
 		}
 
@@ -423,9 +426,9 @@ where
 		&self,
 		params: Self::Params,
 		_data: Self::Data,
-	) -> Result<(GasLimit, GasPrice), ()> {
+	) -> Result<(GasLimit, GasPrice), ProxyError> {
 		let nonce = self.account.peek_next_nonce().await;
-		let gas_price = self.web3.eth().gas_price().await.map_err(|_| ())?;
+		let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
 
 		self.token_network
 			.contract
@@ -446,7 +449,8 @@ where
 			)
 			.await
 			.map(|estimate| (estimate, gas_price))
-			.map_err(|_| ())
+			.map_err(ProxyError::ChainError)
+	}
 
 	async fn acquire_lock(&self) -> Option<RwLockWriteGuard<bool>> {
 		Some(self.token.lock.write().await)
