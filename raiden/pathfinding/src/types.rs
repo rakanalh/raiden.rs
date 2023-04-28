@@ -3,7 +3,7 @@ use raiden_primitives::{
 	deserializers::u256_from_str,
 	packing::pack_one_to_n_iou,
 	serializers::{
-		to_checksummed_str,
+		to_checksum_str,
 		u256_to_str,
 	},
 	traits::ToBytes,
@@ -33,11 +33,11 @@ pub enum RoutingMode {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IOU {
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub sender: Address,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub receiver: Address,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub one_to_n_address: OneToNAddress,
 	#[serde(serialize_with = "u256_to_str", deserialize_with = "u256_from_str")]
 	pub amount: TokenAmount,

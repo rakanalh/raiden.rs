@@ -287,7 +287,7 @@ impl TokenNetworkState {
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkGraphState {}
 
-#[derive(Clone, Display, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Display, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelStatus {
 	#[display(fmt = "Opened")]

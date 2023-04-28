@@ -6,7 +6,7 @@ use serde::{
 };
 
 use crate::{
-	traits::ToChecksummed,
+	traits::Checksum,
 	types::{
 		ChainID,
 		U64,
@@ -40,10 +40,10 @@ where
 	serializer.serialize_str(&v.to_string())
 }
 
-pub fn to_checksummed_str<T, S>(v: &T, serializer: S) -> Result<S::Ok, S::Error>
+pub fn to_checksum_str<T, S>(v: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
-	T: ToChecksummed,
+	T: Checksum,
 	S: Serializer,
 {
-	serializer.serialize_str(&v.to_checksummed())
+	serializer.serialize_str(&v.checksum())
 }

@@ -13,9 +13,9 @@ use web3::{
 };
 
 use crate::traits::{
+	Checksum,
 	Stringify,
 	ToBytes,
-	ToChecksummed,
 	ToPexAddress,
 };
 
@@ -56,8 +56,8 @@ impl Stringify for Bytes {
 }
 
 /// Adapted from: https://github.com/gakonst/ethers-rs/blob/da743fc8b29ffeb650c767f622bb19eba2f057b7/ethers-core/src/utils/mod.rs#L407
-impl ToChecksummed for Address {
-	fn to_checksummed(&self) -> String {
+impl Checksum for Address {
+	fn checksum(&self) -> String {
 		let prefixed_address = format!("{self:x}");
 		let hash = hex::encode(keccak256(prefixed_address.as_bytes()));
 		let hash = hash.as_bytes();
@@ -76,10 +76,10 @@ impl ToChecksummed for Address {
 	}
 }
 
-impl ToChecksummed for Option<Address> {
-	fn to_checksummed(&self) -> String {
+impl Checksum for Option<Address> {
+	fn checksum(&self) -> String {
 		if let Some(address) = self {
-			address.to_checksummed()
+			address.checksum()
 		} else {
 			String::new()
 		}
@@ -88,6 +88,6 @@ impl ToChecksummed for Option<Address> {
 
 impl ToPexAddress for Address {
 	fn pex(&self) -> String {
-		hex::encode(&self.to_checksummed()[..8])
+		hex::encode(&self.checksum()[..8])
 	}
 }

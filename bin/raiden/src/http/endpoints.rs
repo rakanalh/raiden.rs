@@ -16,7 +16,7 @@ use raiden_blockchain::contracts::{
 	ContractsManager,
 };
 use raiden_primitives::{
-	traits::ToChecksummed,
+	traits::Checksum,
 	types::{
 		Address,
 		CanonicalIdentifier,
@@ -63,6 +63,7 @@ use crate::{
 		response::{
 			self,
 			ChannelResponse,
+			PaymentSuccess,
 			ResponsePaymentHistory,
 			ResponsePaymentReceivedSuccess,
 			ResponsePaymentSentFailed,
@@ -284,8 +285,8 @@ pub async fn connections_leave(req: Request<Body>) -> Result<Response<Body>, Htt
 
 	debug!(
 		message = "Leaving token network",
-		registry_address = addresses.token_network_registry.to_checksummed(),
-		token_address = token_address.to_checksummed(),
+		registry_address = addresses.token_network_registry.checksum(),
+		token_address = token_address.checksum(),
 	);
 
 	let closed_channels = unwrap_result_or_error!(
@@ -319,7 +320,7 @@ pub async fn connections_info(req: Request<Body>) -> Result<Response<Body>, Http
 		let open_channels =
 			views::get_channelstate_open(chain_state, addresses.token_network_registry, token);
 		connection_managers.insert(
-			token.to_checksummed(),
+			token.checksum(),
 			ConnectionManager {
 				sum_deposits: open_channels
 					.iter()
@@ -344,7 +345,7 @@ pub async fn tokens(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	let tokens: Vec<_> =
 		views::get_token_identifiers(chain_state, addresses.token_network_registry)
 			.iter()
-			.map(|t| t.to_checksummed())
+			.map(|t| t.checksum())
 			.collect();
 
 	json_response!(tokens, StatusCode::OK)
@@ -373,7 +374,7 @@ pub async fn get_token_network_by_token(req: Request<Body>) -> Result<Response<B
 			addresses.token_network_registry,
 			token_address,
 		)
-		.map(|t| t.address.to_checksummed()),
+		.map(|t| t.address.checksum()),
 		StatusCode::NOT_FOUND
 	);
 
@@ -397,8 +398,8 @@ pub async fn register_token(req: Request<Body>) -> Result<Response<Body>, HttpEr
 
 	debug!(
 		message = "Registering a new token",
-		registry_address = addresses.token_network_registry.to_checksummed(),
-		token_address = token_address.to_checksummed(),
+		registry_address = addresses.token_network_registry.checksum(),
+		token_address = token_address.checksum(),
 	);
 
 	let token_network_address = unwrap_result_or_error!(
@@ -824,7 +825,6 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
 	let api = api(&req);
 	let account = account(&req);
 	let contracts_manager = contracts_manager(&req);
-	// let state_manager = state_manager(&req);
 
 	let token_address = unwrap_result_or_error!(
 		req.param("token_address").ok_or(Error::Uri("Missing token address")),
@@ -860,7 +860,7 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
 
 	let payment = unwrap_result_or_error!(
 		api.initiate_payment(
-			account,
+			account.clone(),
 			default_token_network_registry,
 			default_secret_registry,
 			token_address,
@@ -875,8 +875,19 @@ pub async fn initiate_payment(req: Request<Body>) -> Result<Response<Body>, Http
 		StatusCode::CONFLICT
 	);
 
+	let result = PaymentSuccess {
+		initiator_address: account.address(),
+		registry_address: default_token_network_registry,
+		token_address,
+		target_address: partner_address,
+		amount: params.amount,
+		identifier: payment.payment_identifier,
+		secret: hex::encode(payment.secret.0),
+		secret_hash: hex::encode(payment.secrethash),
+	};
+
 	json_response!(
-		unwrap_result_or_error!(serde_json::to_string(&payment), StatusCode::INTERNAL_SERVER_ERROR),
+		unwrap_result_or_error!(serde_json::to_string(&result), StatusCode::INTERNAL_SERVER_ERROR),
 		StatusCode::OK
 	)
 }

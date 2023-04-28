@@ -1,6 +1,6 @@
 use raiden_primitives::{
 	serializers::{
-		to_checksummed_str,
+		to_checksum_str,
 		u256_to_str,
 	},
 	types::{
@@ -11,6 +11,7 @@ use raiden_primitives::{
 		TokenAddress,
 		TokenAmount,
 		TokenNetworkAddress,
+		TokenNetworkRegistryAddress,
 	},
 };
 use raiden_state_machine::{
@@ -59,15 +60,15 @@ pub struct ConnectionManager {
 #[derive(Serialize)]
 pub struct TransferView {
 	pub payment_identifier: PaymentIdentifier,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub token_address: TokenAddress,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub token_network_address: TokenNetworkAddress,
 	#[serde(serialize_with = "u256_to_str")]
 	pub channel_identifier: ChannelIdentifier,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub initiator: Address,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub target: Address,
 	#[serde(serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
@@ -80,11 +81,11 @@ pub struct TransferView {
 pub struct ChannelResponse {
 	#[serde(serialize_with = "u256_to_str")]
 	channel_identifier: U256,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	token_network_address: TokenNetworkAddress,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	token_address: TokenAddress,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	partner_address: Address,
 	settle_timeout: SettleTimeout,
 	reveal_timeout: RevealTimeout,
@@ -124,15 +125,32 @@ impl From<ChannelState> for ChannelResponse {
 }
 
 #[derive(Serialize)]
+pub struct PaymentSuccess {
+	#[serde(serialize_with = "to_checksum_str")]
+	pub initiator_address: Address,
+	#[serde(serialize_with = "to_checksum_str")]
+	pub registry_address: TokenNetworkRegistryAddress,
+	#[serde(serialize_with = "to_checksum_str")]
+	pub token_address: TokenAddress,
+	#[serde(serialize_with = "to_checksum_str")]
+	pub target_address: Address,
+	#[serde(serialize_with = "u256_to_str")]
+	pub amount: TokenAmount,
+	pub identifier: PaymentIdentifier,
+	pub secret: String,
+	pub secret_hash: String,
+}
+
+#[derive(Serialize)]
 pub struct ResponsePaymentSentSuccess {
 	pub event: String,
 	pub identifier: Option<String>,
 	pub log_time: Option<NaiveDateTime>,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub token_address: Option<TokenAddress>,
 	#[serde(serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub target: Address,
 }
 
@@ -154,11 +172,11 @@ pub struct ResponsePaymentReceivedSuccess {
 	pub event: String,
 	pub identifier: Option<String>,
 	pub log_time: Option<NaiveDateTime>,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub token_address: Option<TokenAddress>,
 	#[serde(serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub initiator: Address,
 }
 
@@ -180,10 +198,10 @@ pub struct ResponsePaymentSentFailed {
 	pub event: String,
 	pub identifier: Option<String>,
 	pub log_time: Option<NaiveDateTime>,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub token_address: Option<TokenAddress>,
 	pub reason: String,
-	#[serde(serialize_with = "to_checksummed_str")]
+	#[serde(serialize_with = "to_checksum_str")]
 	pub target: Address,
 }
 

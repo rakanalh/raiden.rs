@@ -37,7 +37,7 @@ use raiden_pathfinding::{
 use raiden_primitives::{
 	payments::PaymentsRegistry,
 	traits::{
-		ToChecksummed,
+		Checksum,
 		ToPexAddress,
 	},
 	types::ChainID,
@@ -182,7 +182,7 @@ async fn main() {
 	};
 	let account = Account::new(web3.clone(), private_key, nonce);
 
-	info!(message = "Using account", address = account.address().to_checksummed());
+	info!(message = "Using account", address = account.address().checksum());
 
 	// #
 	// # Initialize state manager

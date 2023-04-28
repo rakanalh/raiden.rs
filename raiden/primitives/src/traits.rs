@@ -8,8 +8,8 @@ pub trait Stringify {
 	fn as_string(&self) -> String;
 }
 
-pub trait ToChecksummed {
-	fn to_checksummed(&self) -> String;
+pub trait Checksum {
+	fn checksum(&self) -> String;
 }
 
 pub trait ToPexAddress {

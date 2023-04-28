@@ -618,7 +618,7 @@ impl Api {
 			Err(e) => {
 				error!(
 					message = "Could not retrieve partner's address metadata",
-					address = recipient_address.to_checksummed(),
+					address = recipient_address.checksum(),
 					error = format!("{:?}", e),
 				);
 				return Err(ApiError::State(format!(
@@ -1285,7 +1285,7 @@ impl Api {
 			.initiator_init(
 				payment_identifier,
 				amount,
-				secret,
+				secret.clone(),
 				secret_hash,
 				token_network_registry_address,
 				token_network_address,

@@ -8,7 +8,7 @@ use raiden_primitives::{
 	traits::{
 		Stringify,
 		ToBytes,
-		ToChecksummed,
+		Checksum,
 	},
 	types::{
 		Address,
@@ -153,8 +153,8 @@ impl PFS {
 		pfs_wait_for_block: BlockNumber,
 	) -> Result<(Vec<PFSPath>, String), RoutingError> {
 		let mut payload = PFSRequest {
-			from: route_from.to_checksummed(),
-			to: route_to.to_checksummed(),
+			from: route_from.checksum(),
+			to: route_to.checksum(),
 			max_paths: self.pfs_config.max_paths,
 			iou: None,
 			value,
@@ -203,7 +203,7 @@ impl PFS {
 		payload: PFSRequest,
 	) -> Result<PFSPathsResponse, RoutingError> {
 		let client = reqwest::Client::new();
-		let token_network_address = token_network_address.to_checksummed();
+		let token_network_address = token_network_address.checksum();
 		let response = client
 			.post(format!("{}/api/v1/{}/paths", &self.pfs_config.url, token_network_address))
 			.json(&payload)
@@ -265,8 +265,8 @@ impl PFS {
 				format!("{}/api/v1/{}/payment/iou", self.pfs_config.url, token_network_address),
 			)
 			.query(&[
-				("sender", sender.to_checksummed()),
-				("receiver", self.pfs_config.info.payment_address.to_checksummed()),
+				("sender", sender.checksum()),
+				("receiver", self.pfs_config.info.payment_address.checksum()),
 				("timestamp", timestamp.to_string()),
 				("signature", signature.as_string()),
 			])
@@ -355,7 +355,7 @@ pub async fn query_address_metadata(
 	address: Address,
 ) -> Result<AddressMetadata, RoutingError> {
 	let response =
-		reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.to_checksummed()))
+		reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.checksum()))
 			.await
 			.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
