@@ -49,6 +49,9 @@ where
 	D: Deserializer<'de>,
 {
 	let binding = serde_json::Value::deserialize(deserializer)?;
+	if let Some(value) = binding.as_u64() {
+		return Ok(Some(U256::from(value)))
+	}
 	let v = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse U256"))?;
 	Ok(Some(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?))
 }
