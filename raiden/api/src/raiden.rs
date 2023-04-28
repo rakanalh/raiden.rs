@@ -14,6 +14,8 @@ use raiden_primitives::types::{
 	AddressMetadata,
 	ChainID,
 	DefaultAddresses,
+	RevealTimeout,
+	SettleTimeout,
 };
 use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transition::manager::StateManager;
@@ -32,6 +34,8 @@ pub struct RaidenConfig {
 	pub metadata: AddressMetadata,
 	/// Default addresses
 	pub addresses: DefaultAddresses,
+	pub default_settle_timeout: SettleTimeout,
+	pub default_reveal_timeout: RevealTimeout,
 }
 
 pub struct Raiden {

@@ -335,6 +335,8 @@ async fn main() {
 			max_paths: services_config.pathfinding_max_paths,
 		},
 		addresses: default_addresses.clone(),
+		default_settle_timeout: cli.default_settle_timeout.into(),
+		default_reveal_timeout: cli.default_reveal_timeout.into(),
 	};
 	let raiden = Arc::new(Raiden {
 		web3,

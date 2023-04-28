@@ -50,8 +50,6 @@ use raiden_state_machine::{
 	constants::{
 		ABSENT_SECRET,
 		DEFAULT_RETRY_TIMEOUT,
-		DEFAULT_REVEAL_TIMEOUT,
-		DEFAULT_SETTLE_TIMEOUT,
 		MIN_REVEAL_TIMEOUT,
 		SECRET_LENGTH,
 	},
@@ -156,8 +154,8 @@ impl Api {
 			settle_timeout = settle_timeout.map(|t| t.to_string()),
 			reveal_timeout = reveal_timeout.map(|t| t.to_string()),
 		);
-		let settle_timeout = settle_timeout.unwrap_or(SettleTimeout::from(DEFAULT_SETTLE_TIMEOUT));
-		let reveal_timeout = reveal_timeout.unwrap_or(RevealTimeout::from(DEFAULT_REVEAL_TIMEOUT));
+		let settle_timeout = settle_timeout.unwrap_or(self.raiden.config.default_settle_timeout);
+		let reveal_timeout = reveal_timeout.unwrap_or(self.raiden.config.default_reveal_timeout);
 
 		self.check_invalid_channel_timeouts(settle_timeout, reveal_timeout)?;
 

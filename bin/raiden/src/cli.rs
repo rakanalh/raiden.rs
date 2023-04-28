@@ -275,6 +275,11 @@ pub struct Opt {
 	#[structopt(flatten)]
 	pub services_config: CliServicesConfig,
 
+	#[structopt(long, required = false, takes_value = true, default_value = "20")]
+	pub default_reveal_timeout: u64,
+
+	#[structopt(long, required = false, takes_value = true, default_value = "40")]
+	pub default_settle_timeout: u64,
 	#[structopt(long, required = false, takes_value = true, default_value = "info")]
 	pub log_config: String,
 
