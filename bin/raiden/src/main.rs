@@ -36,7 +36,10 @@ use raiden_pathfinding::{
 };
 use raiden_primitives::{
 	payments::PaymentsRegistry,
-	traits::ToPexAddress,
+	traits::{
+		ToChecksummed,
+		ToPexAddress,
+	},
 	types::ChainID,
 };
 use raiden_state_machine::types::MediationFeeConfig;
@@ -178,6 +181,8 @@ async fn main() {
 		},
 	};
 	let account = Account::new(web3.clone(), private_key, nonce);
+
+	info!(message = "Using account", address = account.address().to_checksummed());
 
 	// #
 	// # Initialize state manager
@@ -434,6 +439,7 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 }
 fn get_logging_filter(log_config: String) -> EnvFilter {
 	EnvFilter::from_env("RAIDEN_LOG")
+		.add_directive(format!("raiden={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_api={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_blockchain={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_client={}", log_config).parse().unwrap())
@@ -442,5 +448,5 @@ fn get_logging_filter(log_config: String) -> EnvFilter {
 		.add_directive(format!("raiden_transition={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_network_messages={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_network_transport={}", log_config).parse().unwrap())
-		.add_directive(format!("hyper={}", log_config).parse().unwrap())
+		.add_directive(format!("hyper=info").parse().unwrap())
 }
