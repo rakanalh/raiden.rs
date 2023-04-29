@@ -172,15 +172,14 @@ impl EventDecoder {
 				))),
 		};
 
-		let partner_address: Address;
 		let our_address = chain_state.our_address;
-		if our_address == participant1 {
-			partner_address = participant2;
+		let partner_address: Address = if our_address == participant1 {
+			participant2
 		} else if our_address == participant2 {
-			partner_address = participant1;
+			participant1
 		} else {
 			return Ok(None)
-		}
+		};
 
 		let token_network_address = event.address;
 		let token_network_registry = views::get_token_network_registry_by_token_network_address(
@@ -251,6 +250,19 @@ impl EventDecoder {
 			_ =>
 				return Err(DecodeError(format!("{} event has an invalid participant", event.name))),
 		};
+
+		// Check if we have a channel with participant
+		if let None = views::get_channel_by_token_network_and_partner(
+			chain_state,
+			token_network_address,
+			participant,
+		) {
+			// No channel with `participant`. Check if `participant is our address.
+			if participant != chain_state.our_address {
+				return Ok(None)
+			}
+		}
+
 		let total_deposit = match event.data.get("total_deposit") {
 			Some(Token::Uint(total_deposit)) => total_deposit.clone(),
 			_ =>
@@ -297,6 +309,19 @@ impl EventDecoder {
 			_ =>
 				return Err(DecodeError(format!("{} event has an invalid participant", event.name,))),
 		};
+
+		// Check if we have a channel with participant
+		if let None = views::get_channel_by_token_network_and_partner(
+			chain_state,
+			token_network_address,
+			participant,
+		) {
+			// No channel with `participant`. Check if `participant is our address.
+			if participant != chain_state.our_address {
+				return Ok(None)
+			}
+		}
+
 		let total_withdraw = match event.data.get("total_withdraw") {
 			Some(Token::Uint(total_withdraw)) => total_withdraw.clone(),
 			_ =>
@@ -326,6 +351,7 @@ impl EventDecoder {
 		chain_state: &ChainState,
 		event: Event,
 	) -> Result<Option<StateChange>> {
+		let token_network_address = event.address;
 		let channel_identifier = match event.data.get("channel_identifier") {
 			Some(Token::Uint(identifier)) => identifier.clone(),
 			_ =>
@@ -342,7 +368,19 @@ impl EventDecoder {
 					event.name,
 				))),
 		};
-		let token_network_address = event.address;
+
+		// Check if we have a channel with participant
+		if let None = views::get_channel_by_token_network_and_partner(
+			chain_state,
+			token_network_address,
+			transaction_from,
+		) {
+			// No channel with `participant`. Check if `participant is our address.
+			if transaction_from != chain_state.our_address {
+				return Ok(None)
+			}
+		}
+
 		let channel_closed = ContractReceiveChannelClosed {
 			transaction_hash: Some(event.transaction_hash),
 			block_number: event.block_number,
