@@ -365,7 +365,7 @@ impl ChannelState {
 		open_transaction: TransactionExecutionStatus,
 		fee_config: MediationFeeConfig,
 	) -> Result<ChannelState, StateTransitionError> {
-		if SettleTimeout::from(reveal_timeout) >= settle_timeout {
+		if reveal_timeout >= settle_timeout {
 			return Err(StateTransitionError {
 				msg: format!(
 					"reveal_timeout({:?}) must be smaller than settle_timeout({:?})",

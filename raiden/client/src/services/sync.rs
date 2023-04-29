@@ -132,6 +132,7 @@ impl SyncService {
 				let decoder = EventDecoder::new(
 					self.raiden.config.mediation_config.clone(),
 					self.raiden.proxy_manager.clone(),
+					self.raiden.config.default_reveal_timeout,
 				);
 				let storage = self.raiden.state_manager.read().storage.clone();
 				match decoder.as_state_change(event.clone(), &current_state.clone(), storage).await

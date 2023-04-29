@@ -12,7 +12,6 @@ use raiden_primitives::types::{
 	SettleTimeout,
 };
 use raiden_state_machine::{
-	constants,
 	storage::StateStorage,
 	types::{
 		ChainState,
@@ -50,11 +49,16 @@ pub type Result<T> = std::result::Result<T, DecodeError>;
 pub struct EventDecoder {
 	proxy_manager: Arc<ProxyManager>,
 	mediation_config: MediationFeeConfig,
+	default_reveal_timeout: RevealTimeout,
 }
 
 impl EventDecoder {
-	pub fn new(mediation_config: MediationFeeConfig, proxy_manager: Arc<ProxyManager>) -> Self {
-		Self { proxy_manager, mediation_config }
+	pub fn new(
+		mediation_config: MediationFeeConfig,
+		proxy_manager: Arc<ProxyManager>,
+		default_reveal_timeout: RevealTimeout,
+	) -> Self {
+		Self { proxy_manager, mediation_config, default_reveal_timeout }
 	}
 
 	pub async fn as_state_change(
@@ -194,7 +198,7 @@ impl EventDecoder {
 			DecodeError(format!("{} event has an unknown Token network address", event.name))
 		})?;
 		let token_address = token_network.token_address;
-		let reveal_timeout = RevealTimeout::from(constants::DEFAULT_REVEAL_TIMEOUT);
+		let reveal_timeout = RevealTimeout::from(self.default_reveal_timeout);
 		let open_transaction = TransactionExecutionStatus {
 			started_block_number: Some(BlockNumber::from(0)),
 			finished_block_number: Some(event.block_number.clone()),
