@@ -87,7 +87,7 @@ async fn main() {
 		.transaction_count(private_key.address(), Some(web3::types::BlockNumber::Pending))
 		.await
 	{
-		Ok(nonce) => nonce - 1,
+		Ok(nonce) => nonce,
 		Err(e) => {
 			eprintln!("Failed to fetch nonce: {}", e);
 			process::exit(1);
