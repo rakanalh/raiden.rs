@@ -34,6 +34,16 @@ pub struct StorageID {
 	pub(crate) inner: Ulid,
 }
 
+impl StorageID {
+	pub fn zero() -> Self {
+		Self { inner: Ulid::nil() }
+	}
+
+	pub fn max() -> Self {
+		Self { inner: u128::MAX.into() }
+	}
+}
+
 impl std::fmt::Display for StorageID {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", self.inner.to_string())
@@ -66,12 +76,13 @@ impl TryFrom<String> for StorageID {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct StateChangeRecord {
 	pub identifier: StorageID,
 	pub data: StateChange,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct EventRecord {
 	pub identifier: StorageID,
 	pub state_change_identifier: StorageID,
@@ -79,6 +90,7 @@ pub struct EventRecord {
 	pub timestamp: NaiveDateTime,
 }
 
+#[derive(Debug, Clone)]
 pub struct SnapshotRecord {
 	pub identifier: StorageID,
 	pub statechange_qty: u32,
