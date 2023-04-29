@@ -2,6 +2,7 @@
 members = [
     "bin/common",
     "bin/raiden",
+    "bin/state-replayer",
     "bin/token-ops",
     "raiden/api",
     "raiden/blockchain",
