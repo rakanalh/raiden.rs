@@ -79,7 +79,9 @@ fn handle_contract_receive_channel_opened(
 		.partneraddresses_to_channelidentifiers
 		.get_mut(&channel_state.partner_state.address)
 	{
-		entry.push(canonical_identifier.channel_identifier);
+		if !entry.contains(&canonical_identifier.channel_identifier) {
+			entry.push(canonical_identifier.channel_identifier);
+		}
 	}
 
 	token_network_state
