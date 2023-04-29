@@ -41,7 +41,10 @@ use raiden_primitives::{
 		PaymentStatus,
 		PaymentsRegistry,
 	},
-	traits::ToBytes,
+	traits::{
+		Checksum,
+		ToBytes,
+	},
 	types::{
 		Address,
 		AddressMetadata,
@@ -70,9 +73,8 @@ use tokio::sync::{
 };
 use tracing::{
 	error,
-	event,
+	info,
 	warn,
-	Level,
 };
 use web3::{
 	signing::Key,
@@ -171,9 +173,8 @@ impl EventHandler {
 					match self.account.private_key().sign_message(&closing_data.0) {
 						Ok(sig) => Bytes(sig.to_bytes()),
 						Err(e) => {
-							event!(
-								Level::ERROR,
-								reason = "Close channel, signing failed",
+							error!(
+								message = "Close channel, signing failed",
 								error = format!("{:?}", e),
 							);
 							return
@@ -213,9 +214,8 @@ impl EventHandler {
 					)
 					.await
 				{
-					event!(
-						Level::ERROR,
-						reason = "Channel close transaction failed",
+					error!(
+						message = "Channel close transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
@@ -232,9 +232,8 @@ impl EventHandler {
 					match self.account.private_key().sign_message(&withdraw_confirmation.0) {
 						Ok(sig) => Bytes(sig.to_bytes()),
 						Err(e) => {
-							event!(
-								Level::ERROR,
-								reason = "Channel withdraw, signing failed",
+							error!(
+								message = "Channel withdraw, signing failed",
 								error = format!("{:?}", e),
 							);
 							return
@@ -275,9 +274,8 @@ impl EventHandler {
 					)
 					.await
 				{
-					event!(
-						Level::ERROR,
-						reason = "Channel setTotalWithdraw transaction failed",
+					error!(
+						message = "Channel setTotalWithdraw transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
@@ -437,9 +435,8 @@ impl EventHandler {
 					)
 					.await
 				{
-					event!(
-						Level::ERROR,
-						reason = "Channel setTotalWithdraw transaction failed",
+					error!(
+						message = "Channel setTotalWithdraw transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
@@ -521,9 +518,8 @@ impl EventHandler {
 					)
 					.await
 				{
-					event!(
-						Level::ERROR,
-						reason = "Channel update transfer transaction failed",
+					error!(
+						message = "Channel update transfer transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
@@ -595,9 +591,8 @@ impl EventHandler {
 					)
 					.await
 				{
-					event!(
-						Level::ERROR,
-						reason = "Channel update transfer transaction failed",
+					error!(
+						message = "Channel update transfer transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
@@ -633,11 +628,10 @@ impl EventHandler {
 				let search_state_changes = partner_locksroot != *LOCKSROOT_OF_NO_LOCKS;
 
 				if !search_events && !search_state_changes {
-					event! {
-						Level::WARN,
-						reason = "Onchain unlock already mined",
+					warn! {
+						message = "Onchain unlock already mined",
 						channel_identifier = channel_state.canonical_identifier.channel_identifier.to_string(),
-						participant = inner.sender.to_string(),
+						participant = inner.sender.checksum(),
 					};
 				}
 
@@ -720,9 +714,8 @@ impl EventHandler {
 					) {
 						Some(channel_state) => channel_state,
 						None => {
-							event!(
-								Level::ERROR,
-								reason = "Channel was not found before state change",
+							error!(
+								message = "Channel was not found before state change",
 								state_change = format!("{}", state_change_identifier),
 							);
 							return
@@ -753,9 +746,8 @@ impl EventHandler {
 							)
 							.await
 						{
-							event!(
-								Level::ERROR,
-								reason = "Channel unlock transaction failed",
+							error!(
+								message = "Channel unlock transaction failed",
 								error = format!("{:?}", e),
 							);
 						}
@@ -791,9 +783,8 @@ impl EventHandler {
 					) {
 						Some(channel_state) => channel_state,
 						None => {
-							event!(
-								Level::ERROR,
-								reason = "Channel was not found before state change",
+							error!(
+								message = "Channel was not found before state change",
 								state_change = format!("{}", state_change_identifier),
 							);
 							return
@@ -824,9 +815,8 @@ impl EventHandler {
 							)
 							.await
 						{
-							event!(
-								Level::ERROR,
-								reason = "Channel unlock transaction failed",
+							error!(
+								message = "Channel unlock transaction failed",
 								error = format!("{:?}", e),
 							);
 						}
@@ -842,8 +832,9 @@ impl EventHandler {
 					Ok(registry) => registry,
 					Err(_) => {
 						error!(
-							"Could not instantiate secret registry with address {:?}",
-							self.default_addresses.secret_registry
+							message = "Could not instantiate secret registry with address.",
+							secret_registry_address =
+								self.default_addresses.secret_registry.checksum()
 						);
 						return
 					},
@@ -856,17 +847,15 @@ impl EventHandler {
 					)
 					.await
 				{
-					event!(
-						Level::ERROR,
-						reason = "RegisterSecret transaction failed",
+					error!(
+						message = "RegisterSecret transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
 			},
 			Event::PaymentSentSuccess(inner) => {
-				event!(
-					Level::INFO,
-					reason = "Payment Sent",
+				info!(
+					message = "Payment Sent",
 					to = format!("{:?}", inner.target),
 					amount = format!("{}", inner.amount),
 				);
@@ -892,9 +881,8 @@ impl EventHandler {
 				}
 			},
 			Event::PaymentReceivedSuccess(inner) => {
-				event!(
-					Level::INFO,
-					reason = "Payment Received",
+				info!(
+					message = "Payment Received",
 					from = format!("{:?}", inner.initiator),
 					amount = format!("{}", inner.amount),
 				);
@@ -1017,19 +1005,19 @@ impl EventHandler {
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 			},
 			Event::ErrorInvalidActionCoopSettle(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid action CoopSettle", reason = e.reason);
 			},
 			Event::ErrorInvalidActionWithdraw(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid action Withdraw", reason = e.reason);
 			},
 			Event::ErrorInvalidActionSetRevealTimeout(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid action SetRevealTimeout", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedUnlock(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received Unlock", reason = e.reason);
 			},
 			Event::ErrorPaymentSentFailed(e) => {
-				error!("{}", e.reason);
+				error!(message = "Payment failed", reason = e.reason);
 				self.payment_registry.write().await.complete(PaymentStatus::Error(
 					e.target,
 					e.identifier,
@@ -1037,48 +1025,46 @@ impl EventHandler {
 				));
 			},
 			Event::ErrorRouteFailed(e) => {
-				event!(
-					Level::ERROR,
-					reason = "Route Failed",
+				error!(
+					message = "Route Failed",
 					routes = format!("{:?}", e.route),
 					token_network_address = format!("{}", e.token_network_address),
 				);
 			},
 			Event::ErrorUnlockFailed(e) => {
-				error!("{}", e.reason);
+				error!(message = "Unlock failed", reason = e.reason);
 			},
 			Event::ErrorInvalidSecretRequest(e) => {
-				event!(
-					Level::ERROR,
-					reason = "Invalid secret request",
+				error!(
+					message = "Invalid secret request",
 					payment_identifier = format!("{:?}", e.payment_identifier),
 					intended_amount = format!("{}", e.intended_amount),
 					actual_amount = format!("{}", e.actual_amount),
 				);
 			},
 			Event::ErrorInvalidReceivedLockedTransfer(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received locked transfer", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedLockExpired(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received LockExpired", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedTransferRefund(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received TransferRefund", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedWithdrawRequest(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received WithdrawRequest", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedWithdrawConfirmation(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received WithdrawConfirmation", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedWithdrawExpired(e) => {
-				error!("{}", e.reason);
+				error!(message = "Invalid received LockExpired", reason = e.reason);
 			},
 			Event::ErrorUnexpectedReveal(e) => {
-				error!("{}", e.reason);
+				error!(message = "Unexpected reveal", reason = e.reason);
 			},
 			Event::ErrorUnlockClaimFailed(e) => {
-				error!("{}", e.reason);
+				error!(message = "Error unlocking transfer", reason = e.reason);
 			},
 			Event::UnlockClaimSuccess(_) => {
 				// Do Nothing
