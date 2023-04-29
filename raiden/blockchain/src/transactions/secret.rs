@@ -90,7 +90,7 @@ where
 			.contract
 			.signed_call_with_confirmations(
 				"registerSecret",
-				(params.secret,),
+				params.secret,
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
 					opt.gas = Some(gas_estimate);
@@ -136,7 +136,7 @@ where
 			return Err(ProxyError::Recoverable(format!("Secret was already registered",)))
 		}
 
-		return Err(ProxyError::Recoverable(format!("withdraw failed for an unknown reason")))
+		return Err(ProxyError::Recoverable(format!("register secret failed for an unknown reason")))
 	}
 
 	async fn estimate_gas(
@@ -150,8 +150,8 @@ where
 		self.secret_registry
 			.contract
 			.estimate_gas(
-				"setTotalWithdraw",
-				(params.secret,),
+				"registerSecret",
+				params.secret,
 				self.account.address(),
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
