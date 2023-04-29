@@ -90,7 +90,7 @@ where
 			.contract
 			.signed_call_with_confirmations(
 				"registerSecret",
-				params.secret,
+				(params.secret,),
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
 					opt.gas = Some(gas_estimate);
@@ -151,7 +151,7 @@ where
 			.contract
 			.estimate_gas(
 				"registerSecret",
-				params.secret,
+				(params.secret,),
 				self.account.address(),
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
