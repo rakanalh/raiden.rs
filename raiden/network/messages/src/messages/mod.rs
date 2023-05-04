@@ -86,10 +86,50 @@ pub struct OutgoingMessage {
 	pub inner: MessageInner,
 }
 
+impl OutgoingMessage {
+	pub fn type_name(&self) -> &'static str {
+		match self.inner {
+			MessageInner::LockedTransfer(_) => "LockedTransfer",
+			MessageInner::LockExpired(_) => "LockExpired",
+			MessageInner::SecretRequest(_) => "SecretRequest",
+			MessageInner::SecretReveal(_) => "SecretReveal",
+			MessageInner::Unlock(_) => "Unlock",
+			MessageInner::WithdrawRequest(_) => "WithdrawRequest",
+			MessageInner::WithdrawConfirmation(_) => "WithdrawConfirmation",
+			MessageInner::WithdrawExpired(_) => "WithdrawExpired",
+			MessageInner::PFSCapacityUpdate(_) => "PFSCapacityUpdate",
+			MessageInner::PFSFeeUpdate(_) => "PFSFeeUpdate",
+			MessageInner::MSUpdate(_) => "MSUpdate",
+			MessageInner::Processed(_) => "Processed",
+			MessageInner::Delivered(_) => "Delivered",
+		}
+	}
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IncomingMessage {
 	pub message_identifier: MessageIdentifier,
 	pub inner: MessageInner,
+}
+
+impl IncomingMessage {
+	pub fn type_name(&self) -> &'static str {
+		match self.inner {
+			MessageInner::LockedTransfer(_) => "LockedTransfer",
+			MessageInner::LockExpired(_) => "LockExpired",
+			MessageInner::SecretRequest(_) => "SecretRequest",
+			MessageInner::SecretReveal(_) => "SecretReveal",
+			MessageInner::Unlock(_) => "Unlock",
+			MessageInner::WithdrawRequest(_) => "WithdrawRequest",
+			MessageInner::WithdrawConfirmation(_) => "WithdrawConfirmation",
+			MessageInner::WithdrawExpired(_) => "WithdrawExpired",
+			MessageInner::PFSCapacityUpdate(_) => "PFSCapacityUpdate",
+			MessageInner::PFSFeeUpdate(_) => "PFSFeeUpdate",
+			MessageInner::MSUpdate(_) => "MSUpdate",
+			MessageInner::Processed(_) => "Processed",
+			MessageInner::Delivered(_) => "Delivered",
+		}
+	}
 }
 
 pub trait SignedMessage {

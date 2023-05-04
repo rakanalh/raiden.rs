@@ -21,6 +21,7 @@ use raiden_network_messages::messages::{
 use raiden_primitives::{
 	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	signing,
+	traits::Checksum,
 	types::{
 		MessageIdentifier,
 		QueueIdentifier,
@@ -39,7 +40,10 @@ use tokio::{
 	},
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::error;
+use tracing::{
+	error,
+	trace,
+};
 
 use super::{
 	queue::RetryMessageQueue,
@@ -162,7 +166,7 @@ impl MatrixService {
 		}
 	}
 
-	pub async fn run(mut self, message_handler: MessageHandler) {
+	pub async fn run(mut self, mut message_handler: MessageHandler) {
 		loop {
 			select! {
 				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
@@ -180,13 +184,7 @@ impl MatrixService {
 					};
 
 					for message in messages {
-						if let MessageInner::WithdrawConfirmation(_) = message.inner.clone() {
-							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
-							for queue_identifier in queues {
-								self.inplace_delete_message_queue(message.clone(), &queue_identifier);
-							}
-						}
-						else if let MessageInner::Processed(_) = message.inner.clone() {
+						if let MessageInner::Processed(_) = message.inner.clone() {
 							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
 							for queue_identifier in queues {
 								self.inplace_delete_message_queue(message.clone(), &queue_identifier);
@@ -204,12 +202,20 @@ impl MatrixService {
 								canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 							});
 						}
-						let _ = message_handler.handle(message).await;
+						if let Err(e) = message_handler.handle(message).await {
+							error!(message = "Error handling message", error = format!("{:?}", e));
+						}
 					}
 				},
 				message = self.queue_receiver.next() => {
 					match message {
 						Some(TransportServiceMessage::Enqueue((queue_identifier, message))) => {
+							trace!(
+								message = "Enqueue message",
+								msg_type = message.type_name(),
+								message_identifier = message.message_identifier,
+								queue_id = queue_identifier.to_string(),
+							);
 							self.ensure_message_queue(queue_identifier.clone(), HashMap::new());
 							let queue = self.messages
 								.get_mut(&queue_identifier)
@@ -223,11 +229,13 @@ impl MatrixService {
 						Some(TransportServiceMessage::Dequeue((queue_identifier, message_identifier))) => {
 							if let Some(queue_identifier) = queue_identifier {
 								if let Some(queue_info) = self.messages.get_mut(&queue_identifier) {
+									trace!(message = "Dequeue message", message_identifier = message_identifier, queue_id = queue_identifier.to_string());
 									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
 									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
 								}
 							} else {
-								for queue_info in self.messages.values_mut() {
+								for (queue_identifier, queue_info) in self.messages.iter_mut() {
+									trace!(message = "Dequeue message", message_identifier = message_identifier, queue_id = queue_identifier.to_string());
 									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
 									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
 								}
@@ -257,12 +265,18 @@ impl MatrixService {
 										queue.messages.remove_entry(&message.message_identifier);
 									}
 								}
+								trace!(
+									message = "Sending message",
+									message_identifier = message.message_identifier,
+									msg_type = message.type_name(),
+									recipient = message.recipient.checksum()
+								);
 								self.send(message).await;
 							}
 						},
 						Some(TransportServiceMessage::Broadcast(message)) => {
 							let (message_json, device_id) = match message.inner {
-								messages::MessageInner::PFSCapacityUpdate(inner) => {
+								messages::MessageInner::PFSCapacityUpdate(ref inner) => {
 									let message_json = match serde_json::to_string(&inner) {
 										Ok(json) => json,
 										Err(e) => {
@@ -272,7 +286,7 @@ impl MatrixService {
 									};
 									(message_json, "PATH_FINDING")
 								},
-								messages::MessageInner::PFSFeeUpdate(inner) => {
+								messages::MessageInner::PFSFeeUpdate(ref inner) => {
 									let message_json = match serde_json::to_string(&inner) {
 										Ok(json) => json,
 										Err(e) => {
@@ -282,7 +296,7 @@ impl MatrixService {
 									};
 									(message_json, "PATH_FINDING")
 								},
-								messages::MessageInner::MSUpdate(inner) => {
+								messages::MessageInner::MSUpdate(ref inner) => {
 									let message_json = match serde_json::to_string(&inner) {
 										Ok(json) => json,
 										Err(e) => {
@@ -297,6 +311,8 @@ impl MatrixService {
 									return
 								}
 							};
+
+							trace!(message = "Broadcast message", msg_type = message.type_name());
 
 							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
 							let json = match serde_json::to_string(&content) {
@@ -389,6 +405,13 @@ impl MatrixService {
 				_ => 0,
 			};
 			if outgoing_message_identifier == &incoming_message_identifier {
+				trace!(
+					message = "Poping message from queue",
+					incoming_message = incoming_message.type_name(),
+					outgoing_message = outgoing_message.type_name(),
+					message_identifier = outgoing_message_identifier,
+					queue = queue_id.to_string(),
+				);
 				queue.messages.remove_entry(&incoming_message_identifier);
 			}
 		}
