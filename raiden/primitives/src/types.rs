@@ -23,6 +23,7 @@ pub use numeric::*;
 use crate::{
 	deserializers::u256_from_str,
 	serializers::u256_to_str,
+	traits::Checksum,
 };
 
 pub type BalanceProofData = (Locksroot, Nonce, TokenAmount, LockedAmount);
@@ -97,10 +98,31 @@ pub struct CanonicalIdentifier {
 	pub channel_identifier: ChannelIdentifier,
 }
 
+impl ToString for CanonicalIdentifier {
+	fn to_string(&self) -> String {
+		return format!(
+			"ChainID: {}, TokenNetworkAddress: {}, ChannelID: {}",
+			self.chain_identifier,
+			self.token_network_address.checksum(),
+			self.channel_identifier
+		)
+	}
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct QueueIdentifier {
 	pub recipient: Address,
 	pub canonical_identifier: CanonicalIdentifier,
+}
+
+impl ToString for QueueIdentifier {
+	fn to_string(&self) -> String {
+		return format!(
+			"Recipient: {}, {}",
+			self.recipient.checksum(),
+			self.canonical_identifier.to_string()
+		)
+	}
 }
 
 #[repr(u8)]
