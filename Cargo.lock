@@ -3603,6 +3603,7 @@ version = "0.0.1"
 dependencies = [
  "colored",
  "expanduser",
+ "raiden-bin-common",
  "raiden-blockchain",
  "raiden-primitives",
  "raiden-state-machine",

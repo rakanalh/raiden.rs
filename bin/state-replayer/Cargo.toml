@@ -22,6 +22,7 @@ rusqlite = { version = "0.25.3", default-features = false }
 structopt = { version = "0.3.25", default-features = false }
 
 # Raiden
+raiden-bin-common = { path = "../common" }
 raiden-primitives = { path = "../../raiden/primitives" }
 raiden-blockchain = { path = "../../raiden/blockchain" }
 raiden-state-machine = { path = "../../raiden/state-machine", features = [ "storage" ] }

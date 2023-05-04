@@ -5,6 +5,7 @@ use std::{
 };
 
 use colored::Colorize;
+use raiden_bin_common::parse_address;
 use raiden_blockchain::contracts;
 use raiden_primitives::types::{
 	Address,
@@ -36,6 +37,8 @@ use structopt::StructOpt;
 pub struct Opt {
 	#[structopt(short("d"), long, parse(from_os_str), required = true, takes_value = true)]
 	pub dbpath: PathBuf,
+	#[structopt(short("a"), long, parse(try_from_str = parse_address), takes_value = true)]
+	pub address: Address,
 }
 
 fn main() {
@@ -88,7 +91,7 @@ fn main() {
 		chain_id,
 		block_number: BlockNumber::from(0),
 		block_hash: BlockHash::random(),
-		our_address: Address::random(),
+		our_address: cli.address,
 		identifiers_to_tokennetworkregistries: HashMap::new(),
 		payment_mapping: PaymentMappingState { secrethashes_to_task: HashMap::new() },
 		pending_transactions: vec![],
