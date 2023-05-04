@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+	collections::HashMap,
+	sync::Arc,
+};
 
 use parking_lot::RwLock;
 use raiden_blockchain::{
@@ -26,6 +29,7 @@ use raiden_primitives::{
 	signing,
 	types::{
 		Address,
+		AddressMetadata,
 		CanonicalIdentifier,
 		QueueIdentifier,
 		SecretHash,
@@ -55,6 +59,7 @@ use raiden_state_machine::{
 	views,
 };
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::trace;
 use web3::signing::Key;
 
 use crate::{
@@ -68,6 +73,7 @@ pub struct MessageHandler {
 	transport_sender: UnboundedSender<TransportServiceMessage>,
 	state_manager: Arc<RwLock<StateManager>>,
 	transition_service: Arc<Transitioner>,
+	metadata_cache: HashMap<Address, AddressMetadata>,
 }
 
 impl MessageHandler {
@@ -84,17 +90,19 @@ impl MessageHandler {
 			transport_sender,
 			state_manager,
 			transition_service,
+			metadata_cache: HashMap::new(),
 		}
 	}
 
-	pub async fn handle(&self, message: IncomingMessage) -> Result<(), String> {
+	pub async fn handle(&mut self, message: IncomingMessage) -> Result<(), String> {
+		trace!(message = "Received message", msg_type = message.type_name());
 		let state_changes = self.convert(message).await?;
 
 		Ok(self.transition_service.transition(state_changes).await?)
 	}
 
-	async fn convert(&self, message: IncomingMessage) -> Result<Vec<StateChange>, String> {
-		match message.inner {
+	async fn convert(&mut self, message: IncomingMessage) -> Result<Vec<StateChange>, String> {
+		let (sender, state_changes) = match message.inner {
 			messages::MessageInner::LockedTransfer(message) => {
 				let data = message.bytes_to_sign();
 				let sender = get_sender(&data, &message.signature.0)?;
@@ -150,8 +158,7 @@ impl MessageHandler {
 					node_address: sender,
 					channel_identifier: message.channel_identifier,
 				};
-
-				if message.target == self.private_key.address() {
+				let state_changes = if message.target == self.private_key.address() {
 					let mut init_target = ActionInitTarget {
 						sender,
 						balance_proof,
@@ -160,7 +167,7 @@ impl MessageHandler {
 						received_valid_secret: false,
 					};
 
-					if let Some(encrypted_secret) = message.metadata.secret {
+					let secret_reveal = if let Some(encrypted_secret) = message.metadata.secret {
 						let decrypted_secret =
 							decrypt_secret(encrypted_secret.0, &self.private_key)?;
 						if transfer.lock.amount < decrypted_secret.amount ||
@@ -170,16 +177,20 @@ impl MessageHandler {
 						}
 
 						init_target.received_valid_secret = true;
-						return Ok(vec![
-							StateChange::ActionInitTarget(init_target),
-							StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
-								sender,
-								secret: decrypted_secret.secret,
-								secrethash: message.lock.secrethash.unwrap_or_default(),
-							}),
-						])
+
+						Some(StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
+							sender,
+							secret: decrypted_secret.secret,
+							secrethash: message.lock.secrethash.unwrap_or_default(),
+						}))
+					} else {
+						None
+					};
+					let mut ret = vec![StateChange::ActionInitTarget(init_target.clone())];
+					if let Some(secret_reveal) = secret_reveal {
+						ret.push(secret_reveal);
 					}
-					return Ok(vec![StateChange::ActionInitTarget(init_target)])
+					ret
 				} else {
 					let chain_state = &self.state_manager.read().current_state;
 					let mut filtered_route_states = vec![];
@@ -198,14 +209,15 @@ impl MessageHandler {
 							}
 						}
 					}
-					return Ok(vec![StateChange::ActionInitMediator(ActionInitMediator {
+					vec![StateChange::ActionInitMediator(ActionInitMediator {
 						sender,
 						balance_proof,
 						from_hop,
 						candidate_route_states: filtered_route_states,
 						from_transfer: transfer,
-					})])
-				}
+					})]
+				};
+				(sender, state_changes)
 			},
 			messages::MessageInner::LockExpired(message) => {
 				let sender = get_sender(&message.message_hash().as_bytes(), &message.signature.0)?;
@@ -229,33 +241,42 @@ impl MessageHandler {
 					signature: Some(Signature::from(message.signature.0)),
 					sender: Some(sender),
 				};
-				Ok(vec![StateChange::ReceiveLockExpired(ReceiveLockExpired {
+				(
 					sender,
-					secrethash: message.secrethash,
-					message_identifier: message.message_identifier,
-					balance_proof,
-				})])
+					vec![StateChange::ReceiveLockExpired(ReceiveLockExpired {
+						sender,
+						secrethash: message.secrethash,
+						message_identifier: message.message_identifier,
+						balance_proof,
+					})],
+				)
 			},
 			messages::MessageInner::SecretRequest(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
-				Ok(vec![StateChange::ReceiveSecretRequest(ReceiveSecretRequest {
+				(
 					sender,
-					secrethash: message.secrethash,
-					payment_identifier: message.payment_identifier,
-					amount: message.amount,
-					expiration: message.expiration,
-					revealsecret: None,
-				})])
+					vec![StateChange::ReceiveSecretRequest(ReceiveSecretRequest {
+						sender,
+						secrethash: message.secrethash,
+						payment_identifier: message.payment_identifier,
+						amount: message.amount,
+						expiration: message.expiration,
+						revealsecret: None,
+					})],
+				)
 			},
 			messages::MessageInner::SecretReveal(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
 				let secrethash = hash_secret(&message.secret.0);
 				let secrethash = SecretHash::from_slice(&secrethash);
-				Ok(vec![StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
+				(
 					sender,
-					secrethash,
-					secret: message.secret,
-				})])
+					vec![StateChange::ReceiveSecretReveal(ReceiveSecretReveal {
+						sender,
+						secrethash,
+						secret: message.secret,
+					})],
+				)
 			},
 			messages::MessageInner::Unlock(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
@@ -280,13 +301,16 @@ impl MessageHandler {
 					sender: Some(sender),
 				};
 				let secrethash = SecretHash::from_slice(&hash_secret(&message.secret.0));
-				Ok(vec![StateChange::ReceiveUnlock(ReceiveUnlock {
+				(
 					sender,
-					balance_proof,
-					secrethash,
-					message_identifier: message.message_identifier,
-					secret: message.secret,
-				})])
+					vec![StateChange::ReceiveUnlock(ReceiveUnlock {
+						sender,
+						balance_proof,
+						secrethash,
+						message_identifier: message.message_identifier,
+						secret: message.secret,
+					})],
+				)
 			},
 			messages::MessageInner::WithdrawRequest(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
@@ -297,56 +321,64 @@ impl MessageHandler {
 				)
 				.await
 				.map_err(|e| format!("Could not fetch address metadata {:?}: {}", sender, e))?;
-
-				Ok(vec![StateChange::ReceiveWithdrawRequest(ReceiveWithdrawRequest {
+				(
 					sender,
-					message_identifier: message.message_identifier,
-					canonical_identifier: CanonicalIdentifier {
-						chain_identifier: message.chain_id,
-						token_network_address: message.token_network_address,
-						channel_identifier: message.channel_identifier,
-					},
-					total_withdraw: message.total_withdraw,
-					nonce: message.nonce,
-					expiration: message.expiration,
-					signature: Signature::from(message.signature.0),
-					participant: message.participant,
-					coop_settle: message.coop_settle,
-					sender_metadata: Some(sender_metadata),
-				})])
+					vec![StateChange::ReceiveWithdrawRequest(ReceiveWithdrawRequest {
+						sender,
+						message_identifier: message.message_identifier,
+						canonical_identifier: CanonicalIdentifier {
+							chain_identifier: message.chain_id,
+							token_network_address: message.token_network_address,
+							channel_identifier: message.channel_identifier,
+						},
+						total_withdraw: message.total_withdraw,
+						nonce: message.nonce,
+						expiration: message.expiration,
+						signature: Signature::from(message.signature.0),
+						participant: message.participant,
+						coop_settle: message.coop_settle,
+						sender_metadata: Some(sender_metadata),
+					})],
+				)
 			},
 			messages::MessageInner::WithdrawConfirmation(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
-				Ok(vec![StateChange::ReceiveWithdrawConfirmation(ReceiveWithdrawConfirmation {
+				(
 					sender,
-					message_identifier: message.message_identifier,
-					canonical_identifier: CanonicalIdentifier {
-						chain_identifier: message.chain_id,
-						token_network_address: message.token_network_address,
-						channel_identifier: message.channel_identifier,
-					},
-					total_withdraw: message.total_withdraw,
-					nonce: message.nonce,
-					expiration: message.expiration,
-					signature: Signature::from(message.signature.0),
-					participant: message.participant,
-				})])
+					vec![StateChange::ReceiveWithdrawConfirmation(ReceiveWithdrawConfirmation {
+						sender,
+						message_identifier: message.message_identifier,
+						canonical_identifier: CanonicalIdentifier {
+							chain_identifier: message.chain_id,
+							token_network_address: message.token_network_address,
+							channel_identifier: message.channel_identifier,
+						},
+						total_withdraw: message.total_withdraw,
+						nonce: message.nonce,
+						expiration: message.expiration,
+						signature: Signature::from(message.signature.0),
+						participant: message.participant,
+					})],
+				)
 			},
 			messages::MessageInner::WithdrawExpired(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
-				Ok(vec![StateChange::ReceiveWithdrawExpired(ReceiveWithdrawExpired {
+				(
 					sender,
-					message_identifier: message.message_identifier,
-					canonical_identifier: CanonicalIdentifier {
-						chain_identifier: message.chain_id,
-						token_network_address: message.token_network_address,
-						channel_identifier: message.channel_identifier,
-					},
-					total_withdraw: message.total_withdraw,
-					nonce: message.nonce,
-					expiration: message.expiration,
-					participant: message.participant,
-				})])
+					vec![StateChange::ReceiveWithdrawExpired(ReceiveWithdrawExpired {
+						sender,
+						message_identifier: message.message_identifier,
+						canonical_identifier: CanonicalIdentifier {
+							chain_identifier: message.chain_id,
+							token_network_address: message.token_network_address,
+							channel_identifier: message.channel_identifier,
+						},
+						total_withdraw: message.total_withdraw,
+						nonce: message.nonce,
+						expiration: message.expiration,
+						participant: message.participant,
+					})],
+				)
 			},
 			messages::MessageInner::Processed(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
@@ -355,36 +387,13 @@ impl MessageHandler {
 					.transport_sender
 					.send(TransportServiceMessage::Dequeue((None, message.message_identifier)));
 
-				let sender_metadata = raiden_pathfinding::query_address_metadata(
-					self.pathfinding_service_url.clone(),
+				(
 					sender,
+					vec![StateChange::ReceiveProcessed(ReceiveProcessed {
+						sender,
+						message_identifier: message.message_identifier,
+					})],
 				)
-				.await
-				.map_err(|e| format!("Could not fetch address metadata {:?}: {}", sender, e))?;
-
-				let mut delivered = Delivered {
-					delivered_message_identifier: message.message_identifier,
-					signature: Signature::default(),
-				};
-				let _ = delivered.sign(self.private_key.clone());
-				let delivered = OutgoingMessage {
-					message_identifier: message.message_identifier,
-					recipient: sender,
-					recipient_metadata: sender_metadata,
-					inner: MessageInner::Delivered(delivered),
-				};
-				let _ = self.transport_sender.send(TransportServiceMessage::Enqueue((
-					QueueIdentifier {
-						recipient: sender,
-						canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-					},
-					delivered,
-				)));
-
-				Ok(vec![StateChange::ReceiveProcessed(ReceiveProcessed {
-					sender,
-					message_identifier: message.message_identifier,
-				})])
 			},
 			messages::MessageInner::Delivered(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
@@ -398,7 +407,8 @@ impl MessageHandler {
 					message.delivered_message_identifier,
 				)));
 
-				Ok(vec![StateChange::ReceiveDelivered(ReceiveDelivered {
+				// We do not send `Delivered` when reciving one. Skip the step after.
+				return Ok(vec![StateChange::ReceiveDelivered(ReceiveDelivered {
 					sender,
 					message_identifier: message.delivered_message_identifier,
 				})])
@@ -408,13 +418,60 @@ impl MessageHandler {
 			messages::MessageInner::MSUpdate(_) => {
 				// We should not receive those messages.
 				// IGNORE
-				Ok(vec![])
+				return Ok(vec![])
 			},
-		}
+		};
+
+		let sender_metadata = get_address_metadata(
+			&mut self.metadata_cache,
+			sender,
+			self.pathfinding_service_url.clone(),
+		)
+		.await?;
+		let mut delivered = Delivered {
+			delivered_message_identifier: message.message_identifier,
+			signature: Signature::default(),
+		};
+		let _ = delivered.sign(self.private_key.clone());
+		let delivered = OutgoingMessage {
+			message_identifier: message.message_identifier,
+			recipient: sender,
+			recipient_metadata: sender_metadata,
+			inner: MessageInner::Delivered(delivered),
+		};
+		let _ = self.transport_sender.send(TransportServiceMessage::Enqueue((
+			QueueIdentifier {
+				recipient: sender,
+				canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+			},
+			delivered,
+		)));
+
+		Ok(state_changes)
 	}
 }
 
 fn get_sender(data: &[u8], signature: &[u8]) -> Result<Address, String> {
 	signing::recover(&data, &signature)
 		.map_err(|e| format!("Could not recover address from signature: {}", e))
+}
+
+async fn get_address_metadata(
+	metadata_cache: &mut HashMap<Address, AddressMetadata>,
+	address: Address,
+	pathfinding_service_url: String,
+) -> Result<AddressMetadata, String> {
+	match metadata_cache.get(&address) {
+		Some(metadata) => Ok(metadata.clone()),
+		None => {
+			let metadata =
+				raiden_pathfinding::query_address_metadata(pathfinding_service_url, address)
+					.await
+					.map_err(|e| {
+						format!("Could not fetch address metadata {:?}: {}", address, e)
+					})?;
+			metadata_cache.insert(address, metadata.clone());
+			Ok(metadata)
+		},
+	}
 }
