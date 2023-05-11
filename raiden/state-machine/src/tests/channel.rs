@@ -3,19 +3,22 @@ use std::ops::{
 	Sub,
 };
 
-use raiden_primitives::types::{
-	Address,
-	BalanceHash,
-	BlockExpiration,
-	BlockHash,
-	BlockNumber,
-	GasLimit,
-	Locksroot,
-	MessageHash,
-	Nonce,
-	RevealTimeout,
-	TokenAmount,
-	TransactionHash,
+use raiden_primitives::{
+	constants::LOCKSROOT_OF_NO_LOCKS,
+	types::{
+		Address,
+		BalanceHash,
+		BlockExpiration,
+		BlockHash,
+		BlockNumber,
+		GasLimit,
+		Locksroot,
+		MessageHash,
+		Nonce,
+		RevealTimeout,
+		TokenAmount,
+		TransactionHash,
+	},
 };
 
 use crate::{
@@ -422,8 +425,8 @@ fn test_channel_settled() {
 		block_number: BlockNumber::from(1u64),
 		block_hash,
 		canonical_identifier: canonical_identifier.clone(),
-		our_onchain_locksroot: Locksroot::default(),
-		partner_onchain_locksroot: Locksroot::default(),
+		our_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
+		partner_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
 	};
 	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
 		.expect("Channel settled should succeed");
@@ -437,7 +440,7 @@ fn test_channel_settled() {
 		block_hash,
 		canonical_identifier: canonical_identifier.clone(),
 		our_onchain_locksroot: our_locksroot.clone(),
-		partner_onchain_locksroot: Locksroot::default(),
+		partner_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
 	};
 	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
 		.expect("Channel settled should succeed");
@@ -495,7 +498,7 @@ fn test_channel_batch_unlock() {
 		canonical_identifier: canonical_identifier.clone(),
 		receiver: channel_state.our_state.address,
 		sender: channel_state.partner_state.address,
-		locksroot: Locksroot::default(),
+		locksroot: *LOCKSROOT_OF_NO_LOCKS,
 		unlocked_amount: TokenAmount::from(100u64),
 		returned_tokens: TokenAmount::zero(),
 		transaction_hash: Some(TransactionHash::zero()),

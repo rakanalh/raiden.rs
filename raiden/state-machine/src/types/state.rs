@@ -5,6 +5,7 @@ use std::{
 
 use derive_more::Display;
 use raiden_primitives::{
+	constants::LOCKSROOT_OF_NO_LOCKS,
 	serializers::u256_to_str,
 	traits::ToBytes,
 	types::{
@@ -534,7 +535,7 @@ impl ChannelEndState {
 			secrethashes_to_onchain_unlockedlocks: HashMap::new(),
 			balance_proof: None,
 			pending_locks: PendingLocksState::default(),
-			onchain_locksroot: Locksroot::zero(),
+			onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
 			nonce: Nonce::zero(),
 			initiated_coop_settle: None,
 			expired_coop_settles: vec![],
@@ -583,7 +584,7 @@ impl ChannelEndState {
 		match &self.balance_proof {
 			Some(bp) => (bp.locksroot.clone(), bp.nonce, bp.transferred_amount, bp.locked_amount),
 			None =>
-				(Locksroot::default(), Nonce::default(), TokenAmount::zero(), TokenAmount::zero()),
+				(*LOCKSROOT_OF_NO_LOCKS, Nonce::default(), TokenAmount::zero(), TokenAmount::zero()),
 		}
 	}
 

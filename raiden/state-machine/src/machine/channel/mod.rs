@@ -4,7 +4,10 @@ use std::ops::{
 };
 
 use raiden_primitives::{
-	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	constants::{
+		CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+		LOCKSROOT_OF_NO_LOCKS,
+	},
 	hashing::hash_balance_data,
 	types::{
 		Address,
@@ -14,7 +17,6 @@ use raiden_primitives::{
 		BlockNumber,
 		CanonicalIdentifier,
 		FeeAmount,
-		Locksroot,
 		MessageIdentifier,
 		PaymentIdentifier,
 		Secret,
@@ -937,7 +939,7 @@ fn handle_channel_settled(
 		let our_locksroot = state_change.our_onchain_locksroot.clone();
 		let partner_locksroot = state_change.our_onchain_locksroot.clone();
 		let should_clear_channel =
-			our_locksroot == Locksroot::zero() && partner_locksroot == Locksroot::zero();
+			our_locksroot == *LOCKSROOT_OF_NO_LOCKS && partner_locksroot == *LOCKSROOT_OF_NO_LOCKS;
 
 		if should_clear_channel {
 			return Ok(ChannelTransition { new_state: None, events })
@@ -1112,13 +1114,14 @@ fn handle_channel_batch_unlock(
 ) -> TransitionResult {
 	if channel_state.status() == ChannelStatus::Settled {
 		if state_change.sender == channel_state.our_state.address {
-			channel_state.our_state.onchain_locksroot = Locksroot::zero();
+			channel_state.our_state.onchain_locksroot = *LOCKSROOT_OF_NO_LOCKS;
 		} else if state_change.sender == channel_state.partner_state.address {
-			channel_state.partner_state.onchain_locksroot = Locksroot::zero();
+			channel_state.partner_state.onchain_locksroot = *LOCKSROOT_OF_NO_LOCKS;
 		}
 
-		let no_unlocks_left_to_do = channel_state.our_state.onchain_locksroot == Locksroot::zero() &&
-			channel_state.partner_state.onchain_locksroot == Locksroot::zero();
+		let no_unlocks_left_to_do = channel_state.our_state.onchain_locksroot ==
+			*LOCKSROOT_OF_NO_LOCKS &&
+			channel_state.partner_state.onchain_locksroot == *LOCKSROOT_OF_NO_LOCKS;
 		if no_unlocks_left_to_do {
 			return Ok(ChannelTransition { new_state: None, events: vec![] })
 		}
