@@ -49,7 +49,7 @@ pub fn balance(
 	let max_withdraw = max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw);
 	let withdraw = if subtract_withdraw { max_withdraw } else { TokenAmount::zero() };
 
-	sender.contract_balance - withdraw - sender_transferred_amount + receiver_transferred_amount
+	sender.contract_balance + receiver_transferred_amount - withdraw - sender_transferred_amount
 }
 
 /// Calculates the maximum "total_withdraw_amount" for a channel.

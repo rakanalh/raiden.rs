@@ -163,10 +163,9 @@ pub fn channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> 
 		receiver_transferred_amount = balance_proof.transferred_amount;
 	}
 
-	sender.contract_balance -
+	sender.contract_balance + receiver_transferred_amount -
 		max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw) -
-		sender_transferred_amount +
-		receiver_transferred_amount
+		sender_transferred_amount
 }
 
 pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address) -> Vec<Address> {
