@@ -16,13 +16,13 @@ use serde::{
 };
 use web3::signing::keccak256;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RouteMetadata {
 	pub route: Vec<Address>,
 	pub address_metadata: HashMap<Address, AddressMetadata>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
 	pub routes: Vec<RouteMetadata>,
 	pub secret: Option<Secret>,

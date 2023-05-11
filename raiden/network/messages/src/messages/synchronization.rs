@@ -19,7 +19,7 @@ use super::{
 	SignedMessage,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Processed {
 	#[serde(deserialize_with = "u64_from_str")]
@@ -51,7 +51,7 @@ impl SignedMessage for Processed {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Delivered {
 	#[serde(deserialize_with = "u64_from_str")]

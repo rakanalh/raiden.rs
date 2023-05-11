@@ -49,7 +49,7 @@ impl Into<[u8; 1]> for CmdId {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TransportServiceMessage {
 	Enqueue((QueueIdentifier, OutgoingMessage)),
 	Dequeue((Option<QueueIdentifier>, MessageIdentifier)),
@@ -59,7 +59,7 @@ pub enum TransportServiceMessage {
 	ExpireServiceAddresses(U256, BlockNumber),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageInner {
 	LockedTransfer(LockedTransfer),
@@ -77,7 +77,7 @@ pub enum MessageInner {
 	Delivered(Delivered),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutgoingMessage {
 	pub message_identifier: MessageIdentifier,
 	pub recipient: Address,

@@ -59,7 +59,7 @@ use super::{
 	SignedMessage,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct SecretRequest {
 	#[serde(deserialize_with = "u64_from_str")]
@@ -113,7 +113,7 @@ impl SignedMessage for SecretRequest {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename = "RevealSecret")]
 pub struct SecretReveal {
 	#[serde(deserialize_with = "u64_from_str")]
@@ -151,7 +151,7 @@ impl SignedMessage for SecretReveal {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct LockExpired {
 	#[serde(deserialize_with = "u64_from_str")]
@@ -232,7 +232,7 @@ impl SignedEnvelopeMessage for LockExpired {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Unlock {
 	#[serde(deserialize_with = "u64_from_str")]
@@ -314,7 +314,7 @@ impl SignedEnvelopeMessage for Unlock {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Lock {
 	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
@@ -322,7 +322,7 @@ pub struct Lock {
 	pub secrethash: Option<SecretHash>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct LockedTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
@@ -433,7 +433,7 @@ impl SignedEnvelopeMessage for LockedTransfer {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefundTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
 	#[serde(skip_serializing)]

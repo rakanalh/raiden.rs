@@ -31,7 +31,7 @@ use web3::signing::SigningError;
 
 use super::SignedMessage;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SignedBlindedBalanceProof {
 	chain_id: ChainID,
 	token_network_address: TokenNetworkAddress,
@@ -88,7 +88,7 @@ impl SignedMessage for SignedBlindedBalanceProof {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct RequestMonitoring {
 	pub balance_proof: SignedBlindedBalanceProof,

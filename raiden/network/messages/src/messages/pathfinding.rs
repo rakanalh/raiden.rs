@@ -32,7 +32,7 @@ use web3::signing::SigningError;
 
 use super::SignedMessage;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct PFSCapacityUpdate {
 	pub canonical_identifier: CanonicalIdentifier,
@@ -113,7 +113,7 @@ impl SignedMessage for PFSCapacityUpdate {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct PFSFeeUpdate {
 	pub canonical_identifier: CanonicalIdentifier,
