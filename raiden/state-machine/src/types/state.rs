@@ -448,8 +448,8 @@ impl ChannelState {
 	}
 
 	pub fn capacity(&self) -> TokenAmount {
-		self.our_state.contract_balance - self.our_state.total_withdraw() +
-			self.partner_state.contract_balance -
+		self.our_state.contract_balance + self.partner_state.contract_balance -
+			self.our_state.total_withdraw() -
 			self.partner_state.total_withdraw()
 	}
 
