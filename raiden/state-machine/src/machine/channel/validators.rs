@@ -84,11 +84,11 @@ pub(crate) fn is_lock_pending(end_state: &ChannelEndState, secrethash: SecretHas
 		end_state.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
 }
 
-pub(super) fn is_lock_locked(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
+pub(crate) fn is_lock_locked(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
 	end_state.secrethashes_to_lockedlocks.contains_key(&secrethash)
 }
 
-pub(super) fn is_valid_signature(
+pub(crate) fn is_valid_signature(
 	data: Bytes,
 	signature: &Signature,
 	sender_address: Address,
@@ -103,7 +103,7 @@ pub(super) fn is_valid_signature(
 	return Err("Signature was valid but the expected address does not match".to_owned())
 }
 
-pub(super) fn is_valid_balance_proof_signature(
+pub(crate) fn is_valid_balance_proof_signature(
 	balance_proof: &BalanceProofState,
 	sender_address: Address,
 ) -> Result<(), String> {
@@ -132,7 +132,7 @@ pub(super) fn is_valid_balance_proof_signature(
 	is_valid_signature(data_that_was_signed, signature, sender_address)
 }
 
-pub(super) fn is_balance_proof_safe_for_onchain_operations(
+pub(crate) fn is_balance_proof_safe_for_onchain_operations(
 	balance_proof: &BalanceProofState,
 ) -> bool {
 	balance_proof
@@ -157,7 +157,7 @@ pub(crate) fn is_transfer_expired(
 	.is_ok()
 }
 
-pub(super) fn is_balance_proof_usable_onchain(
+pub(crate) fn is_balance_proof_usable_onchain(
 	received_balance_proof: &BalanceProofState,
 	channel_state: &ChannelState,
 	sender_state: &ChannelEndState,
@@ -184,7 +184,7 @@ pub(super) fn is_balance_proof_usable_onchain(
 	is_valid_signature
 }
 
-pub(super) fn is_valid_lock_expired(
+pub(crate) fn is_valid_lock_expired(
 	channel_state: &ChannelState,
 	state_change: ReceiveLockExpired,
 	sender_state: &ChannelEndState,
@@ -276,7 +276,7 @@ pub(super) fn is_valid_lock_expired(
 	Ok(pending_locks)
 }
 
-pub(super) fn valid_locked_transfer_check(
+pub(crate) fn valid_locked_transfer_check(
 	channel_state: &ChannelState,
 	sender_state: &mut ChannelEndState,
 	receiver_state: &ChannelEndState,
@@ -343,7 +343,7 @@ pub(super) fn valid_locked_transfer_check(
 	Ok(pending_locks)
 }
 
-pub(super) fn is_valid_locked_transfer(
+pub(crate) fn is_valid_locked_transfer(
 	transfer_state: &LockedTransferState,
 	channel_state: &ChannelState,
 	sender_end_state: &mut ChannelEndState,
@@ -359,7 +359,7 @@ pub(super) fn is_valid_locked_transfer(
 	)
 }
 
-pub(super) fn is_valid_total_withdraw(
+pub(crate) fn is_valid_total_withdraw(
 	channel_state: &ChannelState,
 	our_total_withdraw: TokenAmount,
 	allow_zero: bool,
@@ -388,7 +388,7 @@ pub(super) fn is_valid_total_withdraw(
 	return Ok(())
 }
 
-pub(super) fn is_valid_withdraw_signature(
+pub(crate) fn is_valid_withdraw_signature(
 	canonical_identifier: CanonicalIdentifier,
 	sender: Address,
 	participant: Address,
@@ -404,14 +404,14 @@ pub(super) fn is_valid_withdraw_signature(
 ///
 /// The withdraw has expired if the current block exceeds
 /// the withdraw's expiration + confirmation blocks.
-pub(super) fn is_withdraw_expired(
+pub(crate) fn is_withdraw_expired(
 	block_number: BlockNumber,
 	expiration_threshold: BlockExpiration,
 ) -> bool {
 	block_number >= expiration_threshold
 }
 
-pub(super) fn is_valid_withdraw_expired(
+pub(crate) fn is_valid_withdraw_expired(
 	channel_state: &ChannelState,
 	state_change: &ReceiveWithdrawExpired,
 	withdraw_state: &PendingWithdrawState,
@@ -448,7 +448,7 @@ pub(super) fn is_valid_withdraw_expired(
 	Ok(())
 }
 
-pub(super) fn is_valid_withdraw_request(
+pub(crate) fn is_valid_withdraw_request(
 	channel_state: &ChannelState,
 	withdraw_request: &ReceiveWithdrawRequest,
 ) -> Result<(), String> {
@@ -503,7 +503,7 @@ pub(super) fn is_valid_withdraw_request(
 	is_valid
 }
 
-pub(super) fn is_valid_withdraw_confirmation(
+pub(crate) fn is_valid_withdraw_confirmation(
 	channel_state: &ChannelState,
 	received_withdraw: &ReceiveWithdrawConfirmation,
 ) -> Result<(), String> {
@@ -583,7 +583,7 @@ pub(super) fn is_valid_withdraw_confirmation(
 	)
 }
 
-pub(super) fn is_valid_action_coop_settle(
+pub(crate) fn is_valid_action_coop_settle(
 	channel_state: &ChannelState,
 	total_withdraw: TokenAmount,
 ) -> Result<(), String> {
@@ -605,7 +605,7 @@ pub(super) fn is_valid_action_coop_settle(
 	Ok(())
 }
 
-pub(super) fn is_valid_unlock(
+pub(crate) fn is_valid_unlock(
 	channel_state: &ChannelState,
 	sender_state: &mut ChannelEndState,
 	unlock: ReceiveUnlock,
@@ -670,7 +670,7 @@ pub(super) fn is_valid_unlock(
 	Ok(pending_locks)
 }
 
-pub(super) fn is_valid_refund(
+pub(crate) fn is_valid_refund(
 	channel_state: &ChannelState,
 	refund: ReceiveTransferRefund,
 	sender_state: &mut ChannelEndState,
@@ -693,7 +693,7 @@ pub(super) fn is_valid_refund(
 	Ok(pending_locks)
 }
 
-pub(super) fn is_valid_action_withdraw(
+pub(crate) fn is_valid_action_withdraw(
 	channel_state: &ChannelState,
 	withdraw: &ActionChannelWithdraw,
 ) -> Result<(), String> {
