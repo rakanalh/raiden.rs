@@ -43,8 +43,8 @@ use reqwest::Url;
 use serde::Serialize;
 use serde_json::Value;
 use tracing::{
+	debug,
 	error,
-	info,
 };
 use web3::{
 	signing::Key,
@@ -182,12 +182,12 @@ impl MatrixClient {
 		let response = self.client.sync_once(sync_settings).await?;
 
 		let to_device_events = response.to_device.events;
-		info!("Received {} network messages", to_device_events.len());
+		debug!("Received {} network messages", to_device_events.len());
 
 		let mut messages = vec![];
 		for to_device_event in to_device_events.iter() {
 			let message = match self.process_event(to_device_event).await {
-				Ok(message) => message,
+				Ok(messages) => messages,
 				Err(e) => {
 					error!("Could not parse message: {:?}", e);
 					continue
