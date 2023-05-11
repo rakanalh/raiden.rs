@@ -2,14 +2,17 @@ use std::sync::Arc;
 
 use derive_more::Display;
 use ethabi::Token;
-use raiden_primitives::types::{
-	Address,
-	BlockHash,
-	BlockNumber,
-	CanonicalIdentifier,
-	Locksroot,
-	RevealTimeout,
-	SettleTimeout,
+use raiden_primitives::{
+	traits::Checksum,
+	types::{
+		Address,
+		BlockHash,
+		BlockNumber,
+		CanonicalIdentifier,
+		Locksroot,
+		RevealTimeout,
+		SettleTimeout,
+	},
 };
 use raiden_state_machine::{
 	storage::StateStorage,
@@ -35,6 +38,7 @@ use raiden_state_machine::{
 	views,
 };
 use thiserror::Error;
+use tracing::trace;
 
 use super::{
 	events::Event,
@@ -67,6 +71,7 @@ impl EventDecoder {
 		chain_state: &ChainState,
 		storage: Arc<StateStorage>,
 	) -> Result<Option<StateChange>> {
+		trace!(message = "Decoding blockchain event", name = event.name);
 		match event.name.as_ref() {
 			"TokenNetworkCreated" => self.token_network_created(event),
 			"ChannelOpened" => self.channel_opened(chain_state, event),
@@ -178,6 +183,11 @@ impl EventDecoder {
 		} else if our_address == participant2 {
 			participant1
 		} else {
+			trace!(
+				message = "Ignore channel opened",
+				participant1 = participant1.checksum(),
+				participant2 = participant2.checksum()
+			);
 			return Ok(None)
 		};
 
@@ -259,6 +269,7 @@ impl EventDecoder {
 		) {
 			// No channel with `participant`. Check if `participant is our address.
 			if participant != chain_state.our_address {
+				trace!(message = "Ignore channel deposit", participant = participant.checksum());
 				return Ok(None)
 			}
 		}
@@ -318,6 +329,7 @@ impl EventDecoder {
 		) {
 			// No channel with `participant`. Check if `participant is our address.
 			if participant != chain_state.our_address {
+				trace!(message = "Ignore channel withdraw", participant = participant.checksum());
 				return Ok(None)
 			}
 		}
@@ -370,13 +382,19 @@ impl EventDecoder {
 		};
 
 		// Check if we have a channel with participant
-		if let None = views::get_channel_by_token_network_and_partner(
+		if views::get_channel_by_token_network_and_partner(
 			chain_state,
 			token_network_address,
 			transaction_from,
-		) {
+		)
+		.is_none()
+		{
 			// No channel with `participant`. Check if `participant is our address.
 			if transaction_from != chain_state.our_address {
+				trace!(
+					message = "Ignore channel closed with closing address",
+					closing_address = transaction_from.checksum()
+				);
 				return Ok(None)
 			}
 		}
@@ -451,7 +469,13 @@ impl EventDecoder {
 			},
 		) {
 			Some(channel_state) => channel_state,
-			None => return Ok(None),
+			None => {
+				trace!(
+					message = "Ignore channel settled",
+					channel_identifier = channel_identifier.to_string()
+				);
+				return Ok(None)
+			},
 		};
 
 		let (our_onchain_locksroot, partner_onchain_locksroot) =
@@ -510,7 +534,16 @@ impl EventDecoder {
 		let token_network =
 			match views::get_token_network_by_address(chain_state, token_network_address) {
 				Some(token_network) => token_network,
-				None => return Ok(None),
+				None => {
+					trace!(
+						message = "Ignore channel unlock",
+						reason = "Token network not found",
+						token_network_address = token_network_address.checksum(),
+						participant1 = participant1.checksum(),
+						participant2 = participant2.checksum()
+					);
+					return Ok(None)
+				},
 			};
 
 		let partner = if participant1 == chain_state.our_address {
@@ -518,6 +551,13 @@ impl EventDecoder {
 		} else if participant2 == chain_state.our_address {
 			participant1
 		} else {
+			trace!(
+				message = "Ignore channel unlock",
+				reason = "Neither of participants matches our node address",
+				our_address = chain_state.our_address.checksum(),
+				participant1 = participant1.checksum(),
+				participant2 = participant2.checksum()
+			);
 			return Ok(None)
 		};
 
@@ -583,6 +623,7 @@ impl EventDecoder {
 					_ => None,
 				}
 			} else {
+				trace!(message = "Ignore");
 				return Ok(None)
 			};
 
@@ -593,7 +634,10 @@ impl EventDecoder {
 
 		let canonical_identifier = match canonical_identifier {
 			Some(id) => id,
-			None => return Ok(None),
+			None => {
+				trace!(message = "Ignore");
+				return Ok(None)
+			},
 		};
 
 		let channel_unlocked = ContractReceiveChannelBatchUnlock {
