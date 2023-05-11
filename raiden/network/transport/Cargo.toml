@@ -34,3 +34,6 @@ raiden-blockchain = { path = "../../blockchain" }
 raiden-primitives = { path = "../../primitives" }
 raiden-network-messages = { path = "../../network/messages" }
 raiden-transition = { path = "../../transition" }
+
+[dev-dependencies]
+futures-util = { version = "0.3.28" }

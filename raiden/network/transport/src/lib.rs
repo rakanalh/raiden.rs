@@ -5,6 +5,8 @@ use thiserror::Error;
 
 pub mod config;
 pub mod matrix;
+#[cfg(test)]
+mod tests;
 pub mod types;
 
 #[derive(Error, Debug)]
