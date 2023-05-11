@@ -6,9 +6,9 @@ use raiden_primitives::{
 	deserializers::u256_from_str,
 	serializers::u256_to_str,
 	traits::{
+		Checksum,
 		Stringify,
 		ToBytes,
-		Checksum,
 	},
 	types::{
 		Address,
@@ -354,12 +354,9 @@ pub async fn query_address_metadata(
 	url: String,
 	address: Address,
 ) -> Result<AddressMetadata, RoutingError> {
-	let response =
-		reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.checksum()))
-			.await
-			.map_err(|e| {
-				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
-			})?;
+	let response = reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.checksum()))
+		.await
+		.map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?;
 
 	if response.status() == 200 {
 		Ok(response.json().await.map_err(|e| {
