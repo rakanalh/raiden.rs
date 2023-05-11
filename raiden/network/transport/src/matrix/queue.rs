@@ -25,11 +25,12 @@ use tokio::{
 	time::interval,
 };
 use tokio_stream::wrappers::IntervalStream;
+use tracing::error;
 
 use crate::config::TransportConfig;
 
 #[derive(Clone, Serialize, Deserialize)]
-struct TimeoutGenerator {
+pub(crate) struct TimeoutGenerator {
 	retries_count: u32,
 	timeout: u8,
 	timeout_max: u8,
@@ -39,17 +40,17 @@ struct TimeoutGenerator {
 }
 
 impl TimeoutGenerator {
-	fn new(retries_count: u32, timeout: u8, timeout_max: u8) -> Self {
+	pub(crate) fn new(retries_count: u32, timeout: u8, timeout_max: u8) -> Self {
 		Self { retries_count, timeout, timeout_max, next: None, tries: 1 }
 	}
 
-	fn ready(&mut self) -> bool {
+	pub(crate) fn ready(&mut self) -> bool {
 		match self.next {
 			Some(next) => {
 				let now = Local::now();
 				let reached_max_retries = self.tries >= self.retries_count;
 
-				// Waited for `timeout` and reached `retries_count`.
+				// Waited for `timeout` and did not reach `retries_count`.
 				if next <= now && !reached_max_retries {
 					self.next = Some(now + Duration::seconds(self.timeout as i64));
 					self.tries += 1;
@@ -72,7 +73,8 @@ impl TimeoutGenerator {
 			},
 			None => {
 				self.next = Some(Local::now() + Duration::seconds(self.timeout as i64));
-				false
+				self.tries += 1;
+				true
 			},
 		}
 	}
@@ -146,16 +148,13 @@ impl RetryMessageQueue {
 	}
 
 	pub async fn run(mut self) {
-		let delay = IntervalStream::new(interval(StdDuration::from_millis(1000)));
+		let delay = IntervalStream::new(interval(StdDuration::from_millis(100)));
 		tokio::pin!(delay);
 
 		loop {
 			select! {
 				Some(queue_message) = self.channel_receiver.recv() => {
 					self.process_queue_message(queue_message);
-					if self.queue.is_empty() {
-						continue;
-					}
 				}
 				_ = &mut delay.next() => {
 					if self.queue.is_empty() {
@@ -163,7 +162,13 @@ impl RetryMessageQueue {
 					}
 					for message_data in self.queue.iter_mut().by_ref() {
 						if message_data.timeout_generator.ready() {
-							let _ = self.transport_sender.send(TransportServiceMessage::Send(message_data.message_identifier));
+							if let Err(e) = self.transport_sender.send(TransportServiceMessage::Send(message_data.message_identifier)) {
+								error!(
+									message = "Failed to send message to transport",
+									message_identifier = message_data.message_identifier,
+									error = format!("{:?}", e)
+								);
+							}
 						}
 					};
 				}
