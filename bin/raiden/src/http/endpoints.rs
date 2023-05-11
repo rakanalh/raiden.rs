@@ -814,7 +814,7 @@ pub async fn raiden_events(req: Request<Body>) -> Result<Response<Body>, HttpErr
 	json_response!(events, StatusCode::OK)
 }
 
-pub async fn shutdown(req: Request<Body>) -> Result<Response<Body>, HttpError> {
+pub async fn shutdown(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
 	unwrap_result_or_error!(
 		Err(Error::Other(format!("Not implemented"))),
 		StatusCode::INTERNAL_SERVER_ERROR
