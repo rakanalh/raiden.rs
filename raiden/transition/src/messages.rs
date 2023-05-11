@@ -59,7 +59,10 @@ use raiden_state_machine::{
 	views,
 };
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::trace;
+use tracing::{
+	error,
+	trace,
+};
 use web3::signing::Key;
 
 use crate::{
@@ -97,8 +100,13 @@ impl MessageHandler {
 	pub async fn handle(&mut self, message: IncomingMessage) -> Result<(), String> {
 		trace!(message = "Received message", msg_type = message.type_name());
 		let state_changes = self.convert(message).await?;
-
-		Ok(self.transition_service.transition(state_changes).await?)
+		let transition_service = self.transition_service.clone();
+		tokio::spawn(async move {
+			if let Err(e) = transition_service.transition(state_changes).await {
+				error!(message = "Error handling message", error = format!("{:?}", e));
+			}
+		});
+		Ok(())
 	}
 
 	async fn convert(&mut self, message: IncomingMessage) -> Result<Vec<StateChange>, String> {
