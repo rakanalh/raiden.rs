@@ -82,7 +82,7 @@ pub struct MediatorTransition {
 }
 
 /// Returns the channel of a given transfer pair or None if it's not found.
-fn get_channel(
+pub(crate) fn get_channel(
 	chain_state: &ChainState,
 	canonical_identifier: CanonicalIdentifier,
 ) -> Option<&ChannelState> {
@@ -1022,7 +1022,7 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
 		},
 		Err((_error, locked_transfer_error_events)) =>
 			return Ok(MediatorTransition {
-				new_state: None,
+				new_state: Some(mediator_state),
 				chain_state,
 				events: locked_transfer_error_events,
 			}),
@@ -1257,7 +1257,7 @@ fn handle_unlock(
 		.ok_or("Sender should be set".to_owned().into())?;
 	let canonical_identifier = state_change.balance_proof.canonical_identifier.clone();
 
-	for mut pair in mediator_state.transfers_pair.iter_mut() {
+	for pair in mediator_state.transfers_pair.iter_mut() {
 		if pair.payer_transfer.balance_proof.sender == Some(balance_proof_sender) {
 			if let Some(channel_state) = get_channel(&chain_state, canonical_identifier.clone()) {
 				let recipient_metadata = views::get_address_metadata(
