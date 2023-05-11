@@ -928,6 +928,23 @@ fn set_settled(mut channel_state: ChannelState, block_number: BlockNumber) -> Ch
 	channel_state
 }
 
+fn set_coop_settled(end_state: &mut ChannelEndState, block_number: BlockNumber) {
+	if let Some(ref mut coop_settle) = &mut end_state.initiated_coop_settle {
+		if let Some(ref mut transaction) = &mut coop_settle.transaction {
+			if transaction.finished_block_number.is_none() {
+				transaction.finished_block_number = Some(block_number);
+				transaction.result = Some(TransactionResult::Success);
+			}
+		} else {
+			coop_settle.transaction = Some(TransactionExecutionStatus {
+				started_block_number: None,
+				finished_block_number: Some(block_number),
+				result: Some(TransactionResult::Success),
+			});
+		}
+	}
+}
+
 fn handle_channel_settled(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelSettled,
@@ -940,6 +957,42 @@ fn handle_channel_settled(
 		let partner_locksroot = state_change.our_onchain_locksroot.clone();
 		let should_clear_channel =
 			our_locksroot == *LOCKSROOT_OF_NO_LOCKS && partner_locksroot == *LOCKSROOT_OF_NO_LOCKS;
+
+		let mut is_coop_settle = false;
+		let initiator_lock_check = state_change.our_onchain_locksroot == *LOCKSROOT_OF_NO_LOCKS;
+		let partner_lock_check = state_change.partner_onchain_locksroot == *LOCKSROOT_OF_NO_LOCKS;
+		if let Some(ref mut coop_settle) = &mut channel_state.our_state.initiated_coop_settle {
+			let initiator_transfer_check =
+				coop_settle.total_withdraw_initiator == state_change.our_transferred_amount;
+			let partner_transfer_check =
+				coop_settle.total_withdraw_partner == state_change.partner_transferred_amount;
+			let initiator_checks = initiator_transfer_check && initiator_lock_check;
+			let partner_checks = partner_transfer_check && partner_lock_check;
+
+			if initiator_checks && partner_checks {
+				set_coop_settled(&mut channel_state.our_state, state_change.block_number);
+				is_coop_settle = true;
+			}
+		}
+		if let Some(ref mut coop_settle) = &mut channel_state.partner_state.initiated_coop_settle {
+			let initiator_transfer_check =
+				coop_settle.total_withdraw_initiator == state_change.our_transferred_amount;
+			let partner_transfer_check =
+				coop_settle.total_withdraw_partner == state_change.partner_transferred_amount;
+			let initiator_checks = initiator_transfer_check && initiator_lock_check;
+			let partner_checks = partner_transfer_check && partner_lock_check;
+
+			if initiator_checks && partner_checks {
+				set_coop_settled(&mut channel_state.partner_state, state_change.block_number);
+				is_coop_settle = true;
+			}
+		}
+
+		if is_coop_settle {
+			channel_state.partner_state.onchain_total_withdraw =
+				state_change.partner_transferred_amount;
+			channel_state.our_state.onchain_total_withdraw = state_change.our_transferred_amount;
+		}
 
 		if should_clear_channel {
 			return Ok(ChannelTransition { new_state: None, events })

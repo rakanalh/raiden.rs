@@ -164,6 +164,8 @@ pub struct ContractReceiveChannelSettled {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub our_onchain_locksroot: Locksroot,
 	pub partner_onchain_locksroot: Locksroot,
+	pub our_transferred_amount: TokenAmount,
+	pub partner_transferred_amount: TokenAmount,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
