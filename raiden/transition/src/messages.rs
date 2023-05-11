@@ -391,10 +391,6 @@ impl MessageHandler {
 			messages::MessageInner::Processed(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
 
-				let _ = self
-					.transport_sender
-					.send(TransportServiceMessage::Dequeue((None, message.message_identifier)));
-
 				(
 					sender,
 					vec![StateChange::ReceiveProcessed(ReceiveProcessed {
@@ -405,15 +401,6 @@ impl MessageHandler {
 			},
 			messages::MessageInner::Delivered(message) => {
 				let sender = get_sender(&message.bytes_to_sign(), &message.signature.0)?;
-
-				let queue_identifier = QueueIdentifier {
-					recipient: sender,
-					canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-				};
-				let _ = self.transport_sender.send(TransportServiceMessage::Dequeue((
-					Some(queue_identifier),
-					message.delivered_message_identifier,
-				)));
 
 				// We do not send `Delivered` when reciving one. Skip the step after.
 				return Ok(vec![StateChange::ReceiveDelivered(ReceiveDelivered {
