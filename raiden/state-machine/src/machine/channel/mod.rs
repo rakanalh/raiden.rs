@@ -1189,7 +1189,7 @@ pub(super) fn register_offchain_secret(
 fn send_withdraw_request(
 	channel_state: &mut ChannelState,
 	total_withdraw: TokenAmount,
-	block_number: BlockNumber,
+	expiration: BlockExpiration,
 	pseudo_random_number_generator: &mut Random,
 	recipient_metadata: Option<AddressMetadata>,
 	coop_settle: bool,
@@ -1205,7 +1205,6 @@ fn send_withdraw_request(
 	}
 
 	let nonce = channel_state.our_state.next_nonce();
-	let expiration = get_safe_initial_expiration(block_number, channel_state.reveal_timeout, None);
 
 	let withdraw_state =
 		PendingWithdrawState { total_withdraw, expiration, nonce, recipient_metadata };
@@ -1321,10 +1320,13 @@ fn handle_action_withdraw(
 	let mut events = vec![];
 	match is_valid_action_withdraw(&channel_state, &state_change) {
 		Ok(_) => {
+			let expiration =
+				get_safe_initial_expiration(block_number, channel_state.reveal_timeout, None);
+
 			events = send_withdraw_request(
 				&mut channel_state,
 				state_change.total_withdraw,
-				block_number,
+				expiration,
 				pseudo_random_number_generator,
 				state_change.recipient_metadata,
 				false,
@@ -1394,13 +1396,16 @@ fn handle_action_coop_settle(
 
 			channel_state.our_state.initiated_coop_settle = Some(coop_settle);
 
+			let expiration =
+				get_safe_initial_expiration(block_number, channel_state.reveal_timeout, None);
+
 			let withdraw_request_events = send_withdraw_request(
 				&mut channel_state,
 				our_max_total_withdraw,
-				block_number,
+				expiration,
 				pseudo_random_number_generator,
 				state_change.recipient_metadata,
-				false,
+				true,
 			);
 			events.extend(withdraw_request_events);
 		},
@@ -1444,7 +1449,7 @@ fn handle_receive_withdraw_request(
 		.insert(withdraw_state.total_withdraw, withdraw_state);
 	channel_state.partner_state.nonce = state_change.nonce;
 
-	if channel_state.our_state.initiated_coop_settle.is_none() || state_change.coop_settle {
+	if channel_state.our_state.initiated_coop_settle.is_some() || state_change.coop_settle {
 		let partner_max_total_withdraw =
 			get_max_withdraw_amount(&channel_state.partner_state, &channel_state.our_state);
 		if partner_max_total_withdraw != state_change.total_withdraw {
@@ -1503,8 +1508,8 @@ fn handle_receive_withdraw_request(
                     .into()],
                 });
 			}
-
-			our_initiated_coop_settle.partner_signature_request = Some(state_change.signature);
+			our_initiated_coop_settle.partner_signature_request =
+				Some(state_change.signature.clone());
 			let coop_settle_events = events_for_coop_settle(
 				&channel_state,
 				our_initiated_coop_settle,
@@ -1599,7 +1604,6 @@ fn handle_receive_withdraw_confirmation(
 				}
 				.into(),
 			);
-
 			let partner_initiated_coop_settle = &channel_state.partner_state.initiated_coop_settle;
 			if let Some(our_initiated_coop_settle) =
 				channel_state.our_state.initiated_coop_settle.clone().as_mut()
