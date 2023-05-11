@@ -519,7 +519,7 @@ impl EventHandler {
 					.await
 				{
 					error!(
-						message = "Channel update transfer transaction failed",
+						message = "Channel cooperative settle transaction failed",
 						error = format!("{:?}", e),
 					);
 				}
@@ -1058,7 +1058,7 @@ impl EventHandler {
 				error!(message = "Invalid received WithdrawConfirmation", reason = e.reason);
 			},
 			Event::ErrorInvalidReceivedWithdrawExpired(e) => {
-				error!(message = "Invalid received LockExpired", reason = e.reason);
+				error!(message = "Invalid received WithdrawExpired", reason = e.reason);
 			},
 			Event::ErrorUnexpectedReveal(e) => {
 				error!(message = "Unexpected reveal", reason = e.reason);
