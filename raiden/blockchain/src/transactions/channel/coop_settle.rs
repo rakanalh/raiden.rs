@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ethabi::Token;
 use raiden_primitives::types::{
 	Address,
 	BlockExpiration,
@@ -14,7 +15,7 @@ use raiden_primitives::types::{
 };
 use web3::{
 	contract::{
-		tokens::Tokenize,
+		tokens::Tokenizable,
 		Options,
 	},
 	types::{
@@ -44,18 +45,17 @@ pub struct WithdrawInput {
 	pub partner_signature: Signature,
 }
 
-impl Tokenize for WithdrawInput {
-	fn into_tokens(self) -> Vec<ethabi::Token> {
-		let mut tokens = vec![];
-
+impl WithdrawInput {
+	fn into_token(self) -> ethabi::Token {
 		let expiration: U256 = self.expiration_block.into();
 
-		tokens.extend(self.initiator.into_tokens());
-		tokens.extend(self.total_withdraw.into_tokens());
-		tokens.extend(expiration.into_tokens());
-		tokens.extend(self.initiator_signature.into_tokens());
-		tokens.extend(self.partner_signature.into_tokens());
-		tokens
+		Token::Tuple(vec![
+			self.initiator.into_token(),
+			self.total_withdraw.into_token(),
+			expiration.into_token(),
+			self.initiator_signature.into_token(),
+			self.partner_signature.into_token(),
+		])
 	}
 }
 
@@ -110,6 +110,9 @@ where
 		let nonce = self.account.peek_next_nonce().await;
 		self.account.next_nonce().await;
 
+		let withdraw_initiator = params.withdraw_initiator;
+		let withdraw_partner = params.withdraw_partner;
+
 		let receipt = self
 			.token_network
 			.contract
@@ -117,8 +120,8 @@ where
 				"cooperativeSettle",
 				(
 					params.channel_identifier,
-					params.withdraw_initiator.into_tokens(),
-					params.withdraw_partner.into_tokens(),
+					withdraw_initiator.into_token(),
+					withdraw_partner.into_token(),
 				),
 				Options::with(|opt| {
 					opt.value = Some(GasLimit::from(0));
@@ -172,14 +175,17 @@ where
 		let nonce = self.account.peek_next_nonce().await;
 		let gas_price = self.web3.eth().gas_price().await.map_err(ProxyError::Web3)?;
 
+		let withdraw_initiator = params.withdraw_initiator;
+		let withdraw_partner = params.withdraw_partner;
+
 		self.token_network
 			.contract
 			.estimate_gas(
 				"cooperativeSettle",
 				(
 					params.channel_identifier,
-					params.withdraw_initiator.into_tokens(),
-					params.withdraw_partner.into_tokens(),
+					withdraw_initiator.into_token(),
+					withdraw_partner.into_token(),
 				),
 				self.account.address(),
 				Options::with(|opt| {
