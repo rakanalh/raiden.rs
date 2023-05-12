@@ -166,8 +166,8 @@ where
 				"closeChannel",
 				(
 					params.channel_identifier,
-					self.account.address(),
 					params.partner,
+					self.account.address(),
 					params.balance_hash,
 					params.nonce,
 					params.additional_hash,
