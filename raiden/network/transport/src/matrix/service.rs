@@ -63,16 +63,16 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 
 #[derive(Serialize, Deserialize)]
 struct StorageMessages {
-	messages: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>>,
+	messages: HashMap<String, HashMap<MessageIdentifier, Vec<OutgoingMessage>>>,
 }
 
 struct QueueInfo {
 	op_sender: UnboundedSender<QueueOp>,
-	messages: HashMap<MessageIdentifier, OutgoingMessage>,
+	messages: HashMap<MessageIdentifier, Vec<OutgoingMessage>>,
 }
 
-impl Into<HashMap<MessageIdentifier, OutgoingMessage>> for QueueInfo {
-	fn into(self) -> HashMap<MessageIdentifier, OutgoingMessage> {
+impl Into<HashMap<MessageIdentifier, Vec<OutgoingMessage>>> for QueueInfo {
+	fn into(self) -> HashMap<MessageIdentifier, Vec<OutgoingMessage>> {
 		self.messages
 	}
 }
@@ -118,14 +118,14 @@ impl MatrixService {
 
 		let storage_messages: HashMap<
 			QueueIdentifier,
-			HashMap<MessageIdentifier, OutgoingMessage>,
+			HashMap<MessageIdentifier, Vec<OutgoingMessage>>,
 		> = self
 			.matrix_storage
 			.get_messages()
 			.map_err(|e| format!("Error initializing transport from storage: {:?}", e))
 			.and_then(|data| {
 				if !data.is_empty() {
-					let data: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>> =
+					let data: HashMap<String, HashMap<MessageIdentifier, Vec<OutgoingMessage>>> =
 						serde_json::from_str(&data).map_err(|e| {
 							format!("Error initializing transport from storage: {:?}", e)
 						})?;
@@ -138,12 +138,14 @@ impl MatrixService {
 				}
 			})?;
 
-		for (queue_identifier, messages) in storage_messages.iter() {
-			self.ensure_message_queue(queue_identifier.clone(), messages.clone());
+		for (queue_identifier, storage_messages) in storage_messages.iter() {
+			self.ensure_message_queue(queue_identifier.clone(), storage_messages.clone());
 			let queue_info =
 				self.messages.get(queue_identifier).expect("Should already be crealted");
-			for message in messages.values() {
-				let _ = queue_info.op_sender.send(QueueOp::Enqueue(message.message_identifier));
+			for messages in storage_messages.values() {
+				for message in messages {
+					let _ = queue_info.op_sender.send(QueueOp::Enqueue(message.message_identifier));
+				}
 			}
 		}
 
@@ -153,7 +155,7 @@ impl MatrixService {
 	fn ensure_message_queue(
 		&mut self,
 		queue_identifier: QueueIdentifier,
-		messages: HashMap<MessageIdentifier, OutgoingMessage>,
+		messages: HashMap<MessageIdentifier, Vec<OutgoingMessage>>,
 	) {
 		if let None = self.messages.get(&queue_identifier) {
 			let (queue, sender) =
@@ -170,26 +172,27 @@ impl MatrixService {
 		loop {
 			select! {
 				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
-				messages = self.client.get_new_messages().fuse() => {
+				incoming_messages = self.client.get_new_messages().fuse() => {
 					if let Err(e) = self.matrix_storage.set_sync_token(self.client.get_sync_token()) {
 						error!("Could not store matrix sync token: {:?}", e);
 					}
 
-					let messages = match messages {
-						Ok(messages) => messages,
+					let incoming_messages = match incoming_messages {
+						Ok(incoming_messages) => incoming_messages,
 						Err(e) => {
 							error!("Sync error: {:?}", e);
 							continue;
 						}
 					};
 
-					for message in messages {
-						if let MessageInner::Processed(_) = message.inner.clone() {
+					for incoming_message in incoming_messages {
+						trace!(message = "Incoming message", message_identifier = incoming_message.message_identifier, msg_type = incoming_message.type_name());
+						if matches!(incoming_message.inner, MessageInner::Processed(_)) || matches!(incoming_message.inner, MessageInner::WithdrawConfirmation(_)) {
 							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
 							for queue_identifier in queues {
-								self.inplace_delete_message_queue(message.clone(), &queue_identifier);
+								self.inplace_delete_message_queue(incoming_message.clone(), &queue_identifier);
 							}
-						} else if let MessageInner::Delivered(inner) = message.inner.clone() {
+						} else if let MessageInner::Delivered(inner) = incoming_message.inner.clone() {
 							let sender = match signing::recover(&inner.bytes_to_sign(), &inner.signature.0) {
 								Ok(sender) => sender,
 								Err(e) => {
@@ -197,82 +200,65 @@ impl MatrixService {
 									continue
 								}
 							};
-							self.inplace_delete_message_queue(message.clone(), &QueueIdentifier {
+							self.inplace_delete_message_queue(incoming_message.clone(), &QueueIdentifier {
 								recipient: sender,
 								canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 							});
 						}
-						if let Err(e) = message_handler.handle(message).await {
-							error!(message = "Error handling message", error = format!("{:?}", e));
-						}
+						let _ = message_handler.handle(incoming_message).await;
 					}
 				},
-				message = self.queue_receiver.next() => {
-					match message {
-						Some(TransportServiceMessage::Enqueue((queue_identifier, message))) => {
+				outgoing_message = self.queue_receiver.next() => {
+					match outgoing_message {
+						Some(TransportServiceMessage::Enqueue((queue_identifier, outgoing_message))) => {
+							if matches!(outgoing_message.inner, MessageInner::Delivered(_)) {
+								self.send_messages(vec![outgoing_message]).await;
+								continue
+							}
 							trace!(
 								message = "Enqueue message",
-								msg_type = message.type_name(),
-								message_identifier = message.message_identifier,
+								msg_type = outgoing_message.type_name(),
+								message_identifier = outgoing_message.message_identifier,
 								queue_id = queue_identifier.to_string(),
 							);
 							self.ensure_message_queue(queue_identifier.clone(), HashMap::new());
 							let queue = self.messages
 								.get_mut(&queue_identifier)
 								.expect("Queue should have been created before.");
-							let _ = queue
+							if let Err(e) = queue
 								.op_sender
-								.send(QueueOp::Enqueue(message.message_identifier));
-							queue.messages.insert(message.message_identifier, message);
-							self.store_messages();
-						},
-						Some(TransportServiceMessage::Dequeue((queue_identifier, message_identifier))) => {
-							if let Some(queue_identifier) = queue_identifier {
-								if let Some(queue_info) = self.messages.get_mut(&queue_identifier) {
-									trace!(message = "Dequeue message", message_identifier = message_identifier, queue_id = queue_identifier.to_string());
-									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
-									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
+								.send(QueueOp::Enqueue(outgoing_message.message_identifier)) {
+									error!(
+										message = "Failed to enqueue message for sending",
+										message_identifier = outgoing_message.message_identifier,
+										error = format!("{:?}", e)
+									);
 								}
-							} else {
-								for (queue_identifier, queue_info) in self.messages.iter_mut() {
-									trace!(message = "Dequeue message", message_identifier = message_identifier, queue_id = queue_identifier.to_string());
-									let _ = queue_info.op_sender.send(QueueOp::Dequeue(message_identifier));
-									queue_info.messages.retain(|_, msg| msg.message_identifier != message_identifier);
-								}
+
+							queue.messages
+								.entry(outgoing_message.message_identifier)
+								.or_insert(vec![]).push(outgoing_message.clone());
+
+							if matches!(outgoing_message.inner, MessageInner::Processed(_)) {
+								self.send_messages(vec![outgoing_message]).await;
 							}
+
 							self.store_messages();
 						},
 						Some(TransportServiceMessage::Send(message_identifier)) => {
 							let messages_by_identifier: Vec<OutgoingMessage> = self.messages
 								.values()
-								.filter_map(|queue_info| {
-									Some(queue_info
-										.messages
-										.values()
-										.filter(|m| m.message_identifier == message_identifier)
-										.cloned()
-										.collect::<Vec<_>>())
+								.map(|queue_info| {
+									queue_info
+										 .messages
+										 .values()
+										 .map(|messages| messages.iter().filter(|m| m.message_identifier == message_identifier).cloned().collect::<Vec<OutgoingMessage>>())
+										 .flatten()
+										 .collect::<Vec<OutgoingMessage>>()
 								})
 								.flatten()
 								.collect();
-							for message in messages_by_identifier {
-								if let MessageInner::Delivered(_) = message.inner.clone() {
-									let queue_identifier = &QueueIdentifier {
-										recipient: message.recipient,
-										canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-									};
-									if let Some(queue) = self.messages.get_mut(queue_identifier) {
-										queue.messages.remove_entry(&message.message_identifier);
-									}
-								}
-								trace!(
-									message = "Sending message",
-									message_identifier = message.message_identifier,
-									msg_type = message.type_name(),
-									recipient = message.recipient.checksum()
-								);
-								self.send(message).await;
-							}
+							self.send_messages(messages_by_identifier).await;
 						},
 						Some(TransportServiceMessage::Broadcast(message)) => {
 							let (message_json, device_id) = match message.inner {
@@ -339,6 +325,18 @@ impl MatrixService {
 		}
 	}
 
+	async fn send_messages(&self, messages: Vec<OutgoingMessage>) {
+		for message in messages {
+			trace!(
+				message = "Sending message",
+				message_identifier = message.message_identifier,
+				msg_type = message.type_name(),
+				recipient = message.recipient.checksum()
+			);
+			self.send(message).await;
+		}
+	}
+
 	async fn send(&self, message: OutgoingMessage) {
 		if let Err(e) = self.client.send(message.clone(), message.recipient_metadata).await {
 			error!("Could not send message {:?}", e);
@@ -346,7 +344,7 @@ impl MatrixService {
 	}
 
 	fn store_messages(&self) {
-		let messages: HashMap<String, HashMap<MessageIdentifier, OutgoingMessage>> = self
+		let messages: HashMap<String, HashMap<MessageIdentifier, Vec<OutgoingMessage>>> = self
 			.messages
 			.iter()
 			.map(|(queue_identifier, queue_info)| {
@@ -384,41 +382,58 @@ impl MatrixService {
 			return
 		}
 
-		for (outgoing_message_identifier, outgoing_message) in queue.messages.clone().iter() {
-			// A withdraw request is only confirmed by a withdraw confirmation.
-			// This is done because Processed is not an indicator that the partner has
-			// processed and **accepted** our withdraw request. Receiving
-			// `Processed` here would cause the withdraw request to be removed
-			// from the queue although the confirmation may have not been sent.
-			// This is avoided by waiting for the confirmation before removing
-			// the withdraw request.
-			if let MessageInner::WithdrawRequest(_) = outgoing_message.inner {
-				if !matches!(incoming_message.inner, MessageInner::WithdrawConfirmation(_)) {
-					continue
+		for (outgoing_message_identifier, outgoing_messages) in queue.messages.clone().iter() {
+			for outgoing_message in outgoing_messages {
+				// A withdraw request is only confirmed by a withdraw confirmation.
+				// This is done because Processed is not an indicator that the partner has
+				// processed and **accepted** our withdraw request. Receiving
+				// `Processed` here would cause the withdraw request to be removed
+				// from the queue although the confirmation may have not been sent.
+				// This is avoided by waiting for the confirmation before removing
+				// the withdraw request.
+				if let MessageInner::WithdrawRequest(ref request) = outgoing_message.inner {
+					if let MessageInner::WithdrawConfirmation(ref confirmation) =
+						incoming_message.inner
+					{
+						if request.message_identifier != confirmation.message_identifier {
+							continue
+						}
+					}
 				}
-			}
 
-			let incoming_message_identifier = match &incoming_message.inner {
-				MessageInner::Delivered(inner) => inner.delivered_message_identifier,
-				MessageInner::Processed(inner) => inner.message_identifier,
-				MessageInner::SecretRequest(inner) => inner.message_identifier,
-				MessageInner::SecretReveal(inner) => inner.message_identifier,
-				MessageInner::LockExpired(inner) => inner.message_identifier,
-				MessageInner::Unlock(inner) => inner.message_identifier,
-				MessageInner::WithdrawRequest(inner) => inner.message_identifier,
-				MessageInner::WithdrawConfirmation(inner) => inner.message_identifier,
-				MessageInner::WithdrawExpired(inner) => inner.message_identifier,
-				_ => 0,
-			};
-			if outgoing_message_identifier == &incoming_message_identifier {
-				trace!(
-					message = "Poping message from queue",
-					incoming_message = incoming_message.type_name(),
-					outgoing_message = outgoing_message.type_name(),
-					message_identifier = outgoing_message_identifier,
-					queue = queue_id.to_string(),
-				);
-				queue.messages.remove_entry(&incoming_message_identifier);
+				let incoming_message_identifier = match &incoming_message.inner {
+					MessageInner::Delivered(inner) => inner.delivered_message_identifier,
+					MessageInner::Processed(inner) => inner.message_identifier,
+					// MessageInner::SecretRequest(inner) => inner.message_identifier,
+					// MessageInner::SecretReveal(inner) => inner.message_identifier,
+					// MessageInner::LockExpired(inner) => inner.message_identifier,
+					// MessageInner::Unlock(inner) => inner.message_identifier,
+					// MessageInner::WithdrawExpired(inner) => inner.message_identifier,
+					// MessageInner::WithdrawRequest(inner) => inner.message_identifier,
+					MessageInner::WithdrawConfirmation(inner) => inner.message_identifier,
+					_ => 0,
+				};
+				if outgoing_message_identifier == &incoming_message_identifier {
+					trace!(
+						message = "Poping message from queue",
+						incoming_message = incoming_message.type_name(),
+						outgoing_message = outgoing_message.type_name(),
+						message_identifier = outgoing_message_identifier,
+						queue = queue_id.to_string(),
+					);
+					queue.messages.remove_entry(&incoming_message_identifier);
+
+					if let Err(e) =
+						queue.op_sender.send(QueueOp::Dequeue(incoming_message_identifier))
+					{
+						error!(
+							message = "Failed to dequeue message",
+							queue_identifier = queue_id.to_string(),
+							message_identifier = incoming_message_identifier,
+							error = format!("{:?}", e)
+						);
+					}
+				}
 			}
 		}
 	}
