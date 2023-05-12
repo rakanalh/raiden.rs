@@ -701,7 +701,7 @@ impl EventHandler {
 							return
 						},
 						Err(e) => {
-							error!("Channel settle: storage error {}", e);
+							error!("Channel batch unlock: storage error {}", e);
 							return
 						},
 					};
@@ -770,7 +770,7 @@ impl EventHandler {
 							return
 						},
 						Err(e) => {
-							error!("Channel settle: storage error {}", e);
+							error!("Channel batch unlock: storage error {}", e);
 							return
 						},
 					};
