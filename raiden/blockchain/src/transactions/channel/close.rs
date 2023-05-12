@@ -115,7 +115,7 @@ where
 			params.additional_hash,
 			canonical_identifier.clone(),
 			MessageTypeId::BalanceProof,
-			params.closing_signature.clone(),
+			params.non_closing_signature.clone(),
 		);
 
 		let our_recovered_address = recover(&our_signed_data.0, &params.closing_signature.0)
