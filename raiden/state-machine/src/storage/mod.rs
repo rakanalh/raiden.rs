@@ -285,7 +285,7 @@ impl StateStorage {
 		let mut query_values: Vec<&dyn ToSql> = vec![];
 		let mut it = criteria.iter().enumerate().peekable();
 		while let Some((i, (field, value))) = it.next() {
-			where_cond.push_str(&format!("{}=?{}", field, i + 1));
+			where_cond.push_str(&format!("json_extract(data, '$.{}')=?{}", field, i + 1));
 			query_values.push(value);
 			if it.peek().is_some() {
 				where_cond.push_str(" AND ");
@@ -349,7 +349,7 @@ impl StateStorage {
 		let mut query_values: Vec<&dyn ToSql> = vec![];
 		let mut it = criteria.iter().enumerate().peekable();
 		while let Some((i, (field, value))) = it.next() {
-			where_cond.push_str(&format!("{}=?{}", field, i + 1));
+			where_cond.push_str(&format!("json_extract(data, '$.{}')=?{}", field, i + 1));
 			query_values.push(value);
 			if it.peek().is_some() {
 				where_cond.push_str(" AND ");
@@ -474,7 +474,7 @@ impl StateStorage {
 			where_cond.push_str("(");
 			let mut it = group.iter().enumerate().peekable();
 			while let Some((i, (field, value))) = it.next() {
-				where_cond.push_str(&format!("{}=?{}", field, i + 1));
+				where_cond.push_str(&format!("json_extract(data, '$.{}')=?{}", field, i + 1));
 				query_values.push(value);
 				if it.peek().is_some() {
 					where_cond.push_str(" AND ");
@@ -569,7 +569,7 @@ impl StateStorage {
 			where_cond.push_str("(");
 			let mut it = group.iter().enumerate().peekable();
 			while let Some((i, (field, value))) = it.next() {
-				where_cond.push_str(&format!("{}=?{}", field, i + 1));
+				where_cond.push_str(&format!("json_extract(data, '$.{}')=?{}", field, i + 1));
 				query_values.push(value);
 				if it.peek().is_some() {
 					where_cond.push_str(" AND ");
