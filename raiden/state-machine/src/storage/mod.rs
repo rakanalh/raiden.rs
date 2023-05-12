@@ -308,7 +308,7 @@ impl StateStorage {
 
 		let row = match rows.next().map_err(StorageError::Sql)? {
 			Some(row) => row,
-			None => return Err(StorageError::Other("Event not found")),
+			None => return Err(StorageError::Other("State change not found")),
 		};
 
 		let identifier: StorageID =
@@ -372,7 +372,7 @@ impl StateStorage {
 
 		let row = match rows.next().map_err(StorageError::Sql)? {
 			Some(row) => row,
-			None => return Err(StorageError::Other("Event not found")),
+			None => return Err(StorageError::Other("State change not found")),
 		};
 
 		let identifier: StorageID =
