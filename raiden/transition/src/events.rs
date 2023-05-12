@@ -1004,6 +1004,9 @@ impl EventHandler {
 				};
 				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 			},
+			Event::ClearMessages(queue_identifier) => {
+				let _ = self.transport.send(TransportServiceMessage::Clear(queue_identifier));
+			},
 			Event::ErrorInvalidActionCoopSettle(e) => {
 				error!(message = "Invalid action CoopSettle", reason = e.reason);
 			},

@@ -75,6 +75,7 @@ pub enum Event {
 	ErrorUnlockClaimFailed(ErrorUnlockClaimFailed),
 	ErrorUnlockFailed(ErrorUnlockFailed),
 	ErrorUnexpectedReveal(ErrorUnexpectedReveal),
+	ClearMessages(QueueIdentifier),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]

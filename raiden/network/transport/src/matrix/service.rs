@@ -325,6 +325,12 @@ impl MatrixService {
 							if let Err(e) = self.client.broadcast(json, DeviceIdOrAllDevices::DeviceId(device_id.into())).await {
 								error!("Could not broadcast message {:?}", e);
 							};
+						},
+						Some(TransportServiceMessage::Clear(queue_identifier)) => {
+							if let Some(queue_info) = self.messages.get(&queue_identifier) {
+								let _ = queue_info.op_sender.send(QueueOp::Stop);
+							}
+							self.messages.remove(&queue_identifier);
 						}
 						_ => {}
 					}

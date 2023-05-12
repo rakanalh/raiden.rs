@@ -84,6 +84,7 @@ impl TimeoutGenerator {
 pub(crate) enum QueueOp {
 	Enqueue(MessageIdentifier),
 	Dequeue(MessageIdentifier),
+	Stop,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -120,15 +121,6 @@ impl RetryMessageQueue {
 		)
 	}
 
-	fn process_queue_message(&mut self, queue_message: QueueOp) {
-		match queue_message {
-			QueueOp::Enqueue(message_identifier) => {
-				self.enqueue(message_identifier);
-			},
-			QueueOp::Dequeue(message_identifier) => self.dequeue(message_identifier),
-		}
-	}
-
 	fn enqueue(&mut self, message_identifier: MessageIdentifier) {
 		if self.queue.iter().any(|m| m.message_identifier == message_identifier) {
 			return
@@ -154,7 +146,15 @@ impl RetryMessageQueue {
 		loop {
 			select! {
 				Some(queue_message) = self.channel_receiver.recv() => {
-					self.process_queue_message(queue_message);
+					match queue_message {
+						QueueOp::Enqueue(message_identifier) => {
+							self.enqueue(message_identifier);
+						},
+						QueueOp::Dequeue(message_identifier) => self.dequeue(message_identifier),
+						QueueOp::Stop => {
+							return;
+						}
+					}
 				}
 				_ = &mut delay.next() => {
 					if self.queue.is_empty() {

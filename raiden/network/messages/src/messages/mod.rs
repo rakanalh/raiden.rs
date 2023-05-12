@@ -57,6 +57,7 @@ pub enum TransportServiceMessage {
 	Broadcast(OutgoingMessage),
 	UpdateServiceAddresses(Address, U256),
 	ExpireServiceAddresses(U256, BlockNumber),
+	Clear(QueueIdentifier),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
