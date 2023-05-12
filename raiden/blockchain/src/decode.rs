@@ -6,7 +6,6 @@ use raiden_primitives::{
 	traits::Checksum,
 	types::{
 		Address,
-		BlockHash,
 		BlockNumber,
 		CanonicalIdentifier,
 		Locksroot,
@@ -40,10 +39,7 @@ use raiden_state_machine::{
 use thiserror::Error;
 use tracing::trace;
 
-use super::{
-	events::Event,
-	proxies::ProxyManager,
-};
+use super::events::Event;
 
 #[derive(Error, Debug, Display)]
 pub struct DecodeError(String);
@@ -51,7 +47,6 @@ pub struct DecodeError(String);
 pub type Result<T> = std::result::Result<T, DecodeError>;
 
 pub struct EventDecoder {
-	proxy_manager: Arc<ProxyManager>,
 	mediation_config: MediationFeeConfig,
 	default_reveal_timeout: RevealTimeout,
 }
@@ -59,10 +54,9 @@ pub struct EventDecoder {
 impl EventDecoder {
 	pub fn new(
 		mediation_config: MediationFeeConfig,
-		proxy_manager: Arc<ProxyManager>,
 		default_reveal_timeout: RevealTimeout,
 	) -> Self {
-		Self { proxy_manager, mediation_config, default_reveal_timeout }
+		Self { mediation_config, default_reveal_timeout }
 	}
 
 	pub async fn as_state_change(
@@ -459,27 +453,94 @@ impl EventDecoder {
 					event.name,
 				))),
 		};
+		let participant1 = match event.data.get("participant1") {
+			Some(Token::Address(participant)) => participant.clone(),
+			_ =>
+				return Err(DecodeError(format!("{} event arg `participant1` invalid", event.name,))),
+		};
+		let participant2 = match event.data.get("participant2") {
+			Some(Token::Address(participant)) => participant.clone(),
+			_ =>
+				return Err(DecodeError(format!("{} event arg `participant2` invalid", event.name,))),
+		};
+		let amount_participant1 = match event.data.get("participant1_amount") {
+			Some(Token::Uint(amount)) => amount.clone(),
+			_ =>
+				return Err(DecodeError(format!(
+					"{} event has an invalid participant1_amount",
+					event.name,
+				))),
+		};
+		let amount_participant2 = match event.data.get("participant2_amount") {
+			Some(Token::Uint(amount)) => amount.clone(),
+			_ =>
+				return Err(DecodeError(format!(
+					"{} event has an invalid participant2_amount",
+					event.name,
+				))),
+		};
+		let locksroot_participant1 = match event.data.get("participant1_locksroot") {
+			Some(Token::FixedBytes(locksroot)) => Locksroot::from_slice(locksroot),
+			_ =>
+				return Err(DecodeError(format!(
+					"{} event has an invalid participant1_locksroot",
+					event.name,
+				))),
+		};
+		let locksroot_participant2 = match event.data.get("participant2_locksroot") {
+			Some(Token::FixedBytes(locksroot)) => Locksroot::from_slice(locksroot),
+			_ =>
+				return Err(DecodeError(format!(
+					"{} event has an invalid participant2_locksroot",
+					event.name,
+				))),
+		};
 
-		let channel_state = match views::get_channel_by_canonical_identifier(
+		if views::get_channel_by_canonical_identifier(
 			chain_state,
 			CanonicalIdentifier {
 				chain_identifier: chain_state.chain_id.clone(),
 				token_network_address,
 				channel_identifier,
 			},
-		) {
-			Some(channel_state) => channel_state,
-			None => {
-				trace!(
-					message = "Ignore channel settled",
-					channel_identifier = channel_identifier.to_string()
-				);
-				return Ok(None)
-			},
-		};
+		)
+		.is_none()
+		{
+			trace!(
+				message = "Ignore channel settled",
+				channel_identifier = channel_identifier.to_string()
+			);
+			return Ok(None)
+		}
 
-		let (our_onchain_locksroot, partner_onchain_locksroot) =
-			self.get_onchain_locksroot(channel_state, chain_state.block_hash).await?;
+		let (
+			our_onchain_locksroot,
+			our_transferred_amount,
+			partner_onchain_locksroot,
+			partner_transferred_amount,
+		) = if participant1 == chain_state.our_address {
+			(
+				locksroot_participant1,
+				amount_participant1,
+				locksroot_participant2,
+				amount_participant2,
+			)
+		} else if participant2 == chain_state.our_address {
+			(
+				locksroot_participant2,
+				amount_participant2,
+				locksroot_participant1,
+				amount_participant1,
+			)
+		} else {
+			trace!(
+				message = "Ingore channel settled",
+				channel_identifier = channel_identifier.to_string(),
+				participant1 = participant1.checksum(),
+				participant2 = participant2.checksum()
+			);
+			return Ok(None)
+		};
 
 		let channel_settled = ContractReceiveChannelSettled {
 			transaction_hash: Some(event.transaction_hash),
@@ -492,6 +553,8 @@ impl EventDecoder {
 			},
 			our_onchain_locksroot,
 			partner_onchain_locksroot,
+			our_transferred_amount,
+			partner_transferred_amount,
 		};
 		Ok(Some(channel_settled.into()))
 	}
@@ -652,32 +715,5 @@ impl EventDecoder {
 			block_hash: event.block_hash,
 		};
 		Ok(Some(StateChange::ContractReceiveChannelBatchUnlock(channel_unlocked)))
-	}
-
-	async fn get_onchain_locksroot(
-		&self,
-		channel_state: &ChannelState,
-		block: BlockHash,
-	) -> Result<(Locksroot, Locksroot)> {
-		let payment_channel = self
-			.proxy_manager
-			.payment_channel(&channel_state)
-			.await
-			.map_err(|e| DecodeError(format!("{:?}", e)))?;
-		let participants_details = payment_channel
-			.token_network
-			.participants_details(
-				channel_state.canonical_identifier.channel_identifier,
-				channel_state.our_state.address,
-				channel_state.partner_state.address,
-				Some(block),
-			)
-			.await
-			.map_err(|e| DecodeError(format!("{:?}", e)))?;
-
-		Ok((
-			participants_details.our_details.locksroot,
-			participants_details.partner_details.locksroot,
-		))
 	}
 }
