@@ -60,8 +60,8 @@ use raiden_state_machine::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{
+	debug,
 	error,
-	trace,
 };
 use web3::signing::Key;
 
@@ -98,7 +98,7 @@ impl MessageHandler {
 	}
 
 	pub async fn handle(&mut self, message: IncomingMessage) -> Result<(), String> {
-		trace!(message = "Received message", msg_type = message.type_name());
+		debug!(message = "Received message", msg_type = message.type_name());
 		let state_changes = self.convert(message).await?;
 		let transition_service = self.transition_service.clone();
 		tokio::spawn(async move {

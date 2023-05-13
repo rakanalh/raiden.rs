@@ -33,7 +33,7 @@ use tokio::sync::{
 	Mutex,
 	RwLock,
 };
-use tracing::trace;
+use tracing::debug;
 use web3::{
 	contract::{
 		Contract,
@@ -138,7 +138,7 @@ where
 		settle_timeout: SettleTimeout,
 		block: BlockHash,
 	) -> Result<ChannelIdentifier> {
-		trace!(message = "Calling create channel on-chain", partner = partner.checksum());
+		debug!(message = "Calling create channel on-chain", partner = partner.checksum());
 		let mut channel_operations_lock = self.channel_operations_lock.write().await;
 		let _partner_lock_guard = match channel_operations_lock.get(&partner) {
 			Some(mutex) => mutex.lock().await,
@@ -177,7 +177,7 @@ where
 		closing_signature: Signature,
 		block_hash: BlockHash,
 	) -> Result<TransactionHash> {
-		trace!(message = "Calling close channel on-chain", partner = partner.checksum());
+		debug!(message = "Calling close channel on-chain", partner = partner.checksum());
 		let close_channel_transaction = ChannelCloseTransaction {
 			web3: self.web3.clone(),
 			account: account.clone(),
@@ -209,7 +209,7 @@ where
 		total_deposit: TokenAmount,
 		block_hash: BlockHash,
 	) -> Result<()> {
-		trace!(
+		debug!(
 			message = "Calling approve and deposit on-chain",
 			partner = partner.checksum(),
 			total_deposit = total_deposit.to_string()
@@ -246,7 +246,7 @@ where
 		expiration_block: BlockExpiration,
 		block_hash: BlockHash,
 	) -> Result<()> {
-		trace!(
+		debug!(
 			message = "Calling set total withdraw on-chain",
 			participant = participant.checksum(),
 			partner = partner.checksum(),
@@ -283,7 +283,7 @@ where
 		non_closing_signature: Signature,
 		block_hash: BlockHash,
 	) -> Result<TransactionHash> {
-		trace!(message = "Calling update transfer on-chain", partner = partner.checksum());
+		debug!(message = "Calling update transfer on-chain", partner = partner.checksum());
 		let transaction = ChannelUpdateTransferTransaction {
 			web3: self.web3.clone(),
 			account,
@@ -320,7 +320,7 @@ where
 		partner_locksroot: Locksroot,
 		block_hash: BlockHash,
 	) -> Result<TransactionHash> {
-		trace!(message = "Calling settle channel on-chain", partner = partner_address.checksum());
+		debug!(message = "Calling settle channel on-chain", partner = partner_address.checksum());
 		let settle_transaction = ChannelSettleTransaction {
 			web3: self.web3.clone(),
 			account,
@@ -354,7 +354,7 @@ where
 		pending_locks: PendingLocksState,
 		block_hash: BlockHash,
 	) -> Result<TransactionHash> {
-		trace!(
+		debug!(
 			message = "Calling unlock channel on-chain",
 			sender = sender.checksum(),
 			receiver = receiver.checksum()
@@ -387,7 +387,7 @@ where
 		withdraw_initiator: WithdrawInput,
 		block_hash: BlockHash,
 	) -> Result<TransactionHash> {
-		trace!(
+		debug!(
 			message = "Calling cooperative settle channel on-chain",
 			partner = withdraw_partner.initiator.checksum()
 		);

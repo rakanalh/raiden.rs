@@ -41,6 +41,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{
+	debug,
 	error,
 	trace,
 };
@@ -186,7 +187,7 @@ impl MatrixService {
 					};
 
 					for incoming_message in incoming_messages {
-						trace!(message = "Incoming message", message_identifier = incoming_message.message_identifier, msg_type = incoming_message.type_name());
+						debug!(message = "Incoming message", message_identifier = incoming_message.message_identifier, msg_type = incoming_message.type_name());
 						if matches!(incoming_message.inner, MessageInner::Processed(_)) || matches!(incoming_message.inner, MessageInner::WithdrawConfirmation(_)) {
 							let queues: Vec<QueueIdentifier> = self.messages.keys().cloned().collect();
 							for queue_identifier in queues {
@@ -298,7 +299,7 @@ impl MatrixService {
 								}
 							};
 
-							trace!(message = "Broadcast message", msg_type = message.type_name());
+							debug!(message = "Broadcast message", msg_type = message.type_name());
 
 							let content = MessageContent { msgtype: MessageType::Text.to_string(), body: message_json };
 							let json = match serde_json::to_string(&content) {
@@ -327,7 +328,7 @@ impl MatrixService {
 
 	async fn send_messages(&self, messages: Vec<OutgoingMessage>) {
 		for message in messages {
-			trace!(
+			debug!(
 				message = "Sending message",
 				message_identifier = message.message_identifier,
 				msg_type = message.type_name(),

@@ -37,7 +37,10 @@ use raiden_state_machine::{
 	views,
 };
 use thiserror::Error;
-use tracing::trace;
+use tracing::{
+	debug,
+	trace,
+};
 
 use super::events::Event;
 
@@ -65,7 +68,7 @@ impl EventDecoder {
 		chain_state: &ChainState,
 		storage: Arc<StateStorage>,
 	) -> Result<Option<StateChange>> {
-		trace!(message = "Decoding blockchain event", name = event.name);
+		debug!(message = "Decoding blockchain event", name = event.name);
 		match event.name.as_ref() {
 			"TokenNetworkCreated" => self.token_network_created(event),
 			"ChannelOpened" => self.channel_opened(chain_state, event),
