@@ -78,6 +78,55 @@ pub enum Event {
 	ClearMessages(QueueIdentifier),
 }
 
+impl Event {
+	pub fn type_name(&self) -> &'static str {
+		match self {
+			Event::ContractSendChannelClose(_) => "ContractSendChannelClose",
+			Event::ContractSendChannelCoopSettle(_) => "ContractSendChannelCoopSettle",
+			Event::ContractSendChannelWithdraw(_) => "ContractSendChannelWithdraw",
+			Event::ContractSendChannelSettle(_) => "ContractSendChannelSettle",
+			Event::ContractSendChannelUpdateTransfer(_) => "ContractSendChannelUpdateTransfer",
+			Event::ContractSendChannelBatchUnlock(_) => "ContractSendChannelBatchUnlock",
+			Event::ContractSendSecretReveal(_) => "ContractSendSecretReveal",
+			Event::PaymentReceivedSuccess(_) => "PaymentReceivedSuccess",
+			Event::PaymentSentSuccess(_) => "PaymentSentSuccess",
+			Event::SendWithdrawExpired(_) => "SendWithdrawExpired",
+			Event::SendWithdrawRequest(_) => "SendWithdrawRequest",
+			Event::SendWithdrawConfirmation(_) => "SendWithdrawConfirmation",
+			Event::SendLockedTransfer(_) => "SendLockedTransfer",
+			Event::SendLockExpired(_) => "SendLockExpired",
+			Event::SendSecretRequest(_) => "SendSecretRequest",
+			Event::SendSecretReveal(_) => "SendSecretReveal",
+			Event::SendUnlock(_) => "SendUnlock",
+			Event::SendPFSUpdate(_) => "SendPFSUpdate",
+			Event::SendMSUpdate(_) => "SendMSUpdate",
+			Event::SendProcessed(_) => "SendProcessed",
+			Event::UnlockSuccess(_) => "UnlockSuccess",
+			Event::UnlockClaimSuccess(_) => "UnlockClaimSuccess",
+			Event::UpdatedServicesAddresses(_) => "UpdatedServicesAddresses",
+			Event::ExpireServicesAddresses(_) => "ExpireServicesAddresses",
+			Event::ErrorInvalidActionWithdraw(_) => "ErrorInvalidActionWithdraw",
+			Event::ErrorInvalidActionCoopSettle(_) => "ErrorInvalidActionCoopSettle",
+			Event::ErrorInvalidActionSetRevealTimeout(_) => "ErrorInvalidActionSetRevealTimeout",
+			Event::ErrorInvalidSecretRequest(_) => "ErrorInvalidSecretRequest",
+			Event::ErrorInvalidReceivedLockedTransfer(_) => "ErrorInvalidReceivedLockedTransfer",
+			Event::ErrorInvalidReceivedLockExpired(_) => "ErrorInvalidReceivedLockExpired",
+			Event::ErrorInvalidReceivedTransferRefund(_) => "ErrorInvalidReceivedTransferRefund",
+			Event::ErrorInvalidReceivedUnlock(_) => "ErrorInvalidReceivedUnlock",
+			Event::ErrorInvalidReceivedWithdrawRequest(_) => "ErrorInvalidReceivedWithdrawRequest",
+			Event::ErrorInvalidReceivedWithdrawConfirmation(_) =>
+				"ErrorInvalidReceivedWithdrawConfirmation",
+			Event::ErrorInvalidReceivedWithdrawExpired(_) => "ErrorInvalidReceivedWithdrawExpired",
+			Event::ErrorPaymentSentFailed(_) => "ErrorPaymentSentFailed",
+			Event::ErrorRouteFailed(_) => "ErrorRouteFailed",
+			Event::ErrorUnlockClaimFailed(_) => "ErrorUnlockClaimFailed",
+			Event::ErrorUnlockFailed(_) => "ErrorUnlockFailed",
+			Event::ErrorUnexpectedReveal(_) => "ErrorUnexpectedReveal",
+			Event::ClearMessages(_) => "ClearMessages",
+		}
+	}
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum SendMessageEvent {
 	SendLockExpired(SendLockExpired),

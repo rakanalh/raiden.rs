@@ -83,6 +83,50 @@ pub enum StateChange {
 	UpdateServicesAddresses(UpdateServicesAddresses),
 }
 
+impl StateChange {
+	pub fn type_name(&self) -> &'static str {
+		match self {
+			StateChange::Block(_) => "Block",
+			StateChange::ActionInitChain(_) => "ActionInitChain",
+			StateChange::ActionInitInitiator(_) => "ActionInitInitiator",
+			StateChange::ActionInitMediator(_) => "ActionInitMediator",
+			StateChange::ActionInitTarget(_) => "ActionInitTarget",
+			StateChange::ActionChannelClose(_) => "ActionChannelClose",
+			StateChange::ActionChannelCoopSettle(_) => "ActionChannelCoopSettle",
+			StateChange::ActionChannelSetRevealTimeout(_) => "ActionChannelSetRevealTimeout",
+			StateChange::ActionChannelWithdraw(_) => "ActionChannelWithdraw",
+			StateChange::ActionTransferReroute(_) => "ActionTransferReroute",
+			StateChange::ActionCancelPayment(_) => "ActionCancelPayment",
+			StateChange::ContractReceiveTokenNetworkRegistry(_) =>
+				"ContractReceiveTokenNetworkRegistry",
+			StateChange::ContractReceiveTokenNetworkCreated(_) =>
+				"ContractReceiveTokenNetworkCreated",
+			StateChange::ContractReceiveChannelOpened(_) => "ContractReceiveChannelOpened",
+			StateChange::ContractReceiveChannelClosed(_) => "ContractReceiveChannelClosed",
+			StateChange::ContractReceiveChannelSettled(_) => "ContractReceiveChannelSettled",
+			StateChange::ContractReceiveChannelDeposit(_) => "ContractReceiveChannelDeposit",
+			StateChange::ContractReceiveChannelWithdraw(_) => "ContractReceiveChannelWithdraw",
+			StateChange::ContractReceiveChannelBatchUnlock(_) =>
+				"ContractReceiveChannelBatchUnlock",
+			StateChange::ContractReceiveSecretReveal(_) => "ContractReceiveSecretReveal",
+			StateChange::ContractReceiveRouteNew(_) => "ContractReceiveRouteNew",
+			StateChange::ContractReceiveUpdateTransfer(_) => "ContractReceiveUpdateTransfer",
+			StateChange::ReceiveDelivered(_) => "ReceiveDelivered",
+			StateChange::ReceiveProcessed(_) => "ReceiveProcessed",
+			StateChange::ReceiveTransferCancelRoute(_) => "ReceiveTransferCancelRoute",
+			StateChange::ReceiveSecretReveal(_) => "ReceiveSecretReveal",
+			StateChange::ReceiveSecretRequest(_) => "ReceiveSecretRequest",
+			StateChange::ReceiveTransferRefund(_) => "ReceiveTransferRefund",
+			StateChange::ReceiveLockExpired(_) => "ReceiveLockExpired",
+			StateChange::ReceiveUnlock(_) => "ReceiveUnlock",
+			StateChange::ReceiveWithdrawRequest(_) => "ReceiveWithdrawRequest",
+			StateChange::ReceiveWithdrawConfirmation(_) => "ReceiveWithdrawConfirmation",
+			StateChange::ReceiveWithdrawExpired(_) => "ReceiveWithdrawExpired",
+			StateChange::UpdateServicesAddresses(_) => "UpdateServicesAddresses",
+		}
+	}
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct Block {
 	pub block_number: BlockNumber,

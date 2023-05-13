@@ -7,6 +7,7 @@ use raiden_state_machine::types::{
 	PFSUpdate,
 	StateChange,
 };
+use tracing::trace;
 
 use crate::{
 	events::EventHandler,
@@ -31,8 +32,16 @@ impl Transitioner {
 	pub async fn transition(&self, state_changes: Vec<StateChange>) -> Result<(), String> {
 		let mut raiden_events = vec![];
 		for state_change in state_changes.clone() {
+			trace!(message = "Transition", state_change = state_change.type_name());
 			let events =
 				self.state_manager.write().transition(state_change.clone()).map_err(|e| e.msg)?;
+			for event in events.iter() {
+				trace!(
+					message = "Resulting event from state change",
+					state_change = state_change.type_name(),
+					event = event.type_name()
+				);
+			}
 			raiden_events.extend(events);
 		}
 		self.trigger_state_change_effects(state_changes, raiden_events).await;
