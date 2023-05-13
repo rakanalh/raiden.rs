@@ -134,7 +134,7 @@ pub async fn wait_for_close(
 					))),
 			};
 			let channel_status = channel_state.status();
-			if channel_status != ChannelStatus::Opened && channel_status != ChannelStatus::Closing {
+			if channel_status == ChannelStatus::Opened && channel_status == ChannelStatus::Closing {
 				all_closed = false;
 			}
 		}
