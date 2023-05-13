@@ -22,6 +22,7 @@ use routerify::{
 	Router,
 	RouterService,
 };
+use tokio::sync::mpsc::Sender;
 use tracing::{
 	error,
 	info,
@@ -34,8 +35,13 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-	pub fn new(socket: SocketAddr, raiden: Arc<Raiden>, api: Arc<Api>) -> Self {
-		let router = router(raiden, api);
+	pub fn new(
+		socket: SocketAddr,
+		raiden: Arc<Raiden>,
+		api: Arc<Api>,
+		stop_sender: Sender<bool>,
+	) -> Self {
+		let router = router(raiden, api, stop_sender);
 
 		// Create a Service from the router above to handle incoming requests.
 		let service = RouterService::new(router).unwrap();
@@ -73,7 +79,7 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<B
 		.unwrap()
 }
 
-fn router(raiden: Arc<Raiden>, api: Arc<Api>) -> Router<Body, Error> {
+fn router(raiden: Arc<Raiden>, api: Arc<Api>, stop_sender: Sender<bool>) -> Router<Body, Error> {
 	Router::builder()
 		// Specify the state data which will be available to every route handlers,
 		// error handler and middlewares.
@@ -83,6 +89,7 @@ fn router(raiden: Arc<Raiden>, api: Arc<Api>) -> Router<Body, Error> {
 		.data(raiden.state_manager.clone())
 		.data(raiden.contracts_manager.clone())
 		.data(raiden.proxy_manager.clone())
+		.data(stop_sender)
 		.get("/api/v1/address", endpoints::address)
 		.get("/api/v1/contracts", endpoints::contracts)
 		.get("/api/v1/channels", endpoints::channels)

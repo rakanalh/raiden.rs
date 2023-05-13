@@ -22,6 +22,7 @@ use raiden_state_machine::types::TransferTask;
 use raiden_transition::manager::StateManager;
 use routerify::ext::RequestExt;
 use serde::de::DeserializeOwned;
+use tokio::sync::mpsc::Sender;
 use web3::transports::Http;
 
 use super::{
@@ -43,6 +44,10 @@ pub(crate) fn state_manager(req: &Request<Body>) -> Arc<RwLock<StateManager>> {
 
 pub(crate) fn contracts_manager(req: &Request<Body>) -> Arc<ContractsManager> {
 	req.data::<Arc<ContractsManager>>().unwrap().clone()
+}
+
+pub(crate) fn stop_sender(req: &Request<Body>) -> Sender<bool> {
+	req.data::<Sender<bool>>().unwrap().clone()
 }
 
 pub(crate) async fn body_to_params<T: DeserializeOwned>(req: Request<Body>) -> Result<T, Error> {

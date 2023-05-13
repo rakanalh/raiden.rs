@@ -55,7 +55,10 @@ use tokio::{
 		signal,
 		SignalKind,
 	},
-	sync::RwLock,
+	sync::{
+		mpsc,
+		RwLock,
+	},
 };
 use tracing::info;
 use tracing_subscriber::{
@@ -404,7 +407,8 @@ async fn main() {
 			process::exit(1);
 		},
 	};
-	let http_service = crate::http::HttpServer::new(socket, raiden, Arc::new(api));
+	let (stop_sender, mut stop_receiver) = mpsc::channel(1);
+	let http_service = crate::http::HttpServer::new(socket, raiden, Arc::new(api), stop_sender);
 
 	info!("Raiden is starting");
 
@@ -418,7 +422,11 @@ async fn main() {
 	select! {
 		_ = block_monitor_service.start().fuse() => {},
 		_ = transport_service.run(message_handler).fuse() => {},
-		_  = http_service.start().fuse() => {},
+		_ = http_service.start().fuse() => {},
+		_ = stop_receiver.recv().fuse() => {
+			println!("Raiden is stopping");
+			return
+		}
 		_ = hangup.recv().fuse() => {
 			println!("Raiden is stopping");
 			return
