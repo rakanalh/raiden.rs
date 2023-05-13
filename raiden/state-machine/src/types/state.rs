@@ -291,19 +291,19 @@ pub struct TokenNetworkGraphState {}
 #[derive(Copy, Clone, Display, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelStatus {
-	#[display(fmt = "Opened")]
+	#[display(fmt = "opened")]
 	Opened,
-	#[display(fmt = "Closing")]
+	#[display(fmt = "closing")]
 	Closing,
-	#[display(fmt = "Closed")]
+	#[display(fmt = "closed")]
 	Closed,
-	#[display(fmt = "Settling")]
+	#[display(fmt = "settling")]
 	Settling,
-	#[display(fmt = "Settled")]
+	#[display(fmt = "settled")]
 	Settled,
-	#[display(fmt = "Removed")]
+	#[display(fmt = "removed")]
 	Removed,
-	#[display(fmt = "Unusable")]
+	#[display(fmt = "unusable")]
 	Unusable,
 }
 
