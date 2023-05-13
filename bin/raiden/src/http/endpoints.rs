@@ -560,22 +560,24 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpEr
 		StatusCode::CONFLICT
 	);
 
-	if params.total_deposit.is_some() {
-		unwrap_result_or_error!(
-			api.update_channel(
-				account,
-				token_network_registry,
-				params.token_address,
-				params.partner_address,
-				None,
-				params.total_deposit,
-				None,
-				None,
-				None,
-			)
-			.await,
-			StatusCode::CONFLICT
-		);
+	if let Some(total_deposit) = params.total_deposit {
+		if !total_deposit.is_zero() {
+			unwrap_result_or_error!(
+				api.update_channel(
+					account,
+					token_network_registry,
+					params.token_address,
+					params.partner_address,
+					None,
+					params.total_deposit,
+					None,
+					None,
+					None,
+				)
+				.await,
+				StatusCode::CONFLICT
+			);
+		}
 	}
 
 	let chain_state = &state_manager.read().current_state;
