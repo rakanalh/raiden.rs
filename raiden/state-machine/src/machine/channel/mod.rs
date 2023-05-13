@@ -871,23 +871,24 @@ fn set_closed(mut channel_state: ChannelState, block_number: BlockNumber) -> Cha
 }
 
 fn handle_channel_closed(
-	channel_state: ChannelState,
+	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelClosed,
 ) -> TransitionResult {
 	let mut events = vec![];
 
+	let current_channel_status = channel_state.status();
 	let just_closed = state_change.canonical_identifier == channel_state.canonical_identifier &&
 		CHANNEL_STATES_PRIOR_TO_CLOSE
 			.to_vec()
 			.iter()
-			.position(|status| status == &channel_state.status())
+			.position(|status| status == &current_channel_status)
 			.is_some();
 
 	if just_closed {
-		let mut channel_state = set_closed(channel_state.clone(), state_change.block_number);
+		channel_state = set_closed(channel_state.clone(), state_change.block_number);
 
 		let balance_proof = match channel_state.partner_state.balance_proof {
-			Some(bp) => bp,
+			Some(ref bp) => bp,
 			None => return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] }),
 		};
 		let call_update = state_change.transaction_from != channel_state.our_state.address &&
@@ -897,7 +898,7 @@ fn handle_channel_closed(
 				channel_state.settle_timeout.saturating_add(*state_change.block_number).into();
 			let update = ContractSendChannelUpdateTransfer {
 				inner: ContractSendEventInner { triggered_by_blockhash: state_change.block_hash },
-				balance_proof,
+				balance_proof: balance_proof.clone(),
 				expiration,
 			};
 			channel_state.update_transaction = Some(TransactionExecutionStatus {
