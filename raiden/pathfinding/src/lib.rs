@@ -179,9 +179,11 @@ impl PFS {
 			current_info = self.get_pfs_info().await?;
 		}
 
+		// Lock IOU creation until we have updated the current active IOU on the PFS
+		let lock = self.iou_creation.lock().await;
+
 		let scrap_existing_iou = false;
 		for _retries in (0..MAX_PATHS_QUERY_ATTEMPT).rev() {
-			let lock = self.iou_creation.lock().await;
 			if !offered_fee.is_zero() {
 				let iou = self
 					.create_current_iou(
