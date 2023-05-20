@@ -55,6 +55,11 @@ use raiden_blockchain::{
 		ServiceRegistryProxy,
 	},
 };
+use tracing::{
+	debug,
+	info,
+	trace,
+};
 
 use crate::{
 	config::{
@@ -152,6 +157,14 @@ impl PFS {
 		value: TokenAmount,
 		pfs_wait_for_block: BlockNumber,
 	) -> Result<(Vec<PFSPath>, String), RoutingError> {
+		let offered_fee = self.pfs_config.info.price;
+		info!(
+			message = "Query PFS for paths",
+			route_from = route_from.checksum(),
+			route_to = route_to.checksum(),
+			offered_fee = offered_fee.to_string(),
+			value = value.to_string(),
+		);
 		let mut payload = PFSRequest {
 			from: route_from.checksum(),
 			to: route_to.checksum(),
@@ -159,7 +172,6 @@ impl PFS {
 			iou: None,
 			value,
 		};
-		let offered_fee = self.pfs_config.info.price;
 
 		let mut current_info = self.get_pfs_info().await?;
 		while current_info.network.confirmed_block.number < pfs_wait_for_block {
@@ -184,6 +196,10 @@ impl PFS {
 				payload.iou = Some(iou);
 			}
 
+			debug!(
+				message = "Requesting PFS paths",
+				token_network_address = token_network_address.checksum()
+			);
 			let response = self.post_pfs_paths(token_network_address, payload.clone()).await?;
 			drop(lock);
 
@@ -235,11 +251,13 @@ impl PFS {
 		scrap_existing_iou: bool,
 	) -> Result<IOU, RoutingError> {
 		if scrap_existing_iou {
+			trace!("Scrap existing IOU, create new...");
 			return self.make_iou(our_address, one_to_n_address, block_number, offered_fee).await
 		}
 
 		let latest_iou = self.get_last_iou(token_network_address, our_address).await?;
 		if let Some(latest_iou) = latest_iou {
+			debug!(message = "Fetched last IOU", last_iou = latest_iou.to_string());
 			self.update_iou(latest_iou, offered_fee, None).await
 		} else {
 			self.make_iou(our_address, one_to_n_address, block_number, offered_fee).await
@@ -276,6 +294,8 @@ impl PFS {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
 			})?;
 
+		trace!(message = "PFS response", status = response.status().to_string());
+
 		let response: PFSLastIOUResponse = if response.status() == 200 {
 			response.json().await.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
@@ -309,6 +329,13 @@ impl PFS {
 	) -> Result<IOU, RoutingError> {
 		let expiration_block = block_number + self.pfs_config.iou_timeout.into();
 
+		debug!(
+			message = "Create IOU",
+			receiver = self.pfs_config.info.payment_address.checksum(),
+			amount = offered_fee.to_string(),
+			expiration = expiration_block.to_string()
+		);
+
 		let mut iou = IOU {
 			sender: our_address,
 			receiver: self.pfs_config.info.payment_address,
@@ -328,10 +355,18 @@ impl PFS {
 		added_amount: TokenAmount,
 		expiration_block: Option<BlockExpiration>,
 	) -> Result<IOU, RoutingError> {
+		let old_amount = iou.amount;
 		iou.amount = iou.amount + added_amount;
 		if let Some(expiration_block) = expiration_block {
 			iou.expiration_block = expiration_block;
 		}
+		debug!(
+			message = "Update IOU",
+			receiver = self.pfs_config.info.payment_address.checksum(),
+			old_amount = old_amount.to_string(),
+			new_amount = iou.amount.to_string(),
+			expiration = iou.expiration_block.to_string()
+		);
 		iou.sign(self.private_key.clone()).map_err(RoutingError::Signing)?;
 		Ok(iou)
 	}
