@@ -295,7 +295,7 @@ impl MatrixService {
 								},
 								_ => {
 									// No other messages should be broadcasted
-									return
+									continue
 								}
 							};
 
