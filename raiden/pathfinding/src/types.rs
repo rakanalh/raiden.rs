@@ -6,7 +6,10 @@ use raiden_primitives::{
 		to_checksum_str,
 		u256_to_str,
 	},
-	traits::ToBytes,
+	traits::{
+		Checksum,
+		ToBytes,
+	},
 	types::{
 		Address,
 		BlockExpiration,
@@ -59,5 +62,17 @@ impl IOU {
 		let signature = private_key.sign_message(&data.0)?;
 		self.signature = Some(Bytes(signature.to_bytes()));
 		Ok(())
+	}
+}
+
+impl ToString for IOU {
+	fn to_string(&self) -> String {
+		format!(
+			"IOU (sender = {}, receiver = {}, amount = {}, expiration = {})",
+			self.sender.checksum(),
+			self.receiver.checksum(),
+			self.amount.to_string(),
+			self.expiration_block.to_string()
+		)
 	}
 }
