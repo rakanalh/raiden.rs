@@ -74,6 +74,7 @@ use tokio::sync::{
 use tracing::{
 	error,
 	info,
+	trace,
 	warn,
 };
 use web3::{
@@ -331,6 +332,13 @@ impl EventHandler {
 
 				let (our_transferred_amount, our_locked_amount, our_locksroot) =
 					if participant_details.our_details.balance_hash != BalanceHash::zero() {
+						trace!(
+							message = "Fetch event records",
+							canonical_identifier = inner.canonical_identifier.to_string(),
+							balance_hash = participant_details.our_details.balance_hash.to_string(),
+							partner_address =
+								participant_details.partner_details.address.checksum()
+						);
 						let event_record = match self
 							.state_manager
 							.read()
@@ -375,6 +383,14 @@ impl EventHandler {
 
 				let (partner_transferred_amount, partner_locked_amount, partner_locksroot) =
 					if participant_details.partner_details.balance_hash != BalanceHash::zero() {
+						trace!(
+							message = "Fetch state change records",
+							canonical_identifier = inner.canonical_identifier.to_string(),
+							balance_hash =
+								participant_details.partner_details.balance_hash.to_string(),
+							partner_address =
+								participant_details.partner_details.address.checksum()
+						);
 						let state_change_record = match self
 							.state_manager
 							.read()
@@ -686,6 +702,12 @@ impl EventHandler {
 				}
 
 				if search_state_changes {
+					trace!(
+						message = "Fetch state change records",
+						canonical_identifier = channel_state.canonical_identifier.to_string(),
+						locksroot = partner_locksroot.to_string(),
+						partner_address = partner_address.checksum()
+					);
 					let state_change_record = match self
 						.state_manager
 						.read()
@@ -755,6 +777,12 @@ impl EventHandler {
 				}
 
 				if search_events {
+					trace!(
+						message = "Fetch event records",
+						canonical_identifier = channel_state.canonical_identifier.to_string(),
+						locksroot = our_locksroot.to_string(),
+						partner_address = partner_address.checksum()
+					);
 					let event_record = match self
 						.state_manager
 						.read()
