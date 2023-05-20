@@ -15,7 +15,11 @@ use super::{
 use crate::{
 	errors::StateTransitionError,
 	machine::{
-		channel,
+		channel::{
+			self,
+			validators,
+		},
+		mediator::get_channel,
 		token_network,
 	},
 	types::{
@@ -287,6 +291,25 @@ fn subdispatch_mediator_task(
 		},
 		None => None,
 	};
+
+	let from_transfer = state_change.from_transfer.clone();
+	let payer_channel =
+		match get_channel(&chain_state, from_transfer.balance_proof.canonical_identifier.clone()) {
+			Some(channel) => channel.clone(),
+			None => return Ok(ChainTransition { new_state: chain_state, events: vec![] }),
+		};
+	// This check is to prevent retries of the same init mediator state changes
+	// from deleting or overriding the existing one.
+	if validators::is_valid_locked_transfer(
+		&from_transfer,
+		&payer_channel,
+		&payer_channel.partner_state,
+		&payer_channel.our_state,
+	)
+	.is_err()
+	{
+		return Ok(ChainTransition { new_state: chain_state, events: vec![] })
+	}
 
 	let mut events = vec![];
 	let iteration = mediator::state_transition(chain_state, mediator_state, state_change.into())?;

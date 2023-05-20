@@ -278,7 +278,7 @@ pub(crate) fn is_valid_lock_expired(
 
 pub(crate) fn valid_locked_transfer_check(
 	channel_state: &ChannelState,
-	sender_state: &mut ChannelEndState,
+	sender_state: &ChannelEndState,
 	receiver_state: &ChannelEndState,
 	message: &'static str,
 	received_balance_proof: &BalanceProofState,
@@ -295,7 +295,7 @@ pub(crate) fn valid_locked_transfer_check(
 		return Err(format!("Invalid {} message. {}", message, e))
 	}
 
-	let pending_locks = match compute_locks_with(&mut sender_state.pending_locks, lock.clone()) {
+	let pending_locks = match compute_locks_with(&sender_state.pending_locks, lock.clone()) {
 		Some(pending_locks) => {
 			if pending_locks.locks.len() > MAXIMUM_PENDING_TRANSFERS {
 				return Err(format!(
@@ -346,7 +346,7 @@ pub(crate) fn valid_locked_transfer_check(
 pub(crate) fn is_valid_locked_transfer(
 	transfer_state: &LockedTransferState,
 	channel_state: &ChannelState,
-	sender_end_state: &mut ChannelEndState,
+	sender_end_state: &ChannelEndState,
 	receiver_end_state: &ChannelEndState,
 ) -> Result<PendingLocksState, String> {
 	valid_locked_transfer_check(

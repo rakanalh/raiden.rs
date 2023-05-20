@@ -7,7 +7,7 @@ use crate::types::{
 };
 
 pub(crate) fn compute_locks_with(
-	pending_locks: &mut PendingLocksState,
+	pending_locks: &PendingLocksState,
 	lock: HashTimeLockState,
 ) -> Option<PendingLocksState> {
 	if !pending_locks.locks.contains(&lock.encoded) {
