@@ -138,7 +138,7 @@ where
 			params.balance_hash,
 			params.additional_hash,
 			canonical_identifier.clone(),
-			MessageTypeId::BalanceProof,
+			MessageTypeId::BalanceProofUpdate,
 			params.closing_signature.clone(),
 		);
 
