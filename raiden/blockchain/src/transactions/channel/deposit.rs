@@ -82,7 +82,7 @@ where
 
 		let channel_identifier = self
 			.token_network
-			.get_channel_identifier(self.account.address(), params.partner, at_blockhash)
+			.get_channel_identifier(self.account.address(), params.partner, Some(at_blockhash))
 			.await?
 			.ok_or(ProxyError::BrokenPrecondition("Block not found".to_string()))?;
 

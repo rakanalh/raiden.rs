@@ -414,8 +414,9 @@ where
 		&self,
 		participant1: Address,
 		participant2: Address,
-		block: H256,
+		block: Option<H256>,
 	) -> Result<Option<U256>> {
+		let block = block.map(|b| BlockId::Hash(b));
 		let channel_identifier: U256 = self
 			.contract
 			.query(
@@ -423,7 +424,7 @@ where
 				(participant1, participant2),
 				None,
 				Options::default(),
-				Some(BlockId::Hash(block)),
+				block,
 			)
 			.await?;
 
@@ -498,7 +499,7 @@ where
 		block: H256,
 	) -> Result<ChannelData> {
 		let channel_identifier = channel_identifier.unwrap_or(
-			self.get_channel_identifier(address, partner, block)
+			self.get_channel_identifier(address, partner, Some(block))
 				.await?
 				.ok_or(ProxyError::BrokenPrecondition("Channel does not exist".to_string()))?,
 		);

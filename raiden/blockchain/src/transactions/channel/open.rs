@@ -78,7 +78,7 @@ where
 			self.token_network.safety_deprecation_switch(at_block_hash).await?;
 		let channel_identifier = self
 			.token_network
-			.get_channel_identifier(self.account.address(), params.partner, at_block_hash)
+			.get_channel_identifier(self.account.address(), params.partner, Some(at_block_hash))
 			.await?;
 
 		Ok(ChannelOpenTransactionData {
@@ -182,11 +182,7 @@ where
 
 		Ok(self
 			.token_network
-			.get_channel_identifier(
-				self.account.address(),
-				params.partner,
-				receipt.block_hash.unwrap(),
-			)
+			.get_channel_identifier(self.account.address(), params.partner, receipt.block_hash)
 			.await?
 			.unwrap())
 	}

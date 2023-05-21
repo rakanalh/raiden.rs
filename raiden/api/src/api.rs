@@ -227,7 +227,7 @@ impl Api {
 			.get_channel_identifier(
 				token_network_address,
 				partner_address,
-				confirmed_block_identifier,
+				Some(confirmed_block_identifier),
 			)
 			.await
 			.map_err(ApiError::Proxy)?;
@@ -257,7 +257,7 @@ impl Api {
 			)))
 		}
 
-		let channel_details = token_network
+		let channel_identifier = match token_network
 			.new_channel(
 				account.clone(),
 				partner_address,
@@ -265,7 +265,20 @@ impl Api {
 				confirmed_block_identifier,
 			)
 			.await
-			.map_err(ApiError::Proxy)?;
+		{
+			Ok(channel_identifier) => channel_identifier,
+			Err(e) => {
+				// Check if channel has already been created by partner
+				if let Ok(Some(channel_ideitifier)) = token_network
+					.get_channel_identifier(account.address(), partner_address, None)
+					.await
+				{
+					channel_ideitifier
+				} else {
+					return Err(ApiError::Proxy(e))
+				}
+			},
+		};
 
 		waiting::wait_for_new_channel(
 			self.raiden.state_manager.clone(),
@@ -304,7 +317,7 @@ impl Api {
 			return Err(ApiError::State(e))
 		}
 
-		Ok(channel_details)
+		Ok(channel_identifier)
 	}
 
 	pub async fn update_channel(
