@@ -33,6 +33,7 @@ use raiden_pathfinding::{
 		PFSConfig,
 		ServicesConfig,
 	},
+	PFS,
 };
 use raiden_primitives::{
 	payments::PaymentsRegistry,
@@ -341,6 +342,7 @@ async fn main() {
 		default_settle_timeout: cli.default_settle_timeout.into(),
 		default_reveal_timeout: cli.default_reveal_timeout.into(),
 	};
+	let pfs = PFS::new(chain_id, config.pfs_config.clone(), account.private_key());
 	let raiden = Arc::new(Raiden {
 		web3,
 		config: config.clone(),
@@ -348,6 +350,7 @@ async fn main() {
 		proxy_manager: proxy_manager.clone(),
 		state_manager: state_manager.clone(),
 		transport: transport_sender.clone(),
+		pfs: Arc::new(pfs),
 	});
 
 	let payments_registry = Arc::new(RwLock::new(PaymentsRegistry::new()));

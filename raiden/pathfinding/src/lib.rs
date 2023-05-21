@@ -136,14 +136,14 @@ pub struct PFSLastIOUResponse {
 
 pub struct PFS {
 	chain_id: ChainID,
-	pfs_config: PFSConfig,
+	pub config: PFSConfig,
 	private_key: PrivateKey,
 	iou_creation: Mutex<()>,
 }
 
 impl PFS {
-	pub fn new(chain_id: ChainID, pfs_config: PFSConfig, private_key: PrivateKey) -> Self {
-		Self { chain_id, pfs_config, private_key, iou_creation: Mutex::new(()) }
+	pub fn new(chain_id: ChainID, config: PFSConfig, private_key: PrivateKey) -> Self {
+		Self { chain_id, config, private_key, iou_creation: Mutex::new(()) }
 	}
 
 	pub async fn query_paths(
@@ -157,7 +157,7 @@ impl PFS {
 		value: TokenAmount,
 		pfs_wait_for_block: BlockNumber,
 	) -> Result<(Vec<PFSPath>, String), RoutingError> {
-		let offered_fee = self.pfs_config.info.price;
+		let offered_fee = self.config.info.price;
 		info!(
 			message = "Query PFS for paths",
 			route_from = route_from.checksum(),
@@ -168,7 +168,7 @@ impl PFS {
 		let mut payload = PFSRequest {
 			from: route_from.checksum(),
 			to: route_to.checksum(),
-			max_paths: self.pfs_config.max_paths,
+			max_paths: self.config.max_paths,
 			iou: None,
 			value,
 		};
@@ -195,12 +195,22 @@ impl PFS {
 						scrap_existing_iou,
 					)
 					.await?;
+
+				trace!(
+					message = "New IOU",
+					sender = iou.sender.checksum(),
+					receiver = iou.receiver.checksum(),
+					amount = iou.amount.to_string(),
+					expiration = iou.expiration_block.to_string()
+				);
 				payload.iou = Some(iou);
 			}
 
 			debug!(
 				message = "Requesting PFS paths",
-				token_network_address = token_network_address.checksum()
+				token_network_address = token_network_address.checksum(),
+				route_from = route_from.checksum(),
+				route_to = route_to.checksum(),
 			);
 			let response = self.post_pfs_paths(token_network_address, payload.clone()).await?;
 			drop(lock);
@@ -212,7 +222,7 @@ impl PFS {
 	}
 
 	pub async fn get_pfs_info(&self) -> Result<PFSInfo, RoutingError> {
-		get_pfs_info(self.pfs_config.url.clone()).await
+		get_pfs_info(self.config.url.clone()).await
 	}
 
 	pub async fn post_pfs_paths(
@@ -223,7 +233,7 @@ impl PFS {
 		let client = reqwest::Client::new();
 		let token_network_address = token_network_address.checksum();
 		let response = client
-			.post(format!("{}/api/v1/{}/paths", &self.pfs_config.url, token_network_address))
+			.post(format!("{}/api/v1/{}/paths", &self.config.url, token_network_address))
 			.json(&payload)
 			.send()
 			.await
@@ -271,22 +281,21 @@ impl PFS {
 		token_network_address: TokenNetworkAddress,
 		sender: Address,
 	) -> Result<Option<IOU>, RoutingError> {
-		let mut timestamp = Utc::now().naive_local().to_string();
-		let timestamp: String = timestamp.drain(0..timestamp.len() - 2).collect();
+		let timestamp = Utc::now().naive_local().format("%Y-%m-%dT%H:%M:%S").to_string();
 
 		let signature = self
-			.iou_signature_data(sender, self.pfs_config.info.payment_address, timestamp.clone())
+			.iou_signature_data(sender, self.config.info.payment_address, timestamp.clone())
 			.map_err(RoutingError::Signing)?;
 
 		let client = reqwest::Client::new();
 		let response = client
 			.request(
 				reqwest::Method::GET,
-				format!("{}/api/v1/{}/payment/iou", self.pfs_config.url, token_network_address),
+				format!("{}/api/v1/{}/payment/iou", self.config.url, token_network_address),
 			)
 			.query(&[
 				("sender", sender.checksum()),
-				("receiver", self.pfs_config.info.payment_address.checksum()),
+				("receiver", self.config.info.payment_address.checksum()),
 				("timestamp", timestamp.to_string()),
 				("signature", signature.as_string()),
 			])
@@ -329,18 +338,18 @@ impl PFS {
 		block_number: BlockNumber,
 		offered_fee: TokenAmount,
 	) -> Result<IOU, RoutingError> {
-		let expiration_block = block_number + self.pfs_config.iou_timeout.into();
+		let expiration_block = block_number + self.config.iou_timeout.into();
 
 		debug!(
 			message = "Create IOU",
-			receiver = self.pfs_config.info.payment_address.checksum(),
+			receiver = self.config.info.payment_address.checksum(),
 			amount = offered_fee.to_string(),
 			expiration = expiration_block.to_string()
 		);
 
 		let mut iou = IOU {
 			sender: our_address,
-			receiver: self.pfs_config.info.payment_address,
+			receiver: self.config.info.payment_address,
 			one_to_n_address,
 			amount: offered_fee,
 			expiration_block,
@@ -364,7 +373,7 @@ impl PFS {
 		}
 		debug!(
 			message = "Update IOU",
-			receiver = self.pfs_config.info.payment_address.checksum(),
+			receiver = self.config.info.payment_address.checksum(),
 			old_amount = old_amount.to_string(),
 			new_amount = iou.amount.to_string(),
 			expiration = iou.expiration_block.to_string()

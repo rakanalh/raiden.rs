@@ -1422,8 +1422,7 @@ impl Api {
 			route_states
 		} else {
 			let (routes, _feedback_token) = routing::get_best_routes(
-				self.raiden.config.pfs_config.clone(),
-				self.raiden.config.account.private_key(),
+				self.raiden.pfs.clone(),
 				chain_state,
 				our_address_metadata,
 				token_network_address,

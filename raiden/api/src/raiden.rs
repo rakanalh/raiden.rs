@@ -9,7 +9,10 @@ use raiden_blockchain::{
 	},
 };
 use raiden_network_messages::messages::TransportServiceMessage;
-use raiden_pathfinding::config::PFSConfig;
+use raiden_pathfinding::{
+	config::PFSConfig,
+	PFS,
+};
 use raiden_primitives::types::{
 	AddressMetadata,
 	ChainID,
@@ -50,4 +53,6 @@ pub struct Raiden {
 	pub state_manager: Arc<RwLock<StateManager>>,
 	/// Transport layer
 	pub transport: UnboundedSender<TransportServiceMessage>,
+	/// Pathfinding
+	pub pfs: Arc<PFS>,
 }

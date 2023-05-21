@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	sync::Arc,
+};
 
-use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::{
 	Address,
 	AddressMetadata,
@@ -22,15 +24,13 @@ use raiden_state_machine::{
 };
 
 use crate::{
-	PFSConfig,
 	PFSPath,
 	RoutingError,
 	PFS,
 };
 
 pub async fn get_best_routes(
-	pfs_config: PFSConfig,
-	private_key: PrivateKey,
+	pfs: Arc<PFS>,
 	chain_state: ChainState,
 	our_address_metadata: AddressMetadata,
 	token_network_address: TokenNetworkAddress,
@@ -60,7 +60,8 @@ pub async fn get_best_routes(
 				let mut address_to_address_metadata = HashMap::new();
 				address_to_address_metadata.insert(from_address, our_address_metadata.clone());
 
-				let metadata = super::query_address_metadata(pfs_config.url, to_address).await?;
+				let metadata =
+					super::query_address_metadata(pfs.config.url.clone(), to_address).await?;
 				address_to_address_metadata.insert(to_address, metadata);
 
 				return Ok((
@@ -105,8 +106,7 @@ pub async fn get_best_routes(
 		.unwrap_or_default();
 
 	let (pfs_routes, pfs_feedback_token) = get_best_routes_pfs(
-		pfs_config,
-		private_key,
+		pfs,
 		chain_state,
 		token_network_address,
 		one_to_n_address,
@@ -122,8 +122,7 @@ pub async fn get_best_routes(
 }
 
 pub async fn get_best_routes_pfs(
-	pfs_config: PFSConfig,
-	private_key: PrivateKey,
+	pfs: Arc<PFS>,
 	chain_state: ChainState,
 	token_network_address: TokenNetworkAddress,
 	one_to_n_address: OneToNAddress,
@@ -133,7 +132,6 @@ pub async fn get_best_routes_pfs(
 	previous_address: Option<Address>,
 	pfs_wait_for_block: BlockNumber,
 ) -> Result<(Vec<RouteState>, String), RoutingError> {
-	let pfs = PFS::new(chain_state.chain_id.clone(), pfs_config, private_key);
 	let (routes, feedback_token) = pfs
 		.query_paths(
 			chain_state.our_address,
