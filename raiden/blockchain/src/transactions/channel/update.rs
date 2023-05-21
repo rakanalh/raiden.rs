@@ -168,7 +168,7 @@ where
 		let current_block_number: U256 =
 			self.web3.eth().block_number().await.map_err(ProxyError::Web3)?.as_u64().into();
 
-		if data.channel_onchain_details.settle_block_number > current_block_number {
+		if data.channel_onchain_details.settle_block_number < current_block_number {
 			return Err(ProxyError::BrokenPrecondition(format!(
 				"Update transfer cannot be called after settlement period. \
                  This call should never have been attempted"
