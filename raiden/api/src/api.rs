@@ -835,16 +835,8 @@ impl Api {
 		);
 
 		if coop_settle {
-			let non_settled_channels =
-				match self.batch_coop_settle(channels_to_close.clone(), retry_timeout).await {
-					Ok(channels) => channels,
-					Err(e) => {
-						error!(message = format!("{:?}", e));
-						return Err(e)
-					},
-				};
-			if non_settled_channels.is_empty() {
-				return Ok(())
+			if let Err(e) = self.batch_coop_settle(channels_to_close.clone(), retry_timeout).await {
+				error!(message = format!("{:?}.. skipping cooperative settle", e));
 			}
 		}
 
@@ -905,6 +897,10 @@ impl Api {
 				}
 				.into(),
 			);
+		}
+
+		if coop_settle_state_changes.is_empty() {
+			return Ok(vec![])
 		}
 
 		if let Err(e) = self.transition_service.transition(coop_settle_state_changes).await {
