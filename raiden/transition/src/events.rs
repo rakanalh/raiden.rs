@@ -1013,6 +1013,53 @@ impl EventHandler {
 				// let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 			},
 			Event::SendMSUpdate(balance_proof) => {
+				let chain_state = self.state_manager.read().current_state.clone();
+				match views::get_channel_by_canonical_identifier(
+					&chain_state,
+					balance_proof.canonical_identifier.clone(),
+				) {
+					Some(channel_state) => channel_state,
+					None => return,
+				};
+				drop(chain_state);
+
+				let user_deposit = match self
+					.proxy_manager
+					.user_deposit(self.default_addresses.user_deposit)
+					.await
+				{
+					Ok(user_deposit) => user_deposit,
+					Err(e) => {
+						error!(
+							message = "Could not get user deposit proxy",
+							error = format!("{:?}", e)
+						);
+						return
+					},
+				};
+
+				let effective_balance =
+					match user_deposit.effective_balance(self.account.address(), None).await {
+						Ok(balance) => balance,
+						Err(e) => {
+							error!(
+								message = "Could not fetch effective UDC balance",
+								error = format!("{:?}", e)
+							);
+							return
+						},
+					};
+
+				if effective_balance < *MONITORING_REWARD {
+					let reward = MONITORING_REWARD.clone();
+					warn!(
+						message = "Skipping update to Monitoring service.",
+						current_balance = effective_balance.to_string(),
+						monitoring_reward = reward.to_string(),
+					);
+					return
+				}
+
 				let mut monitoring_message = RequestMonitoring::from_balance_proof(
 					balance_proof,
 					self.account.address(),

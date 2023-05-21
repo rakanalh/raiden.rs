@@ -78,6 +78,18 @@ where
 			.map_err(Into::into)
 	}
 
+	pub async fn effective_balance(
+		&self,
+		owner: Address,
+		block: Option<BlockHash>,
+	) -> Result<U256> {
+		let block = block.map(|b| BlockId::Hash(b));
+		self.contract
+			.query("effectiveBalance", (owner,), None, Options::default(), block)
+			.await
+			.map_err(Into::into)
+	}
+
 	pub async fn total_deposit(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(|b| BlockId::Hash(b));
 		self.contract

@@ -22,11 +22,16 @@ pub mod utils;
 pub struct Transitioner {
 	state_manager: Arc<RwLock<StateManager>>,
 	event_handler: EventHandler,
+	monitoring_enabled: bool,
 }
 
 impl Transitioner {
-	pub fn new(state_manager: Arc<RwLock<StateManager>>, event_handler: EventHandler) -> Self {
-		Self { state_manager, event_handler }
+	pub fn new(
+		state_manager: Arc<RwLock<StateManager>>,
+		event_handler: EventHandler,
+		monitoring_enabled: bool,
+	) -> Self {
+		Self { state_manager, event_handler, monitoring_enabled }
 	}
 
 	pub async fn transition(&self, state_changes: Vec<StateChange>) -> Result<(), String> {
@@ -57,20 +62,22 @@ impl Transitioner {
 		let mut pfs_capacity_updates = vec![];
 
 		for state_change in state_changes {
-			// Monitoring service updates
-			let balance_proof = match state_change.clone() {
-				StateChange::ActionInitMediator(inner) => Some(inner.balance_proof),
-				StateChange::ActionInitTarget(inner) => Some(inner.balance_proof),
-				StateChange::ActionTransferReroute(inner) => Some(inner.transfer.balance_proof),
-				StateChange::ReceiveTransferCancelRoute(inner) =>
-					Some(inner.transfer.balance_proof),
-				StateChange::ReceiveLockExpired(inner) => Some(inner.balance_proof),
-				StateChange::ReceiveTransferRefund(inner) => Some(inner.balance_proof),
-				_ => None,
-			};
+			if self.monitoring_enabled {
+				// Monitoring service updates
+				let balance_proof = match state_change.clone() {
+					StateChange::ActionInitMediator(inner) => Some(inner.balance_proof),
+					StateChange::ActionInitTarget(inner) => Some(inner.balance_proof),
+					StateChange::ActionTransferReroute(inner) => Some(inner.transfer.balance_proof),
+					StateChange::ReceiveTransferCancelRoute(inner) =>
+						Some(inner.transfer.balance_proof),
+					StateChange::ReceiveLockExpired(inner) => Some(inner.balance_proof),
+					StateChange::ReceiveTransferRefund(inner) => Some(inner.balance_proof),
+					_ => None,
+				};
 
-			if let Some(balance_proof) = balance_proof {
-				events.push(Event::SendMSUpdate(balance_proof));
+				if let Some(balance_proof) = balance_proof {
+					events.push(Event::SendMSUpdate(balance_proof));
+				}
 			}
 
 			match state_change.clone() {

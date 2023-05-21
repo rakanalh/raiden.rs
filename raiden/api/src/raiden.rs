@@ -33,6 +33,7 @@ pub struct RaidenConfig {
 	pub chain_id: ChainID,
 	pub account: Account<Http>,
 	pub mediation_config: MediationFeeConfig,
+	pub monitoring_enabled: bool,
 	pub pfs_config: PFSConfig,
 	pub metadata: AddressMetadata,
 	/// Default addresses

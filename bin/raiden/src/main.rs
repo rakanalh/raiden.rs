@@ -331,6 +331,7 @@ async fn main() {
 		mediation_config,
 		account: account.clone(),
 		metadata: our_metadata,
+		monitoring_enabled: services_config.monitoring_enabled,
 		pfs_config: PFSConfig {
 			url: cli.services_config.pathfinding_service_address.clone(),
 			info: pfs_info,
@@ -363,7 +364,11 @@ async fn main() {
 		default_addresses.clone(),
 		payments_registry.clone(),
 	);
-	let transitioner = Arc::new(Transitioner::new(state_manager.clone(), event_handler.clone()));
+	let transitioner = Arc::new(Transitioner::new(
+		state_manager.clone(),
+		event_handler.clone(),
+		raiden.config.monitoring_enabled,
+	));
 	let message_handler = MessageHandler::new(
 		account.private_key(),
 		cli.services_config.pathfinding_service_address,
