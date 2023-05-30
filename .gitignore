@@ -13,3 +13,7 @@ raiden.db
 debug.el
 .dir-locals.el
 *.org
+.envrc
+codecov
+cobertura.xml
+password_file.txt
