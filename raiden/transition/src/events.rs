@@ -15,6 +15,7 @@ use raiden_network_messages::{
 		MessageInner,
 		OutgoingMessage,
 		PFSCapacityUpdate,
+		PFSFeeUpdate,
 		Processed,
 		RequestMonitoring,
 		SecretRequest,
@@ -1002,15 +1003,15 @@ impl EventHandler {
 					return
 				}
 
-				// let mut fee_message: PFSFeeUpdate = channel_state.clone().into();
-				// let _ = fee_message.sign(private_key);
-				// let message = OutgoingMessage {
-				// 	message_identifier: 0,
-				// 	recipient: Address::zero(),
-				// 	recipient_metadata: AddressMetadata::default(),
-				// 	inner: MessageInner::PFSFeeUpdate(fee_message),
-				// };
-				// let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
+				let mut fee_message: PFSFeeUpdate = channel_state.clone().into();
+				let _ = fee_message.sign(private_key);
+				let message = OutgoingMessage {
+					message_identifier: 0,
+					recipient: Address::zero(),
+					recipient_metadata: AddressMetadata::default(),
+					inner: MessageInner::PFSFeeUpdate(fee_message),
+				};
+				let _ = self.transport.send(TransportServiceMessage::Broadcast(message));
 			},
 			Event::SendMSUpdate(balance_proof) => {
 				let chain_state = self.state_manager.read().current_state.clone();

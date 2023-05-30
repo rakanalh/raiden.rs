@@ -138,7 +138,9 @@ pub async fn init_channel_fees(
 				flat: flat_fee,
 				proportional: proportional_fee,
 				imbalance_penalty,
+				penalty_func: None,
 			};
+			channel.fee_schedule.update_penalty_func();
 
 			event_handler
 				.handle_event(Event::SendPFSUpdate(PFSUpdate {

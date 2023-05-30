@@ -1,7 +1,4 @@
-use chrono::{
-	NaiveDateTime,
-	Utc,
-};
+use chrono::Utc;
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	serializers::u256_to_str,
@@ -119,17 +116,19 @@ pub struct PFSFeeUpdate {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub updating_participant: Address,
 	pub fee_schedule: FeeScheduleState,
-	pub timestamp: NaiveDateTime,
+	pub timestamp: String,
 	pub signature: Signature,
 }
 
 impl From<ChannelState> for PFSFeeUpdate {
 	fn from(channel: ChannelState) -> Self {
+		let timestamp = Utc::now().naive_local().format("%Y-%m-%dT%H:%M:%S").to_string();
+
 		Self {
 			canonical_identifier: channel.canonical_identifier,
 			updating_participant: channel.our_state.address,
 			fee_schedule: channel.fee_schedule,
-			timestamp: Utc::now().naive_local(),
+			timestamp,
 			signature: Signature::default(),
 		}
 	}
@@ -149,11 +148,8 @@ impl SignedMessage for PFSFeeUpdate {
 					imbalance_penalty.iter().map(|(a, b)| (a.as_u128(), b.as_u128())).collect();
 				rlp_to_bytes(&imbalance_penalty).expect("Should be able to serialize")
 			} else {
-				rlp_to_bytes(&0u64).unwrap()
+				vec![128]
 			};
-
-		let mut timestamp = self.timestamp.to_string();
-		let timestamp: String = timestamp.drain(0..timestamp.len() - 2).collect();
 
 		let mut bytes = vec![];
 		bytes.extend_from_slice(&chain_id.to_bytes());
@@ -164,7 +160,7 @@ impl SignedMessage for PFSFeeUpdate {
 		bytes.extend_from_slice(&self.fee_schedule.flat.to_bytes());
 		bytes.extend_from_slice(&self.fee_schedule.proportional.to_bytes());
 		bytes.extend_from_slice(&imbalance_penalty);
-		bytes.extend_from_slice(&timestamp.into_bytes());
+		bytes.extend_from_slice(&self.timestamp.clone().into_bytes());
 		bytes
 	}
 

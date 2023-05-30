@@ -26,12 +26,11 @@ pub const MAXIMUM_PENDING_TRANSFERS: usize = 160;
 
 pub const NUM_DISCRETISATION_POINTS: u64 = 21;
 
-// 0.2%
-pub const MAX_MEDIATION_FEE_PERC: (u32, u32) = (2, 1000);
-// 0.03%
-pub const DEFAULT_MEDIATION_FEE_MARGIN: (u32, u32) = (3, 10000);
-// 0.0005%
-pub const PAYMENT_AMOUNT_BASED_FEE_MARGIN: (u32, u32) = (5, 100000);
+pub const MAX_MEDIATION_FEE_PERC: (u32, u32) = (20, 100);
+
+pub const DEFAULT_MEDIATION_FEE_MARGIN: (u32, u32) = (3, 100);
+
+pub const PAYMENT_AMOUNT_BASED_FEE_MARGIN: (u32, u32) = (5, 10000);
 
 pub const DEFAULT_MEDIATION_FLAT_FEE: u64 = 0;
 
