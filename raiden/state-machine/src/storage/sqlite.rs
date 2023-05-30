@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 pub(super) const DB_CREATE_SETTINGS: &str = "
 CREATE TABLE IF NOT EXISTS settings (
     name VARCHAR[24] UNIQUE PRIMARY KEY NOT NULL,

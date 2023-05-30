@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use raiden_primitives::{
 	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	types::{

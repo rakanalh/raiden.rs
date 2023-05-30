@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use derive_more::Deref;
 use raiden_macros::IntoEvent;
 use raiden_primitives::types::{

@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::ops::Div;
 
 use raiden_primitives::{
@@ -187,6 +189,7 @@ pub fn try_new_route(
 				.amount
 				.saturating_mul(MAX_MEDIATION_FEE_PERC.0.into())
 				.div(MAX_MEDIATION_FEE_PERC.1));
+
 		if amount_with_fee > max_amount_limit {
 			route_fee_exceeds_max = true;
 			continue

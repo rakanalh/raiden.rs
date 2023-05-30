@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use raiden_primitives::types::Locksroot;
 use web3::signing::keccak256;
 

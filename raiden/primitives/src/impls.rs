@@ -55,7 +55,7 @@ impl Stringify for Bytes {
 	}
 }
 
-/// Adapted from: https://github.com/gakonst/ethers-rs/blob/da743fc8b29ffeb650c767f622bb19eba2f057b7/ethers-core/src/utils/mod.rs#L407
+/// Adapted from: <https://github.com/gakonst/ethers-rs/blob/da743fc8b29ffeb650c767f622bb19eba2f057b7/ethers-core/src/utils/mod.rs#L407>
 impl Checksum for Address {
 	fn checksum(&self) -> String {
 		let prefixed_address = format!("{self:x}");
