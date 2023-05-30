@@ -61,10 +61,15 @@ use rusqlite::Connection;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::transports::Http;
 
-pub fn init_storage(datadir: PathBuf) -> Result<Arc<StateStorage>, String> {
-	let conn = Connection::open(datadir.join("raiden.db"))
+pub fn init_storage(datadir: PathBuf, log_config: String) -> Result<Arc<StateStorage>, String> {
+	let mut conn = Connection::open(datadir.join("raiden.db"))
 		.map_err(|e| format!("Could not connect to database: {}", e))?;
-
+	if log_config.to_lowercase() == "trace" {
+		fn log_query(query: &str) {
+			tracing::trace!(message = "Executing query", query = query,);
+		}
+		conn.trace(Some(log_query));
+	}
 	let storage = Arc::new(StateStorage::new(conn));
 	storage
 		.setup_database()

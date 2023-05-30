@@ -93,7 +93,7 @@ async fn main() {
 
 	// Setup logging
 	let mut layers = vec![];
-	if cli.log_json && cli.log_file.is_none() {
+	if cli.log_json {
 		layers.push(
 			tracing_subscriber::fmt::layer()
 				.json()
@@ -225,7 +225,7 @@ async fn main() {
 		_ => {},
 	};
 
-	let storage = match init_storage(datadir.clone()) {
+	let storage = match init_storage(datadir.clone(), cli.log_config.clone()) {
 		Ok(storage) => storage,
 		Err(e) => {
 			tracing::error!("Error creating contracts manager: {}", e);
