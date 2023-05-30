@@ -4,6 +4,7 @@ use std::{
 };
 
 use derive_more::Display;
+use itertools::izip;
 use raiden_primitives::{
 	constants::LOCKSROOT_OF_NO_LOCKS,
 	serializers::u256_to_str,
@@ -42,6 +43,10 @@ use raiden_primitives::{
 		TokenNetworkRegistryAddress,
 		U256,
 	},
+};
+use rug::{
+	Complete,
+	Rational,
 };
 use serde::{
 	Deserialize,
@@ -396,6 +401,7 @@ impl ChannelState {
 				flat: fee_config.get_flat_fee(&token_address),
 				proportional: fee_config.get_proportional_fee(&token_address),
 				imbalance_penalty: None,
+				penalty_func: None,
 			},
 		})
 	}
@@ -710,7 +716,47 @@ pub struct CoopSettleState {
 	pub transaction: Option<TransactionExecutionStatus>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
+pub struct Interpolate {
+	pub(crate) x_list: Vec<Rational>,
+	pub(crate) y_list: Vec<Rational>,
+	pub(crate) slopes: Vec<Rational>,
+}
+
+impl Interpolate {
+	pub fn new(x_list: Vec<Rational>, y_list: Vec<Rational>) -> Result<Self, String> {
+		for (x, y) in x_list.iter().zip(x_list[1..].iter()) {
+			let result = (y - x).complete();
+			if result <= Rational::from(0) {
+				return Err(format!("x_list must be in strictly ascending order"))
+			}
+		}
+		let intervals: Vec<_> = izip!(&x_list, &x_list[1..], &y_list, &y_list[1..]).collect();
+		let slopes = intervals
+			.into_iter()
+			.map(|(x1, x2, y1, y2)| ((y2 - y1).complete() / (x2 - x1).complete()))
+			.collect();
+
+		Ok(Self { x_list, y_list, slopes })
+	}
+
+	pub fn calculate(&self, x: Rational) -> Result<Rational, String> {
+		let last_x = self.x_list[self.x_list.len() - 1].clone();
+		let last_y = self.y_list[self.y_list.len() - 1].clone();
+		if !(self.x_list[0] <= x && x <= last_x) {
+			return Err(format!("x out of bounds"))
+		}
+
+		if x == last_x {
+			return Ok(last_y)
+		}
+		let i = bisection::bisect_right(&self.x_list, &x) - 1;
+		return Ok(self.y_list[i].clone() +
+			(self.slopes[i].clone() * (Rational::from(x) - self.x_list[i].clone())))
+	}
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, Debug, Eq, PartialEq)]
 pub struct FeeScheduleState {
 	pub cap_fees: bool,
 	#[serde(serialize_with = "u256_to_str")]
@@ -718,17 +764,152 @@ pub struct FeeScheduleState {
 	#[serde(serialize_with = "u256_to_str")]
 	pub proportional: U256,
 	pub imbalance_penalty: Option<Vec<(U256, U256)>>,
-	//penalty_func: Option<u64>,
+	#[serde(skip)]
+	pub penalty_func: Option<Interpolate>,
 }
 
-impl Default for FeeScheduleState {
-	fn default() -> Self {
-		Self {
-			cap_fees: true,
-			flat: U256::zero(),
-			proportional: U256::zero(),
-			imbalance_penalty: None,
+impl FeeScheduleState {
+	pub fn update_penalty_func(&mut self) {
+		if let Some(imbalance_penalty) = &self.imbalance_penalty {
+			let x_list =
+				imbalance_penalty.iter().map(|(x, _)| Rational::from(x.as_u128())).collect();
+			let y_list =
+				imbalance_penalty.iter().map(|(_, y)| Rational::from(y.as_u128())).collect();
+			self.penalty_func = Interpolate::new(x_list, y_list).ok();
 		}
+	}
+
+	pub fn fee(&self, balance: Rational, amount: Rational) -> Result<Rational, String> {
+		let flat = Rational::from(self.flat.as_u128());
+		let proportional = Rational::from((self.proportional.as_u128(), 1000000));
+		let value = flat + (proportional * amount.clone());
+		let addition = if let Some(penalty_func) = &self.penalty_func {
+			penalty_func.calculate(balance.clone() + amount)? - penalty_func.calculate(balance)?
+		} else {
+			Rational::from(0)
+		};
+		Ok(value + addition)
+	}
+
+	pub fn mediation_fee_func(
+		mut schedule_in: Self,
+		mut schedule_out: Self,
+		balance_in: TokenAmount,
+		balance_out: TokenAmount,
+		receivable: TokenAmount,
+		amount_with_fees: Option<TokenAmount>,
+		amount_without_fees: Option<TokenAmount>,
+		cap_fees: bool,
+	) -> Result<Interpolate, String> {
+		if amount_with_fees.is_none() && amount_without_fees.is_none() {
+			return Err(format!(
+				"Must be called with either amount_with_fees or amount_without_fees"
+			))
+		}
+
+		if balance_out.is_zero() && receivable.is_zero() {
+			return Err(format!("Undefined mediation fee"))
+		}
+
+		if schedule_in.penalty_func.is_none() {
+			let total = balance_in + receivable;
+			schedule_in.penalty_func = Some(Interpolate::new(
+				vec![Rational::from(0), Rational::from(total.as_u128())],
+				vec![Rational::from(0), Rational::from(0)],
+			)?);
+		}
+		if schedule_out.penalty_func.is_none() {
+			schedule_out.penalty_func = Some(Interpolate::new(
+				vec![Rational::from(0), Rational::from(balance_out.as_u128())],
+				vec![Rational::from(0), Rational::from(0)],
+			)?)
+		}
+		let max_x = if amount_with_fees.is_none() { receivable } else { balance_out };
+		let mut x_list = Self::calculate_x_values(
+			schedule_in.penalty_func.clone().expect("penalty_func set above"),
+			schedule_out.penalty_func.clone().expect("penalty_func set above"),
+			balance_in,
+			balance_out,
+			max_x,
+		);
+
+		let mut y_list = vec![];
+		for x in x_list.iter() {
+			let add_in = if let Some(amount) = amount_with_fees {
+				Rational::from(amount.as_u128())
+			} else {
+				x.clone()
+			};
+			let add_out = if let Some(amount) = amount_without_fees {
+				-Rational::from(amount.as_u128())
+			} else {
+				(-x).complete()
+			};
+
+			let fee_in = schedule_in.fee(Rational::from(balance_in.as_u128()), add_in)?;
+			let fee_out = schedule_out.fee(Rational::from(balance_out.as_u128()), add_out)?;
+
+			let y = fee_in + fee_out;
+			y_list.push(y);
+		}
+		if cap_fees {
+			(x_list, y_list) = Self::cap_fees(x_list, y_list);
+		}
+		Interpolate::new(x_list, y_list)
+	}
+
+	fn calculate_x_values(
+		penalty_func_in: Interpolate,
+		penalty_func_out: Interpolate,
+		balance_in: TokenAmount,
+		balance_out: TokenAmount,
+		max_x: TokenAmount,
+	) -> Vec<Rational> {
+		let balance_in = Rational::from(balance_in.as_u128());
+		let balance_out = Rational::from(balance_out.as_u128());
+		let max_x = Rational::from(max_x.as_u128());
+		let all_x_values: Vec<Rational> = penalty_func_in
+			.x_list
+			.iter()
+			.map(|x| (x - balance_in.clone()))
+			.chain(penalty_func_out.x_list.iter().map(|x| balance_out.clone() - x))
+			.collect();
+		let mut all_x_values = all_x_values
+			.into_iter()
+			.map(|x| x.min(balance_out.clone()).min(max_x.clone()).max(Rational::from(0)))
+			.collect::<Vec<_>>();
+		all_x_values.sort();
+		all_x_values.dedup();
+		all_x_values
+	}
+
+	fn cap_fees(x_list: Vec<Rational>, y_list: Vec<Rational>) -> (Vec<Rational>, Vec<Rational>) {
+		let mut x_list = x_list.clone();
+		let mut y_list = y_list.clone();
+		for i in 0..x_list.len() - 1 {
+			let y1 = y_list[i].clone();
+			let y2 = y_list[i + 2].clone();
+			if Self::sign(&y1) * Self::sign(&y2) == -1 {
+				let x1 = x_list[i].clone();
+				let x2 = x_list[i + 2].clone();
+				let new_x = x1.clone() + y1.clone().abs() / (y2 - y1).abs() * (x2 - x1);
+				let new_index = bisection::bisect(&x_list, &new_x);
+				x_list.insert(new_index, new_x);
+				y_list.insert(new_index, Rational::from(0));
+			}
+		}
+		let y_list = y_list.into_iter().map(|y| y.max(Rational::from(0))).collect();
+		(x_list, y_list)
+	}
+
+	fn sign(x: &Rational) -> i8 {
+		if x == &Rational::from(0) {
+			return 0
+		}
+		if x < &Rational::from(0) {
+			return -1
+		}
+		return 1
 	}
 }
 

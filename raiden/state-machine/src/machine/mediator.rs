@@ -1,5 +1,6 @@
 use std::iter;
 
+use num_traits::ToPrimitive;
 use raiden_primitives::{
 	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	hashing::hash_secret,
@@ -16,6 +17,7 @@ use raiden_primitives::{
 		TokenAmount,
 	},
 };
+use rug::Rational;
 
 use super::{
 	channel,
@@ -47,7 +49,9 @@ use crate::{
 		ErrorUnlockClaimFailed,
 		ErrorUnlockFailed,
 		Event,
+		FeeScheduleState,
 		HashTimeLockState,
+		Interpolate,
 		LockedTransferState,
 		MediationPairState,
 		MediatorTransferState,
@@ -122,15 +126,40 @@ pub(super) fn is_safe_to_wait(
 	))
 }
 
+fn find_intersection<LineFunc>(fee_func: Interpolate, line: LineFunc) -> Option<Rational>
+where
+	LineFunc: Fn(usize) -> Rational,
+{
+	let mut i = 0;
+	let mut y = fee_func.y_list[i].clone();
+	let compare = if y < line(i) { |x, y| -> bool { x < y } } else { |x, y| -> bool { x > y } };
+	while compare(y, line(i)) {
+		i += 1;
+		if i == fee_func.x_list.len() {
+			return None
+		}
+		y = fee_func.y_list[i].clone()
+	}
+
+	let x1 = fee_func.x_list[i - 1].clone();
+	let x2 = fee_func.x_list[i].clone();
+	let yf1 = fee_func.y_list[i - 1].clone();
+	let yf2 = fee_func.y_list[i].clone();
+	let yl1 = line(i - 1);
+	let yl2 = line(i);
+
+	Some((yl1.clone() - yf1.clone()) * (x2 - x1.clone()) / ((yf2 - yf1) - (yl2 - yl1)) + x1)
+}
+
 /// Return the amount after fees are taken.
 fn get_amount_without_fees(
 	amount_with_fees: TokenAmount,
 	channel_in: &ChannelState,
 	channel_out: &ChannelState,
-) -> Result<Option<TokenAmount>, String> {
+) -> Result<TokenAmount, String> {
 	let balance_in = views::channel_balance(&channel_in.our_state, &channel_in.partner_state);
-	let _balance_out = views::channel_balance(&channel_out.our_state, &channel_out.partner_state);
-	let _receivable =
+	let balance_out = views::channel_balance(&channel_out.our_state, &channel_out.partner_state);
+	let receivable =
 		channel_in.our_total_deposit() + channel_in.partner_total_deposit() - balance_in;
 
 	if channel_in.fee_schedule.cap_fees != channel_out.fee_schedule.cap_fees {
@@ -139,11 +168,29 @@ fn get_amount_without_fees(
 		)
 	}
 
-	// TODO
-	// let fee_func = FeeScheduleState::mediation_fee_func()?;
-	// let amount_with_fees = find_intersection();
-
-	Ok(Some(amount_with_fees))
+	let fee_func = FeeScheduleState::mediation_fee_func(
+		channel_in.fee_schedule.clone(),
+		channel_out.fee_schedule.clone(),
+		balance_in,
+		balance_out,
+		receivable,
+		Some(amount_with_fees),
+		None,
+		channel_in.fee_schedule.cap_fees,
+	)?;
+	let amount_with_fees = Rational::from(amount_with_fees.as_u128());
+	if let Some(amount_without_fees) = find_intersection(fee_func.clone(), |i| {
+		amount_with_fees.clone() - fee_func.x_list[i].clone()
+	}) {
+		let amount_without_fees = TokenAmount::from(
+			amount_without_fees
+				.to_u128()
+				.ok_or(format!("Could not convert rational to u128"))?,
+		);
+		Ok(amount_without_fees)
+	} else {
+		Err(format!("Undefined mediation fee"))
+	}
 }
 
 // Given a payer transfer tries the given route to proceed with the mediation.
@@ -162,15 +209,8 @@ fn forward_transfer_pair(
 	mut payee_channel: ChannelState,
 	block_number: BlockNumber,
 ) -> Result<(Option<MediationPairState>, Vec<Event>), String> {
-	let amount_after_fees = match get_amount_without_fees(
-		payer_transfer.lock.amount,
-		&payer_channel,
-		&payee_channel,
-	)? {
-		Some(amount) => amount,
-		None => return Ok((None, vec![])),
-	};
-
+	let amount_after_fees =
+		get_amount_without_fees(payer_transfer.lock.amount, &payer_channel, &payee_channel)?;
 	let lock_timeout = payer_transfer.lock.expiration - block_number;
 	let safe_to_use_channel =
 		payee_channel.is_usable_for_mediation(amount_after_fees, lock_timeout);

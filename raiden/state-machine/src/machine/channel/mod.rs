@@ -1114,7 +1114,10 @@ fn update_fee_schedule_after_balance_change(
 		flat: channel_state.fee_schedule.flat,
 		proportional: channel_state.fee_schedule.proportional,
 		imbalance_penalty,
-	}
+		penalty_func: None,
+	};
+
+	channel_state.fee_schedule.update_penalty_func()
 }
 
 fn handle_channel_deposit(
