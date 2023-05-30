@@ -145,7 +145,7 @@ fn test_closed_channel_new_block() {
 		.tokennetworkaddresses_to_tokennetworks
 		.get_mut(&chain_info.token_network_address)
 		.expect("token network should exist");
-	let mut channel_state = token_network_state
+	let channel_state = token_network_state
 		.channelidentifiers_to_channels
 		.get_mut(&canonical_identifier.channel_identifier)
 		.expect("Channel should exist");
@@ -246,7 +246,7 @@ fn test_channel_closed() {
 		.tokennetworkaddresses_to_tokennetworks
 		.get_mut(&chain_info.token_network_address)
 		.expect("token network should exist");
-	let mut channel_state = token_network_state
+	let channel_state = token_network_state
 		.channelidentifiers_to_channels
 		.get_mut(&canonical_identifier.channel_identifier)
 		.expect("Channel should exist");
@@ -295,7 +295,7 @@ fn test_channel_withdraw() {
 		.tokennetworkaddresses_to_tokennetworks
 		.get_mut(&chain_info.token_network_address)
 		.expect("token network should exist");
-	let mut channel_state = token_network_state
+	let channel_state = token_network_state
 		.channelidentifiers_to_channels
 		.get_mut(&canonical_identifier.channel_identifier)
 		.expect("Channel should exist");
@@ -427,6 +427,8 @@ fn test_channel_settled() {
 		canonical_identifier: canonical_identifier.clone(),
 		our_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
 		partner_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
+		our_transferred_amount: TokenAmount::zero(),
+		partner_transferred_amount: TokenAmount::zero(),
 	};
 	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
 		.expect("Channel settled should succeed");
@@ -441,6 +443,8 @@ fn test_channel_settled() {
 		canonical_identifier: canonical_identifier.clone(),
 		our_onchain_locksroot: our_locksroot.clone(),
 		partner_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
+		our_transferred_amount: TokenAmount::zero(),
+		partner_transferred_amount: TokenAmount::zero(),
 	};
 	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
 		.expect("Channel settled should succeed");
@@ -483,7 +487,7 @@ fn test_channel_batch_unlock() {
 		.tokennetworkaddresses_to_tokennetworks
 		.get_mut(&chain_info.token_network_address)
 		.expect("token network should exist");
-	let mut channel_state = token_network_state
+	let channel_state = token_network_state
 		.channelidentifiers_to_channels
 		.get_mut(&canonical_identifier.channel_identifier)
 		.expect("Channel should exist");
@@ -570,7 +574,7 @@ fn test_channel_action_withdraw() {
 		.tokennetworkaddresses_to_tokennetworks
 		.get_mut(&chain_info.token_network_address)
 		.expect("token network should exist");
-	let mut channel_state = token_network_state
+	let channel_state = token_network_state
 		.channelidentifiers_to_channels
 		.get_mut(&canonical_identifier.channel_identifier)
 		.expect("Channel should exist");
@@ -607,7 +611,7 @@ fn test_channel_action_withdraw() {
 		.tokennetworkaddresses_to_tokennetworks
 		.get_mut(&chain_info.token_network_address)
 		.expect("token network should exist");
-	let mut channel_state = token_network_state
+	let channel_state = token_network_state
 		.channelidentifiers_to_channels
 		.get_mut(&canonical_identifier.channel_identifier)
 		.expect("Channel should exist");
