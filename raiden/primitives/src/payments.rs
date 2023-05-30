@@ -36,7 +36,7 @@ impl PaymentsRegistry {
 		if let Some(payments) = self.payments.get(&target) {
 			return payments.get(&identifier)
 		}
-		return None
+		None
 	}
 
 	pub fn register(
@@ -48,13 +48,13 @@ impl PaymentsRegistry {
 	) -> oneshot::Receiver<PaymentStatus> {
 		let (sender, receiver) = oneshot::channel();
 
-		if let None = self.payments.get(&target) {
+		if self.payments.get(&target).is_none() {
 			self.payments.insert(target, HashMap::new());
 		}
 
 		let payments = self.payments.get_mut(&target).expect("Just created above");
 		payments.insert(
-			identifier.clone(),
+			identifier,
 			Payment { identifier, token_network_address, amount, notifier: Some(sender) },
 		);
 		receiver

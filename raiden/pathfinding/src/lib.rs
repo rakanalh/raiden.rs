@@ -338,7 +338,7 @@ impl PFS {
 		block_number: BlockNumber,
 		offered_fee: TokenAmount,
 	) -> Result<IOU, RoutingError> {
-		let expiration_block = block_number + self.config.iou_timeout.into();
+		let expiration_block = block_number + self.config.iou_timeout;
 
 		debug!(
 			message = "Create IOU",
@@ -353,7 +353,7 @@ impl PFS {
 			one_to_n_address,
 			amount: offered_fee,
 			expiration_block,
-			chain_id: self.chain_id.clone(),
+			chain_id: self.chain_id,
 			signature: None,
 		};
 		iou.sign(self.private_key.clone()).map_err(RoutingError::Signing)?;
@@ -367,7 +367,7 @@ impl PFS {
 		expiration_block: Option<BlockExpiration>,
 	) -> Result<IOU, RoutingError> {
 		let old_amount = iou.amount;
-		iou.amount = iou.amount + added_amount;
+		iou.amount += added_amount;
 		if let Some(expiration_block) = expiration_block {
 			iou.expiration_block = expiration_block;
 		}
@@ -440,7 +440,7 @@ pub async fn get_random_pfs(
 	let number_of_addresses = service_registry
 		.ever_made_deposits_len(None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 	let mut indicies_to_try: Vec<u64> = (0..number_of_addresses.as_u64()).collect();
 	indicies_to_try.shuffle(&mut rand::thread_rng());
 
@@ -462,12 +462,12 @@ async fn get_valid_pfs_url(
 	let address = service_registry
 		.ever_made_deposits(index_in_service_registry, None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 
 	let has_valid_registration = !service_registry
 		.has_valid_registration(address, None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 
 	if !has_valid_registration {
 		return Err(RoutingError::PFServiceUnusable)
@@ -476,7 +476,7 @@ async fn get_valid_pfs_url(
 	let url = service_registry
 		.get_service_url(address, None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 
 	let pfs_info = get_pfs_info(url.clone()).await?;
 	if pfs_info.price > pathfinding_max_fee {

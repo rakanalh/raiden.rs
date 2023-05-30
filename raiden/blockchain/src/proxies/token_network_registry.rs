@@ -68,7 +68,7 @@ where
 			gas_metadata: self.gas_metadata.clone(),
 		};
 
-		Ok(add_token_transaction
+		add_token_transaction
 			.execute(
 				RegisterTokenTransactionParams {
 					token_address,
@@ -77,7 +77,7 @@ where
 				},
 				block,
 			)
-			.await?)
+			.await
 	}
 
 	pub async fn get_controller(&self, block: BlockHash) -> Result<Address> {

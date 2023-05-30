@@ -41,7 +41,7 @@ where
 		return Ok(U256::from(value))
 	}
 	let v = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse U256"))?;
-	Ok(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?)
+	U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))
 }
 
 pub fn u256_from_optional_str<'de, D>(deserializer: D) -> Result<Option<U256>, D::Error>
@@ -119,8 +119,8 @@ impl<'de> Deserialize<'de> for ChainID {
 			where
 				E: Error,
 			{
-				Ok(ChainID::from_str(id)
-					.map_err(|_| Error::custom("Could not parse ChainID from string"))?)
+				ChainID::from_str(id)
+					.map_err(|_| Error::custom("Could not parse ChainID from string"))
 			}
 		}
 
@@ -153,8 +153,8 @@ impl<'de> Deserialize<'de> for U64 {
 			where
 				E: Error,
 			{
-				Ok(U64::from_str(num)
-					.map_err(|_| Error::custom("Could not parse U64 from string"))?)
+				U64::from_str(num)
+					.map_err(|_| Error::custom("Could not parse U64 from string"))
 			}
 		}
 

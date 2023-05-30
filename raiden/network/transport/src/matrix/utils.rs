@@ -20,7 +20,7 @@ pub async fn get_default_matrix_servers(
 	let servers = resp.get("active_servers").cloned().unwrap_or(vec![]);
 	Ok(servers
 		.iter()
-		.map(|s| if s.starts_with("http") { return s.clone() } else { format!("https://{}", s) })
+		.map(|s| if s.starts_with("http") { s.clone() } else { format!("https://{}", s) })
 		.collect())
 }
 

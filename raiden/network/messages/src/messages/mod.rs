@@ -43,9 +43,9 @@ enum CmdId {
 	WithdrawExpired = 17,
 }
 
-impl Into<[u8; 1]> for CmdId {
-	fn into(self) -> [u8; 1] {
-		(self as u8).to_be_bytes()
+impl From<CmdId> for [u8; 1] {
+	fn from(val: CmdId) -> Self {
+		(val as u8).to_be_bytes()
 	}
 }
 

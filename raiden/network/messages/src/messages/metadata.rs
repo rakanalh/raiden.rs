@@ -52,7 +52,7 @@ impl From<SendLockedTransfer> for Metadata {
 			.collect();
 
 		let target_metadata =
-			get_address_metadata(transfer.target, event.transfer.route_states.clone());
+			get_address_metadata(transfer.target, event.transfer.route_states);
 		let secret = match target_metadata {
 			Some(target_metadata) => transfer.secret.map(|s| {
 				encrypt_secret(

@@ -27,7 +27,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	}
 
 	pub async fn ever_made_deposits(&self, index: u64, block: Option<H256>) -> Result<Address> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("ever_made_deposits", (index,), None, Options::default(), block)
 			.await
@@ -35,7 +35,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	}
 
 	pub async fn ever_made_deposits_len(&self, block: Option<H256>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("everMadeDepositsLen", (), None, Options::default(), block)
 			.await
@@ -47,7 +47,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 		address: Address,
 		block: Option<H256>,
 	) -> Result<bool> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("hasValidRegistration", (address,), None, Options::default(), block)
 			.await
@@ -55,7 +55,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	}
 
 	pub async fn service_valid_til(&self, address: Address, block: Option<H256>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("service_valid_till", (address,), None, Options::default(), block)
 			.await
@@ -63,7 +63,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	}
 
 	pub async fn get_service_url(&self, address: Address, block: Option<H256>) -> Result<String> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("urls", (address,), None, Options::default(), block)
 			.await
@@ -71,7 +71,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	}
 
 	pub async fn current_price(&self, block: Option<H256>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("currentPrice", (), None, Options::default(), block)
 			.await
@@ -79,7 +79,7 @@ impl<T: Transport> ServiceRegistryProxy<T> {
 	}
 
 	pub async fn token(&self, block: Option<H256>) -> Result<Address> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("token", (), None, Options::default(), block)
 			.await

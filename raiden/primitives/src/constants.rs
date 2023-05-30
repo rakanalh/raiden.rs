@@ -33,6 +33,5 @@ lazy_static! {
 		TokenAmount::from(10).pow(TokenAmount::from(16)).mul(TokenAmount::from(5));
 	pub static ref PFS_DEFAULT_IOU_TIMEOUT: BlockTimeout =
 		Into::<BlockTimeout>::into(BlockTimeout::from(10).pow(BlockTimeout::from(5).into()))
-			.mul(BlockTimeout::from(2))
-			.into();
+			.mul(BlockTimeout::from(2));
 }

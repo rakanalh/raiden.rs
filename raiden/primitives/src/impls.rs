@@ -44,14 +44,14 @@ impl ToBytes for Signature {
 impl Stringify for Signature {
 	fn as_string(&self) -> String {
 		let bytes = self.to_bytes();
-		format!("0x{}", hex::encode(&bytes))
+		format!("0x{}", hex::encode(bytes))
 	}
 }
 
 impl Stringify for Bytes {
 	fn as_string(&self) -> String {
 		let bytes = &self.0;
-		format!("0x{}", hex::encode(&bytes))
+		format!("0x{}", hex::encode(bytes))
 	}
 }
 

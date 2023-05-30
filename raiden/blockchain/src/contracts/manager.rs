@@ -141,7 +141,7 @@ impl ContractsManager {
 	}
 
 	pub fn get(&self, contract_identifier: ContractIdentifier) -> Contract {
-		self.contracts.get(&contract_identifier.to_string()).map(|c| c.clone()).unwrap()
+		self.contracts.get(&contract_identifier.to_string()).cloned().unwrap()
 	}
 
 	pub fn deployed_addresses(&self) -> Result<DefaultAddresses> {

@@ -23,7 +23,7 @@ use web3::{
 };
 
 pub fn parse_address(address: &str) -> Result<Address, Box<dyn Error + Send + Sync + 'static>> {
-	Ok(Address::from_str(&address)?)
+	Ok(Address::from_str(address)?)
 }
 
 pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
@@ -60,7 +60,7 @@ pub async fn init_private_key(
 
 	let key_filename = if let Some(address) = address {
 		let inverted_keys: HashMap<Address, String> =
-			keys.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+			keys.iter().map(|(k, v)| (*v, k.clone())).collect();
 		inverted_keys.get(&address).unwrap().clone()
 	} else {
 		prompt_key(&keys)

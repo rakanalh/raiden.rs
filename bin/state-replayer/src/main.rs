@@ -62,7 +62,7 @@ fn main() {
 
 	let chain_id = ChainID::Private(U256::zero());
 
-	let contracts_manager = match contracts::ContractsManager::new(chain_id.clone()) {
+	let contracts_manager = match contracts::ContractsManager::new(chain_id) {
 		Ok(contracts_manager) => contracts_manager,
 		Err(e) => {
 			eprintln!("Error creating contracts manager: {}", e);
@@ -122,7 +122,7 @@ fn main() {
 
 	for state_change_record in state_change_records {
 		let state_change = state_change_record.data;
-		println!("");
+		println!();
 		print!("{}", "StateChange ->".red().bold());
 		println!(" {:#?}", state_change);
 		let result = match chain::state_transition(chain_state.clone(), state_change) {
@@ -133,12 +133,12 @@ fn main() {
 			},
 		};
 		for event in result.events {
-			let event_str = format!("{:#?}", event).replace("\n", "\n\t");
+			let event_str = format!("{:#?}", event).replace('\n', "\n\t");
 			print!("\t{}", "<- Event ".yellow().bold());
 			println!("{}", event_str);
 			continue
 		}
-		println!("");
+		println!();
 		chain_state = result.new_state;
 	}
 

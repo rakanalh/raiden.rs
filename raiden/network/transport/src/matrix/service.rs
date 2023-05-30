@@ -72,9 +72,9 @@ struct QueueInfo {
 	messages: HashMap<MessageIdentifier, Vec<OutgoingMessage>>,
 }
 
-impl Into<HashMap<MessageIdentifier, Vec<OutgoingMessage>>> for QueueInfo {
-	fn into(self) -> HashMap<MessageIdentifier, Vec<OutgoingMessage>> {
-		self.messages
+impl From<QueueInfo> for HashMap<MessageIdentifier, Vec<OutgoingMessage>> {
+	fn from(val: QueueInfo) -> Self {
+		val.messages
 	}
 }
 
@@ -158,7 +158,7 @@ impl MatrixService {
 		queue_identifier: QueueIdentifier,
 		messages: HashMap<MessageIdentifier, Vec<OutgoingMessage>>,
 	) {
-		if let None = self.messages.get(&queue_identifier) {
+		if self.messages.get(&queue_identifier).is_none() {
 			let (queue, sender) =
 				RetryMessageQueue::new(self.our_sender.clone(), self.config.clone());
 			self.running_futures.push(Box::pin(queue.run()));
@@ -172,7 +172,7 @@ impl MatrixService {
 	pub async fn run(mut self, mut message_handler: MessageHandler) {
 		loop {
 			select! {
-				() = self.running_futures.select_next_some(), if self.running_futures.len() > 0 => {},
+				() = self.running_futures.select_next_some(), if !self.running_futures.is_empty() => {},
 				incoming_messages = self.client.get_new_messages().fuse() => {
 					if let Err(e) = self.matrix_storage.set_sync_token(self.client.get_sync_token()) {
 						error!("Could not store matrix sync token: {:?}", e);
@@ -249,15 +249,13 @@ impl MatrixService {
 						Some(TransportServiceMessage::Send(message_identifier)) => {
 							let messages_by_identifier: Vec<OutgoingMessage> = self.messages
 								.values()
-								.map(|queue_info| {
+								.flat_map(|queue_info| {
 									queue_info
 										 .messages
 										 .values()
-										 .map(|messages| messages.iter().filter(|m| m.message_identifier == message_identifier).cloned().collect::<Vec<OutgoingMessage>>())
-										 .flatten()
+										 .flat_map(|messages| messages.iter().filter(|m| m.message_identifier == message_identifier).cloned().collect::<Vec<OutgoingMessage>>())
 										 .collect::<Vec<OutgoingMessage>>()
 								})
-								.flatten()
 								.collect();
 							self.send_messages(messages_by_identifier).await;
 						},
@@ -374,7 +372,7 @@ impl MatrixService {
 		incoming_message: IncomingMessage,
 		queue_id: &QueueIdentifier,
 	) {
-		let queue = match self.messages.get_mut(&queue_id) {
+		let queue = match self.messages.get_mut(queue_id) {
 			Some(queue) => queue,
 			None => return,
 		};

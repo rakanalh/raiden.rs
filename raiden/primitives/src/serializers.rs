@@ -18,7 +18,7 @@ impl Serialize for ChainID {
 	where
 		S: serde::Serializer,
 	{
-		let value: u64 = self.clone().into();
+		let value: u64 = (*self).into();
 		serializer.serialize_str(&value.to_string())
 	}
 }

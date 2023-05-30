@@ -24,7 +24,7 @@ pub fn encrypt_secret(
 	let message = target_metadata.user_id;
 	let signature = hex::decode(target_metadata.displayname.trim_start_matches("0x"))
 		.map_err(|e| format!("Could not decode signature: {:?}", e))?;
-	let public_key = recover_pub_key(&message.as_bytes(), &signature)
+	let public_key = recover_pub_key(message.as_bytes(), &signature)
 		.map_err(|e| format!("Could not recover public key: {:?}", e))?;
 
 	let data = DecryptedSecret { secret, amount, payment_identifier };
@@ -42,7 +42,7 @@ pub fn decrypt_secret(
 	encrypted_secret: Vec<u8>,
 	private_key: &PrivateKey,
 ) -> Result<DecryptedSecret, String> {
-	let decrypted_secret = keys::decrypt(&private_key, &encrypted_secret)
+	let decrypted_secret = keys::decrypt(private_key, &encrypted_secret)
 		.map_err(|e| format!("Could not decrypt secret: {:?}", e))?;
 	let json = std::str::from_utf8(&decrypted_secret)
 		.map_err(|e| format!("Invalid UTF-8 sequence: {}", e))?;

@@ -199,7 +199,7 @@ async fn main() {
 				.hash
 				.expect("Should contain latest block hash");
 			match user_deposit
-				.deposit(account, token_proxy, new_total_deposit.into(), current_block)
+				.deposit(account, token_proxy, new_total_deposit, current_block)
 				.await
 			{
 				Ok(hash) => {

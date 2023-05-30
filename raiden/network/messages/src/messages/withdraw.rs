@@ -59,7 +59,7 @@ impl From<SendWithdrawRequest> for WithdrawRequest {
 	fn from(event: SendWithdrawRequest) -> Self {
 		Self {
 			message_identifier: event.message_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			participant: event.participant,
@@ -129,7 +129,7 @@ impl From<SendWithdrawConfirmation> for WithdrawConfirmation {
 	fn from(event: SendWithdrawConfirmation) -> Self {
 		Self {
 			message_identifier: event.message_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			participant: event.participant,
@@ -195,7 +195,7 @@ impl From<SendWithdrawExpired> for WithdrawExpired {
 	fn from(event: SendWithdrawExpired) -> Self {
 		Self {
 			message_identifier: event.message_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			participant: event.participant,

@@ -117,13 +117,13 @@ impl MessageHandler {
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
 					message.locked_amount,
-					message.locksroot.clone(),
+					message.locksroot,
 				)?;
 				let balance_proof = BalanceProofState {
 					nonce: message.nonce,
 					transferred_amount: message.transferred_amount,
 					locked_amount: message.locked_amount,
-					locksroot: message.locksroot.clone(),
+					locksroot: message.locksroot,
 					canonical_identifier: CanonicalIdentifier {
 						chain_identifier: message.chain_id,
 						token_network_address: message.token_network_address,
@@ -194,7 +194,7 @@ impl MessageHandler {
 					} else {
 						None
 					};
-					let mut ret = vec![StateChange::ActionInitTarget(init_target.clone())];
+					let mut ret = vec![StateChange::ActionInitTarget(init_target)];
 					if let Some(secret_reveal) = secret_reveal {
 						ret.push(secret_reveal);
 					}
@@ -207,7 +207,7 @@ impl MessageHandler {
 							route_state.hop_after(self.private_key.address())
 						{
 							if views::get_channel_by_token_network_and_partner(
-								&chain_state,
+								chain_state,
 								transfer.balance_proof.canonical_identifier.token_network_address,
 								next_hope_address,
 							)
@@ -228,17 +228,17 @@ impl MessageHandler {
 				(sender, state_changes)
 			},
 			messages::MessageInner::LockExpired(message) => {
-				let sender = get_sender(&message.message_hash().as_bytes(), &message.signature.0)?;
+				let sender = get_sender(message.message_hash().as_bytes(), &message.signature.0)?;
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
 					message.locked_amount,
-					message.locksroot.clone(),
+					message.locksroot,
 				)?;
 				let balance_proof = BalanceProofState {
 					nonce: message.nonce,
 					transferred_amount: message.transferred_amount,
 					locked_amount: message.locked_amount,
-					locksroot: message.locksroot.clone(),
+					locksroot: message.locksroot,
 					canonical_identifier: CanonicalIdentifier {
 						chain_identifier: message.chain_id,
 						token_network_address: message.token_network_address,
@@ -291,13 +291,13 @@ impl MessageHandler {
 				let balance_hash = hash_balance_data(
 					message.transferred_amount,
 					message.locked_amount,
-					message.locksroot.clone(),
+					message.locksroot,
 				)?;
 				let balance_proof = BalanceProofState {
 					nonce: message.nonce,
 					transferred_amount: message.transferred_amount,
 					locked_amount: message.locked_amount,
-					locksroot: message.locksroot.clone(),
+					locksroot: message.locksroot,
 					canonical_identifier: CanonicalIdentifier {
 						chain_identifier: message.chain_id,
 						token_network_address: message.token_network_address,
@@ -447,7 +447,7 @@ impl MessageHandler {
 }
 
 fn get_sender(data: &[u8], signature: &[u8]) -> Result<Address, String> {
-	signing::recover(&data, &signature)
+	signing::recover(data, signature)
 		.map_err(|e| format!("Could not recover address from signature: {}", e))
 }
 

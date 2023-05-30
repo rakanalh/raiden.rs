@@ -101,7 +101,7 @@ impl StateManager {
 		let mut state_changes: Vec<StateChange> = vec![];
 
 		let chain_state =
-			ChainState::new(chain_id.clone(), U64::from(0), H256::zero(), our_address);
+			ChainState::new(chain_id, U64::from(0), H256::zero(), our_address);
 
 		state_changes.push(
 			ActionInitChain {
@@ -151,7 +151,7 @@ impl StateManager {
 				Err(StateTransitionError { msg: format!("Could not store state change: {}", e) }),
 		}?;
 
-		let events = self.dispatch(state_change.clone())?;
+		let events = self.dispatch(state_change)?;
 
 		self.state_change_last_id = Some(state_change_id);
 

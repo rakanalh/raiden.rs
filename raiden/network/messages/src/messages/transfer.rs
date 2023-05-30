@@ -179,12 +179,12 @@ impl From<SendLockExpired> for LockExpired {
 	fn from(event: SendLockExpired) -> Self {
 		Self {
 			message_identifier: event.message_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			transferred_amount: event.balance_proof.transferred_amount,
 			locked_amount: event.balance_proof.locked_amount,
-			locksroot: event.balance_proof.locksroot.clone(),
+			locksroot: event.balance_proof.locksroot,
 			recipient: event.recipient,
 			secrethash: event.secrethash,
 			nonce: event.balance_proof.nonce,
@@ -196,7 +196,7 @@ impl From<SendLockExpired> for LockExpired {
 impl SignedMessage for LockExpired {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot)
 				.unwrap();
 		pack_balance_proof(
 			self.nonce,
@@ -260,7 +260,7 @@ impl From<SendUnlock> for Unlock {
 		Self {
 			message_identifier: event.message_identifier,
 			payment_identifier: event.payment_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			transferred_amount: event.balance_proof.transferred_amount,
@@ -276,7 +276,7 @@ impl From<SendUnlock> for Unlock {
 impl SignedMessage for Unlock {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot)
 				.unwrap();
 		pack_balance_proof(
 			self.nonce,
@@ -358,12 +358,12 @@ impl From<SendLockedTransfer> for LockedTransfer {
 		Self {
 			message_identifier: event.message_identifier,
 			payment_identifier: event.transfer.payment_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			transferred_amount: event.transfer.balance_proof.transferred_amount,
 			locked_amount: event.transfer.balance_proof.locked_amount,
-			locksroot: event.transfer.balance_proof.locksroot.clone(),
+			locksroot: event.transfer.balance_proof.locksroot,
 			secret: event.transfer.secret.clone(),
 			nonce: event.transfer.balance_proof.nonce,
 			signature: Signature::default(),
@@ -384,7 +384,7 @@ impl From<SendLockedTransfer> for LockedTransfer {
 impl SignedMessage for LockedTransfer {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot)
 				.expect("Balance hash should be generated");
 		pack_balance_proof(
 			self.nonce,
@@ -426,7 +426,7 @@ impl SignedEnvelopeMessage for LockedTransfer {
 		if let Some(secrethash) = self.lock.secrethash {
 			b.extend(secrethash.as_bytes());
 		}
-		b.extend(encode(&[Token::Uint(self.lock.amount.into())]));
+		b.extend(encode(&[Token::Uint(self.lock.amount)]));
 		b.extend_from_slice(&self.metadata.hash().unwrap_or_default());
 
 		H256::from_slice(&keccak256(&b))

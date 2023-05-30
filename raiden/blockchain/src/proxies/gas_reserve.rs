@@ -96,26 +96,26 @@ impl GasReserve {
 			.values()
 			.fold(0u64, |sum, tn| sum + tn.opening_channels_count as u64);
 
-		let token_addresses = views::get_token_identifiers(&chain_state, self.registry_address);
+		let token_addresses = views::get_token_identifiers(chain_state, self.registry_address);
 
 		for token_address in token_addresses {
 			num_opened_channels +=
-				views::get_channelstate_open(&chain_state, self.registry_address, token_address)
+				views::get_channelstate_open(chain_state, self.registry_address, token_address)
 					.len() as u64;
 			num_closing_channels +=
-				views::get_channelstate_closing(&chain_state, self.registry_address, token_address)
+				views::get_channelstate_closing(chain_state, self.registry_address, token_address)
 					.len() as u64;
 			num_closed_channels +=
-				views::get_channelstate_closed(&chain_state, self.registry_address, token_address)
+				views::get_channelstate_closed(chain_state, self.registry_address, token_address)
 					.len() as u64;
 			num_settling_channels += views::get_channelstate_settling(
-				&chain_state,
+				chain_state,
 				self.registry_address,
 				token_address,
 			)
 			.len() as u64;
 			num_settled_channels +=
-				views::get_channelstate_settled(&chain_state, self.registry_address, token_address)
+				views::get_channelstate_settled(chain_state, self.registry_address, token_address)
 					.len() as u64;
 		}
 

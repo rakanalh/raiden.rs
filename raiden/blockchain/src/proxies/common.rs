@@ -33,7 +33,7 @@ impl Nonce {
 	pub async fn next(&self) -> U256 {
 		let mut inner = self.inner.lock().await;
 		*inner += U256::from(1);
-		inner.clone()
+		*inner
 	}
 
 	pub async fn peek_next(&self) -> U256 {

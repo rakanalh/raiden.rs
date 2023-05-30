@@ -41,7 +41,7 @@ impl<T: Transport> TokenProxy<T> {
 		spender: Address,
 		block: Option<H256>,
 	) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("allowance", (address, spender), address, Options::default(), block)
 			.await
@@ -49,7 +49,7 @@ impl<T: Transport> TokenProxy<T> {
 	}
 
 	pub async fn total_supply(&self, block: Option<H256>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("totalSupply", (), None, Options::default(), block)
 			.await
@@ -57,7 +57,7 @@ impl<T: Transport> TokenProxy<T> {
 	}
 
 	pub async fn balance_of(&self, address: Address, block: Option<H256>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("balanceOf", (address,), address, Options::default(), block)
 			.await

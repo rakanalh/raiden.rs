@@ -52,7 +52,7 @@ pub async fn get_best_routes(
 	// - The transfer will be faster
 	if token_network.partneraddresses_to_channelidentifiers.contains_key(&to_address) {
 		for channel_id in token_network.partneraddresses_to_channelidentifiers[&to_address].iter() {
-			let channel_state = &token_network.channelidentifiers_to_channels[&channel_id];
+			let channel_state = &token_network.channelidentifiers_to_channels[channel_id];
 
 			// Direct channels don't have fees.
 			let payment_with_fee_amount = amount;
@@ -83,14 +83,13 @@ pub async fn get_best_routes(
 	let usable_channels: Vec<&ChannelState> = token_network
 		.partneraddresses_to_channelidentifiers
 		.values()
-		.map(|channels: &Vec<ChannelIdentifier>| {
+		.flat_map(|channels: &Vec<ChannelIdentifier>| {
 			channels
 				.iter()
 				.map(|channel_id| &token_network.channelidentifiers_to_channels[channel_id])
 				.filter(|channel: &&ChannelState| channel.is_usable_for_new_transfer(amount, None))
 				.collect::<Vec<&ChannelState>>()
 		})
-		.flatten()
 		.collect();
 
 	if usable_channels.is_empty() {
@@ -188,7 +187,7 @@ pub fn make_route_state(
 		return None
 	}
 
-	return Some(RouteState {
+	Some(RouteState {
 		route: route.path,
 		address_to_metadata: route.address_metadata,
 		swaps: HashMap::new(),

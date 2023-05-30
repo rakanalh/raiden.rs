@@ -51,7 +51,7 @@ where
 		secrethash: SecretHash,
 		block: Option<BlockHash>,
 	) -> Result<Option<U64>> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("getSecretRevealBlockHeight", (secrethash,), None, Options::default(), block)
 			.await

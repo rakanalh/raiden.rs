@@ -63,7 +63,7 @@ where
 	}
 
 	pub async fn token_address(&self, block: Option<BlockHash>) -> Result<Address> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("token", (), None, Options::default(), block)
 			.await
@@ -71,7 +71,7 @@ where
 	}
 
 	pub async fn balance(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("balances", (owner,), None, Options::default(), block)
 			.await
@@ -83,7 +83,7 @@ where
 		owner: Address,
 		block: Option<BlockHash>,
 	) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("effectiveBalance", (owner,), None, Options::default(), block)
 			.await
@@ -91,7 +91,7 @@ where
 	}
 
 	pub async fn total_deposit(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("total_deposit", (owner,), None, Options::default(), block)
 			.await
@@ -99,7 +99,7 @@ where
 	}
 
 	pub async fn whole_balance(&self, block: Option<BlockHash>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("whole_balance", (), None, Options::default(), block)
 			.await
@@ -107,7 +107,7 @@ where
 	}
 
 	pub async fn whole_balance_limit(&self, block: Option<BlockHash>) -> Result<U256> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		self.contract
 			.query("whole_balance_limit", (), None, Options::default(), block)
 			.await
@@ -119,7 +119,7 @@ where
 		address: Address,
 		block: Option<BlockHash>,
 	) -> Result<WithdrawPlan> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		let (withdraw_amount, withdraw_block): (TokenAmount, U256) = self
 			.contract
 			.query("withdraw_plans", (address,), None, Options::default(), block)

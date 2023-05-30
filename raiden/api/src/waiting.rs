@@ -92,12 +92,12 @@ pub async fn wait_for_new_channel(
 			token_address = token_address.checksum(),
 			partner_address = partner_address.checksum(),
 		);
-		if let Some(_) = views::get_channel_state_for(
+		if views::get_channel_state_for(
 			&chain_state,
 			registry_address,
 			token_address,
 			partner_address,
-		) {
+		).is_some() {
 			break
 		}
 		sleep(retry_timeout).await;
@@ -112,7 +112,7 @@ pub async fn wait_for_close(
 	retry_timeout: Option<RetryTimeout>,
 ) -> Result<(), ApiError> {
 	let retry_timeout = retry_timeout
-		.map(|t| Duration::from_millis(t))
+		.map(Duration::from_millis)
 		.unwrap_or(Duration::from_millis(DEFAULT_RETRY_TIMEOUT));
 
 	loop {
@@ -152,7 +152,7 @@ pub async fn wait_for_coop_settle(
 	retry_timeout: Option<RetryTimeout>,
 ) -> Result<(), ApiError> {
 	let retry_timeout = retry_timeout
-		.map(|t| Duration::from_millis(t))
+		.map(Duration::from_millis)
 		.unwrap_or(Duration::from_millis(DEFAULT_RETRY_TIMEOUT));
 
 	loop {
@@ -230,7 +230,7 @@ pub async fn wait_for_participant_deposit(
 	retry_timeout: Option<RetryTimeout>,
 ) -> Result<(), ApiError> {
 	let retry_timeout = retry_timeout
-		.map(|t| Duration::from_millis(t))
+		.map(Duration::from_millis)
 		.unwrap_or(Duration::from_millis(DEFAULT_RETRY_TIMEOUT));
 
 	loop {
@@ -277,7 +277,7 @@ pub async fn wait_for_withdraw_complete(
 	retry_timeout: Option<RetryTimeout>,
 ) -> Result<(), ApiError> {
 	let retry_timeout = retry_timeout
-		.map(|t| Duration::from_millis(t))
+		.map(Duration::from_millis)
 		.unwrap_or(Duration::from_millis(DEFAULT_RETRY_TIMEOUT));
 
 	loop {

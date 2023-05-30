@@ -418,7 +418,7 @@ impl Api {
 				))),
 		};
 
-		let result = if let Some(total_deposit) = total_deposit {
+		if let Some(total_deposit) = total_deposit {
 			self.channel_deposit(account, channel_state, total_deposit, retry_timeout).await
 		} else if let Some(total_withdraw) = total_withdraw {
 			self.channel_withdraw(channel_state, total_withdraw).await
@@ -431,9 +431,7 @@ impl Api {
 			return Err(ApiError::Param(format!("Unreachable")))
 		} else {
 			return Err(ApiError::Param(format!("Unreachable")))
-		};
-
-		result
+		}
 	}
 
 	pub async fn channel_deposit(
@@ -819,7 +817,7 @@ impl Api {
 		self.channel_batch_close(
 			registry_address,
 			token_address,
-			channels.iter().map(|c| c.partner_state.address.clone()).collect(),
+			channels.iter().map(|c| c.partner_state.address).collect(),
 			Some(DEFAULT_RETRY_TIMEOUT),
 			true,
 		)
@@ -982,8 +980,7 @@ impl Api {
 			.await
 			.map_err(ApiError::ContractSpec)?;
 
-		let confirmed_block_identifier =
-			self.raiden.state_manager.read().current_state.block_hash.clone();
+		let confirmed_block_identifier = self.raiden.state_manager.read().current_state.block_hash;
 
 		let current_total_deposit = user_deposit_proxy
 			.total_deposit(self.raiden.config.account.address(), Some(confirmed_block_identifier))
@@ -1073,8 +1070,7 @@ impl Api {
 			.await
 			.map_err(ApiError::ContractSpec)?;
 
-		let confirmed_block_identifier =
-			self.raiden.state_manager.read().current_state.block_hash.clone();
+		let confirmed_block_identifier = self.raiden.state_manager.read().current_state.block_hash;
 
 		let balance = user_deposit_proxy
 			.balance(self.raiden.config.account.address(), Some(confirmed_block_identifier))
@@ -1125,8 +1121,8 @@ impl Api {
 			.map_err(ApiError::ContractSpec)?;
 
 		let chain_state = self.raiden.state_manager.read().current_state.clone();
-		let confirmed_block_identifier = chain_state.block_hash.clone();
-		let block_number = chain_state.block_number.clone();
+		let confirmed_block_identifier = chain_state.block_hash;
+		let block_number = chain_state.block_number;
 		drop(chain_state);
 
 		let withdraw_plan = user_deposit_proxy

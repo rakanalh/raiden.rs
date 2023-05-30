@@ -194,7 +194,7 @@ impl EventHandler {
 						return
 					},
 				};
-				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+				let channel_proxy = match self.proxy_manager.payment_channel(channel_state).await {
 					Ok(proxy) => proxy,
 					Err(e) => {
 						error!("Something went wrong constructing channel proxy {:?}", e);
@@ -254,7 +254,7 @@ impl EventHandler {
 					},
 				};
 
-				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+				let channel_proxy = match self.proxy_manager.payment_channel(channel_state).await {
 					Ok(proxy) => proxy,
 					Err(e) => {
 						error!("Something went wrong constructing channel proxy {:?}", e);
@@ -265,13 +265,13 @@ impl EventHandler {
 				if let Err(e) = channel_proxy
 					.set_total_withdraw(
 						self.account.clone(),
-						inner.canonical_identifier.channel_identifier.clone(),
+						inner.canonical_identifier.channel_identifier,
 						inner.total_withdraw,
 						channel_state.our_state.address,
 						channel_state.partner_state.address,
 						our_signature,
 						inner.partner_signature.clone(),
-						inner.expiration.clone(),
+						inner.expiration,
 						inner.triggered_by_blockhash,
 					)
 					.await
@@ -295,7 +295,7 @@ impl EventHandler {
 					},
 				};
 
-				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+				let channel_proxy = match self.proxy_manager.payment_channel(channel_state).await {
 					Ok(proxy) => proxy,
 					Err(e) => {
 						error!("Something went wrong constructing channel proxy {:?}", e);
@@ -471,7 +471,7 @@ impl EventHandler {
 					},
 				};
 
-				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+				let channel_proxy = match self.proxy_manager.payment_channel(channel_state).await {
 					Ok(proxy) => proxy,
 					Err(e) => {
 						error!("Something went wrong constructing channel proxy {:?}", e);
@@ -550,7 +550,7 @@ impl EventHandler {
 					},
 				};
 				let message_hash = match &inner.balance_proof.message_hash {
-					Some(hash) => hash.clone(),
+					Some(hash) => *hash,
 					None => {
 						error!("Channel update transfer: Message hash is not set");
 						return
@@ -568,7 +568,7 @@ impl EventHandler {
 					},
 				};
 
-				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+				let channel_proxy = match self.proxy_manager.payment_channel(channel_state).await {
 					Ok(proxy) => proxy,
 					Err(e) => {
 						error!("Something went wrong constructing channel proxy {:?}", e);
@@ -627,7 +627,7 @@ impl EventHandler {
 					},
 				};
 
-				let channel_proxy = match self.proxy_manager.payment_channel(&channel_state).await {
+				let channel_proxy = match self.proxy_manager.payment_channel(channel_state).await {
 					Ok(proxy) => proxy,
 					Err(e) => {
 						error!("Something went wrong constructing channel proxy {:?}", e);
@@ -666,7 +666,7 @@ impl EventHandler {
 					for (secret, unlock) in &old_state.secrethashes_to_onchain_unlockedlocks {
 						old_state
 							.secrethashes_to_lockedlocks
-							.insert(secret.clone(), unlock.lock.clone());
+							.insert(*secret, unlock.lock.clone());
 					}
 
 					old_state.secrethashes_to_unlockedlocks.clear();
@@ -675,10 +675,10 @@ impl EventHandler {
 					// on-chain. Update their state to "on-chain unlocked".
 					for (secret, updated_unlock) in &new_state.secrethashes_to_onchain_unlockedlocks
 					{
-						old_state.secrethashes_to_lockedlocks.remove_entry(&secret);
+						old_state.secrethashes_to_lockedlocks.remove_entry(secret);
 						old_state
 							.secrethashes_to_onchain_unlockedlocks
-							.insert(secret.clone(), updated_unlock.clone());
+							.insert(*secret, updated_unlock.clone());
 					}
 
 					// If we don't have a task for the secret, then that lock can't be
@@ -1052,7 +1052,7 @@ impl EventHandler {
 					};
 
 				if effective_balance < *MONITORING_REWARD {
-					let reward = MONITORING_REWARD.clone();
+					let reward = *MONITORING_REWARD;
 					warn!(
 						message = "Skipping update to Monitoring service.",
 						current_balance = effective_balance.to_string(),

@@ -27,14 +27,14 @@ impl From<u64> for ChainID {
 	}
 }
 
-impl Into<u64> for ChainID {
-	fn into(self) -> u64 {
-		match self {
-			Self::Mainnet => 1u64.into(),
-			Self::Ropsten => 3u64.into(),
-			Self::Rinkeby => 4u64.into(),
-			Self::Goerli => 5u64.into(),
-			Self::Private(id) => id.as_u64(),
+impl From<ChainID> for u64 {
+	fn from(val: ChainID) -> Self {
+		match val {
+			ChainID::Mainnet => 1u64,
+			ChainID::Ropsten => 3u64,
+			ChainID::Rinkeby => 4u64,
+			ChainID::Goerli => 5u64,
+			ChainID::Private(id) => id.as_u64(),
 		}
 	}
 }
@@ -60,16 +60,16 @@ impl From<U256> for ChainID {
 	}
 }
 
-impl Into<U256> for ChainID {
-	fn into(self) -> U256 {
-		let chain_id: u64 = self.into();
+impl From<ChainID> for U256 {
+	fn from(val: ChainID) -> Self {
+		let chain_id: u64 = val.into();
 		chain_id.into()
 	}
 }
 
-impl Into<Vec<u8>> for ChainID {
-	fn into(self) -> Vec<u8> {
-		let chain_id: u64 = self.into();
+impl From<ChainID> for Vec<u8> {
+	fn from(val: ChainID) -> Self {
+		let chain_id: u64 = val.into();
 		chain_id.to_be_bytes().to_vec()
 	}
 }

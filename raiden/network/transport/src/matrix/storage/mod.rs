@@ -53,7 +53,7 @@ impl MatrixStorage {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
 		let mut stmt = conn
 			.prepare("SELECT sync_token FROM matrix_config")
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 
 		let sync_token: String = stmt.query_row([], |r| r.get(0)).map_err(StorageError::Sql)?;
 		Ok(sync_token)
@@ -61,15 +61,15 @@ impl MatrixStorage {
 
 	pub fn set_sync_token(&self, sync_token: String) -> Result<()> {
 		let sql = if let Err(_) = self.get_sync_token() {
-			format!("INSERT INTO matrix_config(sync_token) VALUES(?1)")
+			"INSERT INTO matrix_config(sync_token) VALUES(?1)".to_string()
 		} else {
-			format!("UPDATE matrix_config SET sync_token=?1")
+			"UPDATE matrix_config SET sync_token=?1".to_string()
 		};
 		self.conn
 			.lock()
 			.map_err(|_| StorageError::CannotLock)?
 			.execute(&sql, params![sync_token])
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 		Ok(())
 	}
 
@@ -77,7 +77,7 @@ impl MatrixStorage {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
 		let mut stmt = conn
 			.prepare("SELECT data FROM matrix_messages")
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 
 		let messages: String = match stmt.query_row([], |r| r.get(0)) {
 			Ok(messages) => messages,
@@ -93,15 +93,15 @@ impl MatrixStorage {
 
 	pub fn store_messages(&self, messages: String) -> Result<()> {
 		let sql = if let Err(_) = self.get_messages() {
-			format!("INSERT INTO matrix_messages(data) VALUES(?1)")
+			"INSERT INTO matrix_messages(data) VALUES(?1)".to_string()
 		} else {
-			format!("UPDATE matrix_messages SET data=?1")
+			"UPDATE matrix_messages SET data=?1".to_string()
 		};
 		self.conn
 			.lock()
 			.map_err(|_| StorageError::CannotLock)?
 			.execute(&sql, params![messages])
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 		Ok(())
 	}
 }

@@ -100,7 +100,7 @@ pub struct CanonicalIdentifier {
 
 impl ToString for CanonicalIdentifier {
 	fn to_string(&self) -> String {
-		return format!(
+		format!(
 			"ChainID: {}, TokenNetworkAddress: {}, ChannelID: {}",
 			self.chain_identifier,
 			self.token_network_address.checksum(),
@@ -117,7 +117,7 @@ pub struct QueueIdentifier {
 
 impl ToString for QueueIdentifier {
 	fn to_string(&self) -> String {
-		return format!(
+		format!(
 			"Recipient: {}, {}",
 			self.recipient.checksum(),
 			self.canonical_identifier.to_string()
@@ -136,9 +136,9 @@ pub enum MessageTypeId {
 	MSReward = 6,
 }
 
-impl Into<[u8; 1]> for MessageTypeId {
-	fn into(self) -> [u8; 1] {
-		(self as u8).to_be_bytes()
+impl From<MessageTypeId> for [u8; 1] {
+	fn from(val: MessageTypeId) -> Self {
+		(val as u8).to_be_bytes()
 	}
 }
 

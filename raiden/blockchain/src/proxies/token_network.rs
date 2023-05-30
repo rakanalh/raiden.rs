@@ -222,7 +222,7 @@ where
 			gas_metadata: self.gas_metadata.clone(),
 		};
 
-		Ok(set_total_deposit_transaction
+		set_total_deposit_transaction
 			.execute(
 				ChannelSetTotalDepositTransactionParams {
 					channel_identifier,
@@ -231,7 +231,7 @@ where
 				},
 				block_hash,
 			)
-			.await?)
+			.await
 	}
 
 	pub async fn set_total_withdraw(
@@ -268,7 +268,7 @@ where
 			total_withdraw,
 			expiration_block,
 		};
-		Ok(set_total_withdraw_transaction.execute(params, block_hash).await?)
+		set_total_withdraw_transaction.execute(params, block_hash).await
 	}
 
 	pub async fn update_transfer(
@@ -291,7 +291,7 @@ where
 			gas_metadata: self.gas_metadata.clone(),
 		};
 
-		Ok(transaction
+		transaction
 			.execute(
 				ChannelUpdateTransferTransactionParams {
 					channel_identifier,
@@ -304,7 +304,7 @@ where
 				},
 				block_hash,
 			)
-			.await?)
+			.await
 	}
 
 	pub async fn settle(
@@ -328,7 +328,7 @@ where
 			gas_metadata: self.gas_metadata.clone(),
 		};
 
-		Ok(settle_transaction
+		settle_transaction
 			.execute(
 				ChannelSettleTransactionParams {
 					channel_identifier,
@@ -342,7 +342,7 @@ where
 				},
 				block_hash,
 			)
-			.await?)
+			.await
 	}
 
 	pub async fn unlock(
@@ -366,7 +366,7 @@ where
 			gas_metadata: self.gas_metadata.clone(),
 		};
 
-		Ok(unlock_transaction
+		unlock_transaction
 			.execute(
 				ChannelUnlockTransactionParams {
 					channel_identifier,
@@ -376,7 +376,7 @@ where
 				},
 				block_hash,
 			)
-			.await?)
+			.await
 	}
 
 	pub async fn coop_settle(
@@ -398,7 +398,7 @@ where
 			gas_metadata: self.gas_metadata.clone(),
 		};
 
-		Ok(coop_settle_transaction
+		coop_settle_transaction
 			.execute(
 				ChannelCoopSettleTransactionParams {
 					channel_identifier,
@@ -407,7 +407,7 @@ where
 				},
 				block_hash,
 			)
-			.await?)
+			.await
 	}
 
 	pub async fn get_channel_identifier(
@@ -416,7 +416,7 @@ where
 		participant2: Address,
 		block: Option<H256>,
 	) -> Result<Option<U256>> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		let channel_identifier: U256 = self
 			.contract
 			.query(
@@ -584,7 +584,7 @@ where
 		partner: Address,
 		block: Option<H256>,
 	) -> Result<ParticipantDetails> {
-		let block = block.map(|b| BlockId::Hash(b));
+		let block = block.map(BlockId::Hash);
 		let data: (TokenAmount, TokenAmount, bool, BalanceHash, Nonce, Locksroot, TokenAmount) =
 			self.contract
 				.query(
