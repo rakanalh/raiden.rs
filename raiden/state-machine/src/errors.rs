@@ -5,6 +5,7 @@ use std::{
 	fmt,
 };
 
+/// The state transition error type.
 #[derive(Debug, Clone)]
 pub struct StateTransitionError {
 	pub msg: String,

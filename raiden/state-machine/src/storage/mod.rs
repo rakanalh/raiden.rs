@@ -38,17 +38,21 @@ use crate::types::{
 mod sqlite;
 pub mod types;
 
+/// The number of blocks before taking a snot of the chain state.
 pub const SNAPSHOT_STATE_CHANGE_COUNT: u16 = 500;
 
+/// Storage interface for the chain state.
 pub struct StateStorage {
 	conn: Mutex<Connection>,
 }
 
 impl StateStorage {
+	/// Create an instance of `StateStorage`.
 	pub fn new(conn: Connection) -> Self {
 		Self { conn: Mutex::new(conn) }
 	}
 
+	/// Create tables if not already created.
 	pub fn setup_database(&self) -> Result<()> {
 		let setup_db_sql = format!(
 			"
@@ -73,6 +77,7 @@ impl StateStorage {
 		Ok(())
 	}
 
+	/// Store chain state snapshot.
 	pub fn store_snapshot(
 		&self,
 		state: ChainState,
@@ -102,6 +107,7 @@ impl StateStorage {
 		Ok(())
 	}
 
+	/// Return all state changes.
 	pub fn state_changes(&self) -> Result<Vec<StateChangeRecord>> {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
 		let mut stmt = conn
@@ -124,6 +130,7 @@ impl StateStorage {
 		Ok(state_changes)
 	}
 
+	/// Store a state change.
 	pub fn store_state_change(&self, state_change: StateChange) -> Result<StorageID> {
 		let serialized_state_change =
 			serde_json::to_string(&state_change).map_err(StorageError::SerializationError)?;
@@ -137,6 +144,7 @@ impl StateStorage {
 		Ok(ulid.into())
 	}
 
+	/// Store a list of events.
 	pub fn store_events(&self, state_change_id: StorageID, events: Vec<Event>) -> Result<()> {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
 
@@ -160,6 +168,7 @@ impl StateStorage {
 		Ok(())
 	}
 
+	/// Get the last snapshot prior to a specific state change identifier.
 	pub fn get_snapshot_before_state_change(
 		&self,
 		state_change_id: StorageID,
@@ -191,6 +200,7 @@ impl StateStorage {
 		})
 	}
 
+	/// Get the list of state changes in range of ULIDs.
 	pub fn get_state_changes_in_range(
 		&self,
 		start_state_change: StorageID,
@@ -225,6 +235,7 @@ impl StateStorage {
 		Ok(state_changes)
 	}
 
+	/// Get a state change based on data field attributes.
 	pub fn get_latest_state_change_by_data_field(
 		&self,
 		criteria: Vec<(String, String)>,
@@ -260,6 +271,7 @@ impl StateStorage {
 		}))
 	}
 
+	/// Get a state change that contains a balance proof that matches the provided `balance_hash`.
 	pub fn get_state_change_with_balance_proof_by_balance_hash(
 		&self,
 		canonical_identifier: CanonicalIdentifier,
@@ -324,6 +336,7 @@ impl StateStorage {
 		}))
 	}
 
+	/// Get a state change that contains a balance proof that matches the provided `locksroot`.
 	pub fn get_state_change_with_balance_proof_by_locksroot(
 		&self,
 		canonical_identifier: CanonicalIdentifier,
@@ -388,6 +401,7 @@ impl StateStorage {
 		}))
 	}
 
+	/// Get the latest event filtered by criteria of data field attributes.
 	pub fn get_latest_event_by_data_field(
 		&self,
 		criteria: Vec<(String, String)>,
@@ -428,6 +442,7 @@ impl StateStorage {
 		}))
 	}
 
+	/// Get an event with a balance proof filtered by the `balance_hash`.
 	pub fn get_event_with_balance_proof_by_balance_hash(
 		&self,
 		canonical_identifier: CanonicalIdentifier,
@@ -523,6 +538,7 @@ impl StateStorage {
 		}))
 	}
 
+	/// Get an event with a balance proof filtered by the `locksroot`.
 	pub fn get_event_with_balance_proof_by_locksroot(
 		&self,
 		canonical_identifier: CanonicalIdentifier,
@@ -618,6 +634,7 @@ impl StateStorage {
 		}))
 	}
 
+	/// Return events with timestamps.
 	pub fn get_events_with_timestamps(&self) -> Result<Vec<EventRecord>> {
 		let query = "
             SELECT
@@ -651,6 +668,7 @@ impl StateStorage {
 		Ok(events)
 	}
 
+	/// Get events of payments with timestamps attached.
 	pub fn get_events_payment_history_with_timestamps(
 		&self,
 		token_network_address: Option<TokenNetworkAddress>,

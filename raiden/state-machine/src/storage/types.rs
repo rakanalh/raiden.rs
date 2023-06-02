@@ -15,8 +15,10 @@ use crate::types::{
 	StateChange,
 };
 
+/// Result of storage operation.
 pub type Result<T> = std::result::Result<T, StorageError>;
 
+/// Storage error type.
 #[derive(Display, Debug)]
 pub enum StorageError {
 	#[display(fmt = "Storage lock poisoned")]
@@ -31,16 +33,19 @@ pub enum StorageError {
 	Other(&'static str),
 }
 
+/// Storage record identifier
 #[derive(Clone, Copy, Debug)]
 pub struct StorageID {
 	pub(crate) inner: Ulid,
 }
 
 impl StorageID {
+	/// Returns zero value
 	pub fn zero() -> Self {
 		Self { inner: Ulid::nil() }
 	}
 
+	/// Returns max possible value.
 	pub fn max() -> Self {
 		Self { inner: u128::MAX.into() }
 	}
@@ -78,12 +83,14 @@ impl TryFrom<String> for StorageID {
 	}
 }
 
+/// A record of a state change.
 #[derive(Clone, Debug)]
 pub struct StateChangeRecord {
 	pub identifier: StorageID,
 	pub data: StateChange,
 }
 
+/// A record of an event.
 #[derive(Clone, Debug)]
 pub struct EventRecord {
 	pub identifier: StorageID,
@@ -92,6 +99,7 @@ pub struct EventRecord {
 	pub timestamp: NaiveDateTime,
 }
 
+/// A record of a snaoshot.
 #[derive(Debug, Clone)]
 pub struct SnapshotRecord {
 	pub identifier: StorageID,

@@ -32,6 +32,7 @@ pub use self::{
 	state_change::*,
 };
 
+/// The channel's pseudo random number generator.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Random(ChaChaRng);
 
@@ -45,12 +46,14 @@ impl Random {
 	}
 }
 
+/// Transaction result state.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransactionResult {
 	Success,
 	Failure,
 }
 
+/// The transaction execution status.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TransactionExecutionStatus {
 	pub started_block_number: Option<BlockNumber>,
@@ -58,6 +61,7 @@ pub struct TransactionExecutionStatus {
 	pub result: Option<TransactionResult>,
 }
 
+/// Type to hold a decrypted secret with metadata.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct DecryptedSecret {
 	pub secret: Secret,

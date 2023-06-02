@@ -64,12 +64,14 @@ use crate::{
 
 type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
 
+/// A transition result for the chain state.
 #[derive(Debug)]
 pub struct ChainTransition {
 	pub new_state: ChainState,
 	pub events: Vec<Event>,
 }
 
+/// Subdispatch to a channel by canonical ID.
 fn subdispatch_by_canonical_id(
 	chain_state: &mut ChainState,
 	state_change: StateChange,
@@ -100,6 +102,7 @@ fn subdispatch_by_canonical_id(
 	Ok(ChainTransition { new_state: chain_state.clone(), events })
 }
 
+/// Subdispatch change to all currently known channels.
 fn subdispatch_to_all_channels(
 	mut chain_state: ChainState,
 	state_change: StateChange,
@@ -133,6 +136,7 @@ fn subdispatch_to_all_channels(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to payment tasks.
 fn subdispatch_to_payment_task(
 	mut chain_state: ChainState,
 	state_change: StateChange,
@@ -201,6 +205,7 @@ fn subdispatch_to_payment_task(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to all pending transfer tasks.
 fn subdispatch_to_all_lockedtransfers(
 	mut chain_state: ChainState,
 	state_change: StateChange,
@@ -218,6 +223,7 @@ fn subdispatch_to_all_lockedtransfers(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to initiator task.
 fn subdispatch_initiator_task(
 	chain_state: ChainState,
 	state_change: ActionInitInitiator,
@@ -280,6 +286,7 @@ fn subdispatch_initiator_task(
 	Ok(ChainTransition { new_state: chain_state, events: initiator_state.events })
 }
 
+/// Subdispatch state change to mediator task.
 fn subdispatch_mediator_task(
 	chain_state: ChainState,
 	state_change: ActionInitMediator,
@@ -336,6 +343,7 @@ fn subdispatch_mediator_task(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to target task.
 fn subdispatch_target_task(
 	chain_state: ChainState,
 	state_change: ActionInitTarget,
@@ -374,6 +382,7 @@ fn subdispatch_target_task(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Initialize chain information.
 fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
 	Ok(ChainTransition {
 		new_state: ChainState::new(
@@ -386,6 +395,7 @@ fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
 	})
 }
 
+/// Dispatch a new initiator task.
 fn handle_action_init_intiator(
 	chain_state: ChainState,
 	state_change: ActionInitInitiator,
@@ -393,6 +403,7 @@ fn handle_action_init_intiator(
 	subdispatch_initiator_task(chain_state, state_change)
 }
 
+/// Dispatch a new mediator task.
 fn handle_action_init_mediator(
 	chain_state: ChainState,
 	state_change: ActionInitMediator,
@@ -404,6 +415,7 @@ fn handle_action_init_mediator(
 	subdispatch_mediator_task(chain_state, state_change, token_network_address, secrethash)
 }
 
+/// Dispatch a new target task.
 fn handle_action_init_target(
 	chain_state: ChainState,
 	state_change: ActionInitTarget,
@@ -415,6 +427,7 @@ fn handle_action_init_target(
 	subdispatch_target_task(chain_state, state_change, token_network_address, secrethash)
 }
 
+/// Handle `ActionTransferReroute` state change.
 fn handle_action_transfer_reroute(
 	mut chain_state: ChainState,
 	state_change: ActionTransferReroute,
@@ -436,6 +449,7 @@ fn handle_action_transfer_reroute(
 	subdispatch_to_payment_task(chain_state, state_change.into(), new_secrethash)
 }
 
+/// Handle `ActionCancelPayment` state change.
 fn handle_action_cancel_payment(
 	chain_state: ChainState,
 	_state_change: ActionCancelPayment,
@@ -443,6 +457,7 @@ fn handle_action_cancel_payment(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `Block` state change.
 fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> TransitionResult {
 	chain_state.block_number = state_change.block_number;
 	chain_state.block_hash = state_change.block_hash;
@@ -466,6 +481,7 @@ fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Transit
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Handle `ContractReceiveTokenNetworkRegistry` state change.
 fn handle_contract_receive_token_network_registry(
 	mut chain_state: ChainState,
 	state_change: ContractReceiveTokenNetworkRegistry,
@@ -478,6 +494,7 @@ fn handle_contract_receive_token_network_registry(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `ContractReceiveTokenNetworkCreated` state change.
 fn handle_contract_receive_token_network_created(
 	mut chain_state: ChainState,
 	state_change: ContractReceiveTokenNetworkCreated,
@@ -506,6 +523,7 @@ fn handle_contract_receive_token_network_created(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Dispatch `StateChange` to token network state machine.
 fn handle_token_network_state_change(
 	mut chain_state: ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -545,6 +563,7 @@ fn handle_token_network_state_change(
 	Ok(ChainTransition { new_state: chain_state, events: transition.events })
 }
 
+/// Handle `ContractReceiveChannelClosed` state change.
 fn handle_contract_receive_channel_closed(
 	chain_state: ChainState,
 	state_change: ContractReceiveChannelClosed,
@@ -561,6 +580,7 @@ fn handle_contract_receive_channel_closed(
 	)
 }
 
+/// Handle `ReceiveTransferCancelRoute` state change.
 fn handle_receive_transfer_cancel_route(
 	chain_state: ChainState,
 	state_change: ReceiveTransferCancelRoute,
@@ -569,6 +589,7 @@ fn handle_receive_transfer_cancel_route(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveSecretReveal` state change.
 fn handle_receive_secret_reveal(
 	chain_state: ChainState,
 	state_change: ReceiveSecretReveal,
@@ -577,6 +598,7 @@ fn handle_receive_secret_reveal(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveSecretRequest` state change.
 fn handle_receive_secret_request(
 	chain_state: ChainState,
 	state_change: ReceiveSecretRequest,
@@ -585,6 +607,7 @@ fn handle_receive_secret_request(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveLockExpired` state change.
 fn handle_receive_lock_expired(
 	chain_state: ChainState,
 	state_change: ReceiveLockExpired,
@@ -593,6 +616,7 @@ fn handle_receive_lock_expired(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveTransferRefund` state change.
 fn handle_receive_transfer_refund(
 	chain_state: ChainState,
 	state_change: ReceiveTransferRefund,
@@ -601,11 +625,13 @@ fn handle_receive_transfer_refund(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveUnlock` state change.
 fn handle_receive_unlock(chain_state: ChainState, state_change: ReceiveUnlock) -> TransitionResult {
 	let secrethash = state_change.secrethash;
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `WithdrawRequest` state change.
 fn handle_receive_withdraw_request(
 	mut chain_state: ChainState,
 	state_change: ReceiveWithdrawRequest,
@@ -614,6 +640,7 @@ fn handle_receive_withdraw_request(
 	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
+/// Handle `ReceiveWithdrawConfirmation` state change.
 fn handle_receive_withdraw_confirmation(
 	mut chain_state: ChainState,
 	state_change: ReceiveWithdrawConfirmation,
@@ -622,6 +649,7 @@ fn handle_receive_withdraw_confirmation(
 	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
+/// Handle `WithdrawExpired` state change.
 fn handle_receive_withdraw_expired(
 	mut chain_state: ChainState,
 	state_change: ReceiveWithdrawExpired,
@@ -630,6 +658,7 @@ fn handle_receive_withdraw_expired(
 	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
+/// Handle `ReceiveDelivered` state change.
 fn handle_receive_delivered(
 	chain_state: ChainState,
 	_state_change: ReceiveDelivered,
@@ -637,6 +666,7 @@ fn handle_receive_delivered(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `ReceiveProcessed` state change.
 fn handle_receive_processed(
 	chain_state: ChainState,
 	_state_change: ReceiveProcessed,
@@ -644,6 +674,7 @@ fn handle_receive_processed(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `UpdateServicesAddresses` state change.
 fn handle_update_services_addresses(
 	chain_state: ChainState,
 	state_change: UpdateServicesAddresses,
@@ -786,7 +817,44 @@ fn is_transaction_effect_satisfied(
 	false
 }
 
+/// True if the `transaction` is made invalid by `state_change`.
+///
+/// Some transactions will fail due to race conditions. The races are:
+///
+/// - Another transaction which has the same side effect is executed before.
+/// - Another transaction which *invalidates* the state of the smart contract
+/// required by the local transaction is executed before it.
+///
+/// The first case is handled by the predicate `is_transaction_effect_satisfied`,
+/// where a transaction from a different source which does the same thing is
+/// considered. This predicate handles the second scenario.
+///
+/// A transaction can **only** invalidate another iff both share a valid
+/// initial state but a different end state.
+///
+/// Valid example:
+///
+///     A close can invalidate a deposit, because both a close and a deposit
+///     can be executed from an opened state (same initial state), but a close
+///     transaction will transition the channel to a closed state which doesn't
+///     allow for deposits (different end state).
+///
+/// Invalid example:
+///
+///     A settle transaction cannot invalidate a deposit because a settle is
+///     only allowed for the closed state and deposits are only allowed for
+///     the open state. In such a case a deposit should never have been sent.
+///     The deposit transaction for an invalid state is a bug and not a
+///     transaction which was invalidated.
 fn is_transaction_invalidated(transaction: &ContractSendEvent, state_change: &StateChange) -> bool {
+	// Most transactions cannot be invalidated by others. These are:
+	//
+	// - close transactions
+	// - settle transactions
+	// - batch unlocks
+	//
+	// Deposits and withdraws are invalidated by the close, but these are not
+	// made atomic through the WAL.
 	if let StateChange::ContractReceiveChannelSettled(channel_settled) = state_change {
 		if let ContractSendEvent::ContractSendChannelUpdateTransfer(update_transfer) = transaction {
 			if channel_settled.canonical_identifier ==
@@ -808,6 +876,13 @@ fn is_transaction_invalidated(transaction: &ContractSendEvent, state_change: &St
 	false
 }
 
+/// True if transaction cannot be mined because it has expired.
+///
+/// Some transactions are time dependent, e.g. the secret registration must be
+/// done before the lock expiration, and the update transfer must be done
+/// before the settlement window is over. If the current block is higher than
+/// any of these expirations blocks, the transaction is expired and cannot be
+/// successfully executed.
 fn is_transaction_expired(transaction: &ContractSendEvent, block_number: BlockNumber) -> bool {
 	if let ContractSendEvent::ContractSendChannelUpdateTransfer(update_transfer) = transaction {
 		if update_transfer.expiration < block_number {
@@ -824,6 +899,7 @@ fn is_transaction_expired(transaction: &ContractSendEvent, block_number: BlockNu
 	false
 }
 
+/// True if a pending transaction exists, and not expired.
 fn is_transaction_pending(
 	chain_state: &ChainState,
 	transaction: &ContractSendEvent,
@@ -872,6 +948,7 @@ fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
 	}
 }
 
+/// Update chain state based on the provided `state_change`.
 pub fn state_transition(
 	mut chain_state: ChainState,
 	state_change: StateChange,

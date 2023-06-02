@@ -9,6 +9,7 @@ use crate::types::{
 	ReceiveSecretReveal,
 };
 
+/// Replace existing channel state with a new one.
 pub(crate) fn update_channel(
 	chain_state: &mut ChainState,
 	channel_state: ChannelState,
@@ -42,6 +43,7 @@ pub(crate) fn update_channel(
 	Ok(())
 }
 
+/// True if secrethashes of an existing transfer matches state change.
 pub(super) fn is_valid_secret_reveal(
 	state_change: &ReceiveSecretReveal,
 	transfer_secrethash: SecretHash,
@@ -49,6 +51,7 @@ pub(super) fn is_valid_secret_reveal(
 	state_change.secrethash == transfer_secrethash
 }
 
+/// True if secrethashes of an existing transfer matches state change.
 pub(super) fn is_valid_onchain_secret_reveal(
 	state_change: &ContractReceiveSecretReveal,
 	transfer_secrethash: SecretHash,

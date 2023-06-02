@@ -57,6 +57,7 @@ use crate::{
 	views,
 };
 
+/// Returns true if the lock has already expired.
 pub(crate) fn is_lock_expired(
 	end_state: &ChannelEndState,
 	lock: &HashTimeLockState,
@@ -80,16 +81,20 @@ pub(crate) fn is_lock_expired(
 	Ok(())
 }
 
+/// Returns true if any pending lock with the provided `secrethash` is unclaimed.
 pub(crate) fn is_lock_pending(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
 	end_state.secrethashes_to_lockedlocks.contains_key(&secrethash) ||
 		end_state.secrethashes_to_unlockedlocks.contains_key(&secrethash) ||
 		end_state.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
 }
 
+/// Returns true if any pending lock with the provided `secrethash` is unclaimed and no secret
+/// reveal took place.
 pub(crate) fn is_lock_locked(end_state: &ChannelEndState, secrethash: SecretHash) -> bool {
 	end_state.secrethashes_to_lockedlocks.contains_key(&secrethash)
 }
 
+/// Validates a signature based on provided data and sender's address.
 pub(crate) fn is_valid_signature(
 	data: Bytes,
 	signature: &Signature,
@@ -105,6 +110,7 @@ pub(crate) fn is_valid_signature(
 	return Err("Signature was valid but the expected address does not match".to_owned())
 }
 
+/// Validates balance proof signature
 pub(crate) fn is_valid_balance_proof_signature(
 	balance_proof: &BalanceProofState,
 	sender_address: Address,
@@ -134,6 +140,7 @@ pub(crate) fn is_valid_balance_proof_signature(
 	is_valid_signature(data_that_was_signed, signature, sender_address)
 }
 
+/// Returns true if balance proof's amount is valid.
 pub(crate) fn is_balance_proof_safe_for_onchain_operations(
 	balance_proof: &BalanceProofState,
 ) -> bool {
@@ -143,6 +150,7 @@ pub(crate) fn is_balance_proof_safe_for_onchain_operations(
 		.is_some()
 }
 
+/// Checks if a transfer's lock has expired or not.
 pub(crate) fn is_transfer_expired(
 	transfer: &LockedTransferState,
 	affected_channel: &ChannelState,
@@ -159,6 +167,7 @@ pub(crate) fn is_transfer_expired(
 	.is_ok()
 }
 
+/// Validates if balance proof is still usable on-chain.
 pub(crate) fn is_balance_proof_usable_onchain(
 	received_balance_proof: &BalanceProofState,
 	channel_state: &ChannelState,
@@ -186,6 +195,7 @@ pub(crate) fn is_balance_proof_usable_onchain(
 	is_valid_signature
 }
 
+/// Validates the expiry of a lock.
 pub(crate) fn is_valid_lock_expired(
 	channel_state: &ChannelState,
 	state_change: ReceiveLockExpired,
@@ -278,6 +288,7 @@ pub(crate) fn is_valid_lock_expired(
 	Ok(pending_locks)
 }
 
+/// Validates a locked transfer.
 pub(crate) fn valid_locked_transfer_check(
 	channel_state: &ChannelState,
 	sender_state: &ChannelEndState,
@@ -345,6 +356,7 @@ pub(crate) fn valid_locked_transfer_check(
 	Ok(pending_locks)
 }
 
+/// Validates a locked transfer.
 pub(crate) fn is_valid_locked_transfer(
 	transfer_state: &LockedTransferState,
 	channel_state: &ChannelState,
@@ -390,6 +402,7 @@ pub(crate) fn is_valid_total_withdraw(
 	return Ok(())
 }
 
+/// Validates a withdraw signature.
 pub(crate) fn is_valid_withdraw_signature(
 	canonical_identifier: CanonicalIdentifier,
 	sender: Address,
@@ -413,6 +426,7 @@ pub(crate) fn is_withdraw_expired(
 	block_number >= expiration_threshold
 }
 
+/// Validates withdraw expiry.
 pub(crate) fn is_valid_withdraw_expired(
 	channel_state: &ChannelState,
 	state_change: &ReceiveWithdrawExpired,
@@ -505,6 +519,7 @@ pub(crate) fn is_valid_withdraw_request(
 	is_valid
 }
 
+/// Validates withdraw confirmation.
 pub(crate) fn is_valid_withdraw_confirmation(
 	channel_state: &ChannelState,
 	received_withdraw: &ReceiveWithdrawConfirmation,
@@ -585,6 +600,7 @@ pub(crate) fn is_valid_withdraw_confirmation(
 	)
 }
 
+/// Validates a cooperative settle action.
 pub(crate) fn is_valid_action_coop_settle(
 	channel_state: &ChannelState,
 	total_withdraw: TokenAmount,
@@ -672,6 +688,7 @@ pub(crate) fn is_valid_unlock(
 	Ok(pending_locks)
 }
 
+/// Validates a refund transfer.
 pub(crate) fn is_valid_refund(
 	channel_state: &ChannelState,
 	refund: ReceiveTransferRefund,
@@ -695,6 +712,7 @@ pub(crate) fn is_valid_refund(
 	Ok(pending_locks)
 }
 
+/// Validates a withdraw action.
 pub(crate) fn is_valid_action_withdraw(
 	channel_state: &ChannelState,
 	withdraw: &ActionChannelWithdraw,
@@ -725,6 +743,7 @@ pub(crate) fn is_valid_action_withdraw(
 	return Ok(())
 }
 
+/// Checks if the refund transfer matches the original transfer.
 pub(crate) fn refund_transfer_matches_transfer(
 	refund_transfer: &LockedTransferState,
 	transfer: &LockedTransferState,

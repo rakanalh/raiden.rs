@@ -132,18 +132,24 @@ use crate::{
 	views as global_views,
 };
 
+/// Channel utilities.
 pub mod utils;
+/// Channel validators.
 pub mod validators;
+/// Channel views.
 pub mod views;
 
+/// A transition result for the channel state.
 type TransitionResult = std::result::Result<ChannelTransition, StateTransitionError>;
 
+/// Channel transition content.
 #[derive(Debug)]
 pub struct ChannelTransition {
 	pub new_state: Option<ChannelState>,
 	pub events: Vec<Event>,
 }
 
+/// Create lock expired events.
 fn create_send_expired_lock(
 	sender_end_state: &mut ChannelEndState,
 	locked_lock: HashTimeLockState,
@@ -194,6 +200,7 @@ fn create_send_expired_lock(
 	Ok((Some(send_lock_expired), Some(pending_locks)))
 }
 
+/// Delete locks which are still unlocked.
 fn delete_unclaimed_lock(end_state: &mut ChannelEndState, secrethash: SecretHash) {
 	if end_state.secrethashes_to_lockedlocks.contains_key(&secrethash) {
 		end_state.secrethashes_to_lockedlocks.remove(&secrethash);
@@ -204,6 +211,7 @@ fn delete_unclaimed_lock(end_state: &mut ChannelEndState, secrethash: SecretHash
 	}
 }
 
+/// Delete lock with provided secret hash.
 fn delete_lock(end_state: &mut ChannelEndState, secrethash: SecretHash) {
 	delete_unclaimed_lock(end_state, secrethash);
 
@@ -233,6 +241,7 @@ pub(super) fn lock_exists_in_either_channel_side(
 		lock_exists(&channel_state.partner_state, secrethash)
 }
 
+/// Send lock expired events
 pub(super) fn send_lock_expired(
 	mut channel_state: ChannelState,
 	locked_lock: HashTimeLockState,
@@ -270,6 +279,7 @@ pub(super) fn send_lock_expired(
 	Ok((channel_state, events))
 }
 
+/// Create unlock events.
 fn create_unlock(
 	channel_state: &mut ChannelState,
 	message_identifier: MessageIdentifier,
@@ -343,6 +353,7 @@ fn create_unlock(
 	Ok((unlock_lock, pending_locks))
 }
 
+/// Create and send unlock events.
 pub(super) fn send_unlock(
 	channel_state: &mut ChannelState,
 	message_identifier: MessageIdentifier,
@@ -375,6 +386,7 @@ pub(super) fn send_unlock(
 	Ok(unlock)
 }
 
+/// Handle a received unlock.
 pub(super) fn handle_unlock(
 	channel_state: &mut ChannelState,
 	unlock: ReceiveUnlock,
@@ -412,6 +424,7 @@ pub(super) fn handle_unlock(
 	)
 }
 
+/// Update channel states with secret registered onchain.
 fn register_onchain_secret_endstate(
 	end_state: &mut ChannelEndState,
 	secret: Secret,
@@ -451,6 +464,7 @@ fn register_onchain_secret_endstate(
 	}
 }
 
+/// Update channel states with secret registered onchain.
 pub(super) fn register_onchain_secret(
 	channel_state: &mut ChannelState,
 	secret: Secret,
@@ -474,6 +488,7 @@ pub(super) fn register_onchain_secret(
 	);
 }
 
+/// Create a locked transfer event.
 fn create_locked_transfer(
 	channel_state: &mut ChannelState,
 	initiator: Address,
@@ -565,6 +580,7 @@ fn create_locked_transfer(
 	Ok((locked_transfer_event, pending_locks))
 }
 
+/// Create and send a locked transfer.
 pub(super) fn send_locked_transfer(
 	mut channel_state: ChannelState,
 	initiator: Address,
@@ -605,6 +621,7 @@ pub(super) fn send_locked_transfer(
 	Ok((channel_state, locked_transfer))
 }
 
+/// Send lock expired withdraw event.
 fn send_expired_withdraws(
 	mut channel_state: ChannelState,
 	block_number: BlockNumber,
@@ -650,6 +667,7 @@ fn send_expired_withdraws(
 	events
 }
 
+/// Handle an expired lock.
 pub(super) fn handle_receive_lock_expired(
 	channel_state: &mut ChannelState,
 	state_change: ReceiveLockExpired,
@@ -698,6 +716,7 @@ pub(super) fn handle_receive_lock_expired(
 	Ok(ChannelTransition { new_state: Some(channel_state.clone()), events })
 }
 
+/// Handle a received locked transfer.
 pub(super) fn handle_receive_locked_transfer(
 	channel_state: &mut ChannelState,
 	mediated_transfer: LockedTransferState,
@@ -748,6 +767,7 @@ pub(super) fn handle_receive_locked_transfer(
 	}
 }
 
+/// Handle a received refund transfer.
 pub(super) fn handle_refund_transfer(
 	channel_state: &mut ChannelState,
 	received_transfer: LockedTransferState,
@@ -796,6 +816,7 @@ pub(super) fn handle_refund_transfer(
 	Ok(event)
 }
 
+/// Handle a new block state change.
 fn handle_block(
 	mut channel_state: ChannelState,
 	state_change: Block,
@@ -855,6 +876,7 @@ fn handle_block(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Set channel state to closed.
 fn set_closed(mut channel_state: ChannelState, block_number: BlockNumber) -> ChannelState {
 	if channel_state.close_transaction.is_none() {
 		channel_state.close_transaction = Some(TransactionExecutionStatus {
@@ -872,6 +894,7 @@ fn set_closed(mut channel_state: ChannelState, block_number: BlockNumber) -> Cha
 	channel_state
 }
 
+/// Handle channel closed onchain.
 fn handle_channel_closed(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelClosed,
@@ -915,6 +938,7 @@ fn handle_channel_closed(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Set channel state to settled.
 fn set_settled(mut channel_state: ChannelState, block_number: BlockNumber) -> ChannelState {
 	if channel_state.settle_transaction.is_none() {
 		channel_state.settle_transaction = Some(TransactionExecutionStatus {
@@ -931,6 +955,7 @@ fn set_settled(mut channel_state: ChannelState, block_number: BlockNumber) -> Ch
 	channel_state
 }
 
+/// Set channel state to settled via cooperative settle.
 fn set_coop_settled(end_state: &mut ChannelEndState, block_number: BlockNumber) {
 	if let Some(ref mut coop_settle) = &mut end_state.initiated_coop_settle {
 		if let Some(ref mut transaction) = &mut coop_settle.transaction {
@@ -948,6 +973,7 @@ fn set_coop_settled(end_state: &mut ChannelEndState, block_number: BlockNumber) 
 	}
 }
 
+/// Handle an onchain channel settled event.
 fn handle_channel_settled(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelSettled,
@@ -1017,6 +1043,7 @@ fn handle_channel_settled(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Update balance based on on-chain events.
 fn update_contract_balance(end_state: &mut ChannelEndState, contract_balance: TokenAmount) {
 	if contract_balance > end_state.contract_balance {
 		end_state.contract_balance = contract_balance;
@@ -1041,6 +1068,9 @@ fn linspace(start: Float, stop: Float, num: Float) -> Vec<Float> {
 	result
 }
 
+/// Calculates a U-shaped imbalance curve
+/// The penalty term takes the following value at the extrema:
+/// channel_capacity * (proportional_imbalance_fee / 1_000_000)
 pub fn calculate_imbalance_fees(
 	channel_capacity: TokenAmount,
 	proportional_imbalance_fee: TokenAmount,
@@ -1102,6 +1132,8 @@ pub fn calculate_imbalance_fees(
 	Some(result)
 }
 
+/// Update the channel state's fee schedule if balances changes
+/// based on deposits or transfers
 fn update_fee_schedule_after_balance_change(
 	channel_state: &mut ChannelState,
 	fee_config: &MediationFeeConfig,
@@ -1122,6 +1154,7 @@ fn update_fee_schedule_after_balance_change(
 	channel_state.fee_schedule.update_penalty_func()
 }
 
+/// Handle `ContractReceiveChannelDeposit` state change.
 fn handle_channel_deposit(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelDeposit,
@@ -1167,6 +1200,7 @@ fn handle_channel_withdraw(
 	return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
+/// Handle `ContractReceiveChannelBatchUnlock` state change.
 fn handle_channel_batch_unlock(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelBatchUnlock,
@@ -1189,6 +1223,7 @@ fn handle_channel_batch_unlock(
 	return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
+/// Handle `ContractReceiveUpdateTransfer` state change.
 fn handle_channel_update_transfer(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveUpdateTransfer,
@@ -1236,6 +1271,10 @@ fn register_secret_endstate(
 	}
 }
 
+/// This will register the secret and set the lock to the unlocked stated.
+///
+/// Even though the lock is unlock it is *not* claimed. The capacity will
+/// increase once the next balance proof is received.
 pub(super) fn register_offchain_secret(
 	channel_state: &mut ChannelState,
 	secret: Secret,
@@ -1245,6 +1284,7 @@ pub(super) fn register_offchain_secret(
 	register_secret_endstate(&mut channel_state.partner_state, secret, secrethash);
 }
 
+/// Returns a withdraw request event
 fn send_withdraw_request(
 	channel_state: &mut ChannelState,
 	total_withdraw: TokenAmount,
@@ -1290,6 +1330,7 @@ fn send_withdraw_request(
 	.into()]
 }
 
+/// Returns events to close a channel
 fn events_for_close(
 	channel_state: &mut ChannelState,
 	block_number: BlockNumber,
@@ -1320,6 +1361,7 @@ fn events_for_close(
 	Ok(vec![close_event.into()])
 }
 
+/// Returns events for cooperatively settling a channel.
 fn events_for_coop_settle(
 	channel_state: &ChannelState,
 	coop_settle_state: &mut CoopSettleState,
@@ -1354,6 +1396,7 @@ fn events_for_coop_settle(
 	vec![]
 }
 
+/// Handle `ActionChannelClose` state change.
 fn handle_action_close(
 	mut channel_state: ChannelState,
 	state_change: ActionChannelClose,
@@ -1370,6 +1413,7 @@ fn handle_action_close(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Handle `ActionChannelWithdraw` state change.
 fn handle_action_withdraw(
 	mut channel_state: ChannelState,
 	state_change: ActionChannelWithdraw,
@@ -1404,6 +1448,7 @@ fn handle_action_withdraw(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Handle `ActionChannelSetRevealTimeout` state change.
 fn handle_action_set_channel_reveal_timeout(
 	mut channel_state: ChannelState,
 	state_change: ActionChannelSetRevealTimeout,
@@ -1428,6 +1473,7 @@ fn handle_action_set_channel_reveal_timeout(
 	Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
+/// Handle `ActionChannelCoopSettle` state change.
 fn handle_action_coop_settle(
 	mut channel_state: ChannelState,
 	state_change: ActionChannelCoopSettle,
@@ -1477,6 +1523,7 @@ fn handle_action_coop_settle(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Handle `ReceiveWithdrawRequest` state change.
 fn handle_receive_withdraw_request(
 	mut channel_state: ChannelState,
 	state_change: ReceiveWithdrawRequest,
@@ -1633,6 +1680,7 @@ fn handle_receive_withdraw_request(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Handle `ReceiveWithdrawConfirmation` state change.
 fn handle_receive_withdraw_confirmation(
 	mut channel_state: ChannelState,
 	state_change: ReceiveWithdrawConfirmation,
@@ -1715,6 +1763,7 @@ fn handle_receive_withdraw_confirmation(
 	Ok(ChannelTransition { new_state: Some(channel_state), events })
 }
 
+/// Handle `ReceiveWithdrawExpired` state change.
 fn handle_receive_withdraw_expired(
 	mut channel_state: ChannelState,
 	state_change: ReceiveWithdrawExpired,
@@ -1906,6 +1955,7 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
 	Ok(transition)
 }
 
+/// State machine for the channel state machine.
 pub fn state_transition(
 	channel_state: ChannelState,
 	state_change: StateChange,

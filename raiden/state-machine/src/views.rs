@@ -29,6 +29,7 @@ use crate::{
 	views,
 };
 
+/// Returns token network by address if found
 pub fn get_token_network<'a>(
 	chain_state: &'a ChainState,
 	token_network_address: &'a Address,
@@ -44,6 +45,7 @@ pub fn get_token_network<'a>(
 	token_network.clone()
 }
 
+/// Returns token network registry by token network address if found.
 pub fn get_token_network_registry_by_token_network_address(
 	chain_state: &ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -60,6 +62,7 @@ pub fn get_token_network_registry_by_token_network_address(
 	None
 }
 
+/// Returns token network by address if found
 pub fn get_token_network_by_address(
 	chain_state: &ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -72,6 +75,7 @@ pub fn get_token_network_by_address(
 		.find(|tn| tn.address == token_network_address)
 }
 
+/// Returns token network by token address if found.
 pub fn get_token_network_by_token_address(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -89,6 +93,7 @@ pub fn get_token_network_by_token_address(
 		.find(|tn| tn.token_address == token_address)
 }
 
+/// Returns all channel states.
 pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
 	let mut channels = vec![];
 
@@ -102,6 +107,7 @@ pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
 	channels
 }
 
+/// Returns channel state by canonical identifier if found.
 pub fn get_channel_by_canonical_identifier(
 	chain_state: &ChainState,
 	canonical_identifier: CanonicalIdentifier,
@@ -116,6 +122,7 @@ pub fn get_channel_by_canonical_identifier(
 	None
 }
 
+// Returns channel by token network address and partner address if found.
 pub fn get_channel_by_token_network_and_partner(
 	chain_state: &ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -131,6 +138,7 @@ pub fn get_channel_by_token_network_and_partner(
 	None
 }
 
+/// Return channel state for registry, token and partner addresses.
 pub fn get_channel_state_for(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -147,6 +155,7 @@ pub fn get_channel_state_for(
 	}
 }
 
+/// Return the total distributable amount of a channel state.
 pub fn channel_distributable(sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
 	let (_, _, transferred_amount, locked_amount) = sender.get_current_balanceproof();
 	let distributable = channel_balance(sender, receiver) - sender.locked_amount();
@@ -154,6 +163,7 @@ pub fn channel_distributable(sender: &ChannelEndState, receiver: &ChannelEndStat
 	TokenAmount::min(overflow_limit, distributable)
 }
 
+/// Returns the total balance of the sender's state of a channel.
 pub fn channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> U256 {
 	let mut sender_transferred_amount = U256::zero();
 	let mut receiver_transferred_amount = U256::zero();
@@ -170,6 +180,7 @@ pub fn channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> 
 		sender_transferred_amount
 }
 
+/// Returns known token identifiers.
 pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address) -> Vec<Address> {
 	match chain_state.identifiers_to_tokennetworkregistries.get(&registry_address) {
 		Some(registry) =>
@@ -178,6 +189,7 @@ pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address
 	}
 }
 
+/// Returns channel states by filter function.
 fn get_channelstate_filter(
 	chain_state: &ChainState,
 	token_network_registry_address: TokenNetworkRegistryAddress,
@@ -204,6 +216,7 @@ fn get_channelstate_filter(
 	return result
 }
 
+/// Returns open channel states.
 pub fn get_channelstate_open(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -214,6 +227,7 @@ pub fn get_channelstate_open(
 	})
 }
 
+/// Returns closing channel states.
 pub fn get_channelstate_closing(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -224,6 +238,7 @@ pub fn get_channelstate_closing(
 	})
 }
 
+/// Returns closed channel states.
 pub fn get_channelstate_closed(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -234,6 +249,7 @@ pub fn get_channelstate_closed(
 	})
 }
 
+/// Returns settling channel states.
 pub fn get_channelstate_settling(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -244,6 +260,7 @@ pub fn get_channelstate_settling(
 	})
 }
 
+/// Returns settled channel states.
 pub fn get_channelstate_settled(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -254,6 +271,7 @@ pub fn get_channelstate_settled(
 	})
 }
 
+/// Returns a map of (token network, partner addresses) to channels
 pub fn get_addresses_to_channels(
 	chain_state: &ChainState,
 ) -> HashMap<(TokenNetworkAddress, Address), &ChannelState> {
@@ -271,6 +289,7 @@ pub fn get_addresses_to_channels(
 	channels
 }
 
+/// Filters channels by partner address
 pub fn filter_channels_by_partner_address(
 	chain_state: &ChainState,
 	registry_address: TokenNetworkAddress,
@@ -303,6 +322,7 @@ pub fn filter_channels_by_partner_address(
 	channels
 }
 
+/// Returns address metadata.
 pub fn get_address_metadata(
 	recipient_address: Address,
 	route_states: Vec<RouteState>,

@@ -28,10 +28,12 @@ use crate::{
 	},
 };
 
+/// Returns the next usable nonce.
 pub(super) fn get_next_nonce(end_state: &ChannelEndState) -> Nonce {
 	end_state.nonce + 1
 }
 
+/// Returns the sender's total balance in the channel state..
 pub fn balance(
 	sender: &ChannelEndState,
 	receiver: &ChannelEndState,
@@ -64,6 +66,7 @@ pub(super) fn get_max_withdraw_amount(
 	balance(sender_state, receiver_state, false)
 }
 
+/// Returns the number of blocks that is safe to wait for lock expiration.
 pub(crate) fn get_safe_initial_expiration(
 	block_number: BlockNumber,
 	reveal_timeout: RevealTimeout,
@@ -76,6 +79,7 @@ pub(crate) fn get_safe_initial_expiration(
 	block_number + (reveal_timeout * 2)
 }
 
+/// Returns the total amount locked of one side of the channel.
 pub(super) fn get_amount_locked(end_state: &ChannelEndState) -> LockedAmount {
 	let total_pending: TokenAmount = end_state
 		.secrethashes_to_lockedlocks
@@ -96,6 +100,7 @@ pub(super) fn get_amount_locked(end_state: &ChannelEndState) -> LockedAmount {
 	total_pending + total_unclaimed + total_unclaimed_onchain
 }
 
+/// Returns the latest balance proof of one side of the channel.
 pub(super) fn get_current_balance_proof(end_state: &ChannelEndState) -> BalanceProofData {
 	if let Some(balance_proof) = &end_state.balance_proof {
 		(
@@ -109,14 +114,17 @@ pub(super) fn get_current_balance_proof(end_state: &ChannelEndState) -> BalanceP
 	}
 }
 
+/// Returns the sender's expiration threshold.
 pub(crate) fn get_sender_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
 	expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.mul(2).into()
 }
 
+/// Returns the receiver's expiration threshold.
 pub(crate) fn get_receiver_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
 	expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.into()
 }
 
+/// Returns the lock for a secrethash.
 pub(crate) fn get_lock(
 	end_state: &ChannelEndState,
 	secrethash: SecretHash,

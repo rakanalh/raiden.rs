@@ -44,9 +44,11 @@ use crate::{
 	},
 };
 
+/// A transition result for the initiator manager state.
 pub(super) type TransitionResult =
 	std::result::Result<InitiatorManagerTransition, StateTransitionError>;
 
+/// Initiator manager transition content.
 #[derive(Debug)]
 pub struct InitiatorManagerTransition {
 	pub new_state: Option<InitiatorPaymentState>,
@@ -54,20 +56,24 @@ pub struct InitiatorManagerTransition {
 	pub events: Vec<Event>,
 }
 
+/// A transfer is only cancellable until the secret is revealed.
 fn can_cancel(initiator: &InitiatorTransferState) -> bool {
 	initiator.transfer_state != TransferState::Canceled
 }
 
+/// Returns true if the transfer exists.
 fn transfer_exists(payment_state: &InitiatorPaymentState, secrethash: SecretHash) -> bool {
 	payment_state.initiator_transfers.contains_key(&secrethash)
 }
 
+/// Cancels pending other transfers if secret is revealed
 fn cancel_other_transfers(payment_state: &mut InitiatorPaymentState) {
 	for initiator_state in payment_state.initiator_transfers.values_mut() {
 		initiator_state.transfer_state = TransferState::Canceled;
 	}
 }
 
+/// Returns a list of events which indicate payment through current route are cancelled.
 fn events_for_cancel_current_route(
 	route_state: &RouteState,
 	transfer_description: &TransferDescriptionWithSecretState,
@@ -88,6 +94,9 @@ fn events_for_cancel_current_route(
 	]
 }
 
+/// Cancel current route.
+///
+/// This allows a new route to be tried.
 fn cancel_current_route(
 	payment_state: &mut InitiatorPaymentState,
 	initiator_state: &InitiatorTransferState,
@@ -97,6 +106,7 @@ fn cancel_current_route(
 	events_for_cancel_current_route(&initiator_state.route, &initiator_state.transfer_description)
 }
 
+/// Dispatch `state_change` to a initiator task.
 fn subdispatch_to_initiator_transfer(
 	mut chain_state: ChainState,
 	mut payment_state: InitiatorPaymentState,
@@ -152,6 +162,9 @@ fn subdispatch_to_initiator_transfer(
 	})
 }
 
+/// Copy and iterate over the list of keys because this loop
+/// will alter the `initiator_transfers` list and this is not
+/// allowed if iterating over the original list.
 fn subdispatch_to_all_initiator_transfer(
 	mut payment_state: InitiatorPaymentState,
 	mut chain_state: ChainState,
@@ -175,6 +188,7 @@ fn subdispatch_to_all_initiator_transfer(
 	Ok(InitiatorManagerTransition { new_state: Some(payment_state), chain_state, events })
 }
 
+/// Handle `Block'.`
 pub fn handle_block(
 	chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -194,6 +208,7 @@ pub fn handle_block(
 	)
 }
 
+/// Handle initialize a new payment task.
 pub fn handle_init_initiator(
 	mut chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -226,6 +241,7 @@ pub fn handle_init_initiator(
 	Ok(InitiatorManagerTransition { new_state: payment_state, chain_state, events })
 }
 
+/// Handle `ActionCancelPayment` state change.
 pub fn handle_action_cancel_payment(
 	chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -277,6 +293,7 @@ pub fn handle_action_cancel_payment(
 	Ok(InitiatorManagerTransition { new_state: Some(payment_state), chain_state, events })
 }
 
+/// Handle `ReceiveTransferCancelRoute` state change.
 pub fn handle_transfer_cancel_route(
 	chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -307,6 +324,7 @@ pub fn handle_transfer_cancel_route(
 	Ok(InitiatorManagerTransition { new_state: Some(payment_state), chain_state, events })
 }
 
+/// Handle `ActionTransferReroute` state change.
 pub fn handle_action_transfer_reroute(
 	mut chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -415,6 +433,17 @@ pub fn handle_action_transfer_reroute(
 	Ok(InitiatorManagerTransition { new_state: Some(payment_state), chain_state, events })
 }
 
+/// Handle `ActionTransferReroute` state change.
+///
+/// Initiator also needs to handle LockExpired messages when refund transfers are involved.
+
+///    A -> B -> C
+///
+///    - A sends locked transfer to B
+///    - B attempted to forward to C but has not enough capacity
+///    - B sends a refund transfer with the same secrethash back to A
+///    - When the lock expires B will also send a LockExpired message to A
+///    - A needs to be able to properly process it
 pub fn handle_lock_expired(
 	mut chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -495,6 +524,7 @@ pub fn handle_lock_expired(
 	})
 }
 
+/// Handle `ReceiveSecretRequest` state change.`
 pub fn handle_secret_request(
 	chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -535,6 +565,7 @@ pub fn handle_secret_request(
 	)
 }
 
+/// Handle `ReceiveSecretReveal` state change.`
 pub fn handle_secret_reveal(
 	chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -575,6 +606,7 @@ pub fn handle_secret_reveal(
 	Ok(sub_iteration)
 }
 
+/// Handle `ContractReceiveSecretReveal` state change.`
 pub fn handle_contract_secret_reveal(
 	chain_state: ChainState,
 	payment_state: Option<InitiatorPaymentState>,
@@ -624,6 +656,8 @@ pub fn handle_contract_secret_reveal(
 	Ok(sub_iteration)
 }
 
+/// Clear the initiator payment task if all transfers have been finalized
+/// or expired.
 pub fn clear_if_finalized(transition: InitiatorManagerTransition) -> InitiatorManagerTransition {
 	if let Some(ref new_state) = transition.new_state {
 		if new_state.initiator_transfers.len() == 0 {
@@ -637,6 +671,7 @@ pub fn clear_if_finalized(transition: InitiatorManagerTransition) -> InitiatorMa
 	transition
 }
 
+/// Update initiator manager state based on the provided `state_change`.
 pub fn state_transition(
 	chain_state: ChainState,
 	manager_state: Option<InitiatorPaymentState>,

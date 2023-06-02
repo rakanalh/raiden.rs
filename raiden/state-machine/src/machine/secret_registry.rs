@@ -16,6 +16,7 @@ use crate::{
 	},
 };
 
+/// Generate events for registring secret onchain.
 pub(super) fn events_for_onchain_secretreveal(
 	channel_state: &ChannelState,
 	secret: Secret,

@@ -73,6 +73,7 @@ use crate::{
 	views,
 };
 
+/// Determine the type of the transfer task.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransferRole {
 	Initiator,
@@ -80,6 +81,7 @@ pub enum TransferRole {
 	Target,
 }
 
+/// Variants of transfer tasks.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransferTask {
 	Initiator(InitiatorTask),
@@ -87,6 +89,7 @@ pub enum TransferTask {
 	Target(TargetTask),
 }
 
+/// Variants of the transfer states.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransferState {
 	Pending,
@@ -95,6 +98,7 @@ pub enum TransferState {
 	Canceled,
 }
 
+/// Variants of the payee states.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum PayeeState {
 	Pending,
@@ -104,6 +108,7 @@ pub enum PayeeState {
 	Expired,
 }
 
+/// Variants of the payers states.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum PayerState {
 	Pending,
@@ -114,6 +119,7 @@ pub enum PayerState {
 	Expired,
 }
 
+/// Variants of the target states.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TargetState {
 	Expired,
@@ -123,12 +129,14 @@ pub enum TargetState {
 	SecretRequest,
 }
 
+/// Variants of the waiting transfer status.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum WaitingTransferStatus {
 	Waiting,
 	Expired,
 }
 
+/// State of a transfer for the initiator node.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct InitiatorTransferState {
 	pub route: RouteState,
@@ -139,6 +147,10 @@ pub struct InitiatorTransferState {
 	pub transfer_state: TransferState,
 }
 
+/// State of a payment for the initiator node.
+/// A single payment may have multiple transfers. E.g. because if one of the
+/// transfers fails or timeouts another transfer will be started with a
+/// different secrethash.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct InitiatorPaymentState {
 	pub routes: Vec<RouteState>,
@@ -146,6 +158,7 @@ pub struct InitiatorPaymentState {
 	pub cancelled_channels: Vec<ChannelIdentifier>,
 }
 
+/// An initiator task.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct InitiatorTask {
 	pub role: TransferRole,
@@ -153,12 +166,17 @@ pub struct InitiatorTask {
 	pub manager_state: InitiatorPaymentState,
 }
 
+/// Waiting transfer state.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct WaitingTransferState {
 	pub transfer: LockedTransferState,
 	pub status: WaitingTransferStatus,
 }
 
+/// State for a mediated transfer.
+/// A mediator will pay payee node knowing that there is a payer node to cover
+/// the token expenses. This state keeps track of transfers for
+/// the payer and payee, and the current state of the payment.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct MediationPairState {
 	pub payer_transfer: LockedTransferState,
@@ -168,6 +186,9 @@ pub struct MediationPairState {
 	pub payee_state: PayeeState,
 }
 
+/// State of a transfer for the mediator node.
+/// A mediator may manage multiple channels because of refunds, but all these
+/// channels will be used for the same transfer (not for different payments).
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct MediatorTransferState {
 	pub secrethash: SecretHash,
@@ -178,13 +199,14 @@ pub struct MediatorTransferState {
 	pub waiting_transfer: Option<WaitingTransferState>,
 }
 
+/// A mediator task.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct MediatorTask {
 	pub role: TransferRole,
 	pub token_network_address: TokenNetworkAddress,
 	pub mediator_state: MediatorTransferState,
 }
-
+/// A target task.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TargetTask {
 	pub role: TransferRole,
@@ -192,6 +214,7 @@ pub struct TargetTask {
 	pub target_state: TargetTransferState,
 }
 
+/// State of a transfer for the target node."""
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TargetTransferState {
 	pub from_hop: HopState,
@@ -201,11 +224,20 @@ pub struct TargetTransferState {
 	pub initiator_address_metadata: Option<AddressMetadata>,
 }
 
+/// Global map from secrethash to a transfer task.
+/// This mapping is used to quickly dispatch state changes by secrethash, for
+/// those that don't have a balance proof, e.g. SecretReveal.
+/// This mapping forces one task per secrethash, assuming that secrethash collision
+/// is unlikely. Features like token swaps, that span multiple networks, must
+/// be encapsulated in a single task to work with this structure.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PaymentMappingState {
 	pub secrethashes_to_task: HashMap<SecretHash, TransferTask>,
 }
 
+/// Umbrella object that stores the per blockchain state.
+/// For each registry smart contract there must be a token network registry. Within the
+/// token network registry the existing token networks and channels are registered.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChainState {
 	pub chain_id: ChainID,
@@ -219,6 +251,7 @@ pub struct ChainState {
 }
 
 impl ChainState {
+	/// Create an instance of `ChainState`.
 	pub fn new(
 		chain_id: ChainID,
 		block_number: BlockNumber,
@@ -238,6 +271,7 @@ impl ChainState {
 	}
 }
 
+/// Corresponds to a token network registry smart contract."""
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkRegistryState {
 	pub address: Address,
@@ -246,6 +280,7 @@ pub struct TokenNetworkRegistryState {
 }
 
 impl TokenNetworkRegistryState {
+	/// Create an instance of `TokenNetworkRegistryState`.
 	pub fn new(
 		address: Address,
 		token_network_list: Vec<TokenNetworkState>,
@@ -271,30 +306,28 @@ impl TokenNetworkRegistryState {
 	}
 }
 
+/// Corresponds to a token network smart contract."""
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TokenNetworkState {
 	pub address: Address,
 	pub token_address: TokenAddress,
-	pub network_graph: TokenNetworkGraphState,
 	pub channelidentifiers_to_channels: HashMap<U256, ChannelState>,
 	pub partneraddresses_to_channelidentifiers: HashMap<Address, Vec<ChannelIdentifier>>,
 }
 
 impl TokenNetworkState {
+	/// Create an instance of `TokenNetworkState`.
 	pub fn new(address: Address, token_address: TokenAddress) -> TokenNetworkState {
 		TokenNetworkState {
 			address,
 			token_address,
-			network_graph: TokenNetworkGraphState::default(),
 			channelidentifiers_to_channels: HashMap::new(),
 			partneraddresses_to_channelidentifiers: HashMap::new(),
 		}
 	}
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct TokenNetworkGraphState {}
-
+/// Vairants of the channel status
 #[derive(Copy, Clone, Display, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelStatus {
@@ -314,6 +347,7 @@ pub enum ChannelStatus {
 	Unusable,
 }
 
+/// Configuration parameters of the mediator fee.
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct MediationFeeConfig {
 	pub token_to_flat_fee: HashMap<Address, FeeAmount>,
@@ -345,6 +379,7 @@ impl MediationFeeConfig {
 	}
 }
 
+/// The state of a channel."""
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelState {
 	pub canonical_identifier: CanonicalIdentifier,
@@ -362,6 +397,7 @@ pub struct ChannelState {
 }
 
 impl ChannelState {
+	/// Create an instance of `ChannelState'.`
 	pub fn new(
 		canonical_identifier: CanonicalIdentifier,
 		token_address: TokenAddress,
@@ -408,6 +444,7 @@ impl ChannelState {
 		})
 	}
 
+	/// Returns the status of the channel state.
 	pub fn status(&self) -> ChannelStatus {
 		let mut status = ChannelStatus::Opened;
 
@@ -440,28 +477,34 @@ impl ChannelState {
 		status
 	}
 
+	/// Returns total deposit amount for our side.
 	pub fn our_total_deposit(&self) -> TokenAmount {
 		self.our_state.contract_balance
 	}
 
+	/// Returns total deposit amount for partner's side.
 	pub fn partner_total_deposit(&self) -> TokenAmount {
 		self.partner_state.contract_balance
 	}
 
+	/// Returns the total withdraw amount for our side.
 	pub fn our_total_withdraw(&self) -> TokenAmount {
 		self.our_state.total_withdraw()
 	}
 
+	/// Returns the total withdraw amount for partner's side.
 	pub fn partner_total_withdraw(&self) -> TokenAmount {
 		self.partner_state.total_withdraw()
 	}
 
+	/// Returns the total capacity amount for the channel.
 	pub fn capacity(&self) -> TokenAmount {
 		self.our_state.contract_balance + self.partner_state.contract_balance -
 			self.our_state.total_withdraw() -
 			self.partner_state.total_withdraw()
 	}
 
+	/// Returns true if a channel is usable for a new transfer.
 	pub fn is_usable_for_new_transfer(
 		&self,
 		amount: TokenAmount,
@@ -503,6 +546,7 @@ impl ChannelState {
 		true
 	}
 
+	/// Returns true of channel is usable to mediate a transfer.
 	pub fn is_usable_for_mediation(
 		&self,
 		transfer_amount: TokenAmount,
@@ -512,6 +556,7 @@ impl ChannelState {
 	}
 }
 
+/// The state of one of the nodes in a two party channel.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelEndState {
 	pub address: Address,
@@ -531,6 +576,7 @@ pub struct ChannelEndState {
 }
 
 impl ChannelEndState {
+	/// Return an instance of `ChannelEndState`.
 	pub fn new(address: Address) -> Self {
 		Self {
 			address,
@@ -550,6 +596,7 @@ impl ChannelEndState {
 		}
 	}
 
+	/// returns the off-chain total withdraw amount.
 	pub fn offchain_total_withdraw(&self) -> TokenAmount {
 		self.withdraws_pending
 			.values()
@@ -557,18 +604,22 @@ impl ChannelEndState {
 			.fold(TokenAmount::zero(), |a, b| max(a, b))
 	}
 
+	/// Returns the total of off-chain and on-chain withdraw amounts.
 	pub fn total_withdraw(&self) -> TokenAmount {
 		max(self.offchain_total_withdraw(), self.onchain_total_withdraw)
 	}
 
+	/// Returns the next usable nonce.
 	pub fn next_nonce(&self) -> Nonce {
 		self.nonce + 1
 	}
 
+	/// Returns the number of pending transfers.
 	pub fn count_pending_transfers(&self) -> usize {
 		self.pending_locks.locks.len()
 	}
 
+	/// Returns the total amount locked.
 	pub fn locked_amount(&self) -> TokenAmount {
 		let total_pending: TokenAmount = self
 			.secrethashes_to_lockedlocks
@@ -588,6 +639,7 @@ impl ChannelEndState {
 		total_pending + total_unclaimed + total_unclaimed_onchain
 	}
 
+	/// Returns the latest balance proof.
 	pub fn get_current_balanceproof(&self) -> BalanceProofData {
 		match &self.balance_proof {
 			Some(bp) => (bp.locksroot.clone(), bp.nonce, bp.transferred_amount, bp.locked_amount),
@@ -596,6 +648,7 @@ impl ChannelEndState {
 		}
 	}
 
+	/// Returns true if the amount after unlock is valid
 	pub fn is_valid_amount(&self, amount: TokenAmount) -> bool {
 		let (_, _, transferred_amount, locked_amount) = self.get_current_balanceproof();
 		let transferred_amount_after_unlock =
@@ -603,19 +656,23 @@ impl ChannelEndState {
 		transferred_amount_after_unlock.is_some()
 	}
 
+	/// Returns true if secret is known either off-chain or on-chain.
 	pub fn is_secret_known(&self, secrethash: SecretHash) -> bool {
 		self.is_secret_known_offchain(secrethash) || self.secret_known_onchain(secrethash)
 	}
 
+	/// Returns true if secret is known on-chain.
 	pub fn secret_known_onchain(&self, secrethash: SecretHash) -> bool {
 		self.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
 	}
 
+	/// Returns true if secret is known off-chain.
 	pub fn is_secret_known_offchain(&self, secrethash: SecretHash) -> bool {
 		self.secrethashes_to_unlockedlocks.contains_key(&secrethash) ||
 			self.secrethashes_to_onchain_unlockedlocks.contains_key(&secrethash)
 	}
 
+	/// Returns the secret of a lock if known.
 	pub fn get_secret(&self, secrethash: SecretHash) -> Option<Secret> {
 		let mut partial_unlock_proof = self.secrethashes_to_unlockedlocks.get(&secrethash);
 		if partial_unlock_proof.is_none() {
@@ -630,6 +687,8 @@ impl ChannelEndState {
 	}
 }
 
+/// Proof of a channel balance that can be used on-chain to resolve
+/// disputes.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct BalanceProofState {
 	pub nonce: Nonce,
@@ -643,11 +702,13 @@ pub struct BalanceProofState {
 	pub sender: Option<Address>,
 }
 
+/// List of encoded locks.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingLocksState {
 	pub locks: Vec<EncodedLock>,
 }
 
+/// Stores the lock along with its unlocking secret.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct UnlockPartialProofState {
 	pub lock: HashTimeLockState,
@@ -658,6 +719,7 @@ pub struct UnlockPartialProofState {
 	pub encoded: EncodedLock,
 }
 
+/// Represents a hash time lock.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HashTimeLockState {
 	pub amount: TokenAmount,
@@ -667,6 +729,7 @@ pub struct HashTimeLockState {
 }
 
 impl HashTimeLockState {
+	/// Creates an instance of `HashTimeLockState`.
 	pub fn create(
 		amount: TokenAmount,
 		expiration: BlockExpiration,
@@ -679,6 +742,7 @@ impl HashTimeLockState {
 	}
 }
 
+/// State of an expired withdraw.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ExpiredWithdrawState {
 	pub total_withdraw: TokenAmount,
@@ -687,6 +751,7 @@ pub struct ExpiredWithdrawState {
 	pub recipient_metadata: Option<AddressMetadata>,
 }
 
+/// State of a pending withdraw.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PendingWithdrawState {
 	pub total_withdraw: TokenAmount,
@@ -696,18 +761,21 @@ pub struct PendingWithdrawState {
 }
 
 impl PendingWithdrawState {
+	/// Calculates the expiration threshold for a pending withdraw.
 	pub fn expiration_threshold(&self) -> BlockExpiration {
 		self.expiration
 			.saturating_add(DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.saturating_mul(2).into())
 			.into()
 	}
 
+	/// Returns true if a pending withdraw has expired.
 	pub fn has_expired(&self, current_block: BlockNumber) -> bool {
 		let threshold = self.expiration_threshold();
 		current_block >= threshold
 	}
 }
 
+/// The state of a pending cooperative settle underway.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct CoopSettleState {
 	pub total_withdraw_initiator: TokenAmount,
@@ -718,6 +786,7 @@ pub struct CoopSettleState {
 	pub transaction: Option<TransactionExecutionStatus>,
 }
 
+/// Linear interpolation of a function with given points
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Interpolate {
 	pub(crate) x_list: Vec<Rational>,
@@ -758,6 +827,7 @@ impl Interpolate {
 	}
 }
 
+/// Mediation fee schedule parameters.
 #[derive(Serialize, Deserialize, Clone, Default, Debug, Eq, PartialEq)]
 pub struct FeeScheduleState {
 	pub cap_fees: bool,
@@ -771,6 +841,7 @@ pub struct FeeScheduleState {
 }
 
 impl FeeScheduleState {
+	/// Updates the penalty function based on capacity updates.
 	pub fn update_penalty_func(&mut self) {
 		if let Some(imbalance_penalty) = &self.imbalance_penalty {
 			let x_list =
@@ -781,6 +852,7 @@ impl FeeScheduleState {
 		}
 	}
 
+	/// Returns the fee based on penalty function.
 	pub fn fee(&self, balance: Rational, amount: Rational) -> Result<Rational, String> {
 		let flat = Rational::from(self.flat.as_u128());
 		let proportional = Rational::from((self.proportional.as_u128(), 1000000));
@@ -793,6 +865,7 @@ impl FeeScheduleState {
 		Ok(value + addition)
 	}
 
+	/// Returns the mediation fee `Interpolate` instance.
 	pub fn mediation_fee_func(
 		mut schedule_in: Self,
 		mut schedule_out: Self,
@@ -860,6 +933,7 @@ impl FeeScheduleState {
 		Interpolate::new(x_list, y_list)
 	}
 
+	/// Calculate x points.
 	fn calculate_x_values(
 		penalty_func_in: Interpolate,
 		penalty_func_out: Interpolate,
@@ -885,6 +959,7 @@ impl FeeScheduleState {
 		all_x_values
 	}
 
+	/// Set a cap on fees
 	fn cap_fees(x_list: Vec<Rational>, y_list: Vec<Rational>) -> (Vec<Rational>, Vec<Rational>) {
 		let mut x_list = x_list.clone();
 		let mut y_list = y_list.clone();
@@ -904,6 +979,7 @@ impl FeeScheduleState {
 		(x_list, y_list)
 	}
 
+	/// Returns 1, -1 or 0 if x is positive, negative or zero respectively.
 	fn sign(x: &Rational) -> i8 {
 		if x == &Rational::from(0) {
 			return 0
@@ -915,6 +991,7 @@ impl FeeScheduleState {
 	}
 }
 
+/// Deposit transaction information.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransactionChannelDeposit {
 	pub participant_address: Address,
@@ -922,12 +999,14 @@ pub struct TransactionChannelDeposit {
 	pub deposit_block_number: BlockNumber,
 }
 
+/// Information about the next hop.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HopState {
 	pub node_address: Address,
 	pub channel_identifier: ChannelIdentifier,
 }
 
+/// A possible route for a payment to a given target.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct RouteState {
 	pub route: Vec<Address>,
@@ -937,6 +1016,7 @@ pub struct RouteState {
 }
 
 impl RouteState {
+	/// Returns the next hop after address.
 	pub fn hop_after(&self, address: Address) -> Option<Address> {
 		if let Some(index) = self.route.iter().position(|route| route == &address) {
 			if index + 1 < self.route.len() {
@@ -948,6 +1028,8 @@ impl RouteState {
 	}
 }
 
+/// Describes a transfer (target, amount, and token) and contains an
+/// additional secret that can be used with a hash-time-lock.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TransferDescriptionWithSecretState {
 	pub token_network_registry_address: TokenNetworkRegistryAddress,
@@ -961,6 +1043,7 @@ pub struct TransferDescriptionWithSecretState {
 	pub lock_timeout: Option<BlockTimeout>,
 }
 
+/// A pending transfer state.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct LockedTransferState {
 	pub payment_identifier: PaymentIdentifier,
@@ -974,6 +1057,7 @@ pub struct LockedTransferState {
 	pub secret: Option<Secret>,
 }
 
+/// PFS state update notification.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct PFSUpdate {
 	pub canonical_identifier: CanonicalIdentifier,

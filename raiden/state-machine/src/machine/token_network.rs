@@ -18,14 +18,17 @@ use crate::{
 	},
 };
 
+/// A transition result for the token network state machine.
 type TransitionResult = std::result::Result<TokenNetworkTransition, StateTransitionError>;
 
+/// Token network transition content.
 #[derive(Debug)]
 pub struct TokenNetworkTransition {
 	pub new_state: TokenNetworkState,
 	pub events: Vec<Event>,
 }
 
+/// Dispatch `state_change` to a channel by channei identifier.
 fn subdispatch_to_channel_by_id(
 	mut token_network_state: TokenNetworkState,
 	channel_identifier: U256,
@@ -66,6 +69,7 @@ fn subdispatch_to_channel_by_id(
 	Ok(TokenNetworkTransition { new_state: token_network_state, events: result.events })
 }
 
+/// Handle `ContractReceiveChannelOpened` state change.
 fn handle_contract_receive_channel_opened(
 	mut token_network_state: TokenNetworkState,
 	state_change: ContractReceiveChannelOpened,
@@ -94,6 +98,7 @@ fn handle_contract_receive_channel_opened(
 	Ok(TokenNetworkTransition { new_state: token_network_state, events: vec![] })
 }
 
+/// State machine for the token network.
 pub fn state_transition(
 	token_network_state: TokenNetworkState,
 	state_change: StateChange,

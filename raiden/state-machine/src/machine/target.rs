@@ -41,8 +41,10 @@ use crate::{
 	views,
 };
 
+/// A transition result for the initiator state.
 pub(super) type TransitionResult = std::result::Result<TargetTransition, StateTransitionError>;
 
+/// Target transition content.
 #[derive(Debug)]
 pub struct TargetTransition {
 	pub new_state: Option<TargetTransferState>,
@@ -50,6 +52,8 @@ pub struct TargetTransition {
 	pub events: Vec<Event>,
 }
 
+/// Emits the event for revealing the secret on-chain if the transfer
+/// can not be settled off-chain.
 fn events_for_onchain_secretreveal(
 	target_state: &mut TargetTransferState,
 	channel_state: &ChannelState,
@@ -83,6 +87,7 @@ fn events_for_onchain_secretreveal(
 	Ok(vec![])
 }
 
+/// Handles an ActionInitTarget state change.
 fn handle_init_target(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -182,6 +187,8 @@ fn handle_init_target(
 	Ok(TargetTransition { new_state: target_state, chain_state, events })
 }
 
+/// After Raiden learns about a new block this function must be called to
+/// handle expiration of the hash time lock.
 fn handle_block(
 	chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -244,6 +251,7 @@ fn handle_block(
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events })
 }
 
+/// Validates and handles a ReceiveSecretReveal state change.
 fn handle_offchain_secret_reveal(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -312,6 +320,7 @@ fn handle_offchain_secret_reveal(
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events })
 }
 
+/// Validates and handles a `ContractReceiveSecretReveal` state change.
 fn handle_onchain_secret_reveal(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -413,6 +422,7 @@ fn handle_lock_expired(
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events: result.events })
 }
 
+/// Handles a `ReceiveUnlock` state change.
 fn handle_unlock(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -471,6 +481,7 @@ fn handle_unlock(
 	Ok(TargetTransition { new_state: None, chain_state, events })
 }
 
+/// State machine for the target node of a mediated transfer.
 pub fn state_transition(
 	chain_state: ChainState,
 	target_state: Option<TargetTransferState>,

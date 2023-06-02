@@ -1,5 +1,6 @@
 #![warn(clippy::missing_docs_in_private_items)]
 
+/// Create settings table SQL.
 pub(super) const DB_CREATE_SETTINGS: &str = "
 CREATE TABLE IF NOT EXISTS settings (
     name VARCHAR[24] UNIQUE PRIMARY KEY NOT NULL,
@@ -7,6 +8,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 ";
 
+/// Create state changes table SQL.
 pub(super) const DB_CREATE_STATE_CHANGES: &str = "
 CREATE TABLE IF NOT EXISTS state_changes (
     identifier ULID PRIMARY KEY NOT NULL,
@@ -15,6 +17,7 @@ CREATE TABLE IF NOT EXISTS state_changes (
 );
 ";
 
+/// Create snapshots table SQL.
 pub(super) const DB_CREATE_SNAPSHOT: &str = "
 CREATE TABLE IF NOT EXISTS state_snapshot (
     identifier ULID PRIMARY KEY NOT NULL,
@@ -26,6 +29,7 @@ CREATE TABLE IF NOT EXISTS state_snapshot (
 );
 ";
 
+/// Create events table SQL.
 pub(super) const DB_CREATE_STATE_EVENTS: &str = "
 CREATE TABLE IF NOT EXISTS state_events (
     identifier ULID PRIMARY KEY NOT NULL,
@@ -36,6 +40,7 @@ CREATE TABLE IF NOT EXISTS state_events (
 );
 ";
 
+/// Create runs table SQL.
 pub(super) const DB_CREATE_RUNS: &str = "
 CREATE TABLE IF NOT EXISTS runs (
     started_at TIMESTAMP DEFAULT(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')) PRIMARY KEY NOT NULL,
