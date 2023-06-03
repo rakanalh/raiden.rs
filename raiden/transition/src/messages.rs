@@ -70,6 +70,7 @@ use crate::{
 	Transitioner,
 };
 
+/// The message handler.
 pub struct MessageHandler {
 	private_key: PrivateKey,
 	pathfinding_service_url: String,
@@ -80,6 +81,7 @@ pub struct MessageHandler {
 }
 
 impl MessageHandler {
+	/// Create an instance of `MessageHandler'.
 	pub fn new(
 		private_key: PrivateKey,
 		pathfinding_service_url: String,
@@ -97,6 +99,7 @@ impl MessageHandler {
 		}
 	}
 
+	/// Handle an incoming message.
 	pub async fn handle(&mut self, message: IncomingMessage) -> Result<(), String> {
 		debug!(message = "Received message", msg_type = message.type_name());
 		let state_changes = self.convert(message).await?;
@@ -109,6 +112,7 @@ impl MessageHandler {
 		Ok(())
 	}
 
+	/// Convert an incoming message to a list of state changes.
 	async fn convert(&mut self, message: IncomingMessage) -> Result<Vec<StateChange>, String> {
 		let (sender, state_changes) = match message.inner {
 			messages::MessageInner::LockedTransfer(message) => {
@@ -446,11 +450,13 @@ impl MessageHandler {
 	}
 }
 
+/// Recover sender address from data and signature.
 fn get_sender(data: &[u8], signature: &[u8]) -> Result<Address, String> {
 	signing::recover(data, signature)
 		.map_err(|e| format!("Could not recover address from signature: {}", e))
 }
 
+/// Get address metadata from pathfinding-service.
 async fn get_address_metadata(
 	metadata_cache: &mut HashMap<Address, AddressMetadata>,
 	address: Address,

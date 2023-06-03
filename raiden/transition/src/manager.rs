@@ -29,8 +29,10 @@ use raiden_state_machine::{
 };
 use tracing::debug;
 
+/// A generic result type for state manager.
 pub type Result<T> = std::result::Result<T, StateTransitionError>;
 
+/// Manage the chain state.
 pub struct StateManager {
 	pub storage: Arc<StateStorage>,
 	pub current_state: ChainState,
@@ -39,6 +41,7 @@ pub struct StateManager {
 }
 
 impl StateManager {
+	/// Try to restore an existing state, otherwise initialize a new one.
 	pub fn restore_or_init_state(
 		storage: Arc<StateStorage>,
 		chain_id: ChainID,
@@ -91,6 +94,7 @@ impl StateManager {
 		Ok((state_manager, block_number))
 	}
 
+	/// Initialize a new state machine.
 	fn init_state(
 		storage: Arc<StateStorage>,
 		chain_id: ChainID,
@@ -100,8 +104,7 @@ impl StateManager {
 	) -> std::result::Result<(ChainState, Vec<StateChange>, U64), StorageError> {
 		let mut state_changes: Vec<StateChange> = vec![];
 
-		let chain_state =
-			ChainState::new(chain_id, U64::from(0), H256::zero(), our_address);
+		let chain_state = ChainState::new(chain_id, U64::from(0), H256::zero(), our_address);
 
 		state_changes.push(
 			ActionInitChain {
@@ -130,6 +133,7 @@ impl StateManager {
 		Ok((chain_state, state_changes, token_network_registry_deploy_block_number))
 	}
 
+	/// Dispatch state change into the state machine and return resulting events.
 	fn dispatch(&mut self, state_change: StateChange) -> Result<Vec<Event>> {
 		let current_state = self.current_state.clone();
 
@@ -144,6 +148,8 @@ impl StateManager {
 		}
 	}
 
+	/// Transition a state change, store the state changes and events into storage then return
+	/// events.
 	pub fn transition(&mut self, state_change: StateChange) -> Result<Vec<Event>> {
 		let state_change_id = match self.storage.store_state_change(state_change.clone()) {
 			Ok(id) => Ok(id),
@@ -166,6 +172,7 @@ impl StateManager {
 		Ok(events)
 	}
 
+	/// Take a snapshot of the current chain state if threshold is reached.
 	fn maybe_snapshot(&mut self) {
 		if self.state_change_count % SNAPSHOT_STATE_CHANGE_COUNT == 0 {
 			return

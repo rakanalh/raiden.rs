@@ -14,6 +14,8 @@ use raiden_state_machine::{
 	views,
 };
 
+/// Retore state from existing storage, detect unapplied changes and apply them on top of found
+/// snapshot.
 fn restore_state(
 	storage: Arc<StateStorage>,
 	state_change_identifier: StorageID,
@@ -32,6 +34,7 @@ fn restore_state(
 	Some(chain_state)
 }
 
+/// Return a channel state before a state change was applied.
 pub fn channel_state_until_state_change(
 	storage: Arc<StateStorage>,
 	canonical_identifier: CanonicalIdentifier,

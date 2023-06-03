@@ -14,11 +14,17 @@ use crate::{
 	manager::StateManager,
 };
 
+/// Transitioner event handler.
 pub mod events;
+/// Transition state manager.
 pub mod manager;
+/// Transition message handler.
 pub mod messages;
+/// Transition utils.
 pub mod utils;
 
+/// Transitioner used to dispatch state changes into the state machine and transition events back to
+/// the event handler.
 pub struct Transitioner {
 	state_manager: Arc<RwLock<StateManager>>,
 	event_handler: EventHandler,
@@ -26,6 +32,7 @@ pub struct Transitioner {
 }
 
 impl Transitioner {
+	/// Create an instance of `Transitioner`.
 	pub fn new(
 		state_manager: Arc<RwLock<StateManager>>,
 		event_handler: EventHandler,
@@ -34,6 +41,7 @@ impl Transitioner {
 		Self { state_manager, event_handler, monitoring_enabled }
 	}
 
+	/// Transition state changes into state machine and resulting events into event handler.
 	pub async fn transition(&self, state_changes: Vec<StateChange>) -> Result<(), String> {
 		let mut raiden_events = vec![];
 		for state_change in state_changes.clone() {
@@ -53,6 +61,7 @@ impl Transitioner {
 		Ok(())
 	}
 
+	/// Process state changes and event effects.
 	async fn trigger_state_change_effects(
 		&self,
 		state_changes: Vec<StateChange>,

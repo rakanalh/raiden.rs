@@ -90,6 +90,7 @@ use crate::{
 	utils::channel_state_until_state_change,
 };
 
+/// Handle events produced by the state machine transition.
 #[derive(Clone)]
 pub struct EventHandler {
 	web3: Web3<Http>,
@@ -102,6 +103,7 @@ pub struct EventHandler {
 }
 
 impl EventHandler {
+	/// Create an instance of `EventHandler`.
 	pub fn new(
 		web3: Web3<Http>,
 		account: Account<Http>,
@@ -122,6 +124,7 @@ impl EventHandler {
 		}
 	}
 
+	/// Handle event
 	pub async fn handle_event(&self, event: Event) {
 		let private_key = self.account.private_key();
 		match event {
@@ -664,9 +667,7 @@ impl EventHandler {
 					// still present in the balance proof are locked, unless their secret is
 					// registered on-chain.
 					for (secret, unlock) in &old_state.secrethashes_to_onchain_unlockedlocks {
-						old_state
-							.secrethashes_to_lockedlocks
-							.insert(*secret, unlock.lock.clone());
+						old_state.secrethashes_to_lockedlocks.insert(*secret, unlock.lock.clone());
 					}
 
 					old_state.secrethashes_to_unlockedlocks.clear();
