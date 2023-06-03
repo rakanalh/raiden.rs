@@ -75,6 +75,7 @@ use crate::{
 
 const MAX_PATHS_QUERY_ATTEMPT: usize = 2;
 
+/// The routing error type.
 #[derive(Error, Display, Debug)]
 pub enum RoutingError {
 	#[display(fmt = "Token network does not exist")]
@@ -99,6 +100,7 @@ pub enum RoutingError {
 	NoPathFindingServiceFound,
 }
 
+/// Pathfinding route request.
 #[derive(Clone, Debug, Serialize)]
 pub struct PFSRequest {
 	from: String,
@@ -109,6 +111,7 @@ pub struct PFSRequest {
 	iou: Option<IOU>,
 }
 
+/// Pathfinding route.
 #[derive(Debug, Deserialize)]
 pub struct PFSPath {
 	pub path: Vec<Address>,
@@ -117,23 +120,27 @@ pub struct PFSPath {
 	pub estimated_fee: TokenAmount,
 }
 
+/// Pathfinding response.
 #[derive(Debug, Deserialize)]
 pub struct PFSPathsResponse {
 	feedback_token: String,
 	result: Vec<PFSPath>,
 }
 
+/// Pathfinding error response.
 #[derive(Debug, Deserialize)]
 pub struct PFSErrorResponse {
 	#[serde(rename = "errors")]
 	msg: String,
 }
 
+/// Last IOU response.
 #[derive(Debug, Deserialize)]
 pub struct PFSLastIOUResponse {
 	last_iou: IOU,
 }
 
+/// Pathfinding service.
 pub struct PFS {
 	chain_id: ChainID,
 	pub config: PFSConfig,
@@ -142,10 +149,12 @@ pub struct PFS {
 }
 
 impl PFS {
+	/// Return an instance of `PFS`.
 	pub fn new(chain_id: ChainID, config: PFSConfig, private_key: PrivateKey) -> Self {
 		Self { chain_id, config, private_key, iou_creation: Mutex::new(()) }
 	}
 
+	/// Query for routes.
 	pub async fn query_paths(
 		&self,
 		our_address: Address,
@@ -221,10 +230,12 @@ impl PFS {
 		Ok((vec![], String::new()))
 	}
 
+	/// Retrieve the service's information.
 	pub async fn get_pfs_info(&self) -> Result<PFSInfo, RoutingError> {
 		get_pfs_info(self.config.url.clone()).await
 	}
 
+	/// Submit a paths request.
 	pub async fn post_pfs_paths(
 		&self,
 		token_network_address: TokenNetworkAddress,
@@ -253,6 +264,7 @@ impl PFS {
 		}
 	}
 
+	/// Create an IOU.
 	pub async fn create_current_iou(
 		&self,
 		token_network_address: TokenNetworkAddress,
@@ -276,6 +288,7 @@ impl PFS {
 		}
 	}
 
+	/// Get last known IOU from PFS.
 	pub async fn get_last_iou(
 		&self,
 		token_network_address: TokenNetworkAddress,
@@ -331,6 +344,7 @@ impl PFS {
 		}))
 	}
 
+	/// Create a new IOU.
 	pub async fn make_iou(
 		&self,
 		our_address: Address,
@@ -360,6 +374,7 @@ impl PFS {
 		Ok(iou)
 	}
 
+	/// Update and sign an existing IOU.
 	pub async fn update_iou(
 		&self,
 		mut iou: IOU,
@@ -382,6 +397,7 @@ impl PFS {
 		Ok(iou)
 	}
 
+	/// Pack IOU signature data
 	fn iou_signature_data(
 		&self,
 		sender: Address,
@@ -396,6 +412,7 @@ impl PFS {
 	}
 }
 
+/// Get address metadata known to PFS>
 pub async fn query_address_metadata(
 	url: String,
 	address: Address,
@@ -416,6 +433,7 @@ pub async fn query_address_metadata(
 	}
 }
 
+/// Configure PFS
 pub async fn configure_pfs(
 	services_config: ServicesConfig,
 	service_registry: ServiceRegistryProxy<Http>,
@@ -433,6 +451,7 @@ pub async fn configure_pfs(
 	get_pfs_info(pfs_url).await
 }
 
+/// Get a random PFS from service registry.
 pub async fn get_random_pfs(
 	service_registry: ServiceRegistryProxy<Http>,
 	pathfinding_max_fee: TokenAmount,
@@ -454,6 +473,7 @@ pub async fn get_random_pfs(
 	Err(RoutingError::NoPathFindingServiceFound)
 }
 
+/// Retrieve a valid PFS URL.
 async fn get_valid_pfs_url(
 	service_registry: ServiceRegistryProxy<Http>,
 	index_in_service_registry: u64,
@@ -486,6 +506,7 @@ async fn get_valid_pfs_url(
 	Ok(url)
 }
 
+/// Get PFS info.
 async fn get_pfs_info(url: String) -> Result<PFSInfo, RoutingError> {
 	let infos: PFSInfo = reqwest::get(format!("{}/api/v1/info", &url))
 		.await

@@ -29,6 +29,7 @@ use crate::{
 	PFS,
 };
 
+/// Get the best available route for a transfer.
 pub async fn get_best_routes(
 	pfs: Arc<PFS>,
 	chain_state: ChainState,
@@ -120,6 +121,7 @@ pub async fn get_best_routes(
 	Ok((pfs_routes, pfs_feedback_token))
 }
 
+/// Query PFS for best available routes.
 pub async fn get_best_routes_pfs(
 	pfs: Arc<PFS>,
 	chain_state: ChainState,
@@ -156,6 +158,7 @@ pub async fn get_best_routes_pfs(
 	Ok((paths, feedback_token))
 }
 
+/// Create route states out of PFS response.
 pub fn make_route_state(
 	route: PFSPath,
 	previous_address: Option<Address>,

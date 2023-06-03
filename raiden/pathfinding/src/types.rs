@@ -28,12 +28,14 @@ use web3::signing::{
 	Key,
 };
 
+/// Raiden's routing mode.
 #[derive(Copy, Clone, PartialEq)]
 pub enum RoutingMode {
 	PFS,
 	Private,
 }
 
+/// IOU to submit to PFS as a form of payment.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IOU {
 	#[serde(serialize_with = "to_checksum_str")]
@@ -50,6 +52,7 @@ pub struct IOU {
 }
 
 impl IOU {
+	/// Sign IOU with private key.
 	pub fn sign(&mut self, private_key: PrivateKey) -> Result<(), signing::SigningError> {
 		let data = pack_one_to_n_iou(
 			self.one_to_n_address,
