@@ -32,6 +32,7 @@ impl Serialize for U64 {
 	}
 }
 
+/// Serialize U256 into a string.
 pub fn u256_to_str<T, S>(v: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
 	T: ToString,
@@ -40,6 +41,7 @@ where
 	serializer.serialize_str(&v.to_string())
 }
 
+/// Return a string of a check-summed address.
 pub fn to_checksum_str<T, S>(v: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
 	T: Checksum,

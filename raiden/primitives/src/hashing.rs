@@ -16,12 +16,14 @@ use crate::{
 	},
 };
 
+/// Return the hash of the secret in bytes.
 pub fn hash_secret(secret: &[u8]) -> [u8; 32] {
 	let mut hasher = Sha256::new();
 	hasher.update(secret);
 	hasher.finalize().into()
 }
 
+/// Return the hash of the balance data.
 pub fn hash_balance_data(
 	transferred_amount: TokenAmount,
 	locked_amount: LockedAmount,

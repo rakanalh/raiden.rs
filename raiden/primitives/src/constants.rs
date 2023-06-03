@@ -1,5 +1,3 @@
-#![warn(clippy::missing_docs_in_private_items)]
-
 use std::ops::Mul;
 
 use lazy_static::lazy_static;
@@ -17,6 +15,7 @@ use crate::types::{
 	U256,
 };
 
+/// Global queue identifier.
 pub const CANONICAL_IDENTIFIER_UNORDERED_QUEUE: CanonicalIdentifier = CanonicalIdentifier {
 	chain_identifier: ChainID::Private(U256::zero()),
 	token_network_address: Address::zero(),

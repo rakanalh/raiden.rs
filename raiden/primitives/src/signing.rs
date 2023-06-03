@@ -16,6 +16,7 @@ use web3::{
 
 static CONTEXT: Lazy<Secp256k1<All>> = Lazy::new(Secp256k1::new);
 
+/// Hash data in ethereum-compatible format.
 pub fn hash_data(data: &[u8]) -> [u8; 32] {
 	let prefix_msg = "\x19Ethereum Signed Message:\n";
 	let len_str = data.len().to_string();
@@ -27,12 +28,14 @@ pub fn hash_data(data: &[u8]) -> [u8; 32] {
 	web3::signing::keccak256(&res)
 }
 
+/// Recover address from data and signature.
 pub fn recover(data: &[u8], signature: &[u8]) -> Result<Address, RecoveryError> {
 	let data_hash = hash_data(data);
 	let recovery_id = signature[64] as i32 - 27;
 	web3::signing::recover(&data_hash, &signature[..64], recovery_id)
 }
 
+/// Recover public key from data and signature.
 pub fn recover_pub_key(data: &[u8], signature: &[u8]) -> Result<Bytes, RecoveryError> {
 	let data_hash = hash_data(data);
 	let recovery_id = signature[64] as i32 - 27;

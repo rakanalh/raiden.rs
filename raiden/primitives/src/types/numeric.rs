@@ -15,22 +15,26 @@ use web3::types::{
 	U64 as PrimitiveU64,
 };
 
+/// A wrapper around web3's U64 types for consistency.
 #[derive(
 	Default, Copy, Clone, Display, Debug, derive_more::Deref, Eq, Ord, PartialEq, PartialOrd, Hash,
 )]
 pub struct U64(PrimitiveU64);
 
 impl U64 {
+	/// Return zero value.
 	pub fn zero() -> Self {
 		Self(PrimitiveU64::zero())
 	}
 
+	/// Convert to bytes.
 	pub fn as_bytes(&self) -> Vec<u8> {
 		let mut bytes: [u8; 8] = [0; 8];
 		self.0.to_big_endian(&mut bytes);
 		bytes.to_vec()
 	}
 
+	/// Convert to big endian bytes.
 	pub fn to_be_bytes(&self) -> Vec<u8> {
 		let bytes = self.as_bytes();
 		let mut padded_bytes: [u8; 32] = [0; 32];

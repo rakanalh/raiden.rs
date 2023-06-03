@@ -5,6 +5,7 @@ use std::str::FromStr;
 use derive_more::Display;
 use web3::types::U256;
 
+/// Chain identifier
 #[repr(u8)]
 #[derive(Copy, Clone, Display, Debug, Eq, Hash, PartialEq)]
 pub enum ChainID {

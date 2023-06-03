@@ -11,11 +11,13 @@ use crate::types::{
 	TokenNetworkAddress,
 };
 
+/// Payment status variants.
 pub enum PaymentStatus {
 	Success(Address, PaymentIdentifier),
 	Error(Address, PaymentIdentifier, String),
 }
 
+/// Represents an ongoing payment with means to notify once the payment is completed.
 pub struct Payment {
 	pub identifier: PaymentIdentifier,
 	pub token_network_address: TokenNetworkAddress,
@@ -23,15 +25,18 @@ pub struct Payment {
 	pub notifier: Option<oneshot::Sender<PaymentStatus>>,
 }
 
+/// A collection of ongoing payments.
 pub struct PaymentsRegistry {
 	payments: HashMap<Address, HashMap<PaymentIdentifier, Payment>>,
 }
 
 impl PaymentsRegistry {
+	/// Returns an instance of `PaymentsRegistry`.
 	pub fn new() -> Self {
 		Self { payments: HashMap::new() }
 	}
 
+	/// Returns a payment instance if found.
 	pub fn get(&self, target: Address, identifier: PaymentIdentifier) -> Option<&Payment> {
 		if let Some(payments) = self.payments.get(&target) {
 			return payments.get(&identifier)
@@ -39,6 +44,7 @@ impl PaymentsRegistry {
 		None
 	}
 
+	/// Register a new ongoing payment.
 	pub fn register(
 		&mut self,
 		token_network_address: TokenNetworkAddress,
@@ -60,6 +66,7 @@ impl PaymentsRegistry {
 		receiver
 	}
 
+	/// Mark an ongoing payment as complete with status.
 	pub fn complete(&mut self, status: PaymentStatus) {
 		let (target, identifier) = match status {
 			PaymentStatus::Success(target, identifier) => (target, identifier),

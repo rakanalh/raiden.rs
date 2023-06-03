@@ -24,6 +24,7 @@ use crate::types::{
 	TokenNetworkAddress,
 };
 
+/// Return packed balance proof data in bytes.
 pub fn pack_balance_proof(
 	nonce: Nonce,
 	balance_hash: BalanceHash,
@@ -44,6 +45,7 @@ pub fn pack_balance_proof(
 	Bytes(b)
 }
 
+/// Return packed balance proof data in bytes with partner's signature.
 pub fn pack_balance_proof_message(
 	nonce: Nonce,
 	balance_hash: BalanceHash,
@@ -60,6 +62,7 @@ pub fn pack_balance_proof_message(
 	b
 }
 
+/// Return packed withdraw data in bytes.
 pub fn pack_withdraw(
 	canonical_identifier: CanonicalIdentifier,
 	participant: Address,
@@ -79,6 +82,7 @@ pub fn pack_withdraw(
 	Bytes(b)
 }
 
+/// Return packed reward proof data in bytes.
 pub fn pack_reward_proof(
 	monitoring_service_contract_address: Address,
 	chain_id: ChainID,
@@ -100,6 +104,7 @@ pub fn pack_reward_proof(
 	Bytes(b)
 }
 
+/// Return packed OneToN IOU data in bytes.
 pub fn pack_one_to_n_iou(
 	one_to_n_address: OneToNAddress,
 	sender: Address,
