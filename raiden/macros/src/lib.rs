@@ -5,6 +5,7 @@ use syn::{
 	DeriveInput,
 };
 
+/// Derive macro to convert input into an Event.
 #[proc_macro_derive(IntoEvent)]
 pub fn into_event(input: TokenStream) -> TokenStream {
 	// Parse the input tokens into a syntax tree
@@ -22,6 +23,7 @@ pub fn into_event(input: TokenStream) -> TokenStream {
 	TokenStream::from(expanded)
 }
 
+/// Derive macro to convert input into a state change.
 #[proc_macro_derive(IntoStateChange)]
 pub fn into_state_change(input: TokenStream) -> TokenStream {
 	// Parse the input tokens into a syntax tree

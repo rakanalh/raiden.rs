@@ -17,6 +17,7 @@ use web3::{
 	Web3,
 };
 
+/// Retrieve a list of usable keys from keystore path.
 pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {
 	let mut keys: HashMap<String, Address> = HashMap::new();
 	for entry in fs::read_dir(keystore)? {
@@ -30,6 +31,7 @@ pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {
 	Ok(keys)
 }
 
+/// Unlock a private key using a password
 pub async fn unlock_private_key(
 	web3: Web3<Http>,
 	key_filename: String,

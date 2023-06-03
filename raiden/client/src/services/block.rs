@@ -12,6 +12,7 @@ use web3::{
 
 use super::SyncService;
 
+/// Sync with an Ethereum node on latest blocks and dispatch block state changes.
 pub struct BlockMonitorService {
 	raiden: Arc<Raiden>,
 	web3: Web3<WebSocket>,
@@ -20,6 +21,7 @@ pub struct BlockMonitorService {
 }
 
 impl BlockMonitorService {
+	/// Create an instance of `BlockMonitoringService'.
 	pub fn new(
 		raiden: Arc<Raiden>,
 		socket: WebSocket,
@@ -31,6 +33,7 @@ impl BlockMonitorService {
 		Ok(Self { raiden, web3, transition_service, sync_service })
 	}
 
+	/// Start the service.
 	pub async fn start(mut self) {
 		let mut block_stream = match self.web3.eth_subscribe().subscribe_new_heads().await {
 			Ok(stream) => stream,

@@ -21,6 +21,8 @@ use web3::types::{
 	BlockId,
 	BlockNumber,
 };
+
+/// Configuration for adjusting batch size.
 struct BlockBatchSizeConfig {
 	min: u64,
 	_warn_threshold: u64,
@@ -28,6 +30,7 @@ struct BlockBatchSizeConfig {
 	max: u64,
 }
 
+/// Adjust batch size based on error rate.
 struct BlockBatchSizeAdjuster {
 	config: BlockBatchSizeConfig,
 	scale_current: f64,
@@ -36,12 +39,14 @@ struct BlockBatchSizeAdjuster {
 }
 
 impl BlockBatchSizeAdjuster {
+	/// Return a instance of `BlockBatchSizeAdjuster`.
 	fn new(config: BlockBatchSizeConfig, base: f64, step_size: f64) -> Self {
 		let initial: f64 = config.initial.into();
 		let scale_current = initial.log(base);
 		Self { config, base, step_size, scale_current }
 	}
 
+	/// Increase batch size.
 	fn increase(&mut self) {
 		let prev_batch_size = self.batch_size();
 		if prev_batch_size >= self.config.max {
@@ -50,6 +55,7 @@ impl BlockBatchSizeAdjuster {
 		self.scale_current += self.step_size;
 	}
 
+	/// Decrease batch size.
 	fn decrease(&mut self) {
 		let prev_batch_size = self.batch_size();
 		if prev_batch_size <= self.config.min {
@@ -58,6 +64,7 @@ impl BlockBatchSizeAdjuster {
 		self.scale_current -= self.step_size;
 	}
 
+	/// Return current batch size.
 	fn batch_size(&self) -> u64 {
 		cmp::max(
 			self.config.min,
@@ -66,6 +73,7 @@ impl BlockBatchSizeAdjuster {
 	}
 }
 
+/// Raiden's sync service.
 pub struct SyncService {
 	raiden: Arc<Raiden>,
 	transition_service: Arc<Transitioner>,
@@ -73,6 +81,7 @@ pub struct SyncService {
 }
 
 impl SyncService {
+	/// Return an instance of `SyncService`.
 	pub fn new(raiden: Arc<Raiden>, transition_service: Arc<Transitioner>) -> Self {
 		let block_batch_size_adjuster = BlockBatchSizeAdjuster::new(
 			BlockBatchSizeConfig { min: 5, max: 100000, initial: 100, _warn_threshold: 50 },
@@ -83,11 +92,13 @@ impl SyncService {
 		Self { raiden, transition_service, block_batch_size_adjuster }
 	}
 
+	/// Sync with the blockchain for events between start and end blocks.
 	pub async fn sync(&mut self, start_block_number: U64, end_block_number: U64) {
 		info!("Sync started: {} -> {}", start_block_number, end_block_number);
 		self.poll_contract_filters(start_block_number, end_block_number).await;
 	}
 
+	/// Poll the blockchain, fetch events and convert them into state changes.
 	pub async fn poll_contract_filters(&mut self, start_block_number: U64, end_block_number: U64) {
 		let mut from_block = start_block_number;
 
