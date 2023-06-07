@@ -12,6 +12,7 @@ use web3::types::Log;
 
 use super::contracts::ContractsManager;
 
+/// Contains information about the event triggered on the Ethereum chain.
 #[derive(Clone, Debug)]
 pub struct Event {
 	pub name: String,
@@ -23,6 +24,10 @@ pub struct Event {
 }
 
 impl Event {
+	/// Decodes a log into an event based on information about the contracts from the contracts
+	/// manager.
+	///
+	/// Returns None if the event is unknown.
 	pub fn decode(contracts_manager: Arc<ContractsManager>, log: &Log) -> Option<Event> {
 		let events = contracts_manager.events(None);
 		for event in events {

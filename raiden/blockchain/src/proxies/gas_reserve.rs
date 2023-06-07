@@ -108,12 +108,9 @@ impl GasReserve {
 			num_closed_channels +=
 				views::get_channelstate_closed(chain_state, self.registry_address, token_address)
 					.len() as u64;
-			num_settling_channels += views::get_channelstate_settling(
-				chain_state,
-				self.registry_address,
-				token_address,
-			)
-			.len() as u64;
+			num_settling_channels +=
+				views::get_channelstate_settling(chain_state, self.registry_address, token_address)
+					.len() as u64;
 			num_settled_channels +=
 				views::get_channelstate_settled(chain_state, self.registry_address, token_address)
 					.len() as u64;

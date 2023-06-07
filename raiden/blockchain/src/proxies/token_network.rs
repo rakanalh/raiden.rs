@@ -75,6 +75,7 @@ use crate::{
 	},
 };
 
+/// Details of one of the pariticpants in a channel.
 #[derive(Clone)]
 pub struct ParticipantDetails {
 	pub address: Address,
@@ -87,12 +88,14 @@ pub struct ParticipantDetails {
 	pub locked_amount: LockedAmount,
 }
 
+/// Details of both participants in a channel.
 #[derive(Clone)]
 pub struct ParticipantsDetails {
 	pub our_details: ParticipantDetails,
 	pub partner_details: ParticipantDetails,
 }
 
+/// Channel on-chain data.
 #[derive(Clone)]
 pub struct ChannelData {
 	pub channel_identifier: ChannelIdentifier,
@@ -100,6 +103,7 @@ pub struct ChannelData {
 	pub status: ChannelStatus,
 }
 
+/// Token network proxy to interact with the on-chain contract.
 #[derive(Clone)]
 pub struct TokenNetworkProxy<T: Transport> {
 	web3: Web3<T>,
@@ -115,6 +119,7 @@ where
 	T: Transport + Send + Sync,
 	T::Out: Send,
 {
+	/// Returns a new instance of `TokenNetworkProxy`.
 	pub fn new(
 		web3: Web3<T>,
 		gas_metadata: Arc<GasMetadata>,
@@ -131,6 +136,7 @@ where
 		}
 	}
 
+	/// Creates a new channel in the TokenNetwork contract.
 	pub async fn new_channel(
 		&mut self,
 		account: Account<T>,
@@ -165,6 +171,13 @@ where
 		Ok(channel_id)
 	}
 
+	/// Close the channel using the provided balance proof.
+	///
+	/// Note:
+	///     This method must *not* be called without updating the application
+	///     state, otherwise the node may accept new transfers which cannot be
+	///     used, because the closer is not allowed to update the balance proof
+	///     submitted on chain after closing
 	pub async fn close(
 		&self,
 		account: Account<T>,
@@ -201,6 +214,25 @@ where
 			.await
 	}
 
+	/// Set channel's total deposit.
+	///
+	/// `total_deposit` has to be monotonically increasing, this is enforced by
+	/// the `TokenNetwork` smart contract. This is done for the same reason why
+	/// the balance proofs have a monotonically increasing transferred amount,
+	/// it simplifies the analysis of bad behavior and the handling code of
+	/// out-dated balance proofs.
+	///
+	/// Races to `approve_and_set_total_deposit` are handled by the smart contract, where
+	/// largest total deposit wins. The end balance of the funding accounts is
+	/// undefined. E.g.
+	///
+	/// - Acc1 calls approve_and_set_total_deposit with 10 tokens
+	/// - Acc2 calls approve_and_set_total_deposit with 13 tokens
+	///
+	/// - If Acc2's transaction is mined first, then Acc1 token supply is left intact.
+	/// - If Acc1's transaction is mined first, then Acc2 will only move 3 tokens.
+	///
+	/// Races for the same account don't have any unexpected side-effect.
 	pub async fn approve_and_set_total_deposit(
 		&self,
 		account: Account<T>,
@@ -234,6 +266,7 @@ where
 			.await
 	}
 
+	/// Set total token withdraw in the channel to total_withdraw.
 	pub async fn set_total_withdraw(
 		&self,
 		account: Account<T>,
@@ -271,6 +304,7 @@ where
 		set_total_withdraw_transaction.execute(params, block_hash).await
 	}
 
+	/// Sets the on-chain balance proof to match the latest one received from partner.
 	pub async fn update_transfer(
 		&self,
 		account: Account<T>,
@@ -307,6 +341,7 @@ where
 			.await
 	}
 
+	/// Settle a channel.
 	pub async fn settle(
 		&self,
 		account: Account<T>,
@@ -345,6 +380,7 @@ where
 			.await
 	}
 
+	/// Unlock a channel's balances.
 	pub async fn unlock(
 		&self,
 		account: Account<T>,
@@ -379,6 +415,7 @@ where
 			.await
 	}
 
+	/// Cooperatively settle a channel on-chain.
 	pub async fn coop_settle(
 		&self,
 		account: Account<T>,
@@ -410,6 +447,7 @@ where
 			.await
 	}
 
+	/// Retrieve channel identifier by participants.
 	pub async fn get_channel_identifier(
 		&self,
 		participant1: Address,
@@ -434,6 +472,8 @@ where
 
 		Ok(Some(channel_identifier))
 	}
+
+	/// Get token network address by token address.
 	pub async fn address_by_token_address(
 		&self,
 		token_address: TokenAddress,
@@ -451,6 +491,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Returns a bool indicating whether a contract is deprecated.
 	pub async fn safety_deprecation_switch(&self, block: H256) -> Result<bool> {
 		self.contract
 			.query(
@@ -464,6 +505,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Returns the channel participant deposit limit.
 	pub async fn channel_participant_deposit_limit(&self, block: H256) -> Result<U256> {
 		self.contract
 			.query(
@@ -477,6 +519,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Queries contract and returns details of both participants.
 	pub async fn participants_details(
 		&self,
 		channel_identifier: U256,
@@ -491,6 +534,7 @@ where
 		Ok(ParticipantsDetails { our_details, partner_details })
 	}
 
+	/// Returns the channel details.
 	pub async fn channel_details(
 		&self,
 		channel_identifier: Option<U256>,
@@ -528,6 +572,7 @@ where
 		})
 	}
 
+	/// Returns the chain ID indicated by contract.
 	pub async fn chain_id(&self, block: H256) -> Result<ChainID> {
 		self.contract
 			.query("chain_id", (), None, Options::default(), Some(BlockId::Hash(block)))
@@ -536,6 +581,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Returns the minimum settlement timeout.
 	pub async fn settlement_timeout_min(&self, block: H256) -> Result<SettleTimeout> {
 		self.contract
 			.query(
@@ -550,6 +596,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Returns the maximum settlement timeout.
 	pub async fn settlement_timeout_max(&self, block: H256) -> Result<SettleTimeout> {
 		self.contract
 			.query(
@@ -564,6 +611,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Returns the token network total deposit limit.
 	pub async fn token_network_deposit_limit(&self, block: H256) -> Result<U256> {
 		self.contract
 			.query(
@@ -577,6 +625,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Returns the details of a participant in a channel.
 	pub async fn participant_details(
 		&self,
 		channel_identifier: U256,

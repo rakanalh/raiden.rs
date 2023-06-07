@@ -37,14 +37,17 @@ use crate::{
 	errors::ContractDefError,
 };
 
+/// The contract Manager result type
 pub type Result<T> = std::result::Result<T, ContractDefError>;
 
+/// A contract ABI wrapper.
 #[derive(Clone)]
 pub struct Contract {
 	pub abi: Vec<u8>,
 }
 
 impl Contract {
+	/// Returns a new instance of `Contract`.
 	pub fn new(abi: Vec<u8>) -> Self {
 		Contract { abi }
 	}
@@ -66,12 +69,14 @@ impl TryInto<ethabi::Contract> for &Contract {
 	}
 }
 
+/// Information about a deployed contract.
 #[derive(Clone)]
 pub struct DeployedContract {
 	pub address: Address,
 	pub block: U64,
 }
 
+/// A manager container for contracts ABIs and their deployments.
 pub struct ContractsManager {
 	version: String,
 	contracts: HashMap<String, Contract>,
@@ -80,6 +85,7 @@ pub struct ContractsManager {
 }
 
 impl ContractsManager {
+	/// Returns a new instance of `ContractsManager`.
 	pub fn new(chain_id: ChainID) -> Result<Self> {
 		let chain_deployment = match chain_id {
 			ChainID::Mainnet => DEPLOYMENT_MAINNET,
@@ -140,10 +146,12 @@ impl ContractsManager {
 		Ok(manager)
 	}
 
+	/// Get a contract by identifier.
 	pub fn get(&self, contract_identifier: ContractIdentifier) -> Contract {
 		self.contracts.get(&contract_identifier.to_string()).cloned().unwrap()
 	}
 
+	/// Get the list of deployed addresses.
 	pub fn deployed_addresses(&self) -> Result<DefaultAddresses> {
 		let token_network_registry_deployed_contract =
 			self.get_deployed(ContractIdentifier::TokenNetworkRegistry)?;
@@ -172,6 +180,7 @@ impl ContractsManager {
 		})
 	}
 
+	/// Gets a deployed contract information.
 	pub fn get_deployed(
 		&self,
 		contract_identifier: ContractIdentifier,
@@ -210,6 +219,7 @@ impl ContractsManager {
 		Ok(DeployedContract { address, block: block_number })
 	}
 
+	/// Gets the list of events from a specific contract.
 	pub fn events(&self, contract_identifier: Option<ContractIdentifier>) -> Vec<Event> {
 		match contract_identifier {
 			Some(id) => {

@@ -22,6 +22,7 @@ use super::{
 };
 use crate::transactions::WithdrawInput;
 
+/// Channel proxy to interact with the token network contract.
 #[derive(Clone)]
 pub struct ChannelProxy<T: Transport> {
 	pub token_network: TokenNetworkProxy<T>,
@@ -36,6 +37,7 @@ where
 		Self { token_network }
 	}
 
+	/// Set channel's total deposit.
 	pub async fn approve_and_set_total_deposit(
 		&self,
 		account: Account<T>,
@@ -55,6 +57,7 @@ where
 			.await
 	}
 
+	/// Set total token withdraw in the channel to total_withdraw.
 	pub async fn set_total_withdraw(
 		&self,
 		account: Account<T>,
@@ -82,6 +85,7 @@ where
 			.await
 	}
 
+	/// Close the channel using the provided balance proof.
 	pub async fn close(
 		&self,
 		account: Account<T>,
@@ -109,6 +113,7 @@ where
 			.await
 	}
 
+	/// Sets the on-chain balance proof to match the latest one received from partner.
 	pub async fn update_transfer(
 		&self,
 		account: Account<T>,
@@ -136,6 +141,7 @@ where
 			.await
 	}
 
+	/// Unlock a channel's balances.
 	pub async fn unlock(
 		&self,
 		account: Account<T>,
@@ -150,6 +156,7 @@ where
 			.await
 	}
 
+	/// Cooperatively settle a channel on-chain.
 	pub async fn coop_settle(
 		&self,
 		account: Account<T>,

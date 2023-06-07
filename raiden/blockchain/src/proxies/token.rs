@@ -21,8 +21,10 @@ use super::{
 	ProxyError,
 };
 
+/// The token proxy error type.
 type Result<T> = std::result::Result<T, ProxyError>;
 
+/// Token proxy to interact with the on-chain contract.
 #[derive(Clone)]
 pub struct TokenProxy<T: Transport> {
 	web3: Web3<T>,
@@ -31,10 +33,12 @@ pub struct TokenProxy<T: Transport> {
 }
 
 impl<T: Transport> TokenProxy<T> {
+	/// Returns a new instance of `TokenProxy`.
 	pub fn new(web3: Web3<T>, contract: Contract<T>) -> Self {
 		Self { web3, contract, lock: Arc::new(RwLock::new(true)) }
 	}
 
+	/// Returns the allowance amount for spender by the current account.
 	pub async fn allowance(
 		&self,
 		address: Address,
@@ -48,6 +52,7 @@ impl<T: Transport> TokenProxy<T> {
 			.map_err(Into::into)
 	}
 
+	/// Returns the total supply of a token.
 	pub async fn total_supply(&self, block: Option<H256>) -> Result<U256> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -56,6 +61,7 @@ impl<T: Transport> TokenProxy<T> {
 			.map_err(Into::into)
 	}
 
+	/// Returns the current balance of an address.
 	pub async fn balance_of(&self, address: Address, block: Option<H256>) -> Result<U256> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -64,6 +70,7 @@ impl<T: Transport> TokenProxy<T> {
 			.map_err(Into::into)
 	}
 
+	/// Approves a specific amount for `allowed_address`.
 	pub async fn approve(
 		&self,
 		account: Account<T>,
@@ -104,6 +111,7 @@ impl<T: Transport> TokenProxy<T> {
 		Ok(receipt.transaction_hash)
 	}
 
+	/// Mint a specific amount and deposit into caller's account.
 	pub async fn mint(&self, account: Account<T>, amount: U256) -> Result<H256> {
 		let nonce = account.peek_next_nonce().await;
 		account.next_nonce().await;
@@ -135,6 +143,7 @@ impl<T: Transport> TokenProxy<T> {
 		Ok(transaction_hash)
 	}
 
+	/// Mint a specific amount and deposit into `to`'s account.
 	pub async fn mint_for(&self, account: Account<T>, to: Address, amount: U256) -> Result<H256> {
 		let nonce = account.peek_next_nonce().await;
 		account.next_nonce().await;

@@ -39,12 +39,14 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// On-chain data to validate unlocking a channel
 #[derive(Clone)]
 pub struct ChannelUnlockTransactionData {
 	channel_onchain_details: ChannelData,
 	sender_details: ParticipantDetails,
 }
 
+/// Parameters required for unlocking a channel.
 #[derive(Clone)]
 pub struct ChannelUnlockTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -53,6 +55,7 @@ pub struct ChannelUnlockTransactionParams {
 	pub(crate) pending_locks: PendingLocksState,
 }
 
+/// Channel unlock transaction type.
 pub struct ChannelUnlockTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

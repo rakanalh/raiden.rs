@@ -29,6 +29,7 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// On-chain data for validation while opening a channel.
 #[derive(Clone)]
 pub struct ChannelOpenTransactionData {
 	channel_identifier: Option<ChannelIdentifier>,
@@ -39,12 +40,14 @@ pub struct ChannelOpenTransactionData {
 	safety_deprecation_switch: bool,
 }
 
+/// Parameters for opening a new channel.
 #[derive(Clone)]
 pub struct ChannelOpenTransactionParams {
 	pub(crate) partner: Address,
 	pub(crate) settle_timeout: SettleTimeout,
 }
 
+/// Open a channel transaction type.
 pub struct ChannelOpenTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

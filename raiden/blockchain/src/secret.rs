@@ -15,6 +15,7 @@ use crate::keys::{
 	PrivateKey,
 };
 
+/// Returns an encrypted secret from the original secret bytes and payment metadata.
 pub fn encrypt_secret(
 	secret: Secret,
 	target_metadata: AddressMetadata,
@@ -38,6 +39,7 @@ pub fn encrypt_secret(
 	))
 }
 
+/// Decrypts an already encrypted secret.
 pub fn decrypt_secret(
 	encrypted_secret: Vec<u8>,
 	private_key: &PrivateKey,

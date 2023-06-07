@@ -17,18 +17,24 @@ pub use crate::transactions::{
 	user_deposit::*,
 };
 
+/// A trait to be implemented by on-chain transactions.
 #[async_trait::async_trait]
 pub trait Transaction {
+	/// The type which is returned as a result of a successful transaction execution.
 	type Output: Send + Sync;
+	/// The params type to be passed down to transaction.
 	type Params: Clone + Send + Sync;
+	/// The on-chain data placeholder.
 	type Data: Clone + Send + Sync;
 
+	/// Fetch data residing on-chain for validation prior / post execution.
 	async fn onchain_data(
 		&self,
 		params: Self::Params,
 		at_block_hash: H256,
 	) -> Result<Self::Data, ProxyError>;
 
+	/// Validate pre-conditions needed to execute the transaction.
 	async fn validate_preconditions(
 		&self,
 		params: Self::Params,
@@ -36,6 +42,7 @@ pub trait Transaction {
 		at_block_hash: H256,
 	) -> Result<(), ProxyError>;
 
+	/// Submit transaction on-chain.
 	async fn submit(
 		&self,
 		params: Self::Params,
@@ -44,18 +51,23 @@ pub trait Transaction {
 		gas_price: U256,
 	) -> Result<Self::Output, ProxyError>;
 
+	/// Validate conditions after the execution of the transaction in case the execution failed.
 	async fn validate_postconditions(
 		&self,
 		params: Self::Params,
 		at_block_hash: H256,
 	) -> Result<Self::Output, ProxyError>;
 
+	/// Estimate gas for the transaction.
 	async fn estimate_gas(
 		&self,
 		params: Self::Params,
 		data: Self::Data,
 	) -> Result<(U256, U256), ProxyError>;
 
+	/// Execute transactions that are required prior to executing the current one.
+	///
+	/// Some transactions like deposit might need an approve call before.
 	async fn execute_prerequisite(
 		&self,
 		_params: Self::Params,
@@ -64,6 +76,7 @@ pub trait Transaction {
 		Ok(())
 	}
 
+	/// Validate preconditions, execute the transaction and if failed, validate post conditions.
 	async fn execute(
 		&self,
 		params: Self::Params,
@@ -82,6 +95,7 @@ pub trait Transaction {
 		}
 	}
 
+	/// Acquire lock, if needed.
 	async fn acquire_lock(&self) -> Option<RwLockWriteGuard<bool>> {
 		None
 	}

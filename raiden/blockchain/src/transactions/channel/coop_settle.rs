@@ -36,6 +36,7 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// The container of data needed to be signed for withdraw
 #[derive(Clone)]
 pub struct WithdrawInput {
 	pub initiator: Address,
@@ -59,6 +60,7 @@ impl WithdrawInput {
 	}
 }
 
+/// Cooperative settle parameters.
 #[derive(Clone)]
 pub struct ChannelCoopSettleTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -66,6 +68,7 @@ pub struct ChannelCoopSettleTransactionParams {
 	pub(crate) withdraw_initiator: WithdrawInput,
 }
 
+/// Cooperative settle transaction type.
 pub struct ChannelCoopSettleTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

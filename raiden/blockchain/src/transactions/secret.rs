@@ -28,11 +28,13 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// Parameters required for registering a secret.
 #[derive(Clone)]
 pub struct RegisterSecretTransactionParams {
 	pub(crate) secret: Secret,
 }
 
+/// Register secret transaction type.
 pub struct RegisterSecretTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

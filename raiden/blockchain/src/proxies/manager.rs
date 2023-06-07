@@ -38,6 +38,9 @@ use crate::{
 	errors::ContractDefError,
 };
 
+/// The proxy singleton manager.
+///
+/// Makes sure that every proxy to a specific contract address has one and only one instance.
 pub struct ProxyManager {
 	web3: Web3<Http>,
 	gas_metadata: Arc<GasMetadata>,
@@ -52,6 +55,7 @@ pub struct ProxyManager {
 }
 
 impl ProxyManager {
+	/// Returns a new instance of `ProxyManager`.
 	pub fn new(
 		web3: Web3<Http>,
 		contracts_manager: Arc<ContractsManager>,
@@ -72,14 +76,17 @@ impl ProxyManager {
 		})
 	}
 
+	/// Returns a copy of Web3 instance.
 	pub fn web3(&self) -> Web3<Http> {
 		self.web3.clone()
 	}
 
+	/// Returns gas metadata.
 	pub fn gas_metadata(&self) -> Arc<GasMetadata> {
 		self.gas_metadata.clone()
 	}
 
+	/// Creates and returns the proxy for the token network registry.
 	pub async fn token_network_registry(
 		&self,
 		token_network_registry_address: TokenNetworkRegistryAddress,
@@ -115,6 +122,7 @@ impl ProxyManager {
 			.clone())
 	}
 
+	/// Creates and returns the proxy for the secret registry.
 	pub async fn secret_registry(
 		&self,
 		secret_registry_address: SecretRegistryAddress,
@@ -145,6 +153,7 @@ impl ProxyManager {
 			.clone())
 	}
 
+	/// Creates and returns the proxy for the service registry.
 	pub async fn service_registry(
 		&self,
 		service_registry_address: Address,
@@ -171,6 +180,7 @@ impl ProxyManager {
 			.clone())
 	}
 
+	/// Creates and returns the proxy for the user deposit contract.
 	pub async fn user_deposit(
 		&self,
 		user_deposit_address: Address,
@@ -194,6 +204,7 @@ impl ProxyManager {
 		Ok(self.user_deposit.read().await.get(&user_deposit_address).unwrap().clone())
 	}
 
+	/// Creates and returns the proxy for the token contract.
 	pub async fn token(
 		&self,
 		token_address: TokenAddress,
@@ -210,6 +221,7 @@ impl ProxyManager {
 		Ok(self.tokens.read().await.get(&token_address).unwrap().clone())
 	}
 
+	/// Creates and returns the proxy for the token network contract.
 	pub async fn token_network(
 		&self,
 		token_address: TokenAddress,
@@ -237,6 +249,7 @@ impl ProxyManager {
 		Ok(self.token_networks.read().await.get(&token_network_address).unwrap().clone())
 	}
 
+	/// Creates and returns the proxy for the channel proxy.
 	pub async fn payment_channel(
 		&self,
 		channel_state: &ChannelState,

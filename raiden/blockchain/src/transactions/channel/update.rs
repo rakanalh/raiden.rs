@@ -44,6 +44,7 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// On-chain data to validate updating a channel's transfer.
 #[derive(Clone)]
 pub struct ChannelUpdateTransferTransactionData {
 	chain_id: ChainID,
@@ -51,6 +52,7 @@ pub struct ChannelUpdateTransferTransactionData {
 	closer_details: ParticipantDetails,
 }
 
+/// Parameters required to update channel's transfer.
 #[derive(Clone)]
 pub struct ChannelUpdateTransferTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -62,6 +64,7 @@ pub struct ChannelUpdateTransferTransactionParams {
 	pub(crate) non_closing_signature: Signature,
 }
 
+/// Channel update transfer transaction type.
 pub struct ChannelUpdateTransferTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

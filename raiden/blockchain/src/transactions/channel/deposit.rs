@@ -31,6 +31,7 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// On-chain data required to validate SetTotalDeposit.
 #[derive(Clone)]
 pub struct ChannelSetTotalDepositTransactionData {
 	pub(crate) allowance: TokenAmount,
@@ -47,6 +48,7 @@ pub struct ChannelSetTotalDepositTransactionData {
 	pub(crate) network_total_deposit: TokenAmount,
 }
 
+/// Parameters for setting the channel's total deposit.
 #[derive(Clone)]
 pub struct ChannelSetTotalDepositTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -54,6 +56,7 @@ pub struct ChannelSetTotalDepositTransactionParams {
 	pub(crate) total_deposit: TokenAmount,
 }
 
+/// Channels set total deposit type.
 pub struct ChannelSetTotalDepositTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

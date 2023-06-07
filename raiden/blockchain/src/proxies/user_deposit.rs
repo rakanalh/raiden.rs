@@ -37,14 +37,17 @@ use crate::{
 	},
 };
 
+/// User deposit error type.
 type Result<T> = std::result::Result<T, ProxyError>;
 
+/// Information about planned withdraw.
 #[derive(Clone)]
 pub struct WithdrawPlan {
 	pub withdraw_amount: TokenAmount,
 	pub withdraw_block: BlockNumber,
 }
 
+/// User deposit proxy to interact with the on-chain contract.
 #[derive(Clone)]
 pub struct UserDeposit<T: Transport> {
 	web3: Web3<T>,
@@ -58,10 +61,12 @@ where
 	T: Transport + Send + Sync,
 	T::Out: Send,
 {
+	/// Returns a new instance of `UserDeposit`.
 	pub fn new(web3: Web3<T>, gas_metadata: Arc<GasMetadata>, contract: Contract<T>) -> Self {
 		Self { web3, gas_metadata, contract, lock: Arc::new(RwLock::new(true)) }
 	}
 
+	/// Get the user deposit token contract address.
 	pub async fn token_address(&self, block: Option<BlockHash>) -> Result<Address> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -70,6 +75,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Get the balance of an account.
 	pub async fn balance(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -78,6 +84,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Retrieve the effective balance of an account.
 	pub async fn effective_balance(
 		&self,
 		owner: Address,
@@ -90,6 +97,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Retrieve the total deposit of an account.
 	pub async fn total_deposit(&self, owner: Address, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -98,6 +106,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Retrieve the whole balance of the user deposit contract.
 	pub async fn whole_balance(&self, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -106,6 +115,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Retrieve the limit of deposits the user deposit contract will manage.
 	pub async fn whole_balance_limit(&self, block: Option<BlockHash>) -> Result<U256> {
 		let block = block.map(BlockId::Hash);
 		self.contract
@@ -114,6 +124,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Retrieve planned withdraw info.
 	pub async fn withdraw_plan(
 		&self,
 		address: Address,
@@ -128,6 +139,7 @@ where
 		Ok(WithdrawPlan { withdraw_amount, withdraw_block: withdraw_block.as_u64().into() })
 	}
 
+	/// Deposit an amount into user deposit.
 	pub async fn deposit(
 		&self,
 		account: Account<T>,
@@ -150,6 +162,7 @@ where
 		result
 	}
 
+	/// Plan a withdraw from user deposit balance.
 	pub async fn plan_withdraw(
 		&self,
 		account: Account<T>,
@@ -170,6 +183,7 @@ where
 		result
 	}
 
+	/// Actually withdraw amount from user deposit which was previously planned.
 	pub async fn withdraw(
 		&self,
 		account: Account<T>,

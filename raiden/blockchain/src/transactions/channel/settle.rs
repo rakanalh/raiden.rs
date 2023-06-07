@@ -36,12 +36,14 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// On-chain data to validate settling a channel.
 #[derive(Clone)]
 pub struct ChannelSettleTransactionData {
 	channel_onchain_details: ChannelData,
 	participants_details: ParticipantsDetails,
 }
 
+/// Parameters required for settling a channel.
 #[derive(Clone)]
 pub struct ChannelSettleTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -54,6 +56,7 @@ pub struct ChannelSettleTransactionParams {
 	pub(crate) partner_locksroot: Locksroot,
 }
 
+/// Channel settle transaction type.
 pub struct ChannelSettleTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

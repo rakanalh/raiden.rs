@@ -44,17 +44,21 @@ use tracing::{
 
 use super::events::Event;
 
+/// Error for decoding log
 #[derive(Error, Debug, Display)]
 pub struct DecodeError(String);
 
+/// Decoder result type.
 pub type Result<T> = std::result::Result<T, DecodeError>;
 
+/// Decodes an event info a state change.
 pub struct EventDecoder {
 	mediation_config: MediationFeeConfig,
 	default_reveal_timeout: RevealTimeout,
 }
 
 impl EventDecoder {
+	/// Returns a new instance of `EventDecoder`.
 	pub fn new(
 		mediation_config: MediationFeeConfig,
 		default_reveal_timeout: RevealTimeout,
@@ -62,6 +66,7 @@ impl EventDecoder {
 		Self { mediation_config, default_reveal_timeout }
 	}
 
+	/// Converts event into a state change.
 	pub async fn as_state_change(
 		&self,
 		event: Event,
@@ -84,6 +89,7 @@ impl EventDecoder {
 		}
 	}
 
+	/// Converts event into `ContractReceiveTokenNetworkCreated` state change.
 	fn token_network_created(&self, event: Event) -> Result<Option<StateChange>> {
 		let token_address = match event.data.get("token_address") {
 			Some(Token::Address(address)) => *address,
@@ -115,6 +121,7 @@ impl EventDecoder {
 		))
 	}
 
+	/// Converts event into `UpdateServicesAddresses` state change.
 	fn registered_service(
 		&self,
 		_chain_state: &ChainState,
@@ -142,6 +149,7 @@ impl EventDecoder {
 		))
 	}
 
+	/// Converts event into `ContractReceiveChannelOpened` state change.
 	fn channel_opened(
 		&self,
 		chain_state: &ChainState,
@@ -196,13 +204,10 @@ impl EventDecoder {
 		.ok_or_else(|| {
 			DecodeError(format!("{} event has an unknown Token network address", event.name))
 		})?;
-		let token_network = views::get_token_network_by_address(
-			chain_state,
-			token_network_address,
-		)
-		.ok_or_else(|| {
-			DecodeError(format!("{} event has an unknown Token network address", event.name))
-		})?;
+		let token_network = views::get_token_network_by_address(chain_state, token_network_address)
+			.ok_or_else(|| {
+				DecodeError(format!("{} event has an unknown Token network address", event.name))
+			})?;
 		let token_address = token_network.token_address;
 		let reveal_timeout = RevealTimeout::from(self.default_reveal_timeout);
 		let open_transaction = TransactionExecutionStatus {
@@ -238,6 +243,7 @@ impl EventDecoder {
 		))
 	}
 
+	/// Converts event into `ContractReceiveChannelDeposit` state change.
 	fn channel_deposit(
 		&self,
 		chain_state: &ChainState,
@@ -263,7 +269,9 @@ impl EventDecoder {
 			chain_state,
 			token_network_address,
 			participant,
-		).is_none() {
+		)
+		.is_none()
+		{
 			// No channel with `participant`. Check if `participant is our address.
 			if participant != chain_state.our_address {
 				trace!(message = "Ignore channel deposit", participant = participant.checksum());
@@ -298,6 +306,7 @@ impl EventDecoder {
 		Ok(Some(channel_deposit.into()))
 	}
 
+	/// Converts event into `ContractReceiveChannelWithdraw` state change.
 	fn channel_withdraw(
 		&self,
 		chain_state: &ChainState,
@@ -323,7 +332,9 @@ impl EventDecoder {
 			chain_state,
 			token_network_address,
 			participant,
-		).is_none() {
+		)
+		.is_none()
+		{
 			// No channel with `participant`. Check if `participant is our address.
 			if participant != chain_state.our_address {
 				trace!(message = "Ignore channel withdraw", participant = participant.checksum());
@@ -355,6 +366,7 @@ impl EventDecoder {
 		Ok(Some(channel_withdraw.into()))
 	}
 
+	/// Converts event into `ContractReceiveChannelClosed` state change.
 	fn channel_closed(
 		&self,
 		chain_state: &ChainState,
@@ -410,6 +422,7 @@ impl EventDecoder {
 		Ok(Some(channel_closed.into()))
 	}
 
+	/// Converts event into `ContractReceiveUpdateTransfer` state change.
 	fn channel_non_closing_balance_proof_updated(
 		&self,
 		chain_state: &ChainState,
@@ -442,6 +455,7 @@ impl EventDecoder {
 		Ok(Some(update_transfer.into()))
 	}
 
+	/// Converts event into `ContractReceiveChannelSettled` state change.
 	async fn channel_settled(
 		&self,
 		chain_state: &ChainState,
@@ -562,6 +576,7 @@ impl EventDecoder {
 		Ok(Some(channel_settled.into()))
 	}
 
+	/// Converts event into `ContractReceiveChannelBatchUnlock` state change.
 	async fn channel_unlocked(
 		&self,
 		chain_state: &ChainState,

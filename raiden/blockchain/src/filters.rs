@@ -20,6 +20,7 @@ use super::contracts::{
 	ContractsManager,
 };
 
+/// Returns the current filter for syncing with the blockchain according to the latest chain state.
 pub fn filters_from_chain_state(
 	default_addresses: DefaultAddresses,
 	contracts_manager: Arc<ContractsManager>,

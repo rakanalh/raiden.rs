@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// The contract error type
 #[derive(Error, Debug)]
 pub enum ContractDefError {
 	#[error("Contract JSON invalid: `{0}`")]

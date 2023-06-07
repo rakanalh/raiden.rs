@@ -40,6 +40,7 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// On-chain data for validating channel withdraw.
 #[derive(Clone)]
 pub struct ChannelSetTotalWithdrawTransactionData {
 	pub(crate) chain_id: ChainID,
@@ -48,6 +49,7 @@ pub struct ChannelSetTotalWithdrawTransactionData {
 	pub(crate) partner_details: ParticipantDetails,
 }
 
+/// Parameters required to withdraw from a channel.
 #[derive(Clone)]
 pub struct ChannelSetTotalWithdrawTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -59,6 +61,7 @@ pub struct ChannelSetTotalWithdrawTransactionParams {
 	pub(crate) expiration_block: BlockExpiration,
 }
 
+/// Channel withdraw transaction type.
 pub struct ChannelSetTotalWithdrawTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

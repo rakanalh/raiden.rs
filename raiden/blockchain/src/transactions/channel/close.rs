@@ -43,12 +43,14 @@ use crate::{
 	transactions::Transaction,
 };
 
+/// The retrieved on-chain data.
 #[derive(Clone)]
 pub struct ChannelCloseTransactionData {
 	chain_id: ChainID,
 	channel_onchain_details: ChannelData,
 }
 
+/// Close channel transaction parameters.
 #[derive(Clone)]
 pub struct ChannelCloseTransactionParams {
 	pub(crate) channel_identifier: ChannelIdentifier,
@@ -60,6 +62,7 @@ pub struct ChannelCloseTransactionParams {
 	pub(crate) closing_signature: Signature,
 }
 
+/// Close channel transaction type
 pub struct ChannelCloseTransaction<T: Transport> {
 	pub(crate) web3: Web3<T>,
 	pub(crate) account: Account<T>,

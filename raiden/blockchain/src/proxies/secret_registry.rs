@@ -30,6 +30,7 @@ use crate::{
 	},
 };
 
+/// Secret registry proxy to interact with the on-chain contract.
 #[derive(Clone)]
 pub struct SecretRegistryProxy<T: Transport> {
 	web3: Web3<T>,
@@ -42,10 +43,12 @@ where
 	T: Transport + Send + Sync,
 	T::Out: Send,
 {
+	/// Returns a new instance of `SecretRegistryProxy`.
 	pub fn new(web3: Web3<T>, gas_metadata: Arc<GasMetadata>, contract: Contract<T>) -> Self {
 		Self { contract, web3, gas_metadata }
 	}
 
+	/// Get the block number on which a secret has been registered on-chain, if any.
 	pub async fn get_secret_registration_block_by_secrethash(
 		&self,
 		secrethash: SecretHash,
@@ -62,6 +65,7 @@ where
 			.map_err(Into::into)
 	}
 
+	/// Return a boolean indicating whether a secret has been registered.
 	pub async fn is_secret_registered(
 		&self,
 		secrethash: SecretHash,
@@ -71,6 +75,7 @@ where
 		Ok(block.is_none())
 	}
 
+	/// Register a secret on-chain.
 	pub async fn register_secret(
 		&self,
 		account: Account<T>,

@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// The proxy error type.
 #[derive(Error, Debug)]
 pub enum ProxyError {
 	#[error("Insufficient balance: `{0}`")]
