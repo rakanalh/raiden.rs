@@ -9,6 +9,7 @@ pub mod matrix;
 mod tests;
 pub mod types;
 
+/// The transport error type.
 #[derive(Error, Debug)]
 pub enum TransportError {
 	#[error("Could not initialize transport: `{0}`")]

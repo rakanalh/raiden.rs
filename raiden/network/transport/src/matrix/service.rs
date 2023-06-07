@@ -62,11 +62,13 @@ use crate::{
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>;
 
+/// A intermediate type for storing messages
 #[derive(Serialize, Deserialize)]
 struct StorageMessages {
 	messages: HashMap<String, HashMap<MessageIdentifier, Vec<OutgoingMessage>>>,
 }
 
+/// Stores the messages for each queue as well as a sender to communicate with the queue.
 struct QueueInfo {
 	op_sender: UnboundedSender<QueueOp>,
 	messages: HashMap<MessageIdentifier, Vec<OutgoingMessage>>,
@@ -78,6 +80,7 @@ impl From<QueueInfo> for HashMap<MessageIdentifier, Vec<OutgoingMessage>> {
 	}
 }
 
+/// Matrix service which is responsible for mediating between queues and the matrix client.
 pub struct MatrixService {
 	config: TransportConfig,
 	client: MatrixClient,
@@ -89,6 +92,7 @@ pub struct MatrixService {
 }
 
 impl MatrixService {
+	/// Creates a new instance of `MatrixService`.
 	pub fn new(
 		config: TransportConfig,
 		client: MatrixClient,
@@ -110,6 +114,7 @@ impl MatrixService {
 		)
 	}
 
+	/// Initialize the service from storage.
 	pub fn init_from_storage(&mut self) -> Result<(), String> {
 		// Get last sync token
 		let sync_token = self.matrix_storage.get_sync_token().unwrap_or(String::new());
@@ -153,6 +158,7 @@ impl MatrixService {
 		Ok(())
 	}
 
+	/// Ensures the message queue exists before attemping to queue / dequeue messages.
 	fn ensure_message_queue(
 		&mut self,
 		queue_identifier: QueueIdentifier,
@@ -169,6 +175,9 @@ impl MatrixService {
 		}
 	}
 
+	/// Loops forever, where every iteration in the loop decides whether to process incoming
+	/// messages, send out outgoing messages or broadcast specific messages to the service
+	/// providers.
 	pub async fn run(mut self, mut message_handler: MessageHandler) {
 		loop {
 			select! {
@@ -324,6 +333,7 @@ impl MatrixService {
 		}
 	}
 
+	/// Send out a list of messages.
 	async fn send_messages(&self, messages: Vec<OutgoingMessage>) {
 		for message in messages {
 			debug!(
@@ -336,12 +346,14 @@ impl MatrixService {
 		}
 	}
 
+	/// Instruct the client to send a message immediately.
 	async fn send(&self, message: OutgoingMessage) {
 		if let Err(e) = self.client.send(message.clone(), message.recipient_metadata).await {
 			error!("Could not send message {:?}", e);
 		};
 	}
 
+	/// Store messages through the matrix storage.
 	fn store_messages(&self) {
 		let messages: HashMap<String, HashMap<MessageIdentifier, Vec<OutgoingMessage>>> = self
 			.messages

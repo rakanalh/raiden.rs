@@ -1,3 +1,4 @@
+/// Generic transport configuration.
 #[derive(Clone)]
 pub struct TransportConfig {
 	pub retry_timeout: u8,
@@ -6,6 +7,7 @@ pub struct TransportConfig {
 	pub matrix: MatrixTransportConfig,
 }
 
+/// Matrix specific configuration.
 #[derive(Clone)]
 pub struct MatrixTransportConfig {
 	pub homeserver_url: String,

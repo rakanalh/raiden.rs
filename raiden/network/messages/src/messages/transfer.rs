@@ -59,6 +59,7 @@ use super::{
 	SignedMessage,
 };
 
+/// Requests the secret/preimage which unlocks a lock.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct SecretRequest {
@@ -113,6 +114,9 @@ impl SignedMessage for SecretRequest {
 	}
 }
 
+/// Reveal the lock's secret.
+///
+/// This message is not sufficient to unlock a lock, refer to the Unlock.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename = "RevealSecret")]
 pub struct SecretReveal {
@@ -151,6 +155,18 @@ impl SignedMessage for SecretReveal {
 	}
 }
 
+/// Message used when a lock expires.
+///
+/// This will complete an unsuccessful transfer off-chain.
+///
+/// For this message to be valid the balance proof has to be updated to:
+///
+/// - Remove the expired lock from the pending locks and reflect it in the locksroot.
+/// - Decrease the locked_amount by exactly by lock.amount. If less tokens are decreased the sender
+///   may get tokens locked. If more tokens are decreased the recipient will reject the message as
+///   on-chain unlocks may fail.
+/// This message is necessary for synchronization since other messages may be
+/// in-flight, vide Unlock for examples.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct LockExpired {
@@ -196,8 +212,7 @@ impl From<SendLockExpired> for LockExpired {
 impl SignedMessage for LockExpired {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot)
-				.unwrap();
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot).unwrap();
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
@@ -232,6 +247,31 @@ impl SignedEnvelopeMessage for LockExpired {
 	}
 }
 
+/// Message used to successfully unlock a lock.
+///
+/// For this message to be valid the balance proof has to be updated to:
+///
+/// - Remove the successful lock from the pending locks and decrement the locked_amount by the
+///   lock's amount, otherwise the sender will pay twice.
+/// - Increase the transferred_amount, otherwise the recipient will reject it because it is not
+///   being paid.
+/// This message is needed to unlock off-chain transfers for channels that used
+/// less frequently then the pending locks' expiration, otherwise the receiving
+/// end would have to go on-chain to register the secret.
+///
+/// This message is needed in addition to the RevealSecret to fix
+/// synchronization problems. The recipient can not preemptively update its
+/// channel state because there may other messages in-flight. Consider the
+/// following case:
+///
+/// 1. Node A sends a LockedTransfer to B.
+/// 2. Node B forwards and eventually receives the secret
+/// 3. Node A sends a second LockedTransfer to B.
+///
+/// At point 3, node A had no knowledge about the first payment having its
+/// secret revealed, therefore the pending locks from message at step 3 will
+/// include both locks. If B were to preemptively remove the lock it would
+/// reject the message.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Unlock {
@@ -276,8 +316,7 @@ impl From<SendUnlock> for Unlock {
 impl SignedMessage for Unlock {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot)
-				.unwrap();
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot).unwrap();
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
@@ -314,6 +353,7 @@ impl SignedEnvelopeMessage for Unlock {
 	}
 }
 
+/// The lock datastructure.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Lock {
 	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
@@ -322,6 +362,21 @@ pub struct Lock {
 	pub secrethash: Option<SecretHash>,
 }
 
+/// Message used to reserve tokens for a new mediated transfer.
+///
+/// For this message to be valid, the sender must:
+///
+/// - Use a lock.amount smaller then its current capacity. If the amount is higher, then the
+///   recipient will reject it, as it means spending money it does not own.
+/// - Have the new lock represented in locksroot.
+/// - Increase the locked_amount by exactly `lock.amount` otherwise the message would be rejected by
+///   the recipient. If the locked_amount is increased by more, then funds may get locked in the
+///   channel. If the locked_amount is increased by less, then the recipient will reject the message
+///   as it may mean it received the funds with an on-chain unlock.
+/// The initiator will estimate the fees based on the available routes and
+/// incorporate it in the lock's amount. Note that with permissive routing it
+/// is not possible to predetermine the exact fee amount, as the initiator does
+/// not know which nodes are available, thus an estimated value is used.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct LockedTransfer {
@@ -433,6 +488,12 @@ impl SignedEnvelopeMessage for LockedTransfer {
 	}
 }
 
+/// A message used when a payee does not have any available routes to
+/// forward the transfer.
+///
+/// This message is used by the payee to refund the payer when no route is
+/// available. This transfer refunds the payer, allowing him to try a new path
+/// to complete the transfer.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefundTransfer {
 	#[serde(deserialize_with = "u64_from_str")]

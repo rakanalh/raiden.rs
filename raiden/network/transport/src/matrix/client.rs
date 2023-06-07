@@ -53,6 +53,7 @@ use web3::{
 
 use crate::TransportError;
 
+/// The type of message handled by the client.
 pub enum MessageType {
 	Text,
 	Notice,
@@ -68,12 +69,14 @@ impl Display for MessageType {
 	}
 }
 
+/// The content of the message to be sent out / received.
 #[derive(Serialize)]
 pub struct MessageContent {
 	pub msgtype: String,
 	pub body: String,
 }
 
+/// Matrix client type.
 pub struct MatrixClient {
 	client: Client,
 	private_key: PrivateKey,
@@ -83,6 +86,7 @@ pub struct MatrixClient {
 }
 
 impl MatrixClient {
+	/// Create a new instance of `MatrixClient`.
 	pub async fn new(homeserver_url: String, private_key: PrivateKey) -> Self {
 		let homeserver_url =
 			Url::parse(&homeserver_url).expect("Couldn't parse the homeserver URL");
@@ -102,18 +106,22 @@ impl MatrixClient {
 		}
 	}
 
+	/// Set sync token based on the last sync.
 	pub fn set_sync_token(&mut self, sync_token: String) {
 		self.next_sync_token = sync_token;
 	}
 
+	/// Return the last known sync token.
 	pub fn get_sync_token(&self) -> String {
 		self.next_sync_token.clone()
 	}
 
+	/// Return a copy of the private key.
 	pub fn private_key(&self) -> PrivateKey {
 		self.private_key.clone()
 	}
 
+	/// Initialize the client by logging into the matrix home server.
 	pub async fn init(&self) -> Result<(), TransportError> {
 		let username = format!("{:#x}", self.private_key.address());
 		let signed_server_name =
@@ -144,6 +152,7 @@ impl MatrixClient {
 		Ok(())
 	}
 
+	/// Populate services addresses based on on-chain updates to the service registry.
 	pub async fn populate_services_addresses(
 		&mut self,
 		service_registry_proxy: ServiceRegistryProxy<Http>,
@@ -174,6 +183,7 @@ impl MatrixClient {
 		}
 	}
 
+	/// Sync and retrieve any new messages received on the home server.
 	pub async fn get_new_messages(&mut self) -> Result<Vec<IncomingMessage>, Error> {
 		let mut sync_settings = SyncSettings::new().timeout(Duration::from_secs(30));
 		if !self.next_sync_token.is_empty() {
@@ -200,16 +210,19 @@ impl MatrixClient {
 		Ok(messages)
 	}
 
+	/// Construct the address metadata of the current account.
 	pub fn address_metadata(&self) -> AddressMetadata {
 		let user_id = self.make_user_id(&self.private_key.address());
 		let displayname = self.private_key.sign_message(user_id.as_bytes()).unwrap().as_string();
 		AddressMetadata { user_id, displayname, capabilities: "".to_owned() }
 	}
 
+	/// Return's the matrix user ID.
 	pub fn make_user_id(&self, address: &Address) -> String {
 		format!("@0x{}:{}", hex::encode(address), self.server_name)
 	}
 
+	/// Send message to the matrix home server.
 	pub async fn send(
 		&self,
 		message: OutgoingMessage,
@@ -258,6 +271,7 @@ impl MatrixClient {
 		Ok(())
 	}
 
+	/// Broadcast message to all known service addresses.
 	pub async fn broadcast(
 		&self,
 		data: String,
@@ -299,6 +313,7 @@ impl MatrixClient {
 		Ok(())
 	}
 
+	/// Process sync events received from the matrix home server.
 	async fn process_event(
 		&self,
 		event: &Raw<AnyToDeviceEvent>,

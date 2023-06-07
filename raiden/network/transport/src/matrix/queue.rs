@@ -29,6 +29,7 @@ use tracing::error;
 
 use crate::config::TransportConfig;
 
+/// A generator for timeout which indicates if a message is ready for a retry.
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TimeoutGenerator {
 	retries_count: u32,
@@ -40,10 +41,12 @@ pub(crate) struct TimeoutGenerator {
 }
 
 impl TimeoutGenerator {
+	/// Create a new instance of `TimeoutGenerator`.
 	pub(crate) fn new(retries_count: u32, timeout: u8, timeout_max: u8) -> Self {
 		Self { retries_count, timeout, timeout_max, next: None, tries: 1 }
 	}
 
+	/// Returns a boolean indicating whether a message is ready for a retry.
 	pub(crate) fn ready(&mut self) -> bool {
 		match self.next {
 			Some(next) => {
@@ -80,6 +83,7 @@ impl TimeoutGenerator {
 	}
 }
 
+/// A queue operation.
 #[derive(Debug)]
 pub(crate) enum QueueOp {
 	Enqueue(MessageIdentifier),
@@ -87,12 +91,17 @@ pub(crate) enum QueueOp {
 	Stop,
 }
 
+/// The data of the queued message.
 #[derive(Serialize, Deserialize)]
 struct QueuedMessageData {
 	pub(self) message_identifier: MessageIdentifier,
 	pub(self) timeout_generator: TimeoutGenerator,
 }
 
+/// A message queue which stores the message identifier and a timeout generator.
+/// The timeout generator is used to check whether the message is ready for a retry or not.
+/// If any messages in the queue is ready, a signal is sent back to the transport so that the
+/// message can be sent over the wire.
 pub(crate) struct RetryMessageQueue {
 	transport_sender: UnboundedSender<TransportServiceMessage>,
 	queue: Vec<QueuedMessageData>,
@@ -103,6 +112,7 @@ pub(crate) struct RetryMessageQueue {
 }
 
 impl RetryMessageQueue {
+	/// Create an instance of `RetryMessageQueue`.
 	pub fn new(
 		transport_sender: UnboundedSender<TransportServiceMessage>,
 		transport_config: TransportConfig,
@@ -121,6 +131,7 @@ impl RetryMessageQueue {
 		)
 	}
 
+	/// Add message identifier to the queue.
 	fn enqueue(&mut self, message_identifier: MessageIdentifier) {
 		if self.queue.iter().any(|m| m.message_identifier == message_identifier) {
 			return
@@ -135,10 +146,12 @@ impl RetryMessageQueue {
 		});
 	}
 
+	/// Remove the message identifier from queue.
 	fn dequeue(&mut self, message_identifier: MessageIdentifier) {
 		self.queue.retain(|data| data.message_identifier != message_identifier);
 	}
 
+	/// Loops forever and checks every certain interval for messages that are ready to be retried.
 	pub async fn run(mut self) {
 		let delay = IntervalStream::new(interval(StdDuration::from_millis(100)));
 		tokio::pin!(delay);

@@ -31,6 +31,7 @@ use web3::signing::SigningError;
 
 use super::SignedMessage;
 
+/// Message sub-field `onchain_balance_proof` for `RequestMonitoring`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SignedBlindedBalanceProof {
 	chain_id: ChainID,
@@ -88,6 +89,10 @@ impl SignedMessage for SignedBlindedBalanceProof {
 	}
 }
 
+/// """Message to request channel watching from a monitoring service.
+/// Spec:
+///     https://raiden-network-specification.readthedocs.io/en/latest/monitoring_service.html\
+///     #monitor-request
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct RequestMonitoring {

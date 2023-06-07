@@ -16,12 +16,17 @@ use serde::{
 };
 use web3::signing::keccak256;
 
+/// Contains the metadata of the transfer route.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RouteMetadata {
 	pub route: Vec<Address>,
 	pub address_metadata: HashMap<Address, AddressMetadata>,
 }
 
+/// Metadata is used by nodes to provide following hops in a transfer with additional information,
+/// e.g. to make additonal optimizations possible.
+/// It can contain arbitrary data and should be considered a read-only datastructure
+/// for mediating nodes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
 	pub routes: Vec<RouteMetadata>,
@@ -51,8 +56,7 @@ impl From<SendLockedTransfer> for Metadata {
 			.map(|r| RouteMetadata { route: r.route, address_metadata: r.address_to_metadata })
 			.collect();
 
-		let target_metadata =
-			get_address_metadata(transfer.target, event.transfer.route_states);
+		let target_metadata = get_address_metadata(transfer.target, event.transfer.route_states);
 		let secret = match target_metadata {
 			Some(target_metadata) => transfer.secret.map(|s| {
 				encrypt_secret(

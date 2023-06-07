@@ -34,6 +34,7 @@ use super::{
 	SignedMessage,
 };
 
+/// Requests a signed on-chain withdraw confirmation from partner.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct WithdrawRequest {
@@ -105,6 +106,7 @@ impl SignedMessage for WithdrawRequest {
 	}
 }
 
+/// Confirms withdraw to partner with a signature.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct WithdrawConfirmation {
@@ -171,6 +173,7 @@ impl SignedMessage for WithdrawConfirmation {
 	}
 }
 
+/// Notifies about withdraw expiration/cancellation from partner.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct WithdrawExpired {

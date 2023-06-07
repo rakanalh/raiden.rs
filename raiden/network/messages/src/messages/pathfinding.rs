@@ -29,6 +29,7 @@ use web3::signing::SigningError;
 
 use super::SignedMessage;
 
+/// Message to inform a pathfinding service about a capacity change.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct PFSCapacityUpdate {
@@ -110,6 +111,7 @@ impl SignedMessage for PFSCapacityUpdate {
 	}
 }
 
+/// Informs the PFS of mediation fees demanded by the client.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct PFSFeeUpdate {

@@ -9,8 +9,10 @@ use rusqlite::{
 
 mod sqlite;
 
+/// Result type for calling storage.
 pub type Result<T> = std::result::Result<T, StorageError>;
 
+/// The storage error type.
 #[derive(Display, Debug)]
 pub enum StorageError {
 	#[display(fmt = "Storage lock poisoned")]
@@ -19,15 +21,18 @@ pub enum StorageError {
 	Sql(rusqlite::Error),
 }
 
+/// Storage for the matrix transport layer.
 pub struct MatrixStorage {
 	conn: Mutex<Connection>,
 }
 
 impl MatrixStorage {
+	/// Create a new instance of `MatrixStorage`
 	pub fn new(conn: Connection) -> Self {
 		Self { conn: Mutex::new(conn) }
 	}
 
+	/// Initialize storage and create tables.
 	pub fn setup_database(&self) -> Result<()> {
 		let setup_db_sql = format!(
 			"
@@ -49,6 +54,7 @@ impl MatrixStorage {
 		Ok(())
 	}
 
+	/// Retrieve the last known sync token.
 	pub fn get_sync_token(&self) -> Result<String> {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
 		let mut stmt = conn
@@ -59,6 +65,7 @@ impl MatrixStorage {
 		Ok(sync_token)
 	}
 
+	/// Set the last received sync token.
 	pub fn set_sync_token(&self, sync_token: String) -> Result<()> {
 		let sql = if let Err(_) = self.get_sync_token() {
 			"INSERT INTO matrix_config(sync_token) VALUES(?1)".to_string()
@@ -73,11 +80,11 @@ impl MatrixStorage {
 		Ok(())
 	}
 
+	/// Retrieve the list of queued messages.
 	pub fn get_messages(&self) -> Result<String> {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
-		let mut stmt = conn
-			.prepare("SELECT data FROM matrix_messages")
-			.map_err(StorageError::Sql)?;
+		let mut stmt =
+			conn.prepare("SELECT data FROM matrix_messages").map_err(StorageError::Sql)?;
 
 		let messages: String = match stmt.query_row([], |r| r.get(0)) {
 			Ok(messages) => messages,
@@ -91,6 +98,7 @@ impl MatrixStorage {
 		Ok(messages)
 	}
 
+	/// Storage queued messages.
 	pub fn store_messages(&self, messages: String) -> Result<()> {
 		let sql = if let Err(_) = self.get_messages() {
 			"INSERT INTO matrix_messages(data) VALUES(?1)".to_string()
