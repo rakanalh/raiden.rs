@@ -40,6 +40,7 @@ use web3::{
 
 use crate::api::ApiError;
 
+/// Wait for token network creation.
 pub async fn wait_for_token_network(
 	state_manager: Arc<RwLock<StateManager>>,
 	registry_address: Address,
@@ -72,6 +73,7 @@ pub async fn wait_for_token_network(
 	Ok(())
 }
 
+/// Wait for a new channel to be created on-chain.
 pub async fn wait_for_new_channel(
 	state_manager: Arc<RwLock<StateManager>>,
 	registry_address: Address,
@@ -97,7 +99,9 @@ pub async fn wait_for_new_channel(
 			registry_address,
 			token_address,
 			partner_address,
-		).is_some() {
+		)
+		.is_some()
+		{
 			break
 		}
 		sleep(retry_timeout).await;
@@ -106,6 +110,7 @@ pub async fn wait_for_new_channel(
 	Ok(())
 }
 
+/// Wait for a channel to be closed.
 pub async fn wait_for_close(
 	state_manager: Arc<RwLock<StateManager>>,
 	canonical_ids: Vec<CanonicalIdentifier>,
@@ -145,6 +150,7 @@ pub async fn wait_for_close(
 	}
 }
 
+/// Wait for a channel to be cooperatively settled.
 pub async fn wait_for_coop_settle(
 	web3: Web3<Http>,
 	state_manager: Arc<RwLock<StateManager>>,
@@ -220,6 +226,7 @@ pub async fn wait_for_coop_settle(
 	}
 }
 
+/// Wait for a deposit from a channel participant.
 pub async fn wait_for_participant_deposit(
 	state_manager: Arc<RwLock<StateManager>>,
 	registry_address: Address,
@@ -270,6 +277,7 @@ pub async fn wait_for_participant_deposit(
 	Ok(())
 }
 
+/// Wait for a withdraw to be completed.
 pub async fn wait_for_withdraw_complete(
 	state_manager: Arc<RwLock<StateManager>>,
 	canonical_identifier: CanonicalIdentifier,

@@ -28,6 +28,7 @@ use web3::{
 	Web3,
 };
 
+/// Configuration of Raiden's API.
 #[derive(Clone)]
 pub struct RaidenConfig {
 	pub chain_id: ChainID,
@@ -42,6 +43,7 @@ pub struct RaidenConfig {
 	pub default_reveal_timeout: RevealTimeout,
 }
 
+/// A Raiden instance which holds vital components for passing around.
 pub struct Raiden {
 	pub web3: Web3<Http>,
 	/// Raiden Configurations

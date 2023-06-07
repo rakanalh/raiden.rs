@@ -87,9 +87,7 @@ use crate::{
 	waiting,
 };
 
-#[derive(Error, Debug)]
-pub enum ContractError {}
-
+/// API error type.
 #[derive(Error, Debug)]
 pub enum ApiError {
 	#[error("Transition Error: `{0}`")]
@@ -112,6 +110,7 @@ pub enum ApiError {
 	Param(String),
 }
 
+/// A pending payment
 pub struct Payment {
 	pub target: Address,
 	pub payment_identifier: PaymentIdentifier,
@@ -119,6 +118,7 @@ pub struct Payment {
 	pub secrethash: SecretHash,
 }
 
+/// The interface which enables initiating payments and interacting with contracts.
 pub struct Api {
 	pub raiden: Arc<Raiden>,
 	transition_service: Arc<Transitioner>,
@@ -126,6 +126,7 @@ pub struct Api {
 }
 
 impl Api {
+	/// Creates a new instance of `Api`
 	pub fn new(
 		raiden: Arc<Raiden>,
 		transition_service: Arc<Transitioner>,
@@ -134,6 +135,7 @@ impl Api {
 		Self { raiden, transition_service, payments_registry }
 	}
 
+	/// Creates a new channel with the current account being one participant.
 	pub async fn create_channel(
 		&self,
 		account: Account<Http>,
@@ -320,6 +322,15 @@ impl Api {
 		Ok(channel_identifier)
 	}
 
+	/// Updates a channel state on-chain depending on the parameters passed.
+	///
+	/// Only one optional parameter is allowed to be set in a single call to determine what the call
+	/// will do.
+	///
+	/// `reveal_timeout`: Sets the reveal timeout of a channel.
+	/// `total_deposit`: Deposit the defined amount into the channel.
+	/// `total_withdraw`: Initiates a withdraw with partner.
+	/// `state`: Alters the state of the channel. For example: closed.
 	pub async fn update_channel(
 		&self,
 		account: Account<Http>,
@@ -592,6 +603,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Initiate a withdraw from channel's balance.
 	pub async fn channel_withdraw(
 		&self,
 		channel_state: &ChannelState,
@@ -662,6 +674,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Set the channel's reveal timeout.
 	pub async fn channel_reveal_timeout(
 		&self,
 		channel_state: &ChannelState,
@@ -707,6 +720,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Close a channel.
 	pub async fn channel_close(
 		&self,
 		registry_address: Address,
@@ -729,6 +743,7 @@ impl Api {
 		.await
 	}
 
+	/// Register a new token network.
 	pub async fn token_network_register(
 		&self,
 		registry_address: Address,
@@ -787,6 +802,7 @@ impl Api {
 		Ok(token_network_address)
 	}
 
+	/// Leave token network by token address.
 	pub async fn token_network_leave(
 		&self,
 		registry_address: Address,
@@ -825,6 +841,9 @@ impl Api {
 		Ok(channels)
 	}
 
+	/// Batch close channels.
+	///
+	/// This will attempt to cooperatively settle a channel and then close it.
 	pub async fn channel_batch_close(
 		&self,
 		registry_address: Address,
@@ -877,6 +896,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Batch cooperative settle
 	pub async fn batch_coop_settle(
 		&self,
 		channels: Vec<&ChannelState>,
@@ -963,6 +983,7 @@ impl Api {
 		Ok(unsuccessful_channels)
 	}
 
+	/// Deposit some amount to the UserDeposit contract.
 	pub async fn deposit_to_udc(
 		&self,
 		user_deposit_address: Address,
@@ -1053,6 +1074,9 @@ impl Api {
 		Ok(())
 	}
 
+	/// Register desire to withdraw from the UserDeposit contract.
+	///
+	/// The amount stated will be withdrawable after certain blocks have passed.
 	pub async fn plan_withdraw_from_udc(
 		&self,
 		user_deposit_address: Address,
@@ -1103,6 +1127,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Actually perform the previously planned withdraw from the UserDeposit contract.
 	pub async fn withdraw_from_udc(
 		&self,
 		user_deposit_address: Address,
@@ -1169,6 +1194,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Initiate a payment to partner.
 	pub async fn initiate_payment(
 		&self,
 		account: Account<Http>,
@@ -1331,6 +1357,7 @@ impl Api {
 		}
 	}
 
+	/// Mint a certain amount of tokens to a specific address.
 	pub async fn mint_token_for(
 		&self,
 		token_address: TokenAddress,
@@ -1358,6 +1385,7 @@ impl Api {
 		Ok(transaction_hash)
 	}
 
+	/// Check if settle timeout ratio with reveal timeout is correct.
 	fn check_invalid_channel_timeouts(
 		&self,
 		settle_timeout: SettleTimeout,
@@ -1393,6 +1421,7 @@ impl Api {
 		Ok(())
 	}
 
+	/// Dispatch `ActionInitInitiator` to start a payment.
 	async fn initiator_init(
 		&self,
 		transfer_identifier: PaymentIdentifier,
