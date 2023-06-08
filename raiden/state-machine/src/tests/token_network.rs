@@ -11,7 +11,6 @@ use crate::{
 	tests::factories::ChainStateBuilder,
 	types::{
 		ContractReceiveTokenNetworkCreated,
-		TokenNetworkGraphState,
 		TokenNetworkState,
 	},
 	views,
@@ -28,7 +27,6 @@ fn create_token_network() {
 		token_network: TokenNetworkState {
 			address: token_network_address,
 			token_address: chain_info.token_address,
-			network_graph: TokenNetworkGraphState {},
 			channelidentifiers_to_channels: HashMap::new(),
 			partneraddresses_to_channelidentifiers: HashMap::new(),
 		},

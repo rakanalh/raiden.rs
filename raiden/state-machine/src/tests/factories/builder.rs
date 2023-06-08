@@ -32,7 +32,6 @@ use crate::{
 		MediationFeeConfig,
 		PaymentMappingState,
 		Random,
-		TokenNetworkGraphState,
 		TokenNetworkRegistryState,
 		TokenNetworkState,
 		TransactionChannelDeposit,
@@ -109,7 +108,6 @@ impl ChainStateBuilder {
 			token_network: TokenNetworkState {
 				address: self.token_network_address,
 				token_address: self.token_address,
-				network_graph: TokenNetworkGraphState {},
 				channelidentifiers_to_channels: HashMap::new(),
 				partneraddresses_to_channelidentifiers: HashMap::new(),
 			},
