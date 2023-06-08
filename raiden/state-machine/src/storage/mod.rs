@@ -285,14 +285,14 @@ impl StateStorage {
 			),
 			(
 				"balance_proof.canonical_identifier.token_network_address".to_owned(),
-				canonical_identifier.token_network_address.to_string(),
+				format!("0x{}", hex::encode(canonical_identifier.token_network_address)),
 			),
 			(
 				"balance_proof.canonical_identifier.channel_identifier".to_owned(),
 				canonical_identifier.channel_identifier.to_string(),
 			),
-			("balance_hash".to_owned(), balance_hash.to_string()),
-			("recipient".to_owned(), recipient.to_string()),
+			("balance_hash".to_owned(), format!("0x{}", hex::encode(balance_hash))),
+			("recipient".to_owned(), format!("0x{}", hex::encode(recipient))),
 		];
 
 		let mut where_cond = "".to_owned();
@@ -350,14 +350,14 @@ impl StateStorage {
 			),
 			(
 				"balance_proof.canonical_identifier.token_network_address".to_owned(),
-				canonical_identifier.token_network_address.to_string(),
+				format!("0x{}", hex::encode(canonical_identifier.token_network_address)),
 			),
 			(
 				"balance_proof.canonical_identifier.channel_identifier".to_owned(),
 				canonical_identifier.channel_identifier.to_string(),
 			),
-			("balance_proof.locksroot".to_owned(), locksroot.to_string()),
-			("balance_proof.sender".to_owned(), recipient.to_string()),
+			("balance_proof.locksroot".to_owned(), format!("0x{}", hex::encode(locksroot))),
+			("balance_proof.sender".to_owned(), format!("0x{}", hex::encode(recipient))),
 		];
 
 		let mut where_cond = "".to_owned();
@@ -457,14 +457,14 @@ impl StateStorage {
 				),
 				(
 					"balance_proof.canonical_identifier.token_network_address".to_owned(),
-					canonical_identifier.token_network_address.to_string(),
+					format!("0x{}", hex::encode(canonical_identifier.token_network_address)),
 				),
 				(
 					"balance_proof.canonical_identifier.channel_identifier".to_owned(),
 					canonical_identifier.channel_identifier.to_string(),
 				),
-				("balance_hash".to_owned(), balance_hash.to_string()),
-				("recipient".to_owned(), recipient.to_string()),
+				("balance_hash".to_owned(), format!("0x{}", hex::encode(balance_hash))),
+				("recipient".to_owned(), format!("0x{}", hex::encode(recipient))),
 			],
 			vec![
 				(
@@ -473,14 +473,14 @@ impl StateStorage {
 				),
 				(
 					"transfer.balance_proof.canonical_identifier.token_network_address".to_owned(),
-					canonical_identifier.token_network_address.to_string(),
+					format!("0x{}", hex::encode(canonical_identifier.token_network_address)),
 				),
 				(
 					"transfer.balance_proof.canonical_identifier.channel_identifier".to_owned(),
 					canonical_identifier.channel_identifier.to_string(),
 				),
-				("transfer.balance_hash".to_owned(), balance_hash.to_string()),
-				("recipient".to_owned(), recipient.to_string()),
+				("transfer.balance_hash".to_owned(), format!("0x{}", hex::encode(balance_hash))),
+				("recipient".to_owned(), format!("0x{}", hex::encode(recipient))),
 			],
 		];
 
@@ -553,14 +553,14 @@ impl StateStorage {
 				),
 				(
 					"balance_proof.canonical_identifier.token_network_address".to_owned(),
-					canonical_identifier.token_network_address.to_string(),
+					format!("0x{}", hex::encode(canonical_identifier.token_network_address)),
 				),
 				(
 					"balance_proof.canonical_identifier.channel_identifier".to_owned(),
 					canonical_identifier.channel_identifier.to_string(),
 				),
-				("locksroot".to_owned(), locksroot.to_string()),
-				("recipient".to_owned(), recipient.to_string()),
+				("locksroot".to_owned(), format!("0x{}", hex::encode(locksroot))),
+				("recipient".to_owned(), format!("0x{}", hex::encode(recipient))),
 			],
 			vec![
 				(
@@ -569,14 +569,14 @@ impl StateStorage {
 				),
 				(
 					"transfer.balance_proof.canonical_identifier.token_network_address".to_owned(),
-					canonical_identifier.token_network_address.to_string(),
+					format!("0x{}", hex::encode(canonical_identifier.token_network_address)),
 				),
 				(
 					"transfer.balance_proof.canonical_identifier.channel_identifier".to_owned(),
 					canonical_identifier.channel_identifier.to_string(),
 				),
-				("transfer.locksroot".to_owned(), locksroot.to_string()),
-				("recipient".to_owned(), recipient.to_string()),
+				("transfer.locksroot".to_owned(), format!("0x{}", hex::encode(locksroot))),
+				("recipient".to_owned(), format!("0x{}", hex::encode(recipient))),
 			],
 		];
 
