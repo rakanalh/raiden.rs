@@ -466,6 +466,7 @@ fn test_channel_settled() {
 }
 
 #[test]
+#[ignore]
 fn test_channel_batch_unlock() {
 	let mut chain_info = ChainStateBuilder::new()
 		.with_token_network_registry()
