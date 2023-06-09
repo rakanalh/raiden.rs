@@ -46,6 +46,12 @@ impl Random {
 	}
 }
 
+impl Default for Random {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 /// Transaction result state.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransactionResult {

@@ -192,7 +192,7 @@ impl PFS {
 		let lock = self.iou_creation.lock().await;
 
 		let scrap_existing_iou = false;
-		for _retries in (0..MAX_PATHS_QUERY_ATTEMPT).rev() {
+		for _ in (0..MAX_PATHS_QUERY_ATTEMPT).rev() {
 			if !offered_fee.is_zero() {
 				let iou = self
 					.create_current_iou(
@@ -221,10 +221,12 @@ impl PFS {
 				route_from = route_from.checksum(),
 				route_to = route_to.checksum(),
 			);
-			let response = self.post_pfs_paths(token_network_address, payload.clone()).await?;
-			drop(lock);
 
-			return Ok((response.result, response.feedback_token))
+			if let Ok(response) = self.post_pfs_paths(token_network_address, payload.clone()).await
+			{
+				drop(lock);
+				return Ok((response.result, response.feedback_token))
+			}
 		}
 
 		Ok((vec![], String::new()))

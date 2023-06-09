@@ -210,13 +210,11 @@ pub async fn wait_for_coop_settle(
 				);
 			}
 
-			if expired && settled {
-				completed.insert(canonical_id.clone());
-			} else if expired && !settled {
-				completed.insert(canonical_id.clone());
-			} else if !expired && settled {
-				completed.insert(canonical_id.clone());
+			if !expired && !settled {
+				continue
 			}
+
+			completed.insert(canonical_id.clone());
 		}
 
 		if completed.len() == canonical_ids.len() {
