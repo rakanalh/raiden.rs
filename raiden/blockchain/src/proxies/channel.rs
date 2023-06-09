@@ -58,6 +58,7 @@ where
 	}
 
 	/// Set total token withdraw in the channel to total_withdraw.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn set_total_withdraw(
 		&self,
 		account: Account<T>,
@@ -86,6 +87,7 @@ where
 	}
 
 	/// Close the channel using the provided balance proof.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn close(
 		&self,
 		account: Account<T>,
@@ -114,6 +116,7 @@ where
 	}
 
 	/// Sets the on-chain balance proof to match the latest one received from partner.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn update_transfer(
 		&self,
 		account: Account<T>,

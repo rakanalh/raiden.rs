@@ -178,6 +178,7 @@ where
 	///     state, otherwise the node may accept new transfers which cannot be
 	///     used, because the closer is not allowed to update the balance proof
 	///     submitted on chain after closing
+	#[allow(clippy::too_many_arguments)]
 	pub async fn close(
 		&self,
 		account: Account<T>,
@@ -267,6 +268,7 @@ where
 	}
 
 	/// Set total token withdraw in the channel to total_withdraw.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn set_total_withdraw(
 		&self,
 		account: Account<T>,
@@ -305,6 +307,7 @@ where
 	}
 
 	/// Sets the on-chain balance proof to match the latest one received from partner.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn update_transfer(
 		&self,
 		account: Account<T>,
@@ -342,6 +345,7 @@ where
 	}
 
 	/// Settle a channel.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn settle(
 		&self,
 		account: Account<T>,

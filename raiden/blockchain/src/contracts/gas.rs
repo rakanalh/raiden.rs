@@ -25,3 +25,9 @@ impl GasMetadata {
 		*self.data.get(name).unwrap()
 	}
 }
+
+impl Default for GasMetadata {
+	fn default() -> Self {
+		Self::new()
+	}
+}
