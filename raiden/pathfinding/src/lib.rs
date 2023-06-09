@@ -155,6 +155,7 @@ impl PFS {
 	}
 
 	/// Query for routes.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn query_paths(
 		&self,
 		our_address: Address,

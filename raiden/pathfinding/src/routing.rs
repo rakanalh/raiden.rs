@@ -30,6 +30,7 @@ use crate::{
 };
 
 /// Get the best available route for a transfer.
+#[allow(clippy::too_many_arguments)]
 pub async fn get_best_routes(
 	pfs: Arc<PFS>,
 	chain_state: ChainState,
@@ -122,6 +123,7 @@ pub async fn get_best_routes(
 }
 
 /// Query PFS for best available routes.
+#[allow(clippy::too_many_arguments)]
 pub async fn get_best_routes_pfs(
 	pfs: Arc<PFS>,
 	chain_state: ChainState,
@@ -159,6 +161,7 @@ pub async fn get_best_routes_pfs(
 }
 
 /// Create route states out of PFS response.
+#[allow(clippy::too_many_arguments)]
 pub fn make_route_state(
 	route: PFSPath,
 	previous_address: Option<Address>,
