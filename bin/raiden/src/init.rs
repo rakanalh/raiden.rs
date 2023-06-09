@@ -210,7 +210,7 @@ pub async fn init_pfs_info(
 		.await
 		.map_err(|e| format!("Could not create service registry {:?}", e))?;
 
-	Ok(raiden_pathfinding::configure_pfs(services_config, service_registry)
+	raiden_pathfinding::configure_pfs(services_config, service_registry)
 		.await
-		.map_err(|e| format!("Failed to initialize PFS: {}", e))?)
+		.map_err(|e| format!("Failed to initialize PFS: {}", e))
 }

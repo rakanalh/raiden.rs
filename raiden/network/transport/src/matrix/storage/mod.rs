@@ -67,7 +67,7 @@ impl MatrixStorage {
 
 	/// Set the last received sync token.
 	pub fn set_sync_token(&self, sync_token: String) -> Result<()> {
-		let sql = if let Err(_) = self.get_sync_token() {
+		let sql = if self.get_sync_token().is_err() {
 			"INSERT INTO matrix_config(sync_token) VALUES(?1)".to_string()
 		} else {
 			"UPDATE matrix_config SET sync_token=?1".to_string()
@@ -100,7 +100,7 @@ impl MatrixStorage {
 
 	/// Storage queued messages.
 	pub fn store_messages(&self, messages: String) -> Result<()> {
-		let sql = if let Err(_) = self.get_messages() {
+		let sql = if self.get_messages().is_err() {
 			"INSERT INTO matrix_messages(data) VALUES(?1)".to_string()
 		} else {
 			"UPDATE matrix_messages SET data=?1".to_string()

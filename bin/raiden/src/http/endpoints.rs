@@ -129,21 +129,19 @@ pub async fn pending_transfers(req: Request<Body>) -> Result<Response<Body>, Htt
 		StatusCode::INTERNAL_SERVER_ERROR
 	);
 
-	let token_address = req
-		.param("token_address")
-		.map(|address| match hex::decode(address.trim_start_matches("0x")) {
+	let token_address = req.param("token_address").and_then(|address| {
+		match hex::decode(address.trim_start_matches("0x")) {
 			Ok(address) => Some(Address::from_slice(&address)),
 			Err(_) => None,
-		})
-		.flatten();
+		}
+	});
 
-	let partner_address = req
-		.param("partner_address")
-		.map(|address| match hex::decode(address.trim_start_matches("0x")) {
+	let partner_address = req.param("partner_address").and_then(|address| {
+		match hex::decode(address.trim_start_matches("0x")) {
 			Ok(address) => Some(Address::from_slice(&address)),
 			Err(_) => None,
-		})
-		.flatten();
+		}
+	});
 
 	let chain_state = &state_manager.read().current_state;
 	let all_tasks = &chain_state.payment_mapping.secrethashes_to_task;
@@ -207,7 +205,7 @@ pub async fn channels(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 		));
 		let token_network = unwrap_result_or_error!(
 			get_token_network_by_token_address(
-				&chain_state,
+				chain_state,
 				addresses.token_network_registry,
 				token_address
 			)
@@ -221,7 +219,7 @@ pub async fn channels(req: Request<Body>) -> Result<Response<Body>, HttpError> {
 			.map(|c| c.clone().into())
 			.collect()
 	} else {
-		views::get_channels(&chain_state).iter().map(|c| c.clone().into()).collect()
+		views::get_channels(chain_state).iter().map(|c| c.clone().into()).collect()
 	};
 
 	json_response!(&channels, StatusCode::OK)
@@ -253,7 +251,7 @@ pub async fn channel_by_partner_address(req: Request<Body>) -> Result<Response<B
 	));
 
 	let channel_state = views::get_channel_state_for(
-		&chain_state,
+		chain_state,
 		addresses.token_network_registry,
 		token_address,
 		partner_address,
@@ -433,7 +431,7 @@ pub async fn partners_by_token_address(req: Request<Body>) -> Result<Response<Bo
 
 	let token_network = unwrap_result_or_error!(
 		get_token_network_by_token_address(
-			&chain_state,
+			chain_state,
 			addresses.token_network_registry,
 			token_address
 		)
@@ -500,7 +498,7 @@ pub async fn user_deposit(req: Request<Body>) -> Result<Response<Body>, HttpErro
 		))), StatusCode::BAD_REQUEST)
 	}
 
-	let result = if let Some(total_deposit) = params.total_deposit {
+	if let Some(total_deposit) = params.total_deposit {
 		unwrap_result_or_error!(
 			api.deposit_to_udc(addresses.user_deposit, total_deposit).await,
 			StatusCode::CONFLICT
@@ -521,7 +519,7 @@ pub async fn user_deposit(req: Request<Body>) -> Result<Response<Body>, HttpErro
 			"Nothing to do. Should either provide total_deposit, planned_withdraw_amount or withdraw_amount argument"
 		))), StatusCode::CONFLICT);
 	};
-	json_response!(result, StatusCode::OK)
+	json_response!((), StatusCode::OK)
 }
 
 pub async fn status(_req: Request<Body>) -> Result<Response<Body>, HttpError> {
@@ -583,14 +581,14 @@ pub async fn create_channel(req: Request<Body>) -> Result<Response<Body>, HttpEr
 	let chain_state = &state_manager.read().current_state;
 	let token_network = unwrap_option_or_error!(
 		views::get_token_network_by_token_address(
-			&chain_state,
+			chain_state,
 			token_network_registry,
 			params.token_address
 		),
 		StatusCode::NOT_FOUND
 	);
 	if let Some(channel_state) = views::get_channel_by_canonical_identifier(
-		&chain_state,
+		chain_state,
 		CanonicalIdentifier {
 			chain_identifier: chain_state.chain_id,
 			token_network_address: token_network.address,

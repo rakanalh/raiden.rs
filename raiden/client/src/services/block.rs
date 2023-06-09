@@ -27,10 +27,10 @@ impl BlockMonitorService {
 		socket: WebSocket,
 		transition_service: Arc<Transitioner>,
 		sync_service: SyncService,
-	) -> Result<Self, ()> {
+	) -> Self {
 		let web3 = web3::Web3::new(socket);
 
-		Ok(Self { raiden, web3, transition_service, sync_service })
+		Self { raiden, web3, transition_service, sync_service }
 	}
 
 	/// Start the service.

@@ -55,7 +55,6 @@ impl HttpServer {
 	pub async fn start(self) {
 		if let Err(err) = self.inner.await {
 			eprintln!("Server error: {}", err);
-			return
 		}
 	}
 }

@@ -136,6 +136,7 @@ impl Api {
 	}
 
 	/// Creates a new channel with the current account being one participant.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn create_channel(
 		&self,
 		account: Account<Http>,
@@ -331,6 +332,7 @@ impl Api {
 	/// `total_deposit`: Deposit the defined amount into the channel.
 	/// `total_withdraw`: Initiates a withdraw with partner.
 	/// `state`: Alters the state of the channel. For example: closed.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn update_channel(
 		&self,
 		account: Account<Http>,
@@ -1195,6 +1197,7 @@ impl Api {
 	}
 
 	/// Initiate a payment to partner.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn initiate_payment(
 		&self,
 		account: Account<Http>,
@@ -1422,6 +1425,7 @@ impl Api {
 	}
 
 	/// Dispatch `ActionInitInitiator` to start a payment.
+	#[allow(clippy::too_many_arguments)]
 	async fn initiator_init(
 		&self,
 		transfer_identifier: PaymentIdentifier,

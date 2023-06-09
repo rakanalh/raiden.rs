@@ -66,7 +66,7 @@ fn parse_environment_type(
 	match src {
 		"development" => Ok(ArgEnvironmentType::Development),
 		"production" => Ok(ArgEnvironmentType::Production),
-		_ => Err(format!("Invalid environment type").into()),
+		_ => Err("Invalid environment type".to_owned().into()),
 	}
 }
 
@@ -74,7 +74,7 @@ fn parse_routing_mode(src: &str) -> Result<ArgRoutingMode, Box<dyn Error + Send 
 	match src {
 		"pfs" => Ok(ArgRoutingMode::PFS),
 		"private" => Ok(ArgRoutingMode::Private),
-		_ => Err(format!("Invalid routing mode").into()),
+		_ => Err("Invalid routing mode".to_owned().into()),
 	}
 }
 
@@ -192,6 +192,7 @@ pub struct CliMatrixTransportConfig {
 	pub retry_timeout_max: u8,
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<TransportConfig> for CliMatrixTransportConfig {
 	fn into(self) -> TransportConfig {
 		TransportConfig {

@@ -191,7 +191,7 @@ async fn main() {
 	// #
 	// # Initialize state manager
 	// #
-	let contracts_manager = match contracts::ContractsManager::new(chain_id.clone()) {
+	let contracts_manager = match contracts::ContractsManager::new(chain_id) {
 		Ok(contracts_manager) => Arc::new(contracts_manager),
 		Err(e) => {
 			tracing::error!("Error creating contracts manager: {}", e);
@@ -217,12 +217,9 @@ async fn main() {
 	datadir.push(format!("netid_{}", chain_id.to_string()));
 	datadir.push(format!("network_{}/", default_addresses.token_network_registry.pex()));
 
-	match setup_data_directory(datadir.clone()) {
-		Err(e) => {
-			tracing::error!("Error initializing data directory: {}", e);
-			process::exit(1);
-		},
-		_ => {},
+	if let Err(e) = setup_data_directory(datadir.clone()) {
+		tracing::error!("Error initializing data directory: {}", e);
+		process::exit(1);
 	};
 
 	let storage = match init_storage(datadir.clone(), cli.log_config.clone()) {
@@ -336,7 +333,7 @@ async fn main() {
 			url: cli.services_config.pathfinding_service_address.clone(),
 			info: pfs_info,
 			maximum_fee: services_config.pathfinding_max_fee,
-			iou_timeout: services_config.pathfinding_iou_timeout.into(),
+			iou_timeout: services_config.pathfinding_iou_timeout,
 			max_paths: services_config.pathfinding_max_paths,
 		},
 		addresses: default_addresses.clone(),
@@ -399,13 +396,7 @@ async fn main() {
 	.await;
 
 	let block_monitor_service =
-		match BlockMonitorService::new(raiden.clone(), ws, transitioner.clone(), sync_service) {
-			Ok(service) => service,
-			Err(_) => {
-				tracing::error!("Could not initialize block monitor service");
-				process::exit(1);
-			},
-		};
+		BlockMonitorService::new(raiden.clone(), ws, transitioner.clone(), sync_service);
 	let api = Api::new(raiden.clone(), transitioner.clone(), payments_registry);
 
 	let socket: SocketAddr = match cli.api_address.parse() {
@@ -433,10 +424,12 @@ async fn main() {
 		_ = http_service.start().fuse() => {},
 		_ = stop_receiver.recv().fuse() => {
 			println!("Raiden is stopping");
+			#[allow(clippy::needless_return)]
 			return
 		}
 		_ = hangup.recv().fuse() => {
 			println!("Raiden is stopping");
+			#[allow(clippy::needless_return)]
 			return
 		},
 	};
@@ -448,7 +441,7 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 
 	if !path.exists() {
 		if let Err(e) = fs::create_dir_all(path.clone()) {
-			return Err(format!("Could not create directory: {:?} because {}", path.clone(), e))
+			return Err(format!("Could not create directory: {:?} because {}", path, e))
 		}
 	}
 	Ok(path)

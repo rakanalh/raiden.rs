@@ -29,12 +29,10 @@ pub fn parse_address(address: &str) -> Result<Address, Box<dyn Error + Send + Sy
 pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
 	println!("Select key:");
 	loop {
-		let mut index = 0;
 		let mut s = String::new();
 
-		for address in keys.values() {
+		for (index, address) in keys.values().enumerate() {
 			println!("[{}]: {}", index, address);
-			index += 1;
 		}
 		print!("Selected key: ");
 		let _ = stdout().flush();

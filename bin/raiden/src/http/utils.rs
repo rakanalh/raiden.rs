@@ -69,7 +69,7 @@ pub(crate) fn transfer_tasks_view(
 				inner
 					.manager_state
 					.initiator_transfers
-					.get(&secrethash)
+					.get(secrethash)
 					.map(|t| t.transfer.clone()),
 			),
 			TransferTask::Mediator(inner) => (
