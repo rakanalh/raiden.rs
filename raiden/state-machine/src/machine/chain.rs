@@ -833,18 +833,18 @@ fn is_transaction_effect_satisfied(
 ///
 /// Valid example:
 ///
-///     A close can invalidate a deposit, because both a close and a deposit
-///     can be executed from an opened state (same initial state), but a close
-///     transaction will transition the channel to a closed state which doesn't
-///     allow for deposits (different end state).
+/// A close can invalidate a deposit, because both a close and a deposit
+/// can be executed from an opened state (same initial state), but a close
+/// transaction will transition the channel to a closed state which doesn't
+/// allow for deposits (different end state).
 ///
 /// Invalid example:
 ///
-///     A settle transaction cannot invalidate a deposit because a settle is
-///     only allowed for the closed state and deposits are only allowed for
-///     the open state. In such a case a deposit should never have been sent.
-///     The deposit transaction for an invalid state is a bug and not a
-///     transaction which was invalidated.
+/// A settle transaction cannot invalidate a deposit because a settle is
+/// only allowed for the closed state and deposits are only allowed for
+/// the open state. In such a case a deposit should never have been sent.
+/// The deposit transaction for an invalid state is a bug and not a
+/// transaction which was invalidated.
 fn is_transaction_invalidated(transaction: &ContractSendEvent, state_change: &StateChange) -> bool {
 	// Most transactions cannot be invalidated by others. These are:
 	//

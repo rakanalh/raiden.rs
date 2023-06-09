@@ -451,7 +451,7 @@ fn events_to_remove_expired_locks(
 /// This node is named N, suppose there is a mediated transfer with two refund
 /// transfers, one from B and one from C:
 ///
-///     A-N-B...B-N-C..C-N-D
+/// A-N-B...B-N-C..C-N-D
 ///
 /// Under normal operation N will first learn the secret from D, then reveal to
 /// C, wait for C to inform the secret is known before revealing it to B, and
@@ -594,8 +594,8 @@ fn events_for_balance_proof(
 ///
 /// Note:
 ///
-///     If the secret is learned before the channel is closed, then the channel
-///     will register the secrets in bulk, not the transfer.
+/// If the secret is learned before the channel is closed, then the channel
+/// will register the secrets in bulk, not the transfer.
 fn events_for_onchain_secretreveal_if_closed(
 	chain_state: &ChainState,
 	transfers_pair: &mut [MediationPairState],
