@@ -148,14 +148,8 @@ impl ChainStateBuilder {
 					reveal_timeout: RevealTimeout::from(DEFAULT_REVEAL_TIMEOUT),
 					settle_timeout: SettleTimeout::from(DEFAULT_SETTLE_TIMEOUT),
 					fee_schedule: FeeScheduleState::default(),
-					our_state: ChannelEndState {
-						address: participant_address,
-						..Default::default()
-					},
-					partner_state: ChannelEndState {
-						address: partner_address,
-						..Default::default()
-					},
+					our_state: ChannelEndState::new(participant_address),
+					partner_state: ChannelEndState::new(partner_address),
 					open_transaction: TransactionExecutionStatus {
 						started_block_number: Some(BlockNumber::from(1u64)),
 						finished_block_number: Some(BlockNumber::from(2u64)),
