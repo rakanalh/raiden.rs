@@ -26,7 +26,9 @@ pub struct Payment {
 }
 
 /// A collection of ongoing payments.
+#[derive(Default)]
 pub struct PaymentsRegistry {
+	/// A mapping for payments (Target address -> Payment Identifier -> Payment)
 	payments: HashMap<Address, HashMap<PaymentIdentifier, Payment>>,
 }
 

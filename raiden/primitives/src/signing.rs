@@ -14,6 +14,7 @@ use web3::{
 	types::Bytes,
 };
 
+/// Secp256k1 instance for recovering public key
 static CONTEXT: Lazy<Secp256k1<All>> = Lazy::new(Secp256k1::new);
 
 /// Hash data in ethereum-compatible format.

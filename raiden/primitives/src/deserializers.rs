@@ -105,6 +105,7 @@ impl<'de> Deserialize<'de> for ChainID {
 	where
 		D: Deserializer<'de>,
 	{
+		/// Visitor for Chain Identifier to try to parse from different types
 		struct IdVisitor;
 
 		impl<'de> Visitor<'de> for IdVisitor {
@@ -139,6 +140,7 @@ impl<'de> Deserialize<'de> for U64 {
 	where
 		D: Deserializer<'de>,
 	{
+		/// Visitor for U64 to try to parse from different types
 		struct NumVisitor;
 
 		impl<'de> Visitor<'de> for NumVisitor {

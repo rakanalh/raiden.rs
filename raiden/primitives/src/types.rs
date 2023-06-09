@@ -14,9 +14,11 @@ pub use web3::types::{
 	U256,
 };
 
+/// Chain identifier module.
 mod chain_id;
 pub use chain_id::*;
 
+/// Custom numeric data types.
 mod numeric;
 pub use numeric::*;
 
