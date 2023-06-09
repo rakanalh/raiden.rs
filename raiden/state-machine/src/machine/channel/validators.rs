@@ -107,7 +107,7 @@ pub(crate) fn is_valid_signature(
 		return Ok(())
 	}
 
-	return Err("Signature was valid but the expected address does not match".to_owned())
+	Err("Signature was valid but the expected address does not match".to_owned())
 }
 
 /// Validates balance proof signature
@@ -118,7 +118,7 @@ pub(crate) fn is_valid_balance_proof_signature(
 	let balance_hash = hash_balance_data(
 		balance_proof.transferred_amount,
 		balance_proof.locked_amount,
-		balance_proof.locksroot.clone(),
+		balance_proof.locksroot,
 	)?;
 	let message_hash = match balance_proof.message_hash {
 		Some(hash) => hash,
@@ -176,13 +176,13 @@ pub(crate) fn is_balance_proof_usable_onchain(
 	let expected_nonce = get_next_nonce(sender_state);
 
 	let is_valid_signature =
-		is_valid_balance_proof_signature(&received_balance_proof, sender_state.address);
+		is_valid_balance_proof_signature(received_balance_proof, sender_state.address);
 
 	if channel_state.status() != ChannelStatus::Opened {
 		return Err("The channel is already closed.".to_owned())
 	} else if received_balance_proof.canonical_identifier != channel_state.canonical_identifier {
 		return Err("Canonical identifier does not match".to_owned())
-	} else if !is_balance_proof_safe_for_onchain_operations(&received_balance_proof) {
+	} else if !is_balance_proof_safe_for_onchain_operations(received_balance_proof) {
 		return Err("Balance proof total transferred amount would overflow onchain.".to_owned())
 	} else if received_balance_proof.nonce != expected_nonce {
 		return Err(format!(
@@ -240,11 +240,11 @@ pub(crate) fn is_valid_lock_expired(
 	};
 	let pending_locks = match compute_locks_without(&mut sender_state.pending_locks.clone(), lock) {
 		Some(pending_locks) => pending_locks,
-		None => return Err(format!("Invalid LockExpired message. Same lock handled twice.")),
+		None => return Err("Invalid LockExpired message. Same lock handled twice.".to_owned()),
 	};
 
 	if secret_registered_on_chain {
-		return Err(format!("Invalid LockExpired message. Lock was unlocked on-chain"))
+		return Err("Invalid LockExpired message. Lock was unlocked on-chain".to_owned())
 	} else if let Err(e) = is_valid_balance_proof {
 		return Err(format!("Invalid LockExpired message. {}", e))
 	}
@@ -303,7 +303,7 @@ pub(crate) fn valid_locked_transfer_check(
 	let expected_locked_amount = current_locked_amount + lock.amount;
 
 	if let Err(e) =
-		is_balance_proof_usable_onchain(&received_balance_proof, channel_state, sender_state)
+		is_balance_proof_usable_onchain(received_balance_proof, channel_state, sender_state)
 	{
 		return Err(format!("Invalid {} message. {}", message, e))
 	}
@@ -373,6 +373,7 @@ pub(crate) fn is_valid_locked_transfer(
 	)
 }
 
+/// Returns true if withdraw amount is valid.
 pub(crate) fn is_valid_total_withdraw(
 	channel_state: &ChannelState,
 	our_total_withdraw: TokenAmount,
@@ -387,7 +388,7 @@ pub(crate) fn is_valid_total_withdraw(
 	let withdraw_amount = our_total_withdraw - channel_state.our_total_withdraw();
 
 	if channel_state.status() != ChannelStatus::Opened {
-		return Err(format!("Invalid withdraw, the channel is not opened"))
+		return Err("Invalid withdraw, the channel is not opened".to_owned())
 	} else if withdraw_amount < TokenAmount::zero() {
 		return Err(format!("Total withdraw {} decreased", our_total_withdraw))
 	} else if !allow_zero && withdraw_amount == TokenAmount::zero() {
@@ -399,7 +400,7 @@ pub(crate) fn is_valid_total_withdraw(
 		))
 	}
 
-	return Ok(())
+	Ok(())
 }
 
 /// Validates a withdraw signature.
@@ -445,9 +446,9 @@ pub(crate) fn is_valid_withdraw_expired(
 			state_change.total_withdraw
 		))
 	} else if channel_state.canonical_identifier != state_change.canonical_identifier {
-		return Err(format!("Invalid canonical identifier provided in withdraw request"))
+		return Err("Invalid canonical identifier provided in withdraw request".to_owned())
 	} else if state_change.sender != channel_state.partner_state.address {
-		return Err(format!("Invalid sender. Request must be sent by the partner"))
+		return Err("Invalid sender. Request must be sent by the partner".to_owned())
 	} else if state_change.total_withdraw != withdraw_state.total_withdraw {
 		return Err(format!(
 			"WithdrawExpired for local withdraw amounts do not match. \
@@ -464,6 +465,7 @@ pub(crate) fn is_valid_withdraw_expired(
 	Ok(())
 }
 
+/// Validates a withdraw request state change.
 pub(crate) fn is_valid_withdraw_request(
 	channel_state: &ChannelState,
 	withdraw_request: &ReceiveWithdrawRequest,
@@ -497,11 +499,11 @@ pub(crate) fn is_valid_withdraw_request(
 	// necessary to clear the requesting node's queue. This is not a security
 	// flaw because the smart contract will not allow the withdraw to happen.
 	if channel_state.canonical_identifier != withdraw_request.canonical_identifier {
-		return Err(format!("Invalid canonical identifier provided in withdraw request"))
+		return Err("Invalid canonical identifier provided in withdraw request".to_owned())
 	} else if withdraw_request.participant != channel_state.partner_state.address {
-		return Err(format!("Invalid participant. It must be the partner's address"))
+		return Err("Invalid participant. It must be the partner's address".to_owned())
 	} else if withdraw_request.sender != channel_state.partner_state.address {
-		return Err(format!("Invalid sender. Request must be sent by the partner"))
+		return Err("Invalid sender. Request must be sent by the partner".to_owned())
 	} else if withdraw_amount < TokenAmount::zero() {
 		return Err(format!("Total withdraw {} decreased", withdraw_request.total_withdraw))
 	} else if balance < withdraw_amount {
@@ -528,15 +530,14 @@ pub(crate) fn is_valid_withdraw_confirmation(
 		match channel_state.our_state.withdraws_pending.get(&received_withdraw.total_withdraw) {
 			Some(withdraw_state) => Some(withdraw_state.expiration),
 			None =>
-				if channel_state.our_state.withdraws_expired.len() > 0 {
+				if !channel_state.our_state.withdraws_expired.is_empty() {
 					let expiration = channel_state
 						.our_state
 						.withdraws_expired
 						.iter()
-						.filter(|candidate| {
+						.find(|candidate| {
 							candidate.total_withdraw == received_withdraw.total_withdraw
 						})
-						.next()
 						.map(|state| state.expiration);
 					expiration
 				} else {
@@ -565,11 +566,11 @@ pub(crate) fn is_valid_withdraw_confirmation(
 			received_withdraw.total_withdraw
 		))
 	} else if channel_state.canonical_identifier != received_withdraw.canonical_identifier {
-		return Err(format!("Invalid canonical identifier provided in withdraw request"))
+		return Err("Invalid canonical identifier provided in withdraw request".to_owned())
 	} else if received_withdraw.participant != channel_state.our_state.address {
-		return Err(format!("Invalid participant. It must be our address"))
+		return Err("Invalid participant. It must be our address".to_owned())
 	} else if received_withdraw.sender != channel_state.partner_state.address {
-		return Err(format!("Invalid sender. Request must be sent by the partner"))
+		return Err("Invalid sender. Request must be sent by the partner".to_owned())
 	} else if received_withdraw.total_withdraw != channel_state.our_total_withdraw() {
 		return Err(format!(
 			"Total withdraw confirmation {} does not match our total withdraw {}",
@@ -607,22 +608,23 @@ pub(crate) fn is_valid_action_coop_settle(
 ) -> Result<(), String> {
 	is_valid_total_withdraw(channel_state, total_withdraw, true)?;
 
-	if channel_state.our_state.pending_locks.locks.len() > 0 {
-		return Err(format!("Coop-Settle not allowed: we still have pending locks"))
+	if !channel_state.our_state.pending_locks.locks.is_empty() {
+		return Err("Coop-Settle not allowed: we still have pending locks".to_owned())
 	}
-	if channel_state.partner_state.pending_locks.locks.len() > 0 {
-		return Err(format!("Coop-Settle not allowed: partner still has pending locks"))
+	if !channel_state.partner_state.pending_locks.locks.is_empty() {
+		return Err("Coop-Settle not allowed: partner still has pending locks".to_owned())
 	}
-	if channel_state.our_state.offchain_total_withdraw() > TokenAmount::zero() {
-		return Err(format!("Coop-Settle not allowed: We still have pending withdraws"))
+	if !channel_state.our_state.offchain_total_withdraw().is_zero() {
+		return Err("Coop-Settle not allowed: We still have pending withdraws".to_owned())
 	}
-	if channel_state.partner_state.offchain_total_withdraw() > TokenAmount::zero() {
-		return Err(format!("Coop-Settle not allowed: partner still has pending withdraws"))
+	if !channel_state.partner_state.offchain_total_withdraw().is_zero() {
+		return Err("Coop-Settle not allowed: partner still has pending withdraws".to_owned())
 	}
 
 	Ok(())
 }
 
+/// Validates an unlock state change.
 pub(crate) fn is_valid_unlock(
 	channel_state: &ChannelState,
 	sender_state: &mut ChannelEndState,
@@ -740,7 +742,7 @@ pub(crate) fn is_valid_action_withdraw(
 		))
 	}
 
-	return Ok(())
+	Ok(())
 }
 
 /// Checks if the refund transfer matches the original transfer.

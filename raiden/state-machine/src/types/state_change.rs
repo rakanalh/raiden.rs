@@ -49,6 +49,7 @@ use crate::types::{
 /// An enum containing all possible state change variants.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
+#[allow(clippy::large_enum_variant)]
 pub enum StateChange {
 	Block(Block),
 	ActionInitChain(ActionInitChain),

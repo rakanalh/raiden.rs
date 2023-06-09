@@ -398,6 +398,7 @@ pub struct ChannelState {
 
 impl ChannelState {
 	/// Create an instance of `ChannelState'.`
+	#[allow(clippy::too_many_arguments)]
 	pub fn new(
 		canonical_identifier: CanonicalIdentifier,
 		token_address: TokenAddress,
@@ -601,7 +602,7 @@ impl ChannelEndState {
 		self.withdraws_pending
 			.values()
 			.map(|w| w.total_withdraw)
-			.fold(TokenAmount::zero(), |a, b| max(a, b))
+			.fold(TokenAmount::zero(), max)
 	}
 
 	/// Returns the total of off-chain and on-chain withdraw amounts.
@@ -642,7 +643,7 @@ impl ChannelEndState {
 	/// Returns the latest balance proof.
 	pub fn get_current_balanceproof(&self) -> BalanceProofData {
 		match &self.balance_proof {
-			Some(bp) => (bp.locksroot.clone(), bp.nonce, bp.transferred_amount, bp.locked_amount),
+			Some(bp) => (bp.locksroot, bp.nonce, bp.transferred_amount, bp.locked_amount),
 			None =>
 				(*LOCKSROOT_OF_NO_LOCKS, Nonce::default(), TokenAmount::zero(), TokenAmount::zero()),
 		}
@@ -737,7 +738,7 @@ impl HashTimeLockState {
 	) -> Self {
 		let mut data = expiration.to_be_bytes();
 		data.extend_from_slice(&amount.to_bytes());
-		data.extend_from_slice(&secrethash.as_bytes());
+		data.extend_from_slice(secrethash.as_bytes());
 		Self { amount, expiration, secrethash, encoded: Bytes(data) }
 	}
 }
@@ -789,8 +790,11 @@ pub struct CoopSettleState {
 /// Linear interpolation of a function with given points
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Interpolate {
+	/// X points
 	pub(crate) x_list: Vec<Rational>,
+	/// Y points
 	pub(crate) y_list: Vec<Rational>,
+	/// Slopes
 	pub(crate) slopes: Vec<Rational>,
 }
 
@@ -798,8 +802,8 @@ impl Interpolate {
 	pub fn new(x_list: Vec<Rational>, y_list: Vec<Rational>) -> Result<Self, String> {
 		for (x, y) in x_list.iter().zip(x_list[1..].iter()) {
 			let result = (y - x).complete();
-			if result <= Rational::from(0) {
-				return Err(format!("x_list must be in strictly ascending order"))
+			if result <= 0 {
+				return Err("x_list must be in strictly ascending order".to_owned())
 			}
 		}
 		let intervals: Vec<_> = izip!(&x_list, &x_list[1..], &y_list, &y_list[1..]).collect();
@@ -815,15 +819,14 @@ impl Interpolate {
 		let last_x = self.x_list[self.x_list.len() - 1].clone();
 		let last_y = self.y_list[self.y_list.len() - 1].clone();
 		if !(self.x_list[0] <= x && x <= last_x) {
-			return Err(format!("x out of bounds"))
+			return Err("x out of bounds".to_owned())
 		}
 
 		if x == last_x {
 			return Ok(last_y)
 		}
 		let i = bisection::bisect_right(&self.x_list, &x) - 1;
-		return Ok(self.y_list[i].clone() +
-			(self.slopes[i].clone() * (Rational::from(x) - self.x_list[i].clone())))
+		Ok(self.y_list[i].clone() + (self.slopes[i].clone() * (x - self.x_list[i].clone())))
 	}
 }
 
@@ -866,6 +869,7 @@ impl FeeScheduleState {
 	}
 
 	/// Returns the mediation fee `Interpolate` instance.
+	#[allow(clippy::too_many_arguments)]
 	pub fn mediation_fee_func(
 		mut schedule_in: Self,
 		mut schedule_out: Self,
@@ -877,13 +881,13 @@ impl FeeScheduleState {
 		cap_fees: bool,
 	) -> Result<Interpolate, String> {
 		if amount_with_fees.is_none() && amount_without_fees.is_none() {
-			return Err(format!(
-				"Must be called with either amount_with_fees or amount_without_fees"
-			))
+			return Err(
+				"Must be called with either amount_with_fees or amount_without_fees".to_owned()
+			)
 		}
 
 		if balance_out.is_zero() && receivable.is_zero() {
-			return Err(format!("Undefined mediation fee"))
+			return Err("Undefined mediation fee".to_owned())
 		}
 
 		if schedule_in.penalty_func.is_none() {
@@ -961,8 +965,8 @@ impl FeeScheduleState {
 
 	/// Set a cap on fees
 	fn cap_fees(x_list: Vec<Rational>, y_list: Vec<Rational>) -> (Vec<Rational>, Vec<Rational>) {
-		let mut x_list = x_list.clone();
-		let mut y_list = y_list.clone();
+		let mut x_list = x_list;
+		let mut y_list = y_list;
 		for i in 0..x_list.len() - 1 {
 			let y1 = y_list[i].clone();
 			let y2 = y_list[i + 2].clone();
@@ -987,7 +991,7 @@ impl FeeScheduleState {
 		if x < &Rational::from(0) {
 			return -1
 		}
-		return 1
+		1
 	}
 }
 

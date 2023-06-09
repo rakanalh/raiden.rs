@@ -4,9 +4,9 @@ use ethsign::{
 };
 use raiden_primitives::types::Address;
 
-pub const ALICE: &'static str = "ALICE";
-pub const BOB: &'static str = "BOB";
-pub const CHARLIE: &'static str = "CHARLIE";
+pub const ALICE: &str = "ALICE";
+pub const BOB: &str = "BOB";
+pub const CHARLIE: &str = "CHARLIE";
 
 pub enum Keyring {
 	Alice,
@@ -22,7 +22,7 @@ impl Keyring {
 			Self::Bob => BOB.as_bytes(),
 			Self::Charlie => CHARLIE.as_bytes(),
 		};
-		secret[..s.len()].copy_from_slice(&s);
+		secret[..s.len()].copy_from_slice(s);
 		SecretKey::from_raw(&secret).expect("Private key generation should not fail")
 	}
 

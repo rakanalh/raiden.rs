@@ -101,12 +101,12 @@ fn test_open_channel_new_block_with_expired_withdraws() {
 
 	let expected_event = SendWithdrawExpired {
 		inner: SendMessageEventInner {
-			recipient: channel_state.partner_state.address.clone(),
+			recipient: channel_state.partner_state.address,
 			recipient_metadata: None,
 			canonical_identifier: canonical_identifier.clone(),
 			message_identifier: 1,
 		},
-		participant: channel_state.our_state.address.clone(),
+		participant: channel_state.our_state.address,
 		nonce: Nonce::from(1u64),
 		expiration: BlockExpiration::from(50u64),
 		total_withdraw: TokenAmount::from(100u64),
@@ -215,12 +215,11 @@ fn test_channel_closed() {
 		block_number: BlockNumber::from(10u64),
 		block_hash: BlockHash::random(),
 		transaction_from: Address::random(),
-		canonical_identifier: canonical_identifier.clone(),
+		canonical_identifier,
 	};
 
-	let mut result =
-		chain::state_transition(chain_info.chain_state.clone(), state_change.clone().into())
-			.expect("Should close channel");
+	let mut result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
+		.expect("Should close channel");
 	assert!(result.events.is_empty());
 
 	let canonical_identifier = chain_info.canonical_identifiers[1].clone();
@@ -261,7 +260,7 @@ fn test_channel_closed() {
 		canonical_identifier: canonical_identifier.clone(),
 	};
 
-	let result = chain::state_transition(result.new_state.clone(), state_change.clone().into())
+	let result = chain::state_transition(result.new_state.clone(), state_change.into())
 		.expect("Should close channel");
 
 	let event = ContractSendChannelUpdateTransfer {
@@ -317,12 +316,10 @@ fn test_channel_withdraw() {
 	let result = chain::state_transition(chain_info.chain_state, state_change.into())
 		.expect("Withdraw should succeed");
 	let chain_state = result.new_state;
-	let channel_state = views::get_channel_by_canonical_identifier(
-		&chain_state.clone(),
-		canonical_identifier.clone(),
-	)
-	.expect("Channel should exist")
-	.clone();
+	let channel_state =
+		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+			.expect("Channel should exist")
+			.clone();
 	assert_eq!(channel_state.our_state.onchain_total_withdraw, TokenAmount::from(100u64));
 
 	let state_change = ContractReceiveChannelWithdraw {
@@ -387,7 +384,7 @@ fn test_channel_deposit() {
 	let state_change = ContractReceiveChannelDeposit {
 		canonical_identifier: canonical_identifier.clone(),
 		deposit_transaction: TransactionChannelDeposit {
-			participant_address: chain_state.our_address.clone(),
+			participant_address: chain_state.our_address,
 			contract_balance: TokenAmount::from(99u64), // Less than the deposit before
 			deposit_block_number: BlockNumber::from(10u64),
 		},
@@ -418,7 +415,7 @@ fn test_channel_settled() {
 	let canonical_identifier = chain_info.canonical_identifiers[0].clone();
 
 	let block_hash = BlockHash::random();
-	let our_locksroot = Locksroot::from_slice(&vec![1u8; 32]);
+	let our_locksroot = Locksroot::from_slice(&[1u8; 32]);
 
 	let state_change = ContractReceiveChannelSettled {
 		transaction_hash: Some(TransactionHash::random()),
@@ -441,12 +438,12 @@ fn test_channel_settled() {
 		block_number: BlockNumber::from(1u64),
 		block_hash,
 		canonical_identifier: canonical_identifier.clone(),
-		our_onchain_locksroot: our_locksroot.clone(),
+		our_onchain_locksroot: our_locksroot,
 		partner_onchain_locksroot: *LOCKSROOT_OF_NO_LOCKS,
 		our_transferred_amount: TokenAmount::zero(),
 		partner_transferred_amount: TokenAmount::zero(),
 	};
-	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
+	let result = chain::state_transition(chain_info.chain_state, state_change.into())
 		.expect("Channel settled should succeed");
 	let channel_state =
 		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
@@ -458,7 +455,7 @@ fn test_channel_settled() {
 		result.events[0],
 		ContractSendChannelBatchUnlock {
 			inner: ContractSendEventInner { triggered_by_blockhash: block_hash },
-			canonical_identifier: canonical_identifier.clone(),
+			canonical_identifier,
 			sender: channel_state.partner_state.address,
 		}
 		.into()
@@ -543,7 +540,7 @@ fn test_channel_action_withdraw() {
 		result.events[0],
 		ErrorInvalidActionWithdraw {
 			attemped_withdraw: TokenAmount::from(100u64),
-			reason: format!("Insufficient balance: 0. Requested 100 for withdraw"),
+			reason: "Insufficient balance: 0. Requested 100 for withdraw".to_owned(),
 		}
 		.into()
 	);
@@ -560,7 +557,7 @@ fn test_channel_action_withdraw() {
 		result.events[0],
 		ErrorInvalidActionWithdraw {
 			attemped_withdraw: TokenAmount::zero(),
-			reason: format!("Total withdraw 0 did not increase"),
+			reason: "Total withdraw 0 did not increase".to_owned(),
 		}
 		.into()
 	);
@@ -597,7 +594,7 @@ fn test_channel_action_withdraw() {
 		result.events[0],
 		ErrorInvalidActionWithdraw {
 			attemped_withdraw: TokenAmount::from(100u64),
-			reason: format!("Invalid withdraw, the channel is not opened"),
+			reason: "Invalid withdraw, the channel is not opened".to_owned(),
 		}
 		.into()
 	);
@@ -684,7 +681,7 @@ fn test_channel_set_reveal_timeout() {
 		result.events[0],
 		ErrorInvalidActionSetRevealTimeout {
 			reveal_timeout: RevealTimeout::from(6u64),
-			reason: format!("Settle timeout should be at least twice as large as reveal timeout"),
+			reason: "Settle timeout should be at least twice as large as reveal timeout".to_owned(),
 		}
 		.into()
 	);
@@ -698,7 +695,7 @@ fn test_channel_set_reveal_timeout() {
 		.expect("Set reveal timeout should succeed");
 	assert!(result.events.is_empty());
 	let channel_state =
-		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier)
 			.expect("Channel state should exist");
 
 	assert_eq!(channel_state.reveal_timeout, RevealTimeout::from(reveal_timeout));

@@ -447,13 +447,11 @@ fn setup_data_directory(path: PathBuf) -> Result<PathBuf, String> {
 		.map_err(|_| "Failed to expand data directory".to_owned())?;
 
 	if !path.exists() {
-		match fs::create_dir_all(path.clone()) {
-			Err(e) =>
-				return Err(format!("Could not create directory: {:?} because {}", path.clone(), e)),
-			_ => {},
+		if let Err(e) = fs::create_dir_all(path.clone()) {
+			return Err(format!("Could not create directory: {:?} because {}", path.clone(), e))
 		}
 	}
-	Ok(path.to_path_buf())
+	Ok(path)
 }
 fn get_logging_filter(log_config: String) -> EnvFilter {
 	EnvFilter::from_env("RAIDEN_LOG")
@@ -466,5 +464,5 @@ fn get_logging_filter(log_config: String) -> EnvFilter {
 		.add_directive(format!("raiden_transition={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_network_messages={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_network_transport={}", log_config).parse().unwrap())
-		.add_directive(format!("hyper=info").parse().unwrap())
+		.add_directive("hyper=info".to_string().parse().unwrap())
 }

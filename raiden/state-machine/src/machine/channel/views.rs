@@ -104,7 +104,7 @@ pub(super) fn get_amount_locked(end_state: &ChannelEndState) -> LockedAmount {
 pub(super) fn get_current_balance_proof(end_state: &ChannelEndState) -> BalanceProofData {
 	if let Some(balance_proof) = &end_state.balance_proof {
 		(
-			balance_proof.locksroot.clone(),
+			balance_proof.locksroot,
 			end_state.nonce,
 			balance_proof.transferred_amount,
 			get_amount_locked(end_state),

@@ -240,7 +240,7 @@ fn handle_block(
 		events.extend(
 			events_for_onchain_secretreveal(
 				&mut target_state,
-				&channel_state,
+				channel_state,
 				state_change.block_number,
 				state_change.block_hash,
 			)
@@ -360,12 +360,13 @@ fn handle_onchain_secret_reveal(
 		update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
 		target_state.state = TargetState::OffchainSecretReveal;
-		target_state.secret = Some(state_change.secret.clone());
+		target_state.secret = Some(state_change.secret);
 	}
 
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events: vec![] })
 }
 
+/// Remove expired locks from channel states.
 fn handle_lock_expired(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -498,6 +499,6 @@ pub fn state_transition(
 		StateChange::ReceiveUnlock(inner) => handle_unlock(chain_state, target_state, inner),
 		StateChange::ReceiveLockExpired(inner) =>
 			handle_lock_expired(chain_state, target_state, inner),
-		_ => return Ok(TargetTransition { new_state: target_state, chain_state, events: vec![] }),
+		_ => Ok(TargetTransition { new_state: target_state, chain_state, events: vec![] }),
 	}
 }

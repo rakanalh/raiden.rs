@@ -56,6 +56,12 @@ pub struct ChainStateBuilder {
 	canonical_identifiers: Vec<CanonicalIdentifier>,
 }
 
+impl Default for ChainStateBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl ChainStateBuilder {
 	pub fn new() -> Self {
 		Self {
@@ -125,18 +131,18 @@ impl ChainStateBuilder {
 		mut self,
 		channels: Vec<((Address, TokenAmount), (Address, TokenAmount))>,
 	) -> Self {
-		let mut channel_index = 0;
 		let mut chain_state = self.chain_state.clone();
-		for ((participant_address, participant_balance), (partner_address, partner_balance)) in
-			channels
+		for (
+			channel_index,
+			((participant_address, participant_balance), (partner_address, partner_balance)),
+		) in channels.iter().enumerate()
 		{
 			let channel_identifier = ChannelIdentifier::from(channel_index + 1);
 			let canonical_identifier = CanonicalIdentifier {
-				chain_identifier: self.chain_state.chain_id.clone(),
+				chain_identifier: self.chain_state.chain_id,
 				token_network_address: self.token_network_address,
 				channel_identifier,
 			};
-			channel_index = channel_index + 1;
 			let state_change = ContractReceiveChannelOpened {
 				transaction_hash: Some(TransactionHash::random()),
 				block_number: BlockNumber::from(1u64),
@@ -148,8 +154,8 @@ impl ChainStateBuilder {
 					reveal_timeout: RevealTimeout::from(DEFAULT_REVEAL_TIMEOUT),
 					settle_timeout: SettleTimeout::from(DEFAULT_SETTLE_TIMEOUT),
 					fee_schedule: FeeScheduleState::default(),
-					our_state: ChannelEndState::new(participant_address),
-					partner_state: ChannelEndState::new(partner_address),
+					our_state: ChannelEndState::new(*participant_address),
+					partner_state: ChannelEndState::new(*partner_address),
 					open_transaction: TransactionExecutionStatus {
 						started_block_number: Some(BlockNumber::from(1u64)),
 						finished_block_number: Some(BlockNumber::from(2u64)),
@@ -174,8 +180,8 @@ impl ChainStateBuilder {
 					block_hash: BlockHash::random(),
 					canonical_identifier: canonical_identifier.clone(),
 					deposit_transaction: TransactionChannelDeposit {
-						participant_address,
-						contract_balance: participant_balance,
+						participant_address: *participant_address,
+						contract_balance: *participant_balance,
 						deposit_block_number: BlockNumber::from(1u64),
 					},
 					fee_config: MediationFeeConfig {
@@ -197,8 +203,8 @@ impl ChainStateBuilder {
 					block_hash: BlockHash::random(),
 					canonical_identifier: canonical_identifier.clone(),
 					deposit_transaction: TransactionChannelDeposit {
-						participant_address: partner_address,
-						contract_balance: partner_balance,
+						participant_address: *partner_address,
+						contract_balance: *partner_balance,
 						deposit_block_number: BlockNumber::from(1u64),
 					},
 					fee_config: MediationFeeConfig {

@@ -158,7 +158,7 @@ fn create_send_expired_lock(
 	recipient: Address,
 	recipient_metadata: Option<AddressMetadata>,
 ) -> Result<(Option<SendLockExpired>, Option<PendingLocksState>), String> {
-	let locked_amount = get_amount_locked(&sender_end_state);
+	let locked_amount = get_amount_locked(sender_end_state);
 	let balance_proof = match &sender_end_state.balance_proof {
 		Some(bp) => bp.clone(),
 		None => return Ok((None, None)),
@@ -172,9 +172,9 @@ fn create_send_expired_lock(
 			None => return Ok((None, None)),
 		};
 
-	let nonce = get_next_nonce(&sender_end_state);
+	let nonce = get_next_nonce(sender_end_state);
 	let locksroot = compute_locksroot(&pending_locks);
-	let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot.clone())?;
+	let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot)?;
 	let balance_proof = BalanceProofState {
 		nonce,
 		transferred_amount,
@@ -252,7 +252,7 @@ pub(super) fn send_lock_expired(
 		return Ok((channel_state, vec![]))
 	}
 
-	let secrethash = locked_lock.secrethash.clone();
+	let secrethash = locked_lock.secrethash;
 	let (send_lock_expired, pending_locks) = create_send_expired_lock(
 		&mut channel_state.our_state,
 		locked_lock,
@@ -298,7 +298,7 @@ fn create_unlock(
 	}
 
 	let expired =
-		is_lock_expired(&channel_state.our_state, &lock, block_number, lock.expiration).is_ok();
+		is_lock_expired(&channel_state.our_state, lock, block_number, lock.expiration).is_ok();
 	if expired {
 		return Err("Lock expired".to_owned())
 	}
@@ -310,7 +310,7 @@ fn create_unlock(
 
 	let transferred_amount = lock.amount + our_balance_proof.transferred_amount;
 	let pending_locks =
-		match compute_locks_without(&mut channel_state.our_state.pending_locks, &lock) {
+		match compute_locks_without(&mut channel_state.our_state.pending_locks, lock) {
 			Some(pending_locks) => pending_locks,
 			None => return Err("Lock is pending, it must be in the pending locks".to_owned()),
 		};
@@ -322,7 +322,7 @@ fn create_unlock(
 	let nonce = get_next_nonce(&channel_state.our_state);
 	channel_state.our_state.nonce = nonce;
 
-	let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot.clone())?;
+	let balance_hash = hash_balance_data(transferred_amount, locked_amount, locksroot)?;
 
 	let balance_proof = BalanceProofState {
 		nonce,
@@ -387,6 +387,7 @@ pub(super) fn send_unlock(
 }
 
 /// Handle a received unlock.
+#[allow(clippy::result_large_err)]
 pub(super) fn handle_unlock(
 	channel_state: &mut ChannelState,
 	unlock: ReceiveUnlock,
@@ -453,12 +454,12 @@ fn register_onchain_secret_endstate(
 		end_state.secrethashes_to_onchain_unlockedlocks.insert(
 			secrethash,
 			UnlockPartialProofState {
-				secret: secret.clone(),
+				secret,
 				secrethash,
 				lock: lock.clone(),
 				amount: lock.amount,
 				expiration: lock.expiration,
-				encoded: lock.encoded.clone(),
+				encoded: lock.encoded,
 			},
 		);
 	}
@@ -489,6 +490,7 @@ pub(super) fn register_onchain_secret(
 }
 
 /// Create a locked transfer event.
+#[allow(clippy::too_many_arguments)]
 fn create_locked_transfer(
 	channel_state: &mut ChannelState,
 	initiator: Address,
@@ -516,7 +518,7 @@ fn create_locked_transfer(
 
 	let lock = HashTimeLockState::create(amount, expiration, secrethash);
 	let pending_locks =
-		match compute_locks_with(&mut channel_state.our_state.pending_locks, lock.clone()) {
+		match compute_locks_with(&channel_state.our_state.pending_locks, lock.clone()) {
 			Some(pending_locks) => pending_locks,
 			None => return Err("Caller must make sure the lock isn't used twice".to_string()),
 		};
@@ -537,7 +539,7 @@ fn create_locked_transfer(
 	let token = channel_state.token_address;
 	let locked_amount = get_amount_locked(&channel_state.our_state) + amount;
 	let nonce = get_next_nonce(&channel_state.our_state);
-	let balance_hash = hash_balance_data(amount, locked_amount, locksroot.clone())?;
+	let balance_hash = hash_balance_data(amount, locked_amount, locksroot)?;
 	let balance_proof = BalanceProofState {
 		nonce,
 		transferred_amount,
@@ -581,6 +583,7 @@ fn create_locked_transfer(
 }
 
 /// Create and send a locked transfer.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn send_locked_transfer(
 	mut channel_state: ChannelState,
 	initiator: Address,
@@ -612,7 +615,7 @@ pub(super) fn send_locked_transfer(
 	let lock = transfer.lock.clone();
 	channel_state.our_state.balance_proof = Some(transfer.balance_proof.clone());
 	channel_state.our_state.nonce = transfer.balance_proof.nonce;
-	channel_state.our_state.pending_locks = pending_locks.clone();
+	channel_state.our_state.pending_locks = pending_locks;
 	channel_state
 		.our_state
 		.secrethashes_to_lockedlocks
@@ -731,7 +734,7 @@ pub(super) fn handle_receive_locked_transfer(
 	match is_valid_locked_transfer(
 		&mediated_transfer,
 		&channel_state.clone(),
-		&mut channel_state.partner_state,
+		&channel_state.partner_state,
 		&channel_state.our_state,
 	) {
 		Ok(pending_locks) => {
@@ -906,8 +909,7 @@ fn handle_channel_closed(
 		CHANNEL_STATES_PRIOR_TO_CLOSE
 			.to_vec()
 			.iter()
-			.position(|status| status == &current_channel_status)
-			.is_some();
+			.any(|status| status == &current_channel_status);
 
 	if just_closed {
 		channel_state = set_closed(channel_state.clone(), state_change.block_number);
@@ -982,8 +984,8 @@ fn handle_channel_settled(
 
 	if state_change.canonical_identifier == channel_state.canonical_identifier {
 		channel_state = set_settled(channel_state.clone(), state_change.block_number);
-		let our_locksroot = state_change.our_onchain_locksroot.clone();
-		let partner_locksroot = state_change.our_onchain_locksroot.clone();
+		let our_locksroot = state_change.our_onchain_locksroot;
+		let partner_locksroot = state_change.our_onchain_locksroot;
 		let should_clear_channel =
 			our_locksroot == *LOCKSROOT_OF_NO_LOCKS && partner_locksroot == *LOCKSROOT_OF_NO_LOCKS;
 
@@ -1062,7 +1064,7 @@ fn linspace(start: Float, stop: Float, num: Float) -> Vec<Float> {
 	let mut i = Integer::from(0);
 	while i < num {
 		result.push(start.clone() + i.clone() * step.clone());
-		i = i + 1;
+		i += 1;
 	}
 
 	result
@@ -1075,6 +1077,7 @@ pub fn calculate_imbalance_fees(
 	channel_capacity: TokenAmount,
 	proportional_imbalance_fee: TokenAmount,
 ) -> Option<Vec<(TokenAmount, FeeAmount)>> {
+	/// Floating point precision
 	const PRECISION: u32 = 500;
 	if proportional_imbalance_fee == TokenAmount::zero() {
 		return None
@@ -1098,7 +1101,7 @@ pub fn calculate_imbalance_fees(
 	let o: Float = channel_capacity.clone() / 2;
 	let b: Float = s * o.clone() / c.clone();
 	let b = b.min(&Float::with_val(PRECISION, 10.0)); // limit exponent to keep numerical stability;
-	let a = c.clone() / o.clone().pow(b.clone());
+	let a = c / o.clone().pow(b.clone());
 
 	// calculate discrete function points
 	let cap: Float = channel_capacity.clone().add(1.0);
@@ -1173,6 +1176,7 @@ fn handle_channel_deposit(
 	Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
+/// Handle `ContractReceiveChannelWithdraw` state change.
 fn handle_channel_withdraw(
 	mut channel_state: ChannelState,
 	state_change: ContractReceiveChannelWithdraw,
@@ -1190,14 +1194,14 @@ fn handle_channel_withdraw(
 			&mut channel_state.partner_state
 		};
 
-	if let Some(_) = end_state.withdraws_pending.get(&state_change.total_withdraw) {
+	if end_state.withdraws_pending.get(&state_change.total_withdraw).is_some() {
 		end_state.withdraws_pending.remove(&state_change.total_withdraw);
 	}
 	end_state.onchain_total_withdraw = state_change.total_withdraw;
 
 	update_fee_schedule_after_balance_change(&mut channel_state, &state_change.fee_config);
 
-	return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
+	Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
 /// Handle `ContractReceiveChannelBatchUnlock` state change.
@@ -1220,7 +1224,7 @@ fn handle_channel_batch_unlock(
 		}
 	}
 
-	return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
+	Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
 /// Handle `ContractReceiveUpdateTransfer` state change.
@@ -1237,7 +1241,7 @@ fn handle_channel_update_transfer(
 		});
 	}
 
-	return Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
+	Ok(ChannelTransition { new_state: Some(channel_state), events: vec![] })
 }
 
 /// This will register the secret and set the lock to the unlocked stated.
@@ -1296,8 +1300,7 @@ fn send_withdraw_request(
 	let good_channel = CHANNEL_STATES_PRIOR_TO_CLOSE
 		.to_vec()
 		.iter()
-		.position(|status| status == &channel_state.status())
-		.is_some();
+		.any(|status| status == &channel_state.status());
 
 	if !good_channel {
 		return vec![]
@@ -1348,7 +1351,7 @@ fn events_for_close(
 
 	if let Some(balance_proof) = &channel_state.partner_state.balance_proof {
 		if balance_proof.signature.is_none() {
-			return Err("Balance proof is not signed".to_owned().into())
+			return Err("Balance proof is not signed".to_owned())
 		}
 	}
 
@@ -1453,7 +1456,7 @@ fn handle_action_set_channel_reveal_timeout(
 	mut channel_state: ChannelState,
 	state_change: ActionChannelSetRevealTimeout,
 ) -> TransitionResult {
-	let double_reveal_timeout: BlockNumber = state_change.reveal_timeout.mul(2u64).into();
+	let double_reveal_timeout: BlockNumber = state_change.reveal_timeout.mul(2u64);
 	let is_valid_reveal_timeout = state_change.reveal_timeout >= 7u64.into() &&
 		channel_state.settle_timeout >= double_reveal_timeout;
 	if !is_valid_reveal_timeout {
@@ -1461,9 +1464,8 @@ fn handle_action_set_channel_reveal_timeout(
 			new_state: Some(channel_state),
 			events: vec![ErrorInvalidActionSetRevealTimeout {
 				reveal_timeout: state_change.reveal_timeout,
-				reason: format!(
-					"Settle timeout should be at least twice as large as reveal timeout"
-				),
+				reason: "Settle timeout should be at least twice as large as reveal timeout"
+					.to_owned(),
 			}
 			.into()],
 		})
@@ -1572,12 +1574,12 @@ fn handle_receive_withdraw_request(
 			})
 		}
 
-		if channel_state.partner_state.pending_locks.locks.len() > 0 {
+		if !channel_state.partner_state.pending_locks.locks.is_empty() {
 			return Ok(ChannelTransition {
 				new_state: Some(channel_state),
 				events: vec![ErrorInvalidReceivedWithdrawRequest {
 					attemped_withdraw: state_change.total_withdraw,
-					reason: format!("Partner has pending transfers"),
+					reason: "Partner has pending transfers".to_owned(),
 				}
 				.into()],
 			})
@@ -1593,10 +1595,9 @@ fn handle_receive_withdraw_request(
 					new_state: Some(channel_state),
 					events: vec![ErrorInvalidReceivedWithdrawRequest {
 						attemped_withdraw: state_change.total_withdraw,
-						reason: format!(
-							"Partner requested withdraw while we initiated a coop-settle: \
-                                             Partner's withdraw has differing expiration."
-						),
+						reason: "Partner requested withdraw while we initiated a coop-settle: \
+                                 Partner's withdraw has differing expiration."
+							.to_owned(),
 					}
 					.into()],
 				})
@@ -1607,9 +1608,7 @@ fn handle_receive_withdraw_request(
                     new_state: Some(channel_state),
                     events: vec![ErrorInvalidReceivedWithdrawRequest {
                         attemped_withdraw: state_change.total_withdraw,
-                        reason: format!(
-                            "The expected total withdraw of the partner does not match the withdraw request"
-                        ),
+                        reason: "The expected total withdraw of the partner does not match the withdraw request".to_owned(),
                     }
                     .into()],
                 });
@@ -1628,14 +1627,13 @@ fn handle_receive_withdraw_request(
 			let our_max_total_withdraw =
 				get_max_withdraw_amount(&channel_state.our_state, &channel_state.partner_state);
 
-			if channel_state.our_state.pending_locks.locks.len() > 0 {
+			if !channel_state.our_state.pending_locks.locks.is_empty() {
 				return Ok(ChannelTransition {
 					new_state: Some(channel_state),
 					events: vec![ErrorInvalidReceivedWithdrawRequest {
 						attemped_withdraw: state_change.total_withdraw,
-						reason: format!(
-							"Partner initiated coop-settle but we have pending transfers"
-						),
+						reason: "Partner initiated coop-settle but we have pending transfers"
+							.to_owned(),
 					}
 					.into()],
 				})
@@ -1716,7 +1714,7 @@ fn handle_receive_withdraw_confirmation(
 				channel_state.our_state.initiated_coop_settle.clone().as_mut()
 			{
 				if partner_initiated_coop_settle.is_some() {
-					return Err(format!("Only one party can initiate a coop settle").into())
+					return Err("Only one party can initiate a coop settle".to_owned().into())
 				}
 
 				our_initiated_coop_settle.partner_signature_confirmation =
@@ -1735,18 +1733,18 @@ fn handle_receive_withdraw_confirmation(
 				// Normal withdraw
 				// Only send the transaction on-chain if there is enough time for the
 				// withdraw transaction to be mined
-				if partner_initiated_coop_settle.is_none() {
-					if state_change.expiration >= block_number - channel_state.reveal_timeout {
-						let withdraw_onchain = ContractSendChannelWithdraw {
-							inner: ContractSendEventInner { triggered_by_blockhash: block_hash },
-							canonical_identifier: state_change.canonical_identifier.clone(),
-							total_withdraw: state_change.total_withdraw,
-							expiration: state_change.expiration,
-							partner_signature: state_change.signature,
-						};
+				if partner_initiated_coop_settle.is_none() &&
+					state_change.expiration >= block_number - channel_state.reveal_timeout
+				{
+					let withdraw_onchain = ContractSendChannelWithdraw {
+						inner: ContractSendEventInner { triggered_by_blockhash: block_hash },
+						canonical_identifier: state_change.canonical_identifier.clone(),
+						total_withdraw: state_change.total_withdraw,
+						expiration: state_change.expiration,
+						partner_signature: state_change.signature,
+					};
 
-						events.push(withdraw_onchain.into());
-					}
+					events.push(withdraw_onchain.into());
 				}
 			}
 		},
@@ -1814,7 +1812,7 @@ fn handle_receive_withdraw_expired(
 				SendProcessed {
 					inner: SendMessageEventInner {
 						recipient: channel_state.partner_state.address,
-						recipient_metadata: withdraw_state.recipient_metadata.clone(),
+						recipient_metadata: withdraw_state.recipient_metadata,
 						canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 						message_identifier: state_change.message_identifier,
 					},
@@ -1854,31 +1852,31 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
 	for (total_withdraw, withdraw_state) in our_state.withdraws_pending.iter() {
 		if !coop_settle {
 			if withdraw_state.total_withdraw <= previous {
-				return Err(format!("Total withdraws must be ordered").into())
+				return Err("Total withdraws must be ordered".to_owned().into())
 			}
 
 			if total_withdraw != &withdraw_state.total_withdraw {
-				return Err(format!("Total withdraw mismatch").into())
+				return Err("Total withdraw mismatch".to_owned().into())
 			}
 
 			previous = withdraw_state.total_withdraw;
 		}
 	}
 
-	let our_balance = global_views::channel_balance(&our_state, &partner_state);
-	let partner_balance = global_views::channel_balance(&partner_state, &our_state);
+	let our_balance = global_views::channel_balance(our_state, partner_state);
+	let partner_balance = global_views::channel_balance(partner_state, our_state);
 
 	let channel_capacity = channel_state.capacity();
 	if our_balance + partner_balance != channel_capacity {
-		return Err(format!("The whole deposit of the channel has to be accounted for.").into())
+		return Err("The whole deposit of the channel has to be accounted for.".to_owned().into())
 	}
 
-	let our_locked = get_amount_locked(&our_state);
-	let partner_locked = get_amount_locked(&partner_state);
+	let our_locked = get_amount_locked(our_state);
+	let partner_locked = get_amount_locked(partner_state);
 
-	let (our_bp_locksroot, _, _, our_bp_locked_amount) = get_current_balance_proof(&our_state);
+	let (our_bp_locksroot, _, _, our_bp_locked_amount) = get_current_balance_proof(our_state);
 	let (partner_bp_locksroot, _, _, partner_bp_locked_amount) =
-		get_current_balance_proof(&partner_state);
+		get_current_balance_proof(partner_state);
 
 	let message = "The sum of the lock's amounts, and the value of the balance proof \
                    locked_amount must be equal, otherwise settle will not reserve the \
@@ -1886,23 +1884,23 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
 		.to_owned();
 
 	if partner_locked != partner_bp_locked_amount {
-		return Err(message.clone().into())
+		return Err(message.into())
 	}
 	if our_locked != our_bp_locked_amount {
 		return Err(message.into())
 	}
 
-	let our_distributable = global_views::channel_distributable(&our_state, &partner_state);
-	let partner_distributable = global_views::channel_distributable(&partner_state, &our_state);
+	let our_distributable = global_views::channel_distributable(our_state, partner_state);
+	let partner_distributable = global_views::channel_distributable(partner_state, our_state);
 
 	// Because of overflow checks, it is possible for the distributable amount
 	// to be lower than the available balance, therefore the sanity check has to
 	// be lower-than instead of equal-to
 	if our_distributable + our_locked > our_balance {
-		return Err(format!("Distributable + locked must not exceed balance (own)").into())
+		return Err("Distributable + locked must not exceed balance (own)".to_owned().into())
 	}
 	if partner_distributable + partner_locked > partner_balance {
-		return Err(format!("Distributable + locked must not exceed balance (partner)").into())
+		return Err("Distributable + locked must not exceed balance (partner)".to_owned().into())
 	}
 
 	let our_locksroot = compute_locksroot(&our_state.pending_locks);
@@ -1912,7 +1910,7 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
                    Otherwise it is not possible to prove on-chain that a given lock was pending."
 		.to_owned();
 	if our_locksroot != our_bp_locksroot {
-		return Err(message.clone().into())
+		return Err(message.into())
 	}
 	if partner_locksroot != partner_bp_locksroot {
 		return Err(message.into())
@@ -1923,32 +1921,32 @@ fn sanity_check(transition: ChannelTransition) -> TransitionResult {
 			.to_owned();
 	for lock in partner_state.secrethashes_to_lockedlocks.values() {
 		if !partner_state.pending_locks.locks.contains(&lock.encoded) {
-			return Err(message.clone().into())
+			return Err(message.into())
 		}
 	}
 	for lock in partner_state.secrethashes_to_unlockedlocks.values() {
 		if !partner_state.pending_locks.locks.contains(&lock.encoded) {
-			return Err(message.clone().into())
+			return Err(message.into())
 		}
 	}
 	for lock in partner_state.secrethashes_to_onchain_unlockedlocks.values() {
 		if !partner_state.pending_locks.locks.contains(&lock.encoded) {
-			return Err(message.clone().into())
+			return Err(message.into())
 		}
 	}
 	for lock in our_state.secrethashes_to_lockedlocks.values() {
 		if !our_state.pending_locks.locks.contains(&lock.encoded) {
-			return Err(message.clone().into())
+			return Err(message.into())
 		}
 	}
 	for lock in our_state.secrethashes_to_unlockedlocks.values() {
 		if !our_state.pending_locks.locks.contains(&lock.encoded) {
-			return Err(message.clone().into())
+			return Err(message.into())
 		}
 	}
 	for lock in our_state.secrethashes_to_onchain_unlockedlocks.values() {
 		if !our_state.pending_locks.locks.contains(&lock.encoded) {
-			return Err(message.clone().into())
+			return Err(message.into())
 		}
 	}
 

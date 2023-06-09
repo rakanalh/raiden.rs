@@ -107,9 +107,8 @@ fn setup_mediator() -> (ChainStateInfo, PaymentIdentifier, Secret, SecretHash) {
 			secret: None,
 		},
 	};
-	let result =
-		chain::state_transition(chain_info.chain_state.clone(), state_change.clone().into())
-			.expect("Should succeed");
+	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
+		.expect("Should succeed");
 	assert!(matches!(result.events[0], Event::SendProcessed { .. }));
 	assert!(matches!(result.events[1], Event::SendLockedTransfer { .. }));
 
@@ -152,7 +151,7 @@ fn test_mediator_onchain_secret_reveal() {
 	let result =
 		chain::state_transition(chain_state, onchain_secret_reveal.into()).expect("Should succeed");
 	let channel_state =
-		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier)
 			.expect("Channel state should exist");
 	assert!(channel_state.our_state.is_secret_known(secrethash));
 	assert!(channel_state.partner_state.is_secret_known(secrethash));
@@ -182,11 +181,8 @@ fn test_mediator_send_balance_proof_on_secret_learned() {
 
 	let chain_state = chain_info.chain_state;
 
-	let offchain_secret_reveal = ReceiveSecretReveal {
-		sender: Keyring::Alice.address(),
-		secret: secret.clone(),
-		secrethash: secrethash.clone(),
-	};
+	let offchain_secret_reveal =
+		ReceiveSecretReveal { sender: Keyring::Alice.address(), secret, secrethash };
 
 	let result = chain::state_transition(chain_state, offchain_secret_reveal.into())
 		.expect("Should succeed");
@@ -228,7 +224,7 @@ fn test_mediator_receive_lock_expired() {
 
 	let balance_proof = make_balance_proof(
 		Keyring::Alice.private_key(),
-		canonical_identifier.clone(),
+		canonical_identifier,
 		locked_amount,
 		locksroot,
 		transferred_amount,
@@ -269,13 +265,13 @@ fn test_mediator_receive_unlock() {
 	let offchain_secret_reveal = ReceiveSecretReveal {
 		sender: Keyring::Alice.address(),
 		secret: secret.clone(),
-		secrethash: secrethash.clone(),
+		secrethash,
 	};
 
 	let result = chain::state_transition(chain_state.clone(), offchain_secret_reveal.into())
 		.expect("Should succeed");
 
-	let chain_state = result.new_state.clone();
+	let chain_state = result.new_state;
 
 	// Wrong transferred amount
 	let locked_amount = TokenAmount::from(0);
@@ -295,7 +291,7 @@ fn test_mediator_receive_unlock() {
 	let unlock = ReceiveUnlock {
 		sender: channel_state.partner_state.address,
 		secret: secret.clone(),
-		secrethash: secrethash.clone(),
+		secrethash,
 		message_identifier: 2u64,
 		balance_proof,
 	};
@@ -309,7 +305,7 @@ fn test_mediator_receive_unlock() {
 
 	let balance_proof = make_balance_proof(
 		Keyring::Alice.private_key(),
-		canonical_identifier.clone(),
+		canonical_identifier,
 		locked_amount,
 		locksroot,
 		transferred_amount,

@@ -166,13 +166,14 @@ fn subdispatch_to_initiator_transfer(
 /// will alter the `initiator_transfers` list and this is not
 /// allowed if iterating over the original list.
 fn subdispatch_to_all_initiator_transfer(
-	mut payment_state: InitiatorPaymentState,
+	payment_state: InitiatorPaymentState,
 	mut chain_state: ChainState,
 	state_change: StateChange,
 ) -> TransitionResult {
 	let mut events = vec![];
 
-	for initiator_state in payment_state.initiator_transfers.clone().values() {
+	let mut new_state = None;
+	for initiator_state in payment_state.initiator_transfers.values() {
 		let sub_iteration = subdispatch_to_initiator_transfer(
 			chain_state.clone(),
 			payment_state.clone(),
@@ -180,12 +181,11 @@ fn subdispatch_to_all_initiator_transfer(
 			state_change.clone(),
 		)?;
 		chain_state = sub_iteration.chain_state;
-		payment_state =
-			sub_iteration.new_state.expect("Subdispatch returns a correct payment_state");
+		new_state = sub_iteration.new_state;
 		events.extend(sub_iteration.events);
 	}
 
-	Ok(InitiatorManagerTransition { new_state: Some(payment_state), chain_state, events })
+	Ok(InitiatorManagerTransition { new_state, chain_state, events })
 }
 
 /// Handle `Block'.`
@@ -214,7 +214,7 @@ pub fn handle_init_initiator(
 	payment_state: Option<InitiatorPaymentState>,
 	state_change: ActionInitInitiator,
 ) -> TransitionResult {
-	let mut payment_state = payment_state.clone();
+	let mut payment_state = payment_state;
 	let mut events = vec![];
 	if payment_state.is_none() {
 		let (new_state, new_chain_state, iteration_events) = initiator::try_new_route(
@@ -375,7 +375,7 @@ pub fn handle_action_transfer_reroute(
 		refund_transfer.lock.expiration == original_transfer.lock.expiration;
 
 	let is_valid_refund =
-		channel::validators::refund_transfer_matches_transfer(&refund_transfer, &original_transfer);
+		channel::validators::refund_transfer_matches_transfer(&refund_transfer, original_transfer);
 
 	let recipient_address = channel_state.partner_state.address;
 	let recipient_metadata =
@@ -598,7 +598,7 @@ pub fn handle_secret_reveal(
 	)?;
 
 	if let Some(ref mut new_state) = sub_iteration.new_state {
-		if !transfer_exists(&new_state, state_change.secrethash) {
+		if !transfer_exists(new_state, state_change.secrethash) {
 			cancel_other_transfers(new_state);
 		}
 	}
@@ -648,7 +648,7 @@ pub fn handle_contract_secret_reveal(
 	)?;
 
 	if let Some(ref mut new_state) = sub_iteration.new_state {
-		if !transfer_exists(&new_state, state_change.secrethash) {
+		if !transfer_exists(new_state, state_change.secrethash) {
 			cancel_other_transfers(new_state);
 		}
 	}
@@ -660,7 +660,7 @@ pub fn handle_contract_secret_reveal(
 /// or expired.
 pub fn clear_if_finalized(transition: InitiatorManagerTransition) -> InitiatorManagerTransition {
 	if let Some(ref new_state) = transition.new_state {
-		if new_state.initiator_transfers.len() == 0 {
+		if new_state.initiator_transfers.is_empty() {
 			return InitiatorManagerTransition {
 				new_state: None,
 				chain_state: transition.chain_state,

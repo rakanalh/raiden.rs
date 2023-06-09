@@ -85,7 +85,7 @@ fn setup_target() -> (ChainState, CanonicalIdentifier, PaymentIdentifier, Secret
 		balance_proof: balance_proof.clone(),
 		from_hop: HopState {
 			node_address: channel_state.partner_state.address,
-			channel_identifier: canonical_identifier.channel_identifier.clone(),
+			channel_identifier: canonical_identifier.channel_identifier,
 		},
 		transfer: LockedTransferState {
 			payment_identifier: transfer_identifier,
@@ -106,9 +106,8 @@ fn setup_target() -> (ChainState, CanonicalIdentifier, PaymentIdentifier, Secret
 		received_valid_secret: false,
 	};
 
-	let result =
-		chain::state_transition(chain_info.chain_state.clone(), state_change.clone().into())
-			.expect("Should succeed");
+	let result = chain::state_transition(chain_info.chain_state.clone(), state_change.into())
+		.expect("Should succeed");
 	assert!(matches!(result.events[0], Event::SendProcessed { .. }));
 	assert!(matches!(result.events[1], Event::SendSecretRequest { .. }));
 
@@ -144,7 +143,7 @@ fn test_target_onchain_secret_reveal() {
 		chain::state_transition(chain_state, onchain_secret_reveal.into()).expect("Should succeed");
 
 	let channel_state =
-		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier.clone())
+		views::get_channel_by_canonical_identifier(&result.new_state, canonical_identifier)
 			.expect("Channel state should exist");
 
 	assert!(channel_state
@@ -230,7 +229,7 @@ fn test_target_receive_unlock() {
 	let unlock = ReceiveUnlock {
 		sender: channel_state.partner_state.address,
 		secret: secret.clone(),
-		secrethash: secrethash.clone(),
+		secrethash,
 		message_identifier: 2u64,
 		balance_proof,
 	};

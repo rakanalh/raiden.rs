@@ -85,7 +85,7 @@ fn setup_initiator() -> (ChainState, CanonicalIdentifier, PaymentIdentifier, Sec
 			estimated_fee: TokenAmount::zero(),
 		}],
 	};
-	let result = chain::state_transition(chain_info.chain_state, state_change.clone().into())
+	let result = chain::state_transition(chain_info.chain_state, state_change.into())
 		.expect("Should succeed");
 	assert!(matches!(result.events[0], Event::SendLockedTransfer { .. }));
 	(result.new_state, canonical_identifier, transfer_identifier, secret, secrethash)
@@ -175,8 +175,7 @@ fn test_initiator_lock_expired() {
 		gas_limit: GasLimit::default(),
 	};
 
-	let result =
-		chain::state_transition(chain_state, block.clone().into()).expect("Should succeed");
+	let result = chain::state_transition(chain_state, block.into()).expect("Should succeed");
 	assert!(matches!(result.events[0], Event::SendLockExpired { .. }));
 }
 
@@ -186,7 +185,7 @@ fn test_initiator_secret_request() {
 		setup_initiator();
 
 	let channel_state =
-		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier)
 			.expect("Channel state should exist");
 
 	// Random partner, no response
@@ -199,7 +198,7 @@ fn test_initiator_secret_request() {
 		revealsecret: None,
 	};
 
-	let result = chain::state_transition(chain_state.clone(), secret_request.clone().into())
+	let result = chain::state_transition(chain_state.clone(), secret_request.into())
 		.expect("Should succeed");
 	assert_eq!(result.events, vec![]);
 
@@ -213,8 +212,8 @@ fn test_initiator_secret_request() {
 		revealsecret: None,
 	};
 
-	let result = chain::state_transition(result.new_state, secret_request.clone().into())
-		.expect("Should succeed");
+	let result =
+		chain::state_transition(result.new_state, secret_request.into()).expect("Should succeed");
 	assert!(matches!(result.events[0], Event::SendSecretReveal { .. }));
 }
 
@@ -224,7 +223,7 @@ fn test_initiator_offchain_secret_reveal() {
 		setup_initiator();
 
 	let channel_state =
-		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier)
 			.expect("Channel state should exist");
 
 	// Random participant, no unlock
@@ -263,7 +262,7 @@ fn test_initiator_onchain_secret_reveal() {
 		setup_initiator();
 
 	let channel_state =
-		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier.clone())
+		views::get_channel_by_canonical_identifier(&chain_state, canonical_identifier)
 			.expect("Channel state should exist");
 
 	// Random participant, no unlock
@@ -290,11 +289,8 @@ fn test_initiator_onchain_secret_reveal() {
 
 	assert!(result.new_state.payment_mapping.secrethashes_to_task.get(&secrethash).is_some());
 
-	let secret_reveal = ReceiveSecretReveal {
-		sender: channel_state.partner_state.address,
-		secret: secret.clone(),
-		secrethash,
-	};
+	let secret_reveal =
+		ReceiveSecretReveal { sender: channel_state.partner_state.address, secret, secrethash };
 	let result =
 		chain::state_transition(result.new_state, secret_reveal.into()).expect("Should succeed");
 	assert!(matches!(result.events[0], Event::SendUnlock { .. }));

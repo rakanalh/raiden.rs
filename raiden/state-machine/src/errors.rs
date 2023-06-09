@@ -23,7 +23,7 @@ impl error::Error for StateTransitionError {
 		None
 	}
 }
-
+#[allow(clippy::from_over_into)]
 impl Into<StateTransitionError> for String {
 	fn into(self) -> StateTransitionError {
 		StateTransitionError { msg: self }

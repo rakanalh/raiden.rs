@@ -209,7 +209,7 @@ pub struct SendMessageEventInner {
 impl SendMessageEventInner {
 	pub fn queue_identifier(&self) -> QueueIdentifier {
 		QueueIdentifier {
-			recipient: self.recipient.clone(),
+			recipient: self.recipient,
 			canonical_identifier: self.canonical_identifier.clone(),
 		}
 	}

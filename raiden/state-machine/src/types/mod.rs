@@ -1,7 +1,10 @@
 #![warn(clippy::missing_docs_in_private_items)]
 
+/// Event types.
 mod event;
+/// State types
 mod state;
+/// State change types
 mod state_change;
 
 use raiden_primitives::{
@@ -41,6 +44,7 @@ impl Random {
 		Self(ChaChaRng::seed_from_u64(0))
 	}
 
+	#[allow(clippy::should_implement_trait)]
 	pub fn next(&mut self) -> u64 {
 		self.0.next_u64()
 	}

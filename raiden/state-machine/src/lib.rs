@@ -1,4 +1,5 @@
 #![warn(clippy::missing_docs_in_private_items)]
+//! Manages a complete chain state with ability to transition state changes and returns events.
 
 /// State machine constants.
 pub mod constants;

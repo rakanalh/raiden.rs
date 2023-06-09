@@ -36,6 +36,7 @@ pub enum StorageError {
 /// Storage record identifier
 #[derive(Clone, Copy, Debug)]
 pub struct StorageID {
+	/// The inner identifier
 	pub(crate) inner: Ulid,
 }
 
@@ -65,10 +66,11 @@ impl From<u128> for StorageID {
 
 impl From<Ulid> for StorageID {
 	fn from(id: Ulid) -> Self {
-		return Self { inner: id }
+		Self { inner: id }
 	}
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<String> for StorageID {
 	fn into(self) -> String {
 		self.inner.to_string()

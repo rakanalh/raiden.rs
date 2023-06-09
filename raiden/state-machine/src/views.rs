@@ -42,7 +42,7 @@ pub fn get_token_network<'a>(
 			.tokennetworkaddresses_to_tokennetworks
 			.get(token_network_address);
 	}
-	token_network.clone()
+	token_network
 }
 
 /// Returns token network registry by token network address if found.
@@ -70,8 +70,7 @@ pub fn get_token_network_by_address(
 	let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
 	token_network_registries
 		.values()
-		.map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
-		.flatten()
+		.flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
 		.find(|tn| tn.address == token_network_address)
 }
 
@@ -148,8 +147,7 @@ pub fn get_channel_state_for(
 	match get_token_network_by_token_address(chain_state, registry_address, token_address) {
 		Some(token_network) => token_network
 			.channelidentifiers_to_channels
-			.iter()
-			.map(|(_, c)| c)
+			.values()
 			.find(|c| c.partner_state.address == partner_address),
 		_ => None,
 	}
@@ -213,7 +211,7 @@ fn get_channelstate_filter(
 		}
 	}
 
-	return result
+	result
 }
 
 /// Returns open channel states.
@@ -222,7 +220,7 @@ pub fn get_channelstate_open(
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Opened
 	})
 }
@@ -233,7 +231,7 @@ pub fn get_channelstate_closing(
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Closing
 	})
 }
@@ -244,7 +242,7 @@ pub fn get_channelstate_closed(
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Closed
 	})
 }
@@ -255,7 +253,7 @@ pub fn get_channelstate_settling(
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Settling
 	})
 }
@@ -266,7 +264,7 @@ pub fn get_channelstate_settled(
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Settled
 	})
 }

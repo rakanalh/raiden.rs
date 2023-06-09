@@ -35,6 +35,7 @@ use crate::types::{
 	StateChange,
 };
 
+/// Sqlite constants.
 mod sqlite;
 pub mod types;
 
@@ -43,6 +44,7 @@ pub const SNAPSHOT_STATE_CHANGE_COUNT: u16 = 500;
 
 /// Storage interface for the chain state.
 pub struct StateStorage {
+	/// The rusqlite connection
 	conn: Mutex<Connection>,
 }
 
@@ -85,11 +87,10 @@ impl StateStorage {
 	) -> Result<()> {
 		let serialized_state =
 			serde_json::to_string(&state).map_err(StorageError::SerializationError)?;
-		let sql = format!(
-			"
+		let sql = "
             INSERT INTO state_snapshot(identifier, statechange_id, statechange_qty, data)
             VALUES(?1, ?2, ?3, ?4)"
-		);
+			.to_owned();
 		let ulid = Ulid::new();
 		let state_change_id = match state_change_id {
 			Some(sc) => sc.inner,
@@ -102,7 +103,7 @@ impl StateStorage {
 				&sql,
 				params![&ulid.to_string(), state_change_id.to_string(), 0, serialized_state,],
 			)
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 
 		Ok(())
 	}
@@ -112,7 +113,7 @@ impl StateStorage {
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
 		let mut stmt = conn
 			.prepare("SELECT identifier, data FROM state_changes")
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 
 		let mut rows = stmt.query([]).map_err(StorageError::Sql)?;
 
@@ -134,13 +135,13 @@ impl StateStorage {
 	pub fn store_state_change(&self, state_change: StateChange) -> Result<StorageID> {
 		let serialized_state_change =
 			serde_json::to_string(&state_change).map_err(StorageError::SerializationError)?;
-		let sql = format!("INSERT INTO state_changes(identifier, data) VALUES(?1, ?2)");
+		let sql = "INSERT INTO state_changes(identifier, data) VALUES(?1, ?2)".to_owned();
 		let ulid = Ulid::new();
 		self.conn
 			.lock()
 			.map_err(|_| StorageError::CannotLock)?
 			.execute(&sql, params![&ulid.to_string(), serialized_state_change])
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 		Ok(ulid.into())
 	}
 
@@ -151,9 +152,8 @@ impl StateStorage {
 		for event in events {
 			let serialized_event =
 				serde_json::to_string(&event).map_err(StorageError::SerializationError)?;
-			let sql = format!(
-                "INSERT INTO state_events(identifier, source_statechange_id, data, timestamp) VALUES(?1, ?2, ?3, ?4)"
-            );
+			let sql =
+                "INSERT INTO state_events(identifier, source_statechange_id, data, timestamp) VALUES(?1, ?2, ?3, ?4)".to_owned();
 			conn.execute(
 				&sql,
 				params![
@@ -163,7 +163,7 @@ impl StateStorage {
 					Utc::now().naive_local()
 				],
 			)
-			.map_err(|e| StorageError::Sql(e))?;
+			.map_err(StorageError::Sql)?;
 		}
 		Ok(())
 	}
@@ -173,15 +173,14 @@ impl StateStorage {
 		&self,
 		state_change_id: StorageID,
 	) -> Result<SnapshotRecord> {
-		let sql = format!(
-			"SELECT identifier, statechange_qty, statechange_id, data
+		let sql = "SELECT identifier, statechange_qty, statechange_id, data
 			FROM state_snapshot
 			WHERE statechange_id <= ?1 or statechange_id IS NULL
 			ORDER BY identifier DESC
 			LIMIT 1"
-		);
+			.to_owned();
 		let conn = self.conn.lock().map_err(|_| StorageError::CannotLock)?;
-		let mut stmt = conn.prepare(&sql).map_err(|e| StorageError::Sql(e))?;
+		let mut stmt = conn.prepare(&sql).map_err(StorageError::Sql)?;
 		let mut rows =
 			stmt.query(params![state_change_id.to_string()]).map_err(StorageError::Sql)?;
 		let row = match rows.next().map_err(StorageError::Sql)? {
@@ -488,7 +487,7 @@ impl StateStorage {
 		let mut query_values: Vec<&dyn ToSql> = vec![];
 		let mut group_it = criteria.iter().peekable();
 		while let Some(group) = group_it.next() {
-			where_cond.push_str("(");
+			where_cond.push('(');
 			let mut it = group.iter().enumerate().peekable();
 			while let Some((i, (field, value))) = it.next() {
 				where_cond.push_str(&format!("json_extract(data, '$.{}')=?{}", field, i + 1));
@@ -497,7 +496,7 @@ impl StateStorage {
 					where_cond.push_str(" AND ");
 				}
 			}
-			where_cond.push_str(")");
+			where_cond.push(')');
 			if group_it.next().is_some() {
 				where_cond.push_str(" OR ")
 			}
@@ -584,7 +583,7 @@ impl StateStorage {
 		let mut query_values: Vec<&dyn ToSql> = vec![];
 		let mut group_it = criteria.iter().peekable();
 		while let Some(group) = group_it.next() {
-			where_cond.push_str("(");
+			where_cond.push('(');
 			let mut it = group.iter().enumerate().peekable();
 			while let Some((i, (field, value))) = it.next() {
 				where_cond.push_str(&format!("json_extract(data, '$.{}')=?{}", field, i + 1));
@@ -593,7 +592,7 @@ impl StateStorage {
 					where_cond.push_str(" AND ");
 				}
 			}
-			where_cond.push_str(")");
+			where_cond.push(')');
 			if group_it.next().is_some() {
 				where_cond.push_str(" OR ")
 			}
@@ -738,16 +737,15 @@ impl StateStorage {
 				query
 			},
 			(None, None) => {
-				let query = "
-                        SELECT
-                            identifier, data, source_statechange_id, timestamp
-                        FROM
-                            state_events
-                        WHERE
-                            json_extract(data, '$.type') IN ('PaymentReceivedSuccess', 'PaymentSentFailed', 'PaymentSentSuccess')
-                        ORDER BY identifier ASC
-                    ";
-				query
+				"
+                    SELECT
+                        identifier, data, source_statechange_id, timestamp
+                    FROM
+                        state_events
+                    WHERE
+                        json_extract(data, '$.type') IN ('PaymentReceivedSuccess', 'PaymentSentFailed', 'PaymentSentSuccess')
+                    ORDER BY identifier ASC
+                "
 			},
 		};
 

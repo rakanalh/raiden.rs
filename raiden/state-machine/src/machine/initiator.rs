@@ -130,6 +130,7 @@ fn events_for_unlock_lock(
 	Ok(vec![unlock_lock.into(), payment_sent_success.into(), unlock_success.into()])
 }
 
+/// Returns Send a locked transfer event
 fn send_locked_transfer(
 	transfer_description: TransferDescriptionWithSecretState,
 	channel_state: ChannelState,
@@ -175,8 +176,7 @@ pub fn try_new_route(
 	let our_address = chain_state.our_address;
 
 	let mut selected = None;
-	let mut iterator = candidate_route_states.iter();
-	while let Some(route_state) = iterator.next() {
+	for route_state in candidate_route_states.iter() {
 		let next_hop_address = match route_state.hop_after(our_address) {
 			Some(next_hop_address) => next_hop_address,
 			None => continue,
@@ -429,7 +429,7 @@ fn handle_receive_secret_request(
 		events.push(invalid_request.into());
 	}
 
-	return Ok(InitiatorTransition {
+	Ok(InitiatorTransition {
 		new_state: Some(initiator_state),
 		channel_state: Some(channel_state),
 		events,
@@ -480,7 +480,7 @@ fn handle_receive_offchain_secret_reveal(
 		Some(initiator_state)
 	};
 
-	return Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
+	Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
 }
 
 /// When a secret is revealed on-chain all nodes learn the secret.
@@ -526,7 +526,7 @@ fn handle_receive_onchain_secret_reveal(
 			events_for_unlock_lock(
 				&initiator_state,
 				&mut channel_state,
-				state_change.secret.clone(),
+				state_change.secret,
 				secrethash,
 				pseudo_random_number_generator,
 				block_number,
@@ -538,7 +538,7 @@ fn handle_receive_onchain_secret_reveal(
 		Some(initiator_state)
 	};
 
-	return Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
+	Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
 }
 
 /// Update initiator state based on the provided `state_change`.

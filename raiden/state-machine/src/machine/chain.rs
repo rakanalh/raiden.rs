@@ -62,6 +62,7 @@ use crate::{
 	views,
 };
 
+/// Chain transition result.
 type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
 
 /// A transition result for the chain state.
@@ -80,8 +81,7 @@ fn subdispatch_by_canonical_id(
 	let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
 	let token_network = match token_network_registries
 		.values_mut()
-		.map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values_mut())
-		.flatten()
+		.flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values_mut())
 		.find(|tn| tn.address == canonical_identifier.token_network_address)
 	{
 		Some(tn) => tn,
@@ -258,7 +258,7 @@ fn subdispatch_initiator_task(
 	}
 
 	let initiator_state = initiator_manager::state_transition(
-		chain_state.clone(),
+		chain_state,
 		manager_state,
 		state_change.clone().into(),
 	)?;
@@ -270,7 +270,7 @@ fn subdispatch_initiator_task(
 				state_change.transfer.secrethash,
 				TransferTask::Initiator(InitiatorTask {
 					role: TransferRole::Initiator,
-					token_network_address: token_network_state.address.clone(),
+					token_network_address: token_network_state.address,
 					manager_state: initiator_state,
 				}),
 			);
@@ -443,7 +443,7 @@ fn handle_action_transfer_reroute(
 		chain_state
 			.payment_mapping
 			.secrethashes_to_task
-			.insert(new_secrethash, current_payment_task.clone());
+			.insert(new_secrethash, current_payment_task);
 	}
 
 	subdispatch_to_payment_task(chain_state, state_change.into(), new_secrethash)
@@ -515,10 +515,9 @@ fn handle_contract_receive_token_network_created(
 	token_network_registry
 		.tokennetworkaddresses_to_tokennetworks
 		.insert(state_change.token_network.address, state_change.token_network.clone());
-	token_network_registry.tokenaddresses_to_tokennetworkaddresses.insert(
-		state_change.token_network.token_address.clone(),
-		state_change.token_network.address.clone(),
-	);
+	token_network_registry
+		.tokenaddresses_to_tokennetworkaddresses
+		.insert(state_change.token_network.token_address, state_change.token_network.address);
 
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
@@ -910,6 +909,7 @@ fn is_transaction_pending(
 		is_transaction_expired(transaction, chain_state.block_number))
 }
 
+/// Check and update pending transactions after applying state change.
 fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
 	let chain_state = &mut iteration.new_state;
 	match state_change {
