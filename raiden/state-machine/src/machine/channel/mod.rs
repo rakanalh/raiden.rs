@@ -985,7 +985,7 @@ fn handle_channel_settled(
 	if state_change.canonical_identifier == channel_state.canonical_identifier {
 		channel_state = set_settled(channel_state.clone(), state_change.block_number);
 		let our_locksroot = state_change.our_onchain_locksroot;
-		let partner_locksroot = state_change.our_onchain_locksroot;
+		let partner_locksroot = state_change.partner_onchain_locksroot;
 		let should_clear_channel =
 			our_locksroot == *LOCKSROOT_OF_NO_LOCKS && partner_locksroot == *LOCKSROOT_OF_NO_LOCKS;
 

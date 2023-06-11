@@ -3,6 +3,10 @@ use std::{
 	sync::Arc,
 };
 
+use ethabi::{
+	ParamType,
+	Token,
+};
 use raiden_primitives::types::{
 	Address,
 	H256,
@@ -59,11 +63,16 @@ impl Event {
 				}
 
 				if !log.data.0.is_empty() {
-					for (name, input) in non_indexed_inputs {
-						if let Ok(decoded_value) =
-							ethabi::decode(&[input.kind.clone()], &log.data.0)
-						{
-							data.insert(name, decoded_value[0].clone());
+					let token_types: Vec<ParamType> =
+						non_indexed_inputs.iter().map(|(_, param)| param.kind.clone()).collect();
+					let input_names: Vec<String> =
+						non_indexed_inputs.iter().map(|(name, _)| name).cloned().collect();
+
+					if let Ok(tokens) = ethabi::decode(&token_types, &log.data.0) {
+						let names_and_tokens: Vec<(String, Token)> =
+							input_names.into_iter().zip(tokens).collect();
+						for (name, token) in names_and_tokens {
+							data.insert(name, token);
 						}
 					}
 				}
