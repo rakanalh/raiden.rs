@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 # 3rd Party
-rpassword = { version = "5.0.1", default-features = false }
+rpassword = { version = "7.2.0", default-features = false }
 structopt = { version = "0.3.25", default-features = false }
 tokio = { version = "1.0", default-features = false, features = [ "macros" ] }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
