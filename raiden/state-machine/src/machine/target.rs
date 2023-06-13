@@ -1,6 +1,11 @@
-use raiden_primitives::types::{
-	BlockHash,
-	BlockNumber,
+#![warn(clippy::missing_docs_in_private_items)]
+
+use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	types::{
+		BlockHash,
+		BlockNumber,
+	},
 };
 
 use super::{
@@ -13,7 +18,6 @@ use super::{
 	},
 };
 use crate::{
-	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	errors::StateTransitionError,
 	types::{
 		ActionInitTarget,
@@ -37,8 +41,10 @@ use crate::{
 	views,
 };
 
+/// A transition result for the initiator state.
 pub(super) type TransitionResult = std::result::Result<TargetTransition, StateTransitionError>;
 
+/// Target transition content.
 #[derive(Debug)]
 pub struct TargetTransition {
 	pub new_state: Option<TargetTransferState>,
@@ -46,7 +52,9 @@ pub struct TargetTransition {
 	pub events: Vec<Event>,
 }
 
-fn events_for_onchain_secretrevea(
+/// Emits the event for revealing the secret on-chain if the transfer
+/// can not be settled off-chain.
+fn events_for_onchain_secretreveal(
 	target_state: &mut TargetTransferState,
 	channel_state: &ChannelState,
 	block_number: BlockNumber,
@@ -79,6 +87,7 @@ fn events_for_onchain_secretrevea(
 	Ok(vec![])
 }
 
+/// Handles an ActionInitTarget state change.
 fn handle_init_target(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -178,6 +187,8 @@ fn handle_init_target(
 	Ok(TargetTransition { new_state: target_state, chain_state, events })
 }
 
+/// After Raiden learns about a new block this function must be called to
+/// handle expiration of the hash time lock.
 fn handle_block(
 	chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -227,9 +238,9 @@ fn handle_block(
 		);
 	} else if secret_known {
 		events.extend(
-			events_for_onchain_secretrevea(
+			events_for_onchain_secretreveal(
 				&mut target_state,
-				&channel_state,
+				channel_state,
 				state_change.block_number,
 				state_change.block_hash,
 			)
@@ -240,6 +251,7 @@ fn handle_block(
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events })
 }
 
+/// Validates and handles a ReceiveSecretReveal state change.
 fn handle_offchain_secret_reveal(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -308,6 +320,7 @@ fn handle_offchain_secret_reveal(
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events })
 }
 
+/// Validates and handles a `ContractReceiveSecretReveal` state change.
 fn handle_onchain_secret_reveal(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -347,12 +360,13 @@ fn handle_onchain_secret_reveal(
 		update_channel(&mut chain_state, channel_state).map_err(Into::into)?;
 
 		target_state.state = TargetState::OffchainSecretReveal;
-		target_state.secret = Some(state_change.secret.clone());
+		target_state.secret = Some(state_change.secret);
 	}
 
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events: vec![] })
 }
 
+/// Remove expired locks from channel states.
 fn handle_lock_expired(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -409,6 +423,7 @@ fn handle_lock_expired(
 	Ok(TargetTransition { new_state: Some(target_state), chain_state, events: result.events })
 }
 
+/// Handles a `ReceiveUnlock` state change.
 fn handle_unlock(
 	mut chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
@@ -441,8 +456,16 @@ fn handle_unlock(
 	};
 	let recipient_metadata = views::get_address_metadata(sender, transfer.route_states.clone());
 
-	let unlock_event = channel::handle_unlock(&mut channel_state, state_change, recipient_metadata)
-		.map_err(Into::into)?;
+	let unlock_event =
+		match channel::handle_unlock(&mut channel_state, state_change, recipient_metadata) {
+			Ok(unlock_event) => unlock_event,
+			Err((_, error_event)) =>
+				return Ok(TargetTransition {
+					new_state: Some(target_state),
+					chain_state,
+					events: vec![error_event],
+				}),
+		};
 
 	update_channel(&mut chain_state, channel_state.clone()).map_err(Into::into)?;
 
@@ -459,20 +482,13 @@ fn handle_unlock(
 	Ok(TargetTransition { new_state: None, chain_state, events })
 }
 
-fn sanity_check(transition: TargetTransition) -> TransitionResult {
-	Ok(transition)
-}
-
-pub fn clear_if_finalized(transition: TargetTransition) -> TargetTransition {
-	transition
-}
-
+/// State machine for the target node of a mediated transfer.
 pub fn state_transition(
 	chain_state: ChainState,
 	target_state: Option<TargetTransferState>,
 	state_change: StateChange,
 ) -> TransitionResult {
-	let transition_result = match state_change {
+	match state_change {
 		StateChange::ActionInitTarget(inner) =>
 			handle_init_target(chain_state, target_state, inner),
 		StateChange::Block(inner) => handle_block(chain_state, target_state, inner),
@@ -483,9 +499,6 @@ pub fn state_transition(
 		StateChange::ReceiveUnlock(inner) => handle_unlock(chain_state, target_state, inner),
 		StateChange::ReceiveLockExpired(inner) =>
 			handle_lock_expired(chain_state, target_state, inner),
-		_ => return Ok(TargetTransition { new_state: target_state, chain_state, events: vec![] }),
-	}?;
-
-	let transition_result = sanity_check(transition_result)?;
-	Ok(clear_if_finalized(transition_result))
+		_ => Ok(TargetTransition { new_state: target_state, chain_state, events: vec![] }),
+	}
 }

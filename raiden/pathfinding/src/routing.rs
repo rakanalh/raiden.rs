@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	sync::Arc,
+};
 
-use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	BlockNumber,
 	ChannelIdentifier,
 	OneToNAddress,
@@ -12,7 +15,6 @@ use raiden_primitives::types::{
 };
 use raiden_state_machine::{
 	types::{
-		AddressMetadata,
 		ChainState,
 		ChannelState,
 		ChannelStatus,
@@ -22,15 +24,15 @@ use raiden_state_machine::{
 };
 
 use crate::{
-	PFSConfig,
 	PFSPath,
 	RoutingError,
 	PFS,
 };
 
+/// Get the best available route for a transfer.
+#[allow(clippy::too_many_arguments)]
 pub async fn get_best_routes(
-	pfs_config: PFSConfig,
-	private_key: PrivateKey,
+	pfs: Arc<PFS>,
 	chain_state: ChainState,
 	our_address_metadata: AddressMetadata,
 	token_network_address: TokenNetworkAddress,
@@ -52,7 +54,7 @@ pub async fn get_best_routes(
 	// - The transfer will be faster
 	if token_network.partneraddresses_to_channelidentifiers.contains_key(&to_address) {
 		for channel_id in token_network.partneraddresses_to_channelidentifiers[&to_address].iter() {
-			let channel_state = &token_network.channelidentifiers_to_channels[&channel_id];
+			let channel_state = &token_network.channelidentifiers_to_channels[channel_id];
 
 			// Direct channels don't have fees.
 			let payment_with_fee_amount = amount;
@@ -60,7 +62,8 @@ pub async fn get_best_routes(
 				let mut address_to_address_metadata = HashMap::new();
 				address_to_address_metadata.insert(from_address, our_address_metadata.clone());
 
-				let metadata = super::query_address_metadata(pfs_config.url, to_address).await?;
+				let metadata =
+					super::query_address_metadata(pfs.config.url.clone(), to_address).await?;
 				address_to_address_metadata.insert(to_address, metadata);
 
 				return Ok((
@@ -82,14 +85,13 @@ pub async fn get_best_routes(
 	let usable_channels: Vec<&ChannelState> = token_network
 		.partneraddresses_to_channelidentifiers
 		.values()
-		.map(|channels: &Vec<ChannelIdentifier>| {
+		.flat_map(|channels: &Vec<ChannelIdentifier>| {
 			channels
 				.iter()
 				.map(|channel_id| &token_network.channelidentifiers_to_channels[channel_id])
 				.filter(|channel: &&ChannelState| channel.is_usable_for_new_transfer(amount, None))
 				.collect::<Vec<&ChannelState>>()
 		})
-		.flatten()
 		.collect();
 
 	if usable_channels.is_empty() {
@@ -105,8 +107,7 @@ pub async fn get_best_routes(
 		.unwrap_or_default();
 
 	let (pfs_routes, pfs_feedback_token) = get_best_routes_pfs(
-		pfs_config,
-		private_key,
+		pfs,
 		chain_state,
 		token_network_address,
 		one_to_n_address,
@@ -121,9 +122,10 @@ pub async fn get_best_routes(
 	Ok((pfs_routes, pfs_feedback_token))
 }
 
+/// Query PFS for best available routes.
+#[allow(clippy::too_many_arguments)]
 pub async fn get_best_routes_pfs(
-	pfs_config: PFSConfig,
-	private_key: PrivateKey,
+	pfs: Arc<PFS>,
 	chain_state: ChainState,
 	token_network_address: TokenNetworkAddress,
 	one_to_n_address: OneToNAddress,
@@ -133,7 +135,6 @@ pub async fn get_best_routes_pfs(
 	previous_address: Option<Address>,
 	pfs_wait_for_block: BlockNumber,
 ) -> Result<(Vec<RouteState>, String), RoutingError> {
-	let pfs = PFS::new(chain_state.chain_id.clone(), pfs_config, private_key);
 	let (routes, feedback_token) = pfs
 		.query_paths(
 			chain_state.our_address,
@@ -159,17 +160,19 @@ pub async fn get_best_routes_pfs(
 	Ok((paths, feedback_token))
 }
 
+/// Create route states out of PFS response.
+#[allow(clippy::too_many_arguments)]
 pub fn make_route_state(
 	route: PFSPath,
 	previous_address: Option<Address>,
 	chain_state: ChainState,
 	token_network_address: TokenNetworkAddress,
 ) -> Option<RouteState> {
-	if route.nodes.len() < 2 {
+	if route.path.len() < 2 {
 		return None
 	}
 
-	let partner_address = route.nodes[1];
+	let partner_address = route.path[1];
 	// Prevent back routing
 	if let Some(previous_address) = previous_address {
 		if partner_address == previous_address {
@@ -190,8 +193,8 @@ pub fn make_route_state(
 		return None
 	}
 
-	return Some(RouteState {
-		route: route.nodes,
+	Some(RouteState {
+		route: route.path,
 		address_to_metadata: route.address_metadata,
 		swaps: HashMap::new(),
 		estimated_fee: route.estimated_fee,

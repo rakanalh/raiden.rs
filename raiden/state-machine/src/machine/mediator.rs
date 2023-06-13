@@ -1,16 +1,25 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::iter;
 
-use raiden_primitives::types::{
-	Address,
-	BlockExpiration,
-	BlockHash,
-	BlockNumber,
-	BlockTimeout,
-	Secret,
-	SecretHash,
-	TokenAmount,
+use num_traits::ToPrimitive;
+use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	hashing::hash_secret,
+	types::{
+		Address,
+		BlockExpiration,
+		BlockHash,
+		BlockNumber,
+		BlockTimeout,
+		CanonicalIdentifier,
+		LockTimeout,
+		Secret,
+		SecretHash,
+		TokenAmount,
+	},
 };
-use web3::signing::keccak256;
+use rug::Rational;
 
 use super::{
 	channel,
@@ -23,7 +32,6 @@ use super::{
 };
 use crate::{
 	constants::{
-		CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 		PAYEE_STATE_SECRET_KNOWN,
 		PAYEE_STATE_TRANSFER_FINAL,
 		PAYEE_STATE_TRANSFER_PAID,
@@ -35,7 +43,6 @@ use crate::{
 	types::{
 		ActionInitMediator,
 		Block,
-		CanonicalIdentifier,
 		ChainState,
 		ChannelState,
 		ChannelStatus,
@@ -44,7 +51,9 @@ use crate::{
 		ErrorUnlockClaimFailed,
 		ErrorUnlockFailed,
 		Event,
+		FeeScheduleState,
 		HashTimeLockState,
+		Interpolate,
 		LockedTransferState,
 		MediationPairState,
 		MediatorTransferState,
@@ -69,8 +78,10 @@ use crate::{
 	},
 };
 
+/// A transition result for the mediator state.
 pub(super) type TransitionResult = std::result::Result<MediatorTransition, StateTransitionError>;
 
+/// Mediator transition content.
 #[derive(Debug)]
 pub struct MediatorTransition {
 	pub new_state: Option<MediatorTransferState>,
@@ -79,13 +90,14 @@ pub struct MediatorTransition {
 }
 
 /// Returns the channel of a given transfer pair or None if it's not found.
-fn get_channel(
+pub(crate) fn get_channel(
 	chain_state: &ChainState,
 	canonical_identifier: CanonicalIdentifier,
 ) -> Option<&ChannelState> {
 	views::get_channel_by_canonical_identifier(chain_state, canonical_identifier)
 }
 
+/// True if both transfers are for the same mediated transfer.
 fn is_send_transfer_almost_equal(
 	send: &LockedTransferState,
 	received: &LockedTransferState,
@@ -98,6 +110,8 @@ fn is_send_transfer_almost_equal(
 		send.target == received.target
 }
 
+/// True if waiting is safe, i.e. there are more than enough blocks to safely
+/// unlock on chain.
 pub(super) fn is_safe_to_wait(
 	lock_expiration: BlockExpiration,
 	reveal_timeout: BlockTimeout,
@@ -106,7 +120,7 @@ pub(super) fn is_safe_to_wait(
 	if lock_expiration < reveal_timeout {
 		return Err("Lock expiration must be larger than reveal timeout".to_owned())
 	}
-	let lock_timeout = lock_expiration - block_number;
+	let lock_timeout: LockTimeout = lock_expiration.saturating_sub(block_number.into()).into();
 	if lock_timeout > reveal_timeout {
 		return Ok(())
 	}
@@ -119,15 +133,47 @@ pub(super) fn is_safe_to_wait(
 	))
 }
 
+/// Returns the x value where both functions intersect
+///
+/// `fee_func` is a piecewise linear function while `line` is a straight line
+/// and takes the one of fee_func's indexes as argument.
+///
+/// Returns `None` if there is no intersection within `fee_func`s domain, which
+/// indicates a lack of capacity.
+fn find_intersection<LineFunc>(fee_func: Interpolate, line: LineFunc) -> Option<Rational>
+where
+	LineFunc: Fn(usize) -> Rational,
+{
+	let mut i = 0;
+	let mut y = fee_func.y_list[i].clone();
+	let compare = if y < line(i) { |x, y| -> bool { x < y } } else { |x, y| -> bool { x > y } };
+	while compare(y, line(i)) {
+		i += 1;
+		if i == fee_func.x_list.len() {
+			return None
+		}
+		y = fee_func.y_list[i].clone()
+	}
+
+	let x1 = fee_func.x_list[i - 1].clone();
+	let x2 = fee_func.x_list[i].clone();
+	let yf1 = fee_func.y_list[i - 1].clone();
+	let yf2 = fee_func.y_list[i].clone();
+	let yl1 = line(i - 1);
+	let yl2 = line(i);
+
+	Some((yl1.clone() - yf1.clone()) * (x2 - x1.clone()) / ((yf2 - yf1) - (yl2 - yl1)) + x1)
+}
+
 /// Return the amount after fees are taken.
 fn get_amount_without_fees(
-	_amount_with_fees: TokenAmount,
+	amount_with_fees: TokenAmount,
 	channel_in: &ChannelState,
 	channel_out: &ChannelState,
-) -> Result<Option<TokenAmount>, String> {
+) -> Result<TokenAmount, String> {
 	let balance_in = views::channel_balance(&channel_in.our_state, &channel_in.partner_state);
-	let _balance_out = views::channel_balance(&channel_out.our_state, &channel_out.partner_state);
-	let _receivable =
+	let balance_out = views::channel_balance(&channel_out.our_state, &channel_out.partner_state);
+	let receivable =
 		channel_in.our_total_deposit() + channel_in.partner_total_deposit() - balance_in;
 
 	if channel_in.fee_schedule.cap_fees != channel_out.fee_schedule.cap_fees {
@@ -136,23 +182,32 @@ fn get_amount_without_fees(
 		)
 	}
 
-	// TODO
-	// let fee_func = FeeScheduleState::mediation_fee_func()?;
-	// let amount_with_fees = find_intersection();
-	let amount_with_fees = TokenAmount::zero();
-
-	Ok(Some(amount_with_fees))
+	let fee_func = FeeScheduleState::mediation_fee_func(
+		channel_in.fee_schedule.clone(),
+		channel_out.fee_schedule.clone(),
+		balance_in,
+		balance_out,
+		receivable,
+		Some(amount_with_fees),
+		None,
+		channel_in.fee_schedule.cap_fees,
+	)?;
+	let amount_with_fees = Rational::from(amount_with_fees.as_u128());
+	if let Some(amount_without_fees) = find_intersection(fee_func.clone(), |i| {
+		amount_with_fees.clone() - fee_func.x_list[i].clone()
+	}) {
+		let amount_without_fees = TokenAmount::from(
+			amount_without_fees
+				.to_u128()
+				.ok_or("Could not convert rational to u128".to_owned())?,
+		);
+		Ok(amount_without_fees)
+	} else {
+		Err("Undefined mediation fee".to_owned())
+	}
 }
 
 /// Given a payer transfer tries the given route to proceed with the mediation.
-///
-/// Args:
-///     payer_transfer: The transfer received from the payer_channel.
-///     channelidentifiers_to_channels: All the channels available for this
-///         transfer.
-///
-///     pseudo_random_generator: Number generator to generate a message id.
-///     block_number: The current block number.
 fn forward_transfer_pair(
 	chain_state: &mut ChainState,
 	payer_transfer: &LockedTransferState,
@@ -160,15 +215,8 @@ fn forward_transfer_pair(
 	mut payee_channel: ChannelState,
 	block_number: BlockNumber,
 ) -> Result<(Option<MediationPairState>, Vec<Event>), String> {
-	let amount_after_fees = match get_amount_without_fees(
-		payer_transfer.lock.amount,
-		&payer_channel,
-		&payee_channel,
-	)? {
-		Some(amount) => amount,
-		None => return Ok((None, vec![])),
-	};
-
+	let amount_after_fees =
+		get_amount_without_fees(payer_transfer.lock.amount, &payer_channel, &payee_channel)?;
 	let lock_timeout = payer_transfer.lock.expiration - block_number;
 	let safe_to_use_channel =
 		payee_channel.is_usable_for_mediation(amount_after_fees, lock_timeout);
@@ -249,8 +297,7 @@ fn mediate_transfer(
 		our_address,
 	);
 
-	let default_token_network_address =
-		payer_channel.canonical_identifier.token_network_address.clone();
+	let default_token_network_address = payer_channel.canonical_identifier.token_network_address;
 	for route_state in candidate_route_states {
 		let next_hop = match route_state.hop_after(our_address) {
 			Some(next_hop) => next_hop,
@@ -301,12 +348,13 @@ fn mediate_transfer(
 ///   perspective the secret is not there yet.
 fn has_secret_registration_started(
 	channel_states: Vec<&ChannelState>,
-	transfers_pair: &Vec<MediationPairState>,
+	transfers_pair: &[MediationPairState],
 	secrethash: SecretHash,
 ) -> bool {
 	let is_secret_registered_onchain = channel_states
 		.iter()
 		.any(|channel_state| channel_state.partner_state.secret_known_onchain(secrethash));
+
 	let has_pending_transaction = transfers_pair
 		.iter()
 		.any(|pair| pair.payer_state == PayerState::WaitingSecretReveal);
@@ -314,6 +362,10 @@ fn has_secret_registration_started(
 	is_secret_registered_onchain || has_pending_transaction
 }
 
+/// Clear the channels which have expired locks.
+///
+/// This only considers the *sent* transfers, received transfers can only be
+/// updated by the partner.
 fn events_to_remove_expired_locks(
 	chain_state: &mut ChainState,
 	mediator_state: &mut MediatorTransferState,
@@ -321,7 +373,7 @@ fn events_to_remove_expired_locks(
 ) -> Result<Vec<Event>, String> {
 	let mut events = vec![];
 
-	if mediator_state.transfers_pair.len() == 0 {
+	if mediator_state.transfers_pair.is_empty() {
 		return Ok(events)
 	}
 
@@ -374,9 +426,7 @@ fn events_to_remove_expired_locks(
 					payee_address_metadata,
 				)?;
 				utils::update_channel(chain_state, channel_state)?;
-				events.extend(
-					expired_lock_events.into_iter().map(|event| Event::SendLockExpired(event)),
-				);
+				events.extend(expired_lock_events.into_iter().map(Event::SendLockExpired));
 				events.push(
 					ErrorUnlockFailed {
 						identifier: transfer_pair.payee_transfer.payment_identifier,
@@ -401,7 +451,7 @@ fn events_to_remove_expired_locks(
 /// This node is named N, suppose there is a mediated transfer with two refund
 /// transfers, one from B and one from C:
 ///
-///     A-N-B...B-N-C..C-N-D
+/// A-N-B...B-N-C..C-N-D
 ///
 /// Under normal operation N will first learn the secret from D, then reveal to
 /// C, wait for C to inform the secret is known before revealing it to B, and
@@ -415,7 +465,7 @@ fn events_to_remove_expired_locks(
 /// If the proof doesn't arrive in time and the lock's expiration is at risk, N
 /// won't lose tokens since it knows the secret can go on-chain at any time.
 fn events_for_secret_reveal(
-	transfers_pair: &mut Vec<MediationPairState>,
+	transfers_pair: &mut [MediationPairState],
 	secret: Secret,
 	pseudo_random_number_generator: &mut Random,
 ) -> Vec<Event> {
@@ -443,7 +493,7 @@ fn events_for_secret_reveal(
 					message_identifier,
 				},
 				secret: secret.clone(),
-				secrethash: SecretHash::from_slice(&keccak256(&secret.0)),
+				secrethash: SecretHash::from_slice(&hash_secret(&secret.0)),
 			};
 			events.push(reveal_secret.into());
 		}
@@ -452,9 +502,10 @@ fn events_for_secret_reveal(
 	events
 }
 
+/// Returns a list of events to send unlock While it's safe do the off-chain unlock."""
 fn events_for_balance_proof(
 	chain_state: &mut ChainState,
-	transfers_pair: &mut Vec<MediationPairState>,
+	transfers_pair: &mut [MediationPairState],
 	secret: Secret,
 	secrethash: SecretHash,
 ) -> Vec<Event> {
@@ -535,9 +586,19 @@ fn events_for_balance_proof(
 	events
 }
 
+/// Register the secret on-chain if the payer channel is already closed and
+/// the mediator learned the secret off-chain.
+///
+/// Balance proofs are not exchanged for closed channels, so there is no reason
+/// to wait for the unsafe region to register secret.
+///
+/// Note:
+///
+/// If the secret is learned before the channel is closed, then the channel
+/// will register the secrets in bulk, not the transfer.
 fn events_for_onchain_secretreveal_if_closed(
 	chain_state: &ChainState,
-	transfers_pair: &mut Vec<MediationPairState>,
+	transfers_pair: &mut [MediationPairState],
 	secret: Secret,
 	secrethash: SecretHash,
 	block_hash: BlockHash,
@@ -594,9 +655,11 @@ fn events_for_onchain_secretreveal_if_closed(
 	events
 }
 
+/// Reveal the secret on-chain if the lock enters the unsafe region and the
+/// secret is not yet on-chain.
 fn events_for_onchain_secretreveal_if_dangerzone(
 	chain_state: &ChainState,
-	transfers_pair: &mut Vec<MediationPairState>,
+	transfers_pair: &mut [MediationPairState],
 	secrethash: SecretHash,
 	block_number: BlockNumber,
 	block_hash: BlockHash,
@@ -667,9 +730,10 @@ fn events_for_onchain_secretreveal_if_dangerzone(
 	Ok(events)
 }
 
+/// Informational events for expired locks.
 fn events_for_expired_pairs(
 	chain_state: &ChainState,
-	transfers_pair: &mut Vec<MediationPairState>,
+	transfers_pair: &mut [MediationPairState],
 	waiting_transfer: &mut Option<WaitingTransferState>,
 	block_number: BlockNumber,
 ) -> Vec<Event> {
@@ -689,7 +753,7 @@ fn events_for_expired_pairs(
 		};
 		let has_payer_transfer_expired = channel::validators::is_transfer_expired(
 			&pair.payer_transfer,
-			&payer_channel,
+			payer_channel,
 			block_number,
 		);
 
@@ -726,6 +790,7 @@ fn events_for_expired_pairs(
 	events
 }
 
+/// Set the secret to all mediated transfers.
 fn set_offchain_secret(
 	chain_state: &mut ChainState,
 	mediator_state: &mut MediatorTransferState,
@@ -735,18 +800,16 @@ fn set_offchain_secret(
 	mediator_state.secret = Some(secret.clone());
 
 	for pair in &mediator_state.transfers_pair {
-		if let Some(payer_channel) = get_channel(
-			&chain_state,
-			pair.payer_transfer.balance_proof.canonical_identifier.clone(),
-		) {
+		if let Some(payer_channel) =
+			get_channel(chain_state, pair.payer_transfer.balance_proof.canonical_identifier.clone())
+		{
 			let mut payer_channel = payer_channel.clone();
 			channel::register_offchain_secret(&mut payer_channel, secret.clone(), secrethash);
 			let _ = update_channel(chain_state, payer_channel);
 		}
-		if let Some(payee_channel) = get_channel(
-			&chain_state,
-			pair.payee_transfer.balance_proof.canonical_identifier.clone(),
-		) {
+		if let Some(payee_channel) =
+			get_channel(chain_state, pair.payee_transfer.balance_proof.canonical_identifier.clone())
+		{
 			let mut payee_channel = payee_channel.clone();
 			channel::register_offchain_secret(&mut payee_channel, secret.clone(), secrethash);
 			let _ = update_channel(chain_state, payee_channel);
@@ -781,6 +844,7 @@ fn set_offchain_secret(
 	vec![]
 }
 
+/// Set the state of a transfer *sent* to a payee.
 fn set_offchain_reveal_state(transfers_pair: &mut Vec<MediationPairState>, payee_address: Address) {
 	for pair in transfers_pair {
 		if pair.payee_address == payee_address {
@@ -801,10 +865,9 @@ fn set_onchain_secret(
 	mediator_state.secret = Some(secret.clone());
 
 	for pair in &mediator_state.transfers_pair {
-		if let Some(payer_channel) = get_channel(
-			&chain_state,
-			pair.payer_transfer.balance_proof.canonical_identifier.clone(),
-		) {
+		if let Some(payer_channel) =
+			get_channel(chain_state, pair.payer_transfer.balance_proof.canonical_identifier.clone())
+		{
 			let mut payer_channel = payer_channel.clone();
 			channel::register_onchain_secret(
 				&mut payer_channel,
@@ -815,10 +878,9 @@ fn set_onchain_secret(
 			);
 			let _ = update_channel(chain_state, payer_channel);
 		}
-		if let Some(payee_channel) = get_channel(
-			&chain_state,
-			pair.payee_transfer.balance_proof.canonical_identifier.clone(),
-		) {
+		if let Some(payee_channel) =
+			get_channel(chain_state, pair.payee_transfer.balance_proof.canonical_identifier.clone())
+		{
 			let mut payee_channel = payee_channel.clone();
 			channel::register_onchain_secret(
 				&mut payee_channel,
@@ -860,6 +922,8 @@ fn set_onchain_secret(
 	vec![]
 }
 
+/// Unlock the payee lock, reveal the lock to the payer, and if necessary
+/// register the secret on-chain.
 fn secret_learned(
 	mut chain_state: ChainState,
 	mut mediator_state: MediatorTransferState,
@@ -902,6 +966,8 @@ fn secret_learned(
 	Ok(MediatorTransition { new_state: Some(mediator_state), chain_state, events })
 }
 
+/// After Raiden learns about a new block this function must be called to
+/// handle expiration of the hash time locks.
 fn handle_block(
 	chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,
@@ -928,7 +994,7 @@ fn handle_block(
 			let mediation_attempt = mediate_transfer(
 				new_chain_state.clone(),
 				new_mediator_state.clone(),
-				&payer_channel,
+				payer_channel,
 				waiting_transfer.transfer,
 				state_change.block_number,
 			)?;
@@ -936,15 +1002,12 @@ fn handle_block(
 			if let Some(mut mediator_state) = mediation_attempt.new_state {
 				events.extend(mediation_attempt.events);
 
-				let mediation_happened = events
-					.iter()
-					.find(|event| {
-						if let Event::SendLockedTransfer(e) = event {
-							return e.transfer.lock.secrethash == secrethash
-						}
-						false
-					})
-					.is_some();
+				let mediation_happened = events.iter().any(|event| {
+					if let Event::SendLockedTransfer(e) = event {
+						return e.transfer.lock.secrethash == secrethash
+					}
+					false
+				});
 				if mediation_happened {
 					mediator_state.waiting_transfer = None;
 				}
@@ -986,6 +1049,7 @@ fn handle_block(
 	})
 }
 
+/// Handle a newly received mediated transfer.
 fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) -> TransitionResult {
 	let from_transfer = state_change.from_transfer;
 	let mut payer_channel =
@@ -1008,16 +1072,22 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
 		Some(sender) => views::get_address_metadata(sender, from_transfer.route_states.clone()),
 		None => None,
 	};
-	if let Ok(locked_transfer_event) = channel::handle_receive_locked_transfer(
+	match channel::handle_receive_locked_transfer(
 		&mut payer_channel,
 		from_transfer.clone(),
 		payer_address_metadata,
 	) {
-		utils::update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
-		events.push(locked_transfer_event);
-	} else {
-		return Ok(MediatorTransition { new_state: None, chain_state, events: vec![] })
-	}
+		Ok(locked_transfer_event) => {
+			utils::update_channel(&mut chain_state, payer_channel.clone()).map_err(Into::into)?;
+			events.push(locked_transfer_event);
+		},
+		Err((_error, locked_transfer_error_events)) =>
+			return Ok(MediatorTransition {
+				new_state: Some(mediator_state),
+				chain_state,
+				events: locked_transfer_error_events,
+			}),
+	};
 
 	let block_number = chain_state.block_number;
 	let iteration =
@@ -1040,11 +1110,6 @@ fn handle_init(mut chain_state: ChainState, state_change: ActionInitMediator) ->
 /// In the above scenario B has two pairs of payer and payee transfers:
 ///     payer:A payee:C from the first SendLockedTransfer
 ///     payer:C payee:D from the following SendRefundTransfer
-/// Args:
-///     mediator_state: Current mediator_state.
-///     mediator_state_change: The mediator_state change.
-/// Returns:
-///     TransitionResult: The resulting iteration.
 fn handle_refund_transfer(
 	mut chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,
@@ -1066,7 +1131,7 @@ fn handle_refund_transfer(
 		})
 	}
 
-	if mediator_state.transfers_pair.len() == 0 {
+	if mediator_state.transfers_pair.is_empty() {
 		return Ok(MediatorTransition {
 			new_state: Some(mediator_state),
 			chain_state,
@@ -1125,6 +1190,7 @@ fn handle_refund_transfer(
 	})
 }
 
+/// Handles the secret reveal and sends SendUnlock/RevealSecret if necessary.
 fn handle_offchain_secret_reveal(
 	chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,
@@ -1139,7 +1205,7 @@ fn handle_offchain_secret_reveal(
 	};
 
 	let is_valid = utils::is_valid_secret_reveal(&state_change, mediator_state.secrethash);
-	let is_secret_known = mediator_state.secret.is_none();
+	let is_secret_unknown = mediator_state.secret.is_none();
 
 	if mediator_state.transfers_pair.is_empty() {
 		// This will not happen during normal operation, but attackers might
@@ -1168,12 +1234,12 @@ fn handle_offchain_secret_reveal(
 	};
 
 	let has_payer_transfer_expired = channel::validators::is_transfer_expired(
-		&payer_transfer,
+		payer_transfer,
 		payer_channel,
 		chain_state.block_number,
 	);
 
-	if is_secret_known && is_valid && !has_payer_transfer_expired {
+	if is_secret_unknown && is_valid && !has_payer_transfer_expired {
 		return secret_learned(
 			chain_state,
 			mediator_state,
@@ -1186,6 +1252,8 @@ fn handle_offchain_secret_reveal(
 	Ok(MediatorTransition { new_state: Some(mediator_state), chain_state, events: vec![] })
 }
 
+/// The secret was revealed on-chain, set the state of all transfers to
+/// secret known.
 fn handle_onchain_secret_reveal(
 	mut chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,
@@ -1228,6 +1296,7 @@ fn handle_onchain_secret_reveal(
 	Ok(MediatorTransition { new_state: Some(mediator_state), chain_state, events })
 }
 
+/// Handle a `ReceiveUnlock` state change.
 fn handle_unlock(
 	mut chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,
@@ -1246,9 +1315,9 @@ fn handle_unlock(
 		.balance_proof
 		.sender
 		.ok_or("Sender should be set".to_owned().into())?;
-	let canonical_identifier = state_change.balance_proof.canonical_identifier.clone();
+	let canonical_identifier = &state_change.balance_proof.canonical_identifier;
 
-	for mut pair in mediator_state.transfers_pair.iter_mut() {
+	for pair in mediator_state.transfers_pair.iter_mut() {
 		if pair.payer_transfer.balance_proof.sender == Some(balance_proof_sender) {
 			if let Some(channel_state) = get_channel(&chain_state, canonical_identifier.clone()) {
 				let recipient_metadata = views::get_address_metadata(
@@ -1256,24 +1325,30 @@ fn handle_unlock(
 					mediator_state.routes.clone(),
 				);
 				let mut channel_state = channel_state.clone();
-				if let Ok(handle_unlock_events) = channel::handle_unlock(
+
+				match channel::handle_unlock(
 					&mut channel_state,
 					state_change.clone(),
 					recipient_metadata,
 				) {
-					let _ = update_channel(&mut chain_state, channel_state);
+					Ok(handle_unlock_events) => {
+						let _ = update_channel(&mut chain_state, channel_state);
 
-					events.push(handle_unlock_events);
+						events.push(handle_unlock_events);
 
-					events.push(
-						UnlockClaimSuccess {
-							identifier: pair.payee_transfer.payment_identifier,
-							secrethash: pair.payee_transfer.lock.secrethash,
-						}
-						.into(),
-					);
+						events.push(
+							UnlockClaimSuccess {
+								identifier: pair.payee_transfer.payment_identifier,
+								secrethash: pair.payee_transfer.lock.secrethash,
+							}
+							.into(),
+						);
 
-					pair.payer_state = PayerState::BalanceProof;
+						pair.payer_state = PayerState::BalanceProof;
+					},
+					Err((_, event)) => {
+						events.push(event);
+					},
 				}
 			}
 		}
@@ -1282,6 +1357,7 @@ fn handle_unlock(
 	Ok(MediatorTransition { new_state: Some(mediator_state), chain_state, events })
 }
 
+/// Handle `ReceiveLockExpired` state change.
 fn handle_lock_expired(
 	mut chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,
@@ -1321,8 +1397,8 @@ fn handle_lock_expired(
 		)?;
 		events.extend(result.events);
 		if let Some(channel_state) = result.new_state {
-			if !channel::views::get_lock(&channel_state.partner_state, mediator_state.secrethash)
-				.is_none()
+			if channel::views::get_lock(&channel_state.partner_state, mediator_state.secrethash)
+				.is_some()
 			{
 				transfer_pair.payer_state = PayerState::Expired;
 			}
@@ -1355,6 +1431,11 @@ fn handle_lock_expired(
 	Ok(MediatorTransition { new_state: Some(mediator_state), chain_state, events })
 }
 
+/// Clear the mediator task if all the locks have been finalized.
+///
+/// A lock is considered finalized if it has been removed from the pending locks
+/// offchain, either because the transfer was unlocked or expired, or because the
+/// channel was settled on chain and therefore the channel is removed.
 pub fn clear_if_finalized(transition: MediatorTransition) -> MediatorTransition {
 	let new_state = match transition.new_state {
 		Some(ref new_state) => new_state,
@@ -1404,6 +1485,7 @@ pub fn clear_if_finalized(transition: MediatorTransition) -> MediatorTransition 
 	}
 }
 
+/// Check invariants that must hold.
 fn sanity_check(transition: MediatorTransition) -> TransitionResult {
 	let mediator_state = match transition.new_state {
 		Some(ref state) => state,
@@ -1413,23 +1495,21 @@ fn sanity_check(transition: MediatorTransition) -> TransitionResult {
 	if mediator_state
 		.transfers_pair
 		.iter()
-		.any(|pair| PAYEE_STATE_TRANSFER_PAID.contains(&pair.payee_state))
+		.any(|pair| PAYEE_STATE_TRANSFER_PAID.contains(&pair.payee_state)) &&
+		mediator_state.secret.is_none()
 	{
-		if mediator_state.secret.is_none() {
-			return Err("Mediator state must have secret".to_owned().into())
-		}
+		return Err("Mediator state must have secret".to_owned().into())
 	}
 	if mediator_state
 		.transfers_pair
 		.iter()
-		.any(|pair| PAYER_STATE_TRANSFER_PAID.contains(&pair.payer_state))
+		.any(|pair| PAYER_STATE_TRANSFER_PAID.contains(&pair.payer_state)) &&
+		mediator_state.secret.is_none()
 	{
-		if mediator_state.secret.is_none() {
-			return Err("Mediator state must have secret".to_owned().into())
-		}
+		return Err("Mediator state must have secret".to_owned().into())
 	}
 
-	if mediator_state.transfers_pair.len() > 0 {
+	if !mediator_state.transfers_pair.is_empty() {
 		let first_pair = &mediator_state.transfers_pair[0];
 		if mediator_state.secrethash != first_pair.payer_transfer.lock.secrethash {
 			return Err("Secret hash mismatch".to_owned().into())
@@ -1456,7 +1536,7 @@ fn sanity_check(transition: MediatorTransition) -> TransitionResult {
 		let transfer_sent = &original.payee_transfer;
 		let transfer_received = &refund.payer_transfer;
 
-		if !is_send_transfer_almost_equal(&transfer_sent, &transfer_received) {
+		if !is_send_transfer_almost_equal(transfer_sent, transfer_received) {
 			return Err("Payee and payer transfers are too different (refund)".to_owned().into())
 		}
 	}
@@ -1470,7 +1550,7 @@ fn sanity_check(transition: MediatorTransition) -> TransitionResult {
 		let transfer_sent = &last_transfer_pair.payee_transfer;
 		let transfer_received = &waiting_transfer.transfer;
 
-		if !is_send_transfer_almost_equal(&transfer_sent, &transfer_received) {
+		if !is_send_transfer_almost_equal(transfer_sent, transfer_received) {
 			return Err("Payee and payer transfers are too different (waiting transfer)"
 				.to_owned()
 				.into())
@@ -1480,6 +1560,7 @@ fn sanity_check(transition: MediatorTransition) -> TransitionResult {
 	Ok(transition)
 }
 
+/// Update mediator state based on the provided `state_change`.
 pub fn state_transition(
 	chain_state: ChainState,
 	mediator_state: Option<MediatorTransferState>,

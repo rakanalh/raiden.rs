@@ -1,23 +1,26 @@
-use std::{
-	collections::HashMap,
-	str::FromStr,
-};
+use std::collections::HashMap;
 
-use chrono::{
-	DateTime,
-	Utc,
-};
+use chrono::Utc;
 use derive_more::Display;
-use raiden_primitives::types::{
-	Address,
-	BlockExpiration,
-	BlockNumber,
-	ChainID,
-	OneToNAddress,
-	TokenAmount,
-	TokenNetworkAddress,
-	TokenNetworkRegistryAddress,
-	H256,
+use raiden_primitives::{
+	deserializers::u256_from_str,
+	serializers::u256_to_str,
+	traits::{
+		Checksum,
+		Stringify,
+		ToBytes,
+	},
+	types::{
+		Address,
+		AddressMetadata,
+		BlockExpiration,
+		BlockNumber,
+		Bytes,
+		ChainID,
+		OneToNAddress,
+		TokenAmount,
+		TokenNetworkAddress,
+	},
 };
 use rand::prelude::SliceRandom;
 use reqwest::Url;
@@ -26,7 +29,13 @@ use serde::{
 	Serialize,
 };
 use thiserror::Error;
-use tokio::sync::Mutex;
+use tokio::{
+	sync::Mutex,
+	time::{
+		self,
+		Duration,
+	},
+};
 use web3::{
 	signing::{
 		Key,
@@ -36,7 +45,6 @@ use web3::{
 };
 
 pub mod config;
-pub mod iou;
 pub mod routing;
 pub mod types;
 
@@ -46,9 +54,12 @@ use raiden_blockchain::{
 		ProxyError,
 		ServiceRegistryProxy,
 	},
-	signature::SignatureUtils,
 };
-use raiden_state_machine::types::AddressMetadata;
+use tracing::{
+	debug,
+	info,
+	trace,
+};
 
 use crate::{
 	config::{
@@ -56,12 +67,15 @@ use crate::{
 		PFSInfo,
 		ServicesConfig,
 	},
-	iou::IOU,
-	types::RoutingMode,
+	types::{
+		RoutingMode,
+		IOU,
+	},
 };
 
 const MAX_PATHS_QUERY_ATTEMPT: usize = 2;
 
+/// The routing error type.
 #[derive(Error, Display, Debug)]
 pub enum RoutingError {
 	#[display(fmt = "Token network does not exist")]
@@ -76,7 +90,7 @@ pub enum RoutingError {
 	NoUsableChannels,
 	#[display(fmt = "Malformed matrix server for Pathfinding service")]
 	MalformedMatrixUrl,
-	#[display(fmt = "Failed to sign IOU")]
+	#[display(fmt = "Failed to sign IOU: {:?}", _0)]
 	Signing(SigningError),
 	#[display(fmt = "Service registry error: {}", _0)]
 	ServiceRegistry(ProxyError),
@@ -86,48 +100,62 @@ pub enum RoutingError {
 	NoPathFindingServiceFound,
 }
 
-#[derive(Clone, Serialize)]
+/// Pathfinding route request.
+#[derive(Clone, Debug, Serialize)]
 pub struct PFSRequest {
-	from: Address,
-	to: Address,
+	from: String,
+	to: String,
+	#[serde(serialize_with = "u256_to_str")]
 	value: TokenAmount,
 	max_paths: usize,
 	iou: Option<IOU>,
 }
 
-#[derive(Deserialize)]
-pub struct PFSNetworkInfo {
-	chain_id: ChainID,
-	token_network_registry_address: TokenNetworkRegistryAddress,
-	user_deposit_address: Address,
-	confirmed_block_number: BlockNumber,
-}
-
-#[derive(Deserialize)]
+/// Pathfinding route.
+#[derive(Debug, Deserialize)]
 pub struct PFSPath {
-	pub nodes: Vec<Address>,
+	pub path: Vec<Address>,
 	pub address_metadata: HashMap<Address, AddressMetadata>,
+	#[serde(deserialize_with = "u256_from_str")]
 	pub estimated_fee: TokenAmount,
 }
 
-#[derive(Deserialize)]
+/// Pathfinding response.
+#[derive(Debug, Deserialize)]
 pub struct PFSPathsResponse {
 	feedback_token: String,
 	result: Vec<PFSPath>,
 }
 
+/// Pathfinding error response.
+#[derive(Debug, Deserialize)]
+pub struct PFSErrorResponse {
+	#[serde(rename = "errors")]
+	msg: String,
+}
+
+/// Last IOU response.
+#[derive(Debug, Deserialize)]
+pub struct PFSLastIOUResponse {
+	last_iou: IOU,
+}
+
+/// Pathfinding service.
 pub struct PFS {
 	chain_id: ChainID,
-	pfs_config: PFSConfig,
+	pub config: PFSConfig,
 	private_key: PrivateKey,
 	iou_creation: Mutex<()>,
 }
 
 impl PFS {
-	pub fn new(chain_id: ChainID, pfs_config: PFSConfig, private_key: PrivateKey) -> Self {
-		Self { chain_id, pfs_config, private_key, iou_creation: Mutex::new(()) }
+	/// Return an instance of `PFS`.
+	pub fn new(chain_id: ChainID, config: PFSConfig, private_key: PrivateKey) -> Self {
+		Self { chain_id, config, private_key, iou_creation: Mutex::new(()) }
 	}
 
+	/// Query for routes.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn query_paths(
 		&self,
 		our_address: Address,
@@ -139,24 +167,33 @@ impl PFS {
 		value: TokenAmount,
 		pfs_wait_for_block: BlockNumber,
 	) -> Result<(Vec<PFSPath>, String), RoutingError> {
+		let offered_fee = self.config.info.price;
+		info!(
+			message = "Query PFS for paths",
+			route_from = route_from.checksum(),
+			route_to = route_to.checksum(),
+			offered_fee = offered_fee.to_string(),
+			value = value.to_string(),
+		);
 		let mut payload = PFSRequest {
-			from: route_from,
-			to: route_to,
-			max_paths: self.pfs_config.max_paths,
+			from: route_from.checksum(),
+			to: route_to.checksum(),
+			max_paths: self.config.max_paths,
 			iou: None,
 			value,
 		};
-		let offered_fee = self.pfs_config.info.price;
 
 		let mut current_info = self.get_pfs_info().await?;
 		while current_info.network.confirmed_block.number < pfs_wait_for_block {
-			tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+			time::sleep(Duration::from_millis(500)).await;
 			current_info = self.get_pfs_info().await?;
 		}
 
+		// Lock IOU creation until we have updated the current active IOU on the PFS
+		let lock = self.iou_creation.lock().await;
+
 		let scrap_existing_iou = false;
-		for _retries in (0..MAX_PATHS_QUERY_ATTEMPT).rev() {
-			let lock = self.iou_creation.lock().await;
+		for _ in (0..MAX_PATHS_QUERY_ATTEMPT).rev() {
 			if !offered_fee.is_zero() {
 				let iou = self
 					.create_current_iou(
@@ -168,45 +205,69 @@ impl PFS {
 						scrap_existing_iou,
 					)
 					.await?;
+
+				trace!(
+					message = "New IOU",
+					sender = iou.sender.checksum(),
+					receiver = iou.receiver.checksum(),
+					amount = iou.amount.to_string(),
+					expiration = iou.expiration_block.to_string()
+				);
 				payload.iou = Some(iou);
 			}
 
-			let response = self.post_pfs_paths(token_network_address, payload.clone()).await?;
-			drop(lock);
+			debug!(
+				message = "Requesting PFS paths",
+				token_network_address = token_network_address.checksum(),
+				route_from = route_from.checksum(),
+				route_to = route_to.checksum(),
+			);
 
-			return Ok((response.result, response.feedback_token))
+			if let Ok(response) = self.post_pfs_paths(token_network_address, payload.clone()).await
+			{
+				drop(lock);
+				return Ok((response.result, response.feedback_token))
+			}
 		}
 
 		Ok((vec![], String::new()))
 	}
 
+	/// Retrieve the service's information.
 	pub async fn get_pfs_info(&self) -> Result<PFSInfo, RoutingError> {
-		get_pfs_info(self.pfs_config.url.clone()).await
+		get_pfs_info(self.config.url.clone()).await
 	}
 
+	/// Submit a paths request.
 	pub async fn post_pfs_paths(
 		&self,
 		token_network_address: TokenNetworkAddress,
 		payload: PFSRequest,
 	) -> Result<PFSPathsResponse, RoutingError> {
 		let client = reqwest::Client::new();
-		let response: PFSPathsResponse = client
-			.post(format!("{}/api/v1/{}/paths", &self.pfs_config.url, token_network_address))
+		let token_network_address = token_network_address.checksum();
+		let response = client
+			.post(format!("{}/api/v1/{}/paths", &self.config.url, token_network_address))
 			.json(&payload)
 			.send()
 			.await
 			.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
-			})?
-			.json()
-			.await
-			.map_err(|e| {
-				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?;
 
-		Ok(response)
+		if response.status() == 200 {
+			Ok(response.json().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?)
+		} else {
+			let error_response: PFSErrorResponse = response.json().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?;
+			Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
+		}
 	}
 
+	/// Create an IOU.
 	pub async fn create_current_iou(
 		&self,
 		token_network_address: TokenNetworkAddress,
@@ -217,95 +278,76 @@ impl PFS {
 		scrap_existing_iou: bool,
 	) -> Result<IOU, RoutingError> {
 		if scrap_existing_iou {
+			trace!("Scrap existing IOU, create new...");
 			return self.make_iou(our_address, one_to_n_address, block_number, offered_fee).await
 		}
 
 		let latest_iou = self.get_last_iou(token_network_address, our_address).await?;
-
-		self.update_iou(latest_iou, offered_fee, None).await
+		if let Some(latest_iou) = latest_iou {
+			debug!(message = "Fetched last IOU", last_iou = latest_iou.to_string());
+			self.update_iou(latest_iou, offered_fee, None).await
+		} else {
+			self.make_iou(our_address, one_to_n_address, block_number, offered_fee).await
+		}
 	}
 
+	/// Get last known IOU from PFS.
 	pub async fn get_last_iou(
 		&self,
 		token_network_address: TokenNetworkAddress,
 		sender: Address,
-	) -> Result<IOU, RoutingError> {
-		let timestamp = Utc::now();
+	) -> Result<Option<IOU>, RoutingError> {
+		let timestamp = Utc::now().naive_local().format("%Y-%m-%dT%H:%M:%S").to_string();
+
 		let signature = self
-			.iou_signature_data(sender, self.pfs_config.info.payment_address, timestamp)
+			.iou_signature_data(sender, self.config.info.payment_address, timestamp.clone())
 			.map_err(RoutingError::Signing)?;
 
 		let client = reqwest::Client::new();
 		let response = client
 			.request(
 				reqwest::Method::GET,
-				format!("{}/api/v1/{}/payment/iou", self.pfs_config.url, token_network_address),
+				format!("{}/api/v1/{}/payment/iou", self.config.url, token_network_address),
 			)
 			.query(&[
-				("sender", sender.to_string()),
-				("receiver", self.pfs_config.info.payment_address.to_string()),
+				("sender", sender.checksum()),
+				("receiver", self.config.info.payment_address.checksum()),
 				("timestamp", timestamp.to_string()),
-				("signature", signature.to_string()),
+				("signature", signature.as_string()),
 			])
 			.send()
 			.await
 			.map_err(|e| {
 				RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e))
-			})?
-			.json::<HashMap<String, String>>()
-			.await
-			.map_err(|e| {
-				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 			})?;
 
-		let sender = Address::from_slice(
-			response.get("sender").ok_or(RoutingError::PFServiceInvalidResponse)?.as_bytes(),
-		);
-		let receiver = Address::from_slice(
-			response
-				.get("receiver")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes(),
-		);
-		let one_to_n_address = Address::from_slice(
-			response
-				.get("one_to_n_address")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes(),
-		);
-		let amount = TokenAmount::from_dec_str(
-			&response.get("amount").ok_or(RoutingError::PFServiceInvalidResponse)?,
-		)
-		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let expiration_block = BlockNumber::from_str(
-			response
-				.get("expiration_block")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_str(),
-		)
-		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let chain_id = ChainID::from_str(
-			response.get("chain_id").ok_or(RoutingError::PFServiceInvalidResponse)?.as_str(),
-		)
-		.map_err(|_| RoutingError::PFServiceInvalidResponse)?;
-		let signature = H256::from_slice(
-			response
-				.get("signature")
-				.ok_or(RoutingError::PFServiceInvalidResponse)?
-				.as_bytes(),
-		);
+		trace!(message = "PFS response", status = response.status().to_string());
 
-		Ok(IOU {
-			sender,
-			receiver,
-			one_to_n_address,
-			amount,
-			expiration_block,
-			chain_id,
-			signature: Some(signature),
-		})
+		let response: PFSLastIOUResponse = if response.status() == 200 {
+			response.json().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?
+		} else if response.status() == 404 {
+			return Ok(None)
+		} else {
+			let error_response: PFSErrorResponse = response.json().await.map_err(|e| {
+				RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+			})?;
+			return Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
+		};
+
+		Ok(Some(IOU {
+			sender: response.last_iou.sender,
+			receiver: response.last_iou.receiver,
+			one_to_n_address: response.last_iou.one_to_n_address,
+			amount: response.last_iou.amount,
+			expiration_block: response.last_iou.expiration_block,
+			chain_id: response.last_iou.chain_id,
+			signature: response.last_iou.signature,
+		}))
 	}
 
+	/// Create a new IOU.
 	pub async fn make_iou(
 		&self,
 		our_address: Address,
@@ -313,68 +355,88 @@ impl PFS {
 		block_number: BlockNumber,
 		offered_fee: TokenAmount,
 	) -> Result<IOU, RoutingError> {
-		let expiration_block = block_number + self.pfs_config.iou_timeout.into();
+		let expiration_block = block_number + self.config.iou_timeout;
+
+		debug!(
+			message = "Create IOU",
+			receiver = self.config.info.payment_address.checksum(),
+			amount = offered_fee.to_string(),
+			expiration = expiration_block.to_string()
+		);
 
 		let mut iou = IOU {
 			sender: our_address,
-			receiver: self.pfs_config.info.payment_address,
+			receiver: self.config.info.payment_address,
 			one_to_n_address,
 			amount: offered_fee,
 			expiration_block,
-			chain_id: self.chain_id.clone(),
+			chain_id: self.chain_id,
 			signature: None,
 		};
 		iou.sign(self.private_key.clone()).map_err(RoutingError::Signing)?;
 		Ok(iou)
 	}
 
+	/// Update and sign an existing IOU.
 	pub async fn update_iou(
 		&self,
 		mut iou: IOU,
 		added_amount: TokenAmount,
 		expiration_block: Option<BlockExpiration>,
 	) -> Result<IOU, RoutingError> {
-		iou.amount = iou.amount + added_amount;
+		let old_amount = iou.amount;
+		iou.amount += added_amount;
 		if let Some(expiration_block) = expiration_block {
 			iou.expiration_block = expiration_block;
 		}
+		debug!(
+			message = "Update IOU",
+			receiver = self.config.info.payment_address.checksum(),
+			old_amount = old_amount.to_string(),
+			new_amount = iou.amount.to_string(),
+			expiration = iou.expiration_block.to_string()
+		);
 		iou.sign(self.private_key.clone()).map_err(RoutingError::Signing)?;
 		Ok(iou)
 	}
 
+	/// Pack IOU signature data
 	fn iou_signature_data(
 		&self,
 		sender: Address,
 		receiver: Address,
-		timestamp: DateTime<Utc>,
-	) -> Result<H256, SigningError> {
-		let timestamp = format!("{}", timestamp.format("%+"));
-		let chain_id = self.chain_id.clone().into();
-
+		timestamp: String,
+	) -> Result<Bytes, SigningError> {
 		let mut data = vec![];
 		data.extend_from_slice(sender.as_bytes());
 		data.extend_from_slice(receiver.as_bytes());
 		data.extend_from_slice(timestamp.as_bytes());
-		Ok(self.private_key.sign(&data, Some(chain_id))?.to_h256())
+		Ok(Bytes(self.private_key.sign_message(&data)?.to_bytes()))
 	}
 }
 
+/// Get address metadata known to PFS>
 pub async fn query_address_metadata(
 	url: String,
 	address: Address,
 ) -> Result<AddressMetadata, RoutingError> {
-	let metadata = reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address))
+	let response = reqwest::get(format!("{}/api/v1/address/{}/metadata", url, address.checksum()))
 		.await
-		.map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?
-		.json::<AddressMetadata>()
-		.await
-		.map_err(|e| {
+		.map_err(|e| RoutingError::PFServiceRequestFailed(format!("Could not connect to {}", e)))?;
+
+	if response.status() == 200 {
+		Ok(response.json().await.map_err(|e| {
+			RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
+		})?)
+	} else {
+		let error_response: PFSErrorResponse = response.json().await.map_err(|e| {
 			RoutingError::PFServiceRequestFailed(format!("Malformed json in response: {}", e))
 		})?;
-
-	Ok(metadata)
+		Err(RoutingError::PFServiceRequestFailed(format!("{}", error_response.msg)))
+	}
 }
 
+/// Configure PFS
 pub async fn configure_pfs(
 	services_config: ServicesConfig,
 	service_registry: ServiceRegistryProxy<Http>,
@@ -392,6 +454,7 @@ pub async fn configure_pfs(
 	get_pfs_info(pfs_url).await
 }
 
+/// Get a random PFS from service registry.
 pub async fn get_random_pfs(
 	service_registry: ServiceRegistryProxy<Http>,
 	pathfinding_max_fee: TokenAmount,
@@ -399,8 +462,8 @@ pub async fn get_random_pfs(
 	let number_of_addresses = service_registry
 		.ever_made_deposits_len(None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
-	let mut indicies_to_try: Vec<u32> = (0..number_of_addresses.as_u32()).collect();
+		.map_err(RoutingError::ServiceRegistry)?;
+	let mut indicies_to_try: Vec<u64> = (0..number_of_addresses.as_u64()).collect();
 	indicies_to_try.shuffle(&mut rand::thread_rng());
 
 	while let Some(index) = indicies_to_try.pop() {
@@ -413,20 +476,21 @@ pub async fn get_random_pfs(
 	Err(RoutingError::NoPathFindingServiceFound)
 }
 
+/// Retrieve a valid PFS URL.
 async fn get_valid_pfs_url(
 	service_registry: ServiceRegistryProxy<Http>,
-	index_in_service_registry: u32,
+	index_in_service_registry: u64,
 	pathfinding_max_fee: TokenAmount,
 ) -> Result<String, RoutingError> {
 	let address = service_registry
 		.ever_made_deposits(index_in_service_registry, None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 
 	let has_valid_registration = !service_registry
 		.has_valid_registration(address, None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 
 	if !has_valid_registration {
 		return Err(RoutingError::PFServiceUnusable)
@@ -435,7 +499,7 @@ async fn get_valid_pfs_url(
 	let url = service_registry
 		.get_service_url(address, None)
 		.await
-		.map_err(|e| RoutingError::ServiceRegistry(e))?;
+		.map_err(RoutingError::ServiceRegistry)?;
 
 	let pfs_info = get_pfs_info(url.clone()).await?;
 	if pfs_info.price > pathfinding_max_fee {
@@ -445,6 +509,7 @@ async fn get_valid_pfs_url(
 	Ok(url)
 }
 
+/// Get PFS info.
 async fn get_pfs_info(url: String) -> Result<PFSInfo, RoutingError> {
 	let infos: PFSInfo = reqwest::get(format!("{}/api/v1/info", &url))
 		.await

@@ -9,15 +9,18 @@ use raiden_blockchain::{
 	},
 };
 use raiden_network_messages::messages::TransportServiceMessage;
-use raiden_pathfinding::config::PFSConfig;
+use raiden_pathfinding::{
+	config::PFSConfig,
+	PFS,
+};
 use raiden_primitives::types::{
-	Address,
-	ChainID,
-};
-use raiden_state_machine::types::{
 	AddressMetadata,
-	MediationFeeConfig,
+	ChainID,
+	DefaultAddresses,
+	RevealTimeout,
+	SettleTimeout,
 };
+use raiden_state_machine::types::MediationFeeConfig;
 use raiden_transition::manager::StateManager;
 use tokio::sync::mpsc::UnboundedSender;
 use web3::{
@@ -25,24 +28,22 @@ use web3::{
 	Web3,
 };
 
-#[derive(Clone)]
-pub struct DefaultAddresses {
-	pub token_network_registry: Address,
-	pub secret_registry: Address,
-	pub one_to_n: Address,
-}
-
+/// Configuration of Raiden's API.
 #[derive(Clone)]
 pub struct RaidenConfig {
 	pub chain_id: ChainID,
 	pub account: Account<Http>,
 	pub mediation_config: MediationFeeConfig,
+	pub monitoring_enabled: bool,
 	pub pfs_config: PFSConfig,
 	pub metadata: AddressMetadata,
 	/// Default addresses
 	pub addresses: DefaultAddresses,
+	pub default_settle_timeout: SettleTimeout,
+	pub default_reveal_timeout: RevealTimeout,
 }
 
+/// A Raiden instance which holds vital components for passing around.
 pub struct Raiden {
 	pub web3: Web3<Http>,
 	/// Raiden Configurations
@@ -55,4 +56,6 @@ pub struct Raiden {
 	pub state_manager: Arc<RwLock<StateManager>>,
 	/// Transport layer
 	pub transport: UnboundedSender<TransportServiceMessage>,
+	/// Pathfinding
+	pub pfs: Arc<PFS>,
 }

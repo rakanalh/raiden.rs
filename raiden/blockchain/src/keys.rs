@@ -19,14 +19,17 @@ use web3::signing::{
 	SigningError,
 };
 
+/// Encrypt bytes with the receiver's public key.
 pub fn encrypt(receiver_pub: &[u8], data: &[u8]) -> Result<Vec<u8>, SecpError> {
 	ecies::encrypt(receiver_pub, data)
 }
 
+/// Decrypts bytes using the current account's private key.
 pub fn decrypt(private_key: &PrivateKey, data: &[u8]) -> Result<Vec<u8>, SecpError> {
 	ecies::decrypt(private_key.plain.as_ref(), data)
 }
 
+/// A wrapper of `SecretKey` to use for signing.
 #[derive(Clone)]
 pub struct PrivateKey {
 	plain: Protected,
@@ -34,6 +37,7 @@ pub struct PrivateKey {
 }
 
 impl PrivateKey {
+	/// Creates a new instance of `PrivateKey`.
 	pub fn new(filename: String, password: String) -> Result<Self, String> {
 		let file = File::open(&filename)
 			.map_err(|e| format!("Could not open file {}: {}", filename, e))?;
@@ -54,6 +58,7 @@ impl PrivateKey {
 }
 
 impl Key for PrivateKey {
+	/// Signs bytes using the inner `SecretKey` with chain ID.
 	fn sign(&self, message: &[u8], chain_id: Option<u64>) -> Result<Signature, SigningError> {
 		let signature = self.inner.sign(message).map_err(|_| SigningError::InvalidMessage)?;
 
@@ -66,6 +71,7 @@ impl Key for PrivateKey {
 		Ok(Signature { r: H256::from(signature.r), s: H256::from(signature.s), v })
 	}
 
+	/// Signs message bytes using the inner `SecretKey`.
 	fn sign_message(&self, message: &[u8]) -> Result<Signature, SigningError> {
 		let data_hash = hash_data(message);
 		let signature = self.inner.sign(&data_hash).map_err(|_| SigningError::InvalidMessage)?;

@@ -15,7 +15,7 @@ impl ToHTTPEndpoint for str {
 	fn to_http(&self) -> Result<String, ParseError> {
 		let mut parsed = Url::parse(self)?;
 		match parsed.scheme() {
-			"http" | "https" => Ok(self.to_string().clone()),
+			"http" | "https" => Ok(self.to_string()),
 			_ => {
 				let _ = parsed.set_scheme("https");
 				Ok(parsed.as_str().to_string())
@@ -28,7 +28,7 @@ impl ToSocketEndpoint for str {
 	fn to_socket(&self) -> Result<String, ParseError> {
 		let mut parsed = Url::parse(self)?;
 		match parsed.scheme() {
-			"wss" => Ok(self.to_string().clone()),
+			"wss" => Ok(self.to_string()),
 			_ => {
 				let _ = parsed.set_scheme("ws");
 				Ok(parsed.as_str().to_string())

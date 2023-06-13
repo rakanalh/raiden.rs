@@ -1,35 +1,39 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::{
 	cmp::max,
 	ops::Mul,
 };
 
-use raiden_primitives::types::{
-	BalanceProofData,
-	BlockExpiration,
-	BlockNumber,
-	LockTimeout,
-	LockedAmount,
-	Nonce,
-	RevealTimeout,
-	SecretHash,
-	TokenAmount,
+use raiden_primitives::{
+	constants::LOCKSROOT_OF_NO_LOCKS,
+	types::{
+		BalanceProofData,
+		BlockExpiration,
+		BlockNumber,
+		LockTimeout,
+		LockedAmount,
+		Nonce,
+		RevealTimeout,
+		SecretHash,
+		TokenAmount,
+	},
 };
 
 use crate::{
-	constants::{
-		DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
-		LOCKSROOT_OF_NO_LOCKS,
-	},
+	constants::DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS,
 	types::{
 		ChannelEndState,
 		HashTimeLockState,
 	},
 };
 
+/// Returns the next usable nonce.
 pub(super) fn get_next_nonce(end_state: &ChannelEndState) -> Nonce {
 	end_state.nonce + 1
 }
 
+/// Returns the sender's total balance in the channel state..
 pub fn balance(
 	sender: &ChannelEndState,
 	receiver: &ChannelEndState,
@@ -49,7 +53,7 @@ pub fn balance(
 	let max_withdraw = max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw);
 	let withdraw = if subtract_withdraw { max_withdraw } else { TokenAmount::zero() };
 
-	sender.contract_balance - withdraw - sender_transferred_amount + receiver_transferred_amount
+	sender.contract_balance + receiver_transferred_amount - withdraw - sender_transferred_amount
 }
 
 /// Calculates the maximum "total_withdraw_amount" for a channel.
@@ -62,6 +66,7 @@ pub(super) fn get_max_withdraw_amount(
 	balance(sender_state, receiver_state, false)
 }
 
+/// Returns the number of blocks that is safe to wait for lock expiration.
 pub(crate) fn get_safe_initial_expiration(
 	block_number: BlockNumber,
 	reveal_timeout: RevealTimeout,
@@ -74,6 +79,7 @@ pub(crate) fn get_safe_initial_expiration(
 	block_number + (reveal_timeout * 2)
 }
 
+/// Returns the total amount locked of one side of the channel.
 pub(super) fn get_amount_locked(end_state: &ChannelEndState) -> LockedAmount {
 	let total_pending: TokenAmount = end_state
 		.secrethashes_to_lockedlocks
@@ -94,10 +100,11 @@ pub(super) fn get_amount_locked(end_state: &ChannelEndState) -> LockedAmount {
 	total_pending + total_unclaimed + total_unclaimed_onchain
 }
 
+/// Returns the latest balance proof of one side of the channel.
 pub(super) fn get_current_balance_proof(end_state: &ChannelEndState) -> BalanceProofData {
 	if let Some(balance_proof) = &end_state.balance_proof {
 		(
-			balance_proof.locksroot.clone(),
+			balance_proof.locksroot,
 			end_state.nonce,
 			balance_proof.transferred_amount,
 			get_amount_locked(end_state),
@@ -107,14 +114,17 @@ pub(super) fn get_current_balance_proof(end_state: &ChannelEndState) -> BalanceP
 	}
 }
 
+/// Returns the sender's expiration threshold.
 pub(crate) fn get_sender_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
 	expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.mul(2).into()
 }
 
+/// Returns the receiver's expiration threshold.
 pub(crate) fn get_receiver_expiration_threshold(expiration: BlockExpiration) -> BlockExpiration {
 	expiration + DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS.into()
 }
 
+/// Returns the lock for a secrethash.
 pub(crate) fn get_lock(
 	end_state: &ChannelEndState,
 	secrethash: SecretHash,

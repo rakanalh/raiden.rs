@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::collections::HashMap;
 
 use raiden_primitives::types::{
@@ -11,6 +13,7 @@ use crate::types::{
 	RouteState,
 };
 
+/// Filter out routes
 pub fn prune_route_table(
 	route_states: Vec<RouteState>,
 	selected_route: RouteState,
@@ -28,6 +31,7 @@ pub fn prune_route_table(
 		.collect()
 }
 
+/// Filter routes which are not blacklisted.
 pub fn filter_acceptable_routes(
 	route_states: Vec<RouteState>,
 	blacklisted_channel_ids: Vec<ChannelIdentifier>,

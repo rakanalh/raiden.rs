@@ -1,20 +1,24 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::{
 	deserializers::{
-		h256_from_str,
 		signature_from_str,
 		u256_from_str,
 		u64_from_str,
 	},
+	hashing::hash_balance_data,
+	packing::pack_balance_proof,
+	serializers::u256_to_str,
 	traits::ToBytes,
 	types::{
-		message_type::MessageTypeId,
 		Address,
 		BlockExpiration,
+		CanonicalIdentifier,
 		ChainID,
 		ChannelIdentifier,
+		LockedAmount,
 		Locksroot,
 		MessageIdentifier,
+		MessageTypeId,
 		PaymentIdentifier,
 		Secret,
 		SecretHash,
@@ -26,19 +30,12 @@ use raiden_primitives::{
 		U256,
 	},
 };
-use raiden_state_machine::{
-	machine::channel::utils::{
-		hash_balance_data,
-		pack_balance_proof,
-	},
-	types::{
-		CanonicalIdentifier,
-		SendLockExpired,
-		SendLockedTransfer,
-		SendSecretRequest,
-		SendSecretReveal,
-		SendUnlock,
-	},
+use raiden_state_machine::types::{
+	SendLockExpired,
+	SendLockedTransfer,
+	SendSecretRequest,
+	SendSecretReveal,
+	SendUnlock,
 };
 use serde::{
 	Deserialize,
@@ -62,14 +59,16 @@ use super::{
 	SignedMessage,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Requests the secret/preimage which unlocks a lock.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct SecretRequest {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub secrethash: SecretHash,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -109,20 +108,20 @@ impl SignedMessage for SecretRequest {
 		bytes
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
-	}
-
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Reveal the lock's secret.
+///
+/// This message is not sufficient to unlock a lock, refer to the Unlock.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename = "RevealSecret")]
 pub struct SecretReveal {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -150,32 +149,42 @@ impl SignedMessage for SecretReveal {
 		bytes
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
-	}
-
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
 		self.signature = self.sign_message(key)?.to_bytes().into();
 		Ok(())
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Message used when a lock expires.
+///
+/// This will complete an unsuccessful transfer off-chain.
+///
+/// For this message to be valid the balance proof has to be updated to:
+///
+/// - Remove the expired lock from the pending locks and reflect it in the locksroot.
+/// - Decrease the locked_amount by exactly by lock.amount. If less tokens are decreased the sender
+///   may get tokens locked. If more tokens are decreased the recipient will reject the message as
+///   on-chain unlocks may fail.
+/// This message is necessary for synchronization since other messages may be
+/// in-flight, vide Unlock for examples.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct LockExpired {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
+	#[serde(skip_serializing)]
 	pub recipient: Address,
 	pub secrethash: SecretHash,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -186,12 +195,12 @@ impl From<SendLockExpired> for LockExpired {
 	fn from(event: SendLockExpired) -> Self {
 		Self {
 			message_identifier: event.message_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			transferred_amount: event.balance_proof.transferred_amount,
 			locked_amount: event.balance_proof.locked_amount,
-			locksroot: event.balance_proof.locksroot.clone(),
+			locksroot: event.balance_proof.locksroot,
 			recipient: event.recipient,
 			secrethash: event.secrethash,
 			nonce: event.balance_proof.nonce,
@@ -203,8 +212,7 @@ impl From<SendLockExpired> for LockExpired {
 impl SignedMessage for LockExpired {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
-				.unwrap();
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot).unwrap();
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
@@ -217,10 +225,6 @@ impl SignedMessage for LockExpired {
 			MessageTypeId::BalanceProof,
 		)
 		.0
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -243,21 +247,48 @@ impl SignedEnvelopeMessage for LockExpired {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Message used to successfully unlock a lock.
+///
+/// For this message to be valid the balance proof has to be updated to:
+///
+/// - Remove the successful lock from the pending locks and decrement the locked_amount by the
+///   lock's amount, otherwise the sender will pay twice.
+/// - Increase the transferred_amount, otherwise the recipient will reject it because it is not
+///   being paid.
+/// This message is needed to unlock off-chain transfers for channels that used
+/// less frequently then the pending locks' expiration, otherwise the receiving
+/// end would have to go on-chain to register the secret.
+///
+/// This message is needed in addition to the RevealSecret to fix
+/// synchronization problems. The recipient can not preemptively update its
+/// channel state because there may other messages in-flight. Consider the
+/// following case:
+///
+/// 1. Node A sends a LockedTransfer to B.
+/// 2. Node B forwards and eventually receives the secret
+/// 3. Node A sends a second LockedTransfer to B.
+///
+/// At point 3, node A had no knowledge about the first payment having its
+/// secret revealed, therefore the pending locks from message at step 3 will
+/// include both locks. If B were to preemptively remove the lock it would
+/// reject the message.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Unlock {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -269,7 +300,7 @@ impl From<SendUnlock> for Unlock {
 		Self {
 			message_identifier: event.message_identifier,
 			payment_identifier: event.payment_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			transferred_amount: event.balance_proof.transferred_amount,
@@ -285,8 +316,7 @@ impl From<SendUnlock> for Unlock {
 impl SignedMessage for Unlock {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
-				.unwrap();
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot).unwrap();
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
@@ -299,10 +329,6 @@ impl SignedMessage for Unlock {
 			MessageTypeId::BalanceProof,
 		)
 		.0
-	}
-
-	fn bytes_to_pack(&self) -> Vec<u8> {
-		vec![]
 	}
 
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
@@ -318,7 +344,7 @@ impl SignedEnvelopeMessage for Unlock {
 		self.payment_identifier.to_big_endian(&mut payment_identifier);
 
 		let mut res: Vec<u8> = Vec::new();
-		res.push(CmdId::LockedTransfer as u8);
+		res.push(CmdId::Unlock as u8);
 		res.extend(&message_identifier);
 		res.extend(&payment_identifier);
 		res.extend(&self.secret.0.clone());
@@ -327,36 +353,54 @@ impl SignedEnvelopeMessage for Unlock {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// The lock datastructure.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Lock {
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub expiration: BlockExpiration,
 	pub secrethash: Option<SecretHash>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Message used to reserve tokens for a new mediated transfer.
+///
+/// For this message to be valid, the sender must:
+///
+/// - Use a lock.amount smaller then its current capacity. If the amount is higher, then the
+///   recipient will reject it, as it means spending money it does not own.
+/// - Have the new lock represented in locksroot.
+/// - Increase the locked_amount by exactly `lock.amount` otherwise the message would be rejected by
+///   the recipient. If the locked_amount is increased by more, then funds may get locked in the
+///   channel. If the locked_amount is increased by less, then the recipient will reject the message
+///   as it may mean it received the funds with an on-chain unlock.
+/// The initiator will estimate the fees based on the available routes and
+/// incorporate it in the lock's amount. Note that with permissive routing it
+/// is not possible to predetermine the exact fee amount, as the initiator does
+/// not know which nodes are available, thus an estimated value is used.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct LockedTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: ChannelIdentifier,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
+	#[serde(skip_serializing)]
 	pub recipient: Address,
 	pub lock: Lock,
 	pub target: Address,
 	pub initiator: Address,
 	pub metadata: Metadata,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	pub secret: Option<Secret>,
 	#[serde(deserialize_with = "signature_from_str")]
@@ -369,12 +413,12 @@ impl From<SendLockedTransfer> for LockedTransfer {
 		Self {
 			message_identifier: event.message_identifier,
 			payment_identifier: event.transfer.payment_identifier,
-			chain_id: event.canonical_identifier.chain_identifier.clone(),
+			chain_id: event.canonical_identifier.chain_identifier,
 			token_network_address: event.canonical_identifier.token_network_address,
 			channel_identifier: event.canonical_identifier.channel_identifier,
 			transferred_amount: event.transfer.balance_proof.transferred_amount,
 			locked_amount: event.transfer.balance_proof.locked_amount,
-			locksroot: event.transfer.balance_proof.locksroot.clone(),
+			locksroot: event.transfer.balance_proof.locksroot,
 			secret: event.transfer.secret.clone(),
 			nonce: event.transfer.balance_proof.nonce,
 			signature: Signature::default(),
@@ -395,8 +439,8 @@ impl From<SendLockedTransfer> for LockedTransfer {
 impl SignedMessage for LockedTransfer {
 	fn bytes_to_sign(&self) -> Vec<u8> {
 		let balance_hash =
-			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot.clone())
-				.unwrap();
+			hash_balance_data(self.transferred_amount, self.locked_amount, self.locksroot)
+				.expect("Balance hash should be generated");
 		pack_balance_proof(
 			self.nonce,
 			balance_hash,
@@ -411,7 +455,14 @@ impl SignedMessage for LockedTransfer {
 		.0
 	}
 
-	fn bytes_to_pack(&self) -> Vec<u8> {
+	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
+		self.signature = self.sign_message(key)?.to_bytes().into();
+		Ok(())
+	}
+}
+
+impl SignedEnvelopeMessage for LockedTransfer {
+	fn message_hash(&self) -> H256 {
 		let mut b = vec![];
 
 		let message_identifier = self.message_identifier.to_be_bytes();
@@ -430,46 +481,42 @@ impl SignedMessage for LockedTransfer {
 		if let Some(secrethash) = self.lock.secrethash {
 			b.extend(secrethash.as_bytes());
 		}
-		b.extend(encode(&[Token::Uint(self.lock.amount.into())]));
-		b
-	}
+		b.extend(encode(&[Token::Uint(self.lock.amount)]));
+		b.extend_from_slice(&self.metadata.hash().unwrap_or_default());
 
-	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError> {
-		self.signature = self.sign_message(key)?.to_bytes().into();
-		Ok(())
+		H256::from_slice(&keccak256(&b))
 	}
 }
 
-impl SignedEnvelopeMessage for LockedTransfer {
-	fn message_hash(&self) -> H256 {
-		let mut packed_data = self.bytes_to_pack();
-		packed_data.extend_from_slice(&self.metadata.hash().unwrap_or_default());
-
-		H256::from_slice(&keccak256(&packed_data))
-	}
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// A message used when a payee does not have any available routes to
+/// forward the transfer.
+///
+/// This message is used by the payee to refund the payer when no route is
+/// available. This transfer refunds the payer, allowing him to try a new path
+/// to complete the transfer.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefundTransfer {
 	#[serde(deserialize_with = "u64_from_str")]
+	#[serde(skip_serializing)]
 	pub message_identifier: MessageIdentifier,
 	pub payment_identifier: PaymentIdentifier,
 	pub chain_id: ChainID,
 	pub token_network_address: TokenNetworkAddress,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub channel_identifier: U256,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub transferred_amount: TokenAmount,
-	#[serde(deserialize_with = "u256_from_str")]
-	pub locked_amount: TokenAmount,
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
+	pub locked_amount: LockedAmount,
 	pub locksroot: Locksroot,
 	pub token: TokenAddress,
+	#[serde(skip_serializing)]
 	pub recipient: Address,
 	pub lock: Lock,
 	pub target: Address,
 	pub initiator: Address,
 	pub metadata: Metadata,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub nonce: U256,
 	pub secret: Secret,
 	#[serde(deserialize_with = "signature_from_str")]

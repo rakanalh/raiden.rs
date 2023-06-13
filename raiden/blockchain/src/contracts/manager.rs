@@ -7,6 +7,7 @@ use ethabi::Event;
 use raiden_primitives::types::{
 	Address,
 	ChainID,
+	DefaultAddresses,
 	U64,
 };
 use serde_json::{
@@ -36,14 +37,17 @@ use crate::{
 	errors::ContractDefError,
 };
 
+/// The contract Manager result type
 pub type Result<T> = std::result::Result<T, ContractDefError>;
 
+/// A contract ABI wrapper.
 #[derive(Clone)]
 pub struct Contract {
 	pub abi: Vec<u8>,
 }
 
 impl Contract {
+	/// Returns a new instance of `Contract`.
 	pub fn new(abi: Vec<u8>) -> Self {
 		Contract { abi }
 	}
@@ -65,19 +69,23 @@ impl TryInto<ethabi::Contract> for &Contract {
 	}
 }
 
+/// Information about a deployed contract.
 #[derive(Clone)]
 pub struct DeployedContract {
 	pub address: Address,
 	pub block: U64,
 }
 
+/// A manager container for contracts ABIs and their deployments.
 pub struct ContractsManager {
+	version: String,
 	contracts: HashMap<String, Contract>,
 	deployment: Map<String, Value>,
 	deployment_services: Map<String, Value>,
 }
 
 impl ContractsManager {
+	/// Returns a new instance of `ContractsManager`.
 	pub fn new(chain_id: ChainID) -> Result<Self> {
 		let chain_deployment = match chain_id {
 			ChainID::Mainnet => DEPLOYMENT_MAINNET,
@@ -98,6 +106,11 @@ impl ContractsManager {
 		let contracts_deployment_services: serde_json::Value =
 			serde_json::from_str(chain_deployment_services)?;
 
+		let contracts_version = contracts_specs
+			.get("contracts_version")
+			.ok_or(ContractDefError::SpecNotFound)?
+			.as_str()
+			.ok_or(ContractDefError::SpecNotFound)?;
 		let specs_map = contracts_specs
 			.get("contracts")
 			.ok_or(ContractDefError::SpecNotFound)?
@@ -117,6 +130,7 @@ impl ContractsManager {
 			.ok_or(ContractDefError::SpecNotFound)?;
 
 		let mut manager = Self {
+			version: contracts_version.to_string(),
 			contracts: HashMap::new(),
 			deployment: deployment.clone(),
 			deployment_services: deployment_services.clone(),
@@ -132,10 +146,41 @@ impl ContractsManager {
 		Ok(manager)
 	}
 
+	/// Get a contract by identifier.
 	pub fn get(&self, contract_identifier: ContractIdentifier) -> Contract {
-		self.contracts.get(&contract_identifier.to_string()).map(|c| c.clone()).unwrap()
+		self.contracts.get(&contract_identifier.to_string()).cloned().unwrap()
 	}
 
+	/// Get the list of deployed addresses.
+	pub fn deployed_addresses(&self) -> Result<DefaultAddresses> {
+		let token_network_registry_deployed_contract =
+			self.get_deployed(ContractIdentifier::TokenNetworkRegistry)?;
+
+		let secret_registry_deployed_contract =
+			self.get_deployed(ContractIdentifier::SecretRegistry)?;
+
+		let service_registry_deployed_contract =
+			self.get_deployed(ContractIdentifier::ServiceRegistry)?;
+
+		let monitoring_service_deployed_contract =
+			self.get_deployed(ContractIdentifier::MonitoringService)?;
+
+		let user_deposit_deployed_contract = self.get_deployed(ContractIdentifier::UserDeposit)?;
+
+		let one_to_n_deployed_contract = self.get_deployed(ContractIdentifier::OneToN)?;
+
+		Ok(DefaultAddresses {
+			contracts_version: self.version.clone(),
+			service_registry: service_registry_deployed_contract.address,
+			secret_registry: secret_registry_deployed_contract.address,
+			token_network_registry: token_network_registry_deployed_contract.address,
+			one_to_n: one_to_n_deployed_contract.address,
+			monitoring_service: monitoring_service_deployed_contract.address,
+			user_deposit: user_deposit_deployed_contract.address,
+		})
+	}
+
+	/// Gets a deployed contract information.
 	pub fn get_deployed(
 		&self,
 		contract_identifier: ContractIdentifier,
@@ -174,6 +219,7 @@ impl ContractsManager {
 		Ok(DeployedContract { address, block: block_number })
 	}
 
+	/// Gets the list of events from a specific contract.
 	pub fn events(&self, contract_identifier: Option<ContractIdentifier>) -> Vec<Event> {
 		match contract_identifier {
 			Some(id) => {

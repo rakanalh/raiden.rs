@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::{
 	cmp::max,
 	collections::HashMap,
@@ -5,6 +7,8 @@ use std::{
 
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
+	CanonicalIdentifier,
 	TokenAddress,
 	TokenAmount,
 	TokenNetworkAddress,
@@ -14,8 +18,6 @@ use raiden_primitives::types::{
 
 use crate::{
 	types::{
-		AddressMetadata,
-		CanonicalIdentifier,
 		ChainState,
 		ChannelEndState,
 		ChannelState,
@@ -27,6 +29,7 @@ use crate::{
 	views,
 };
 
+/// Returns token network by address if found
 pub fn get_token_network<'a>(
 	chain_state: &'a ChainState,
 	token_network_address: &'a Address,
@@ -39,9 +42,10 @@ pub fn get_token_network<'a>(
 			.tokennetworkaddresses_to_tokennetworks
 			.get(token_network_address);
 	}
-	token_network.clone()
+	token_network
 }
 
+/// Returns token network registry by token network address if found.
 pub fn get_token_network_registry_by_token_network_address(
 	chain_state: &ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -58,6 +62,7 @@ pub fn get_token_network_registry_by_token_network_address(
 	None
 }
 
+/// Returns token network by address if found
 pub fn get_token_network_by_address(
 	chain_state: &ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -65,11 +70,11 @@ pub fn get_token_network_by_address(
 	let token_network_registries = &chain_state.identifiers_to_tokennetworkregistries;
 	token_network_registries
 		.values()
-		.map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
-		.flatten()
+		.flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values())
 		.find(|tn| tn.address == token_network_address)
 }
 
+/// Returns token network by token address if found.
 pub fn get_token_network_by_token_address(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -87,6 +92,7 @@ pub fn get_token_network_by_token_address(
 		.find(|tn| tn.token_address == token_address)
 }
 
+/// Returns all channel states.
 pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
 	let mut channels = vec![];
 
@@ -100,6 +106,7 @@ pub fn get_channels(chain_state: &ChainState) -> Vec<ChannelState> {
 	channels
 }
 
+/// Returns channel state by canonical identifier if found.
 pub fn get_channel_by_canonical_identifier(
 	chain_state: &ChainState,
 	canonical_identifier: CanonicalIdentifier,
@@ -114,6 +121,7 @@ pub fn get_channel_by_canonical_identifier(
 	None
 }
 
+// Returns channel by token network address and partner address if found.
 pub fn get_channel_by_token_network_and_partner(
 	chain_state: &ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -129,6 +137,7 @@ pub fn get_channel_by_token_network_and_partner(
 	None
 }
 
+/// Return channel state for registry, token and partner addresses.
 pub fn get_channel_state_for(
 	chain_state: &ChainState,
 	registry_address: Address,
@@ -138,13 +147,13 @@ pub fn get_channel_state_for(
 	match get_token_network_by_token_address(chain_state, registry_address, token_address) {
 		Some(token_network) => token_network
 			.channelidentifiers_to_channels
-			.iter()
-			.map(|(_, c)| c)
+			.values()
 			.find(|c| c.partner_state.address == partner_address),
 		_ => None,
 	}
 }
 
+/// Return the total distributable amount of a channel state.
 pub fn channel_distributable(sender: &ChannelEndState, receiver: &ChannelEndState) -> TokenAmount {
 	let (_, _, transferred_amount, locked_amount) = sender.get_current_balanceproof();
 	let distributable = channel_balance(sender, receiver) - sender.locked_amount();
@@ -152,6 +161,7 @@ pub fn channel_distributable(sender: &ChannelEndState, receiver: &ChannelEndStat
 	TokenAmount::min(overflow_limit, distributable)
 }
 
+/// Returns the total balance of the sender's state of a channel.
 pub fn channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> U256 {
 	let mut sender_transferred_amount = U256::zero();
 	let mut receiver_transferred_amount = U256::zero();
@@ -163,12 +173,12 @@ pub fn channel_balance(sender: &ChannelEndState, receiver: &ChannelEndState) -> 
 		receiver_transferred_amount = balance_proof.transferred_amount;
 	}
 
-	sender.contract_balance -
+	sender.contract_balance + receiver_transferred_amount -
 		max(sender.offchain_total_withdraw(), sender.onchain_total_withdraw) -
-		sender_transferred_amount +
-		receiver_transferred_amount
+		sender_transferred_amount
 }
 
+/// Returns known token identifiers.
 pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address) -> Vec<Address> {
 	match chain_state.identifiers_to_tokennetworkregistries.get(&registry_address) {
 		Some(registry) =>
@@ -177,6 +187,7 @@ pub fn get_token_identifiers(chain_state: &ChainState, registry_address: Address
 	}
 }
 
+/// Returns channel states by filter function.
 fn get_channelstate_filter(
 	chain_state: &ChainState,
 	token_network_registry_address: TokenNetworkRegistryAddress,
@@ -200,59 +211,65 @@ fn get_channelstate_filter(
 		}
 	}
 
-	return result
+	result
 }
 
+/// Returns open channel states.
 pub fn get_channelstate_open(
 	chain_state: &ChainState,
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Opened
 	})
 }
 
+/// Returns closing channel states.
 pub fn get_channelstate_closing(
 	chain_state: &ChainState,
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Closing
 	})
 }
 
+/// Returns closed channel states.
 pub fn get_channelstate_closed(
 	chain_state: &ChainState,
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Closed
 	})
 }
 
+/// Returns settling channel states.
 pub fn get_channelstate_settling(
 	chain_state: &ChainState,
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Settling
 	})
 }
 
+/// Returns settled channel states.
 pub fn get_channelstate_settled(
 	chain_state: &ChainState,
 	registry_address: Address,
 	token_address: TokenAddress,
 ) -> Vec<ChannelState> {
-	return get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
+	get_channelstate_filter(chain_state, registry_address, token_address, |channel_state| {
 		channel_state.status() == ChannelStatus::Settled
 	})
 }
 
+/// Returns a map of (token network, partner addresses) to channels
 pub fn get_addresses_to_channels(
 	chain_state: &ChainState,
 ) -> HashMap<(TokenNetworkAddress, Address), &ChannelState> {
@@ -270,6 +287,40 @@ pub fn get_addresses_to_channels(
 	channels
 }
 
+/// Filters channels by partner address
+pub fn filter_channels_by_partner_address(
+	chain_state: &ChainState,
+	registry_address: TokenNetworkAddress,
+	token_address: TokenAddress,
+	partner_addresses: Vec<Address>,
+) -> Vec<&ChannelState> {
+	let token_network =
+		match get_token_network_by_token_address(chain_state, registry_address, token_address) {
+			Some(token_network) => token_network,
+			None => return vec![],
+		};
+
+	let mut channels = vec![];
+	for partner in partner_addresses {
+		if let Some(channels_identifiers) =
+			token_network.partneraddresses_to_channelidentifiers.get(&partner)
+		{
+			for channel_id in channels_identifiers {
+				if let Some(channel_state) =
+					token_network.channelidentifiers_to_channels.get(channel_id)
+				{
+					if channel_state.status() != ChannelStatus::Unusable {
+						channels.push(channel_state);
+					}
+				}
+			}
+		}
+	}
+
+	channels
+}
+
+/// Returns address metadata.
 pub fn get_address_metadata(
 	recipient_address: Address,
 	route_states: Vec<RouteState>,

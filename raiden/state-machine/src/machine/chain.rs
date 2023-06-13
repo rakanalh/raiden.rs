@@ -1,5 +1,8 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use raiden_primitives::types::{
 	BlockNumber,
+	CanonicalIdentifier,
 	SecretHash,
 	TokenNetworkAddress,
 	H256,
@@ -12,10 +15,13 @@ use super::{
 	target,
 };
 use crate::{
-	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 	errors::StateTransitionError,
 	machine::{
-		channel,
+		channel::{
+			self,
+			validators,
+		},
+		mediator::get_channel,
 		token_network,
 	},
 	types::{
@@ -26,7 +32,6 @@ use crate::{
 		ActionInitTarget,
 		ActionTransferReroute,
 		Block,
-		CanonicalIdentifier,
 		ChainState,
 		ContractReceiveChannelClosed,
 		ContractReceiveTokenNetworkCreated,
@@ -35,7 +40,6 @@ use crate::{
 		Event,
 		InitiatorTask,
 		MediatorTask,
-		QueueIdentifier,
 		ReceiveDelivered,
 		ReceiveLockExpired,
 		ReceiveProcessed,
@@ -47,7 +51,6 @@ use crate::{
 		ReceiveWithdrawConfirmation,
 		ReceiveWithdrawExpired,
 		ReceiveWithdrawRequest,
-		SendMessageEvent,
 		StateChange,
 		TargetTask,
 		TokenNetworkState,
@@ -59,85 +62,17 @@ use crate::{
 	views,
 };
 
+/// Chain transition result.
 type TransitionResult = std::result::Result<ChainTransition, StateTransitionError>;
 
+/// A transition result for the chain state.
 #[derive(Debug)]
 pub struct ChainTransition {
 	pub new_state: ChainState,
 	pub events: Vec<Event>,
 }
 
-/// Check if the message exists in queue with ID `queueid` and exclude if found.
-fn inplace_delete_message(queue: &mut Vec<SendMessageEvent>, state_change: &StateChange) {
-	for (index, message) in queue.clone().iter().enumerate() {
-		// A withdraw request is only confirmed by a withdraw confirmation.
-		// This is done because Processed is not an indicator that the partner has
-		// processed and **accepted** our withdraw request. Receiving
-		// `Processed` here would cause the withdraw request to be removed
-		// from the queue although the confirmation may have not been sent.
-		// This is avoided by waiting for the confirmation before removing
-		// the withdraw request.
-		if let SendMessageEvent::SendWithdrawRequest(_) = message {
-			if !matches!(state_change, StateChange::ReceiveWithdrawConfirmation(_)) {
-				continue
-			}
-		}
-
-		let message_type_identifier = match message {
-			SendMessageEvent::SendLockExpired(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendLockedTransfer(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendSecretReveal(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendSecretRequest(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendUnlock(message_inner) => message_inner.message_identifier,
-			SendMessageEvent::SendWithdrawRequest(message_inner) =>
-				message_inner.message_identifier,
-			SendMessageEvent::SendWithdrawConfirmation(message_inner) =>
-				message_inner.message_identifier,
-			SendMessageEvent::SendWithdrawExpired(message_inner) =>
-				message_inner.message_identifier,
-			SendMessageEvent::SendProcessed(message_inner) => message_inner.message_identifier,
-		};
-		let state_change_message_identifier = match state_change {
-			StateChange::ReceiveDelivered(inner) => inner.message_identifier,
-			StateChange::ReceiveProcessed(inner) => inner.message_identifier,
-			StateChange::ReceiveTransferCancelRoute(inner) => inner.transfer.message_identifier,
-			StateChange::ReceiveTransferRefund(inner) => inner.transfer.message_identifier,
-			StateChange::ReceiveLockExpired(inner) => inner.message_identifier,
-			StateChange::ReceiveUnlock(inner) => inner.message_identifier,
-			StateChange::ReceiveWithdrawRequest(inner) => inner.message_identifier,
-			StateChange::ReceiveWithdrawConfirmation(inner) => inner.message_identifier,
-			StateChange::ReceiveWithdrawExpired(inner) => inner.message_identifier,
-			_ => 0,
-		};
-		if message_type_identifier == state_change_message_identifier {
-			queue.remove(index);
-		}
-	}
-}
-
-fn inplace_delete_message_queue(
-	chain_state: &mut ChainState,
-	state_change: &StateChange,
-	queue_id: &QueueIdentifier,
-) {
-	let mut queue = match chain_state.queueids_to_queues.get(&queue_id) {
-		Some(queue) => queue.clone(),
-		None => return,
-	};
-
-	if queue.is_empty() {
-		chain_state.queueids_to_queues.remove(&queue_id);
-	}
-
-	inplace_delete_message(&mut queue, state_change);
-
-	if queue.is_empty() {
-		chain_state.queueids_to_queues.remove(&queue_id);
-		return
-	}
-	chain_state.queueids_to_queues.insert(queue_id.clone(), queue);
-}
-
+/// Subdispatch to a channel by canonical ID.
 fn subdispatch_by_canonical_id(
 	chain_state: &mut ChainState,
 	state_change: StateChange,
@@ -146,8 +81,7 @@ fn subdispatch_by_canonical_id(
 	let token_network_registries = &mut chain_state.identifiers_to_tokennetworkregistries;
 	let token_network = match token_network_registries
 		.values_mut()
-		.map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values_mut())
-		.flatten()
+		.flat_map(|tnr| tnr.tokennetworkaddresses_to_tokennetworks.values_mut())
 		.find(|tn| tn.address == canonical_identifier.token_network_address)
 	{
 		Some(tn) => tn,
@@ -168,6 +102,7 @@ fn subdispatch_by_canonical_id(
 	Ok(ChainTransition { new_state: chain_state.clone(), events })
 }
 
+/// Subdispatch change to all currently known channels.
 fn subdispatch_to_all_channels(
 	mut chain_state: ChainState,
 	state_change: StateChange,
@@ -201,6 +136,7 @@ fn subdispatch_to_all_channels(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to payment tasks.
 fn subdispatch_to_payment_task(
 	mut chain_state: ChainState,
 	state_change: StateChange,
@@ -269,6 +205,7 @@ fn subdispatch_to_payment_task(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to all pending transfer tasks.
 fn subdispatch_to_all_lockedtransfers(
 	mut chain_state: ChainState,
 	state_change: StateChange,
@@ -286,8 +223,9 @@ fn subdispatch_to_all_lockedtransfers(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to initiator task.
 fn subdispatch_initiator_task(
-	mut chain_state: ChainState,
+	chain_state: ChainState,
 	state_change: ActionInitInitiator,
 ) -> TransitionResult {
 	let token_network_state = match views::get_token_network_by_address(
@@ -320,18 +258,19 @@ fn subdispatch_initiator_task(
 	}
 
 	let initiator_state = initiator_manager::state_transition(
-		chain_state.clone(),
+		chain_state,
 		manager_state,
 		state_change.clone().into(),
 	)?;
 
+	let mut chain_state = initiator_state.chain_state;
 	match initiator_state.new_state {
 		Some(initiator_state) => {
 			chain_state.payment_mapping.secrethashes_to_task.insert(
 				state_change.transfer.secrethash,
 				TransferTask::Initiator(InitiatorTask {
 					role: TransferRole::Initiator,
-					token_network_address: token_network_state.address.clone(),
+					token_network_address: token_network_state.address,
 					manager_state: initiator_state,
 				}),
 			);
@@ -344,9 +283,10 @@ fn subdispatch_initiator_task(
 		},
 	}
 
-	Ok(ChainTransition { new_state: initiator_state.chain_state, events: initiator_state.events })
+	Ok(ChainTransition { new_state: chain_state, events: initiator_state.events })
 }
 
+/// Subdispatch state change to mediator task.
 fn subdispatch_mediator_task(
 	chain_state: ChainState,
 	state_change: ActionInitMediator,
@@ -360,6 +300,25 @@ fn subdispatch_mediator_task(
 		},
 		None => None,
 	};
+
+	let from_transfer = state_change.from_transfer.clone();
+	let payer_channel =
+		match get_channel(&chain_state, from_transfer.balance_proof.canonical_identifier.clone()) {
+			Some(channel) => channel.clone(),
+			None => return Ok(ChainTransition { new_state: chain_state, events: vec![] }),
+		};
+	// This check is to prevent retries of the same init mediator state changes
+	// from deleting or overriding the existing one.
+	if validators::is_valid_locked_transfer(
+		&from_transfer,
+		&payer_channel,
+		&payer_channel.partner_state,
+		&payer_channel.our_state,
+	)
+	.is_err()
+	{
+		return Ok(ChainTransition { new_state: chain_state, events: vec![] })
+	}
 
 	let mut events = vec![];
 	let iteration = mediator::state_transition(chain_state, mediator_state, state_change.into())?;
@@ -384,6 +343,7 @@ fn subdispatch_mediator_task(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Subdispatch state change to target task.
 fn subdispatch_target_task(
 	chain_state: ChainState,
 	state_change: ActionInitTarget,
@@ -422,6 +382,7 @@ fn subdispatch_target_task(
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Initialize chain information.
 fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
 	Ok(ChainTransition {
 		new_state: ChainState::new(
@@ -434,6 +395,7 @@ fn handle_action_init_chain(state_change: ActionInitChain) -> TransitionResult {
 	})
 }
 
+/// Dispatch a new initiator task.
 fn handle_action_init_intiator(
 	chain_state: ChainState,
 	state_change: ActionInitInitiator,
@@ -441,6 +403,7 @@ fn handle_action_init_intiator(
 	subdispatch_initiator_task(chain_state, state_change)
 }
 
+/// Dispatch a new mediator task.
 fn handle_action_init_mediator(
 	chain_state: ChainState,
 	state_change: ActionInitMediator,
@@ -452,6 +415,7 @@ fn handle_action_init_mediator(
 	subdispatch_mediator_task(chain_state, state_change, token_network_address, secrethash)
 }
 
+/// Dispatch a new target task.
 fn handle_action_init_target(
 	chain_state: ChainState,
 	state_change: ActionInitTarget,
@@ -463,6 +427,7 @@ fn handle_action_init_target(
 	subdispatch_target_task(chain_state, state_change, token_network_address, secrethash)
 }
 
+/// Handle `ActionTransferReroute` state change.
 fn handle_action_transfer_reroute(
 	mut chain_state: ChainState,
 	state_change: ActionTransferReroute,
@@ -478,12 +443,13 @@ fn handle_action_transfer_reroute(
 		chain_state
 			.payment_mapping
 			.secrethashes_to_task
-			.insert(new_secrethash, current_payment_task.clone());
+			.insert(new_secrethash, current_payment_task);
 	}
 
 	subdispatch_to_payment_task(chain_state, state_change.into(), new_secrethash)
 }
 
+/// Handle `ActionCancelPayment` state change.
 fn handle_action_cancel_payment(
 	chain_state: ChainState,
 	_state_change: ActionCancelPayment,
@@ -491,6 +457,7 @@ fn handle_action_cancel_payment(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `Block` state change.
 fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> TransitionResult {
 	chain_state.block_number = state_change.block_number;
 	chain_state.block_hash = state_change.block_hash;
@@ -514,6 +481,7 @@ fn handle_new_block(mut chain_state: ChainState, state_change: Block) -> Transit
 	Ok(ChainTransition { new_state: chain_state, events })
 }
 
+/// Handle `ContractReceiveTokenNetworkRegistry` state change.
 fn handle_contract_receive_token_network_registry(
 	mut chain_state: ChainState,
 	state_change: ContractReceiveTokenNetworkRegistry,
@@ -526,6 +494,7 @@ fn handle_contract_receive_token_network_registry(
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `ContractReceiveTokenNetworkCreated` state change.
 fn handle_contract_receive_token_network_created(
 	mut chain_state: ChainState,
 	state_change: ContractReceiveTokenNetworkCreated,
@@ -546,14 +515,14 @@ fn handle_contract_receive_token_network_created(
 	token_network_registry
 		.tokennetworkaddresses_to_tokennetworks
 		.insert(state_change.token_network.address, state_change.token_network.clone());
-	token_network_registry.tokenaddresses_to_tokennetworkaddresses.insert(
-		state_change.token_network.token_address.clone(),
-		state_change.token_network.address.clone(),
-	);
+	token_network_registry
+		.tokenaddresses_to_tokennetworkaddresses
+		.insert(state_change.token_network.token_address, state_change.token_network.address);
 
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Dispatch `StateChange` to token network state machine.
 fn handle_token_network_state_change(
 	mut chain_state: ChainState,
 	token_network_address: TokenNetworkAddress,
@@ -593,23 +562,14 @@ fn handle_token_network_state_change(
 	Ok(ChainTransition { new_state: chain_state, events: transition.events })
 }
 
+/// Handle `ContractReceiveChannelClosed` state change.
 fn handle_contract_receive_channel_closed(
-	mut chain_state: ChainState,
+	chain_state: ChainState,
 	state_change: ContractReceiveChannelClosed,
 	block_number: U64,
 	block_hash: H256,
 ) -> TransitionResult {
 	let token_network_address = state_change.canonical_identifier.token_network_address;
-	if let Some(channel_state) = views::get_channel_by_canonical_identifier(
-		&chain_state,
-		state_change.canonical_identifier.clone(),
-	) {
-		let queue_identifier = QueueIdentifier {
-			recipient: channel_state.partner_state.address,
-			canonical_identifier: state_change.canonical_identifier.clone(),
-		};
-		chain_state.queueids_to_queues.remove(&queue_identifier);
-	}
 	handle_token_network_state_change(
 		chain_state,
 		token_network_address,
@@ -619,6 +579,7 @@ fn handle_contract_receive_channel_closed(
 	)
 }
 
+/// Handle `ReceiveTransferCancelRoute` state change.
 fn handle_receive_transfer_cancel_route(
 	chain_state: ChainState,
 	state_change: ReceiveTransferCancelRoute,
@@ -627,6 +588,7 @@ fn handle_receive_transfer_cancel_route(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveSecretReveal` state change.
 fn handle_receive_secret_reveal(
 	chain_state: ChainState,
 	state_change: ReceiveSecretReveal,
@@ -635,6 +597,7 @@ fn handle_receive_secret_reveal(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveSecretRequest` state change.
 fn handle_receive_secret_request(
 	chain_state: ChainState,
 	state_change: ReceiveSecretRequest,
@@ -643,6 +606,7 @@ fn handle_receive_secret_request(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveLockExpired` state change.
 fn handle_receive_lock_expired(
 	chain_state: ChainState,
 	state_change: ReceiveLockExpired,
@@ -651,6 +615,7 @@ fn handle_receive_lock_expired(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveTransferRefund` state change.
 fn handle_receive_transfer_refund(
 	chain_state: ChainState,
 	state_change: ReceiveTransferRefund,
@@ -659,11 +624,13 @@ fn handle_receive_transfer_refund(
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `ReceiveUnlock` state change.
 fn handle_receive_unlock(chain_state: ChainState, state_change: ReceiveUnlock) -> TransitionResult {
 	let secrethash = state_change.secrethash;
 	subdispatch_to_payment_task(chain_state, state_change.into(), secrethash)
 }
 
+/// Handle `WithdrawRequest` state change.
 fn handle_receive_withdraw_request(
 	mut chain_state: ChainState,
 	state_change: ReceiveWithdrawRequest,
@@ -672,25 +639,16 @@ fn handle_receive_withdraw_request(
 	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
+/// Handle `ReceiveWithdrawConfirmation` state change.
 fn handle_receive_withdraw_confirmation(
 	mut chain_state: ChainState,
 	state_change: ReceiveWithdrawConfirmation,
 ) -> TransitionResult {
 	let canonical_identifier = state_change.canonical_identifier.clone();
-	let iteration = subdispatch_by_canonical_id(
-		&mut chain_state,
-		state_change.clone().into(),
-		canonical_identifier,
-	)?;
-
-	let mut chain_state = iteration.new_state;
-	for queue_id in chain_state.queueids_to_queues.clone().keys() {
-		inplace_delete_message_queue(&mut chain_state, &state_change.clone().into(), queue_id);
-	}
-
-	Ok(ChainTransition { new_state: chain_state, events: iteration.events })
+	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
+/// Handle `WithdrawExpired` state change.
 fn handle_receive_withdraw_expired(
 	mut chain_state: ChainState,
 	state_change: ReceiveWithdrawExpired,
@@ -699,36 +657,30 @@ fn handle_receive_withdraw_expired(
 	subdispatch_by_canonical_id(&mut chain_state, state_change.into(), canonical_identifier)
 }
 
+/// Handle `ReceiveDelivered` state change.
 fn handle_receive_delivered(
-	mut chain_state: ChainState,
-	state_change: ReceiveDelivered,
+	chain_state: ChainState,
+	_state_change: ReceiveDelivered,
 ) -> TransitionResult {
-	let queue_id = QueueIdentifier {
-		recipient: state_change.sender,
-		canonical_identifier: CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
-	};
-	inplace_delete_message_queue(&mut chain_state, &state_change.into(), &queue_id);
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `ReceiveProcessed` state change.
 fn handle_receive_processed(
-	mut chain_state: ChainState,
-	state_change: ReceiveProcessed,
+	chain_state: ChainState,
+	_state_change: ReceiveProcessed,
 ) -> TransitionResult {
-	for queue_id in chain_state.queueids_to_queues.clone().keys() {
-		inplace_delete_message_queue(&mut chain_state, &state_change.clone().into(), queue_id);
-	}
-
 	Ok(ChainTransition { new_state: chain_state, events: vec![] })
 }
 
+/// Handle `UpdateServicesAddresses` state change.
 fn handle_update_services_addresses(
 	chain_state: ChainState,
 	state_change: UpdateServicesAddresses,
 ) -> TransitionResult {
 	let event = UpdatedServicesAddresses {
 		service_address: state_change.service,
-		validity: state_change.valid_til,
+		validity: state_change.valid_till,
 	};
 	Ok(ChainTransition { new_state: chain_state, events: vec![event.into()] })
 }
@@ -864,7 +816,44 @@ fn is_transaction_effect_satisfied(
 	false
 }
 
+/// True if the `transaction` is made invalid by `state_change`.
+///
+/// Some transactions will fail due to race conditions. The races are:
+///
+/// - Another transaction which has the same side effect is executed before.
+/// - Another transaction which *invalidates* the state of the smart contract
+/// required by the local transaction is executed before it.
+///
+/// The first case is handled by the predicate `is_transaction_effect_satisfied`,
+/// where a transaction from a different source which does the same thing is
+/// considered. This predicate handles the second scenario.
+///
+/// A transaction can **only** invalidate another iff both share a valid
+/// initial state but a different end state.
+///
+/// Valid example:
+///
+/// A close can invalidate a deposit, because both a close and a deposit
+/// can be executed from an opened state (same initial state), but a close
+/// transaction will transition the channel to a closed state which doesn't
+/// allow for deposits (different end state).
+///
+/// Invalid example:
+///
+/// A settle transaction cannot invalidate a deposit because a settle is
+/// only allowed for the closed state and deposits are only allowed for
+/// the open state. In such a case a deposit should never have been sent.
+/// The deposit transaction for an invalid state is a bug and not a
+/// transaction which was invalidated.
 fn is_transaction_invalidated(transaction: &ContractSendEvent, state_change: &StateChange) -> bool {
+	// Most transactions cannot be invalidated by others. These are:
+	//
+	// - close transactions
+	// - settle transactions
+	// - batch unlocks
+	//
+	// Deposits and withdraws are invalidated by the close, but these are not
+	// made atomic through the WAL.
 	if let StateChange::ContractReceiveChannelSettled(channel_settled) = state_change {
 		if let ContractSendEvent::ContractSendChannelUpdateTransfer(update_transfer) = transaction {
 			if channel_settled.canonical_identifier ==
@@ -886,6 +875,13 @@ fn is_transaction_invalidated(transaction: &ContractSendEvent, state_change: &St
 	false
 }
 
+/// True if transaction cannot be mined because it has expired.
+///
+/// Some transactions are time dependent, e.g. the secret registration must be
+/// done before the lock expiration, and the update transfer must be done
+/// before the settlement window is over. If the current block is higher than
+/// any of these expirations blocks, the transaction is expired and cannot be
+/// successfully executed.
 fn is_transaction_expired(transaction: &ContractSendEvent, block_number: BlockNumber) -> bool {
 	if let ContractSendEvent::ContractSendChannelUpdateTransfer(update_transfer) = transaction {
 		if update_transfer.expiration < block_number {
@@ -902,6 +898,7 @@ fn is_transaction_expired(transaction: &ContractSendEvent, block_number: BlockNu
 	false
 }
 
+/// True if a pending transaction exists, and not expired.
 fn is_transaction_pending(
 	chain_state: &ChainState,
 	transaction: &ContractSendEvent,
@@ -912,6 +909,7 @@ fn is_transaction_pending(
 		is_transaction_expired(transaction, chain_state.block_number))
 }
 
+/// Check and update pending transactions after applying state change.
 fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
 	let chain_state = &mut iteration.new_state;
 	match state_change {
@@ -947,24 +945,10 @@ fn update_queues(iteration: &mut ChainTransition, state_change: StateChange) {
 			},
 			_ => {},
 		}
-
-		let queue_identifier = match event {
-			Event::SendWithdrawExpired(inner) => inner.inner.queue_identifier(),
-			Event::SendWithdrawRequest(inner) => inner.inner.queue_identifier(),
-			Event::SendLockedTransfer(inner) => inner.inner.queue_identifier(),
-			Event::SendLockExpired(inner) => inner.inner.queue_identifier(),
-			Event::SendSecretRequest(inner) => inner.inner.queue_identifier(),
-			Event::SendSecretReveal(inner) => inner.inner.queue_identifier(),
-			Event::SendUnlock(inner) => inner.inner.queue_identifier(),
-			Event::SendProcessed(inner) => inner.inner.queue_identifier(),
-			_ => continue,
-		};
-		let queue =
-			chain_state.queueids_to_queues.entry(queue_identifier).or_insert_with(|| vec![]);
-		queue.push(event.clone().try_into().expect("Should work"));
 	}
 }
 
+/// Update chain state based on the provided `state_change`.
 pub fn state_transition(
 	mut chain_state: ChainState,
 	state_change: StateChange,

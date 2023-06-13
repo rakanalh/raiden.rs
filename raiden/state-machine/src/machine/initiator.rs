@@ -1,12 +1,17 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::ops::Div;
 
-use raiden_primitives::types::{
-	BlockNumber,
-	FeeAmount,
-	MessageIdentifier,
-	Secret,
-	SecretHash,
-	TokenAmount,
+use raiden_primitives::{
+	constants::CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
+	types::{
+		BlockNumber,
+		FeeAmount,
+		MessageIdentifier,
+		Secret,
+		SecretHash,
+		TokenAmount,
+	},
 };
 
 use super::{
@@ -17,7 +22,6 @@ use super::{
 use crate::{
 	constants::{
 		ABSENT_SECRET,
-		CANONICAL_IDENTIFIER_UNORDERED_QUEUE,
 		DEFAULT_MEDIATION_FEE_MARGIN,
 		DEFAULT_WAIT_BEFORE_LOCK_REMOVAL,
 		MAX_MEDIATION_FEE_PERC,
@@ -52,8 +56,10 @@ use crate::{
 	views,
 };
 
+/// A transition result for the initiator state.
 pub(super) type TransitionResult = std::result::Result<InitiatorTransition, StateTransitionError>;
 
+/// Initiator transition content.
 #[derive(Debug)]
 pub struct InitiatorTransition {
 	pub new_state: Option<InitiatorTransferState>,
@@ -61,6 +67,8 @@ pub struct InitiatorTransition {
 	pub events: Vec<Event>,
 }
 
+/// Calculate an additional fee margin included with payment to account for any surplus charges by
+/// mediator.
 fn calculate_fee_margin(payment_amount: TokenAmount, estimated_fee: FeeAmount) -> FeeAmount {
 	if estimated_fee.is_zero() {
 		return FeeAmount::zero()
@@ -70,6 +78,7 @@ fn calculate_fee_margin(payment_amount: TokenAmount, estimated_fee: FeeAmount) -
 		((payment_amount * PAYMENT_AMOUNT_BASED_FEE_MARGIN.0) / PAYMENT_AMOUNT_BASED_FEE_MARGIN.1)
 }
 
+/// Calculate the safe fee amount that ensures the payment is accepted by mediators
 fn calculate_safe_amount_with_fee(
 	payment_amount: TokenAmount,
 	estimated_fee: FeeAmount,
@@ -77,6 +86,7 @@ fn calculate_safe_amount_with_fee(
 	payment_amount + estimated_fee + calculate_fee_margin(payment_amount, estimated_fee)
 }
 
+/// Unlocks the lock offchain, and emits the events for the successful payment.
 fn events_for_unlock_lock(
 	initiator_state: &InitiatorTransferState,
 	channel_state: &mut ChannelState,
@@ -91,6 +101,9 @@ fn events_for_unlock_lock(
 	let recipient_address = channel_state.partner_state.address;
 	let recipient_metadata =
 		views::get_address_metadata(recipient_address, vec![initiator_state.route.clone()]);
+
+	// next hop learned the secret, unlock the token locally and send the
+	// lock claim message to next hop
 	let unlock_lock = channel::send_unlock(
 		channel_state,
 		message_identifier,
@@ -117,6 +130,7 @@ fn events_for_unlock_lock(
 	Ok(vec![unlock_lock.into(), payment_sent_success.into(), unlock_success.into()])
 }
 
+/// Returns Send a locked transfer event
 fn send_locked_transfer(
 	transfer_description: TransferDescriptionWithSecretState,
 	channel_state: ChannelState,
@@ -151,6 +165,7 @@ fn send_locked_transfer(
 	)
 }
 
+/// Tries to filter route states to find usable routes to use for the current payment.
 pub fn try_new_route(
 	mut chain_state: ChainState,
 	candidate_route_states: Vec<RouteState>,
@@ -160,12 +175,8 @@ pub fn try_new_route(
 
 	let our_address = chain_state.our_address;
 
-	let selected = loop {
-		let route_state = match candidate_route_states.iter().next() {
-			Some(route_state) => route_state,
-			None => break None,
-		};
-
+	let mut selected = None;
+	for route_state in candidate_route_states.iter() {
 		let next_hop_address = match route_state.hop_after(our_address) {
 			Some(next_hop_address) => next_hop_address,
 			None => continue,
@@ -188,6 +199,7 @@ pub fn try_new_route(
 				.amount
 				.saturating_mul(MAX_MEDIATION_FEE_PERC.0.into())
 				.div(MAX_MEDIATION_FEE_PERC.1));
+
 		if amount_with_fee > max_amount_limit {
 			route_fee_exceeds_max = true;
 			continue
@@ -196,9 +208,10 @@ pub fn try_new_route(
 		let is_channel_usable = candidate_channel_state
 			.is_usable_for_new_transfer(amount_with_fee, transfer_description.lock_timeout);
 		if is_channel_usable {
-			break Some((route_state, candidate_channel_state))
+			selected = Some((route_state, candidate_channel_state));
+			break
 		}
-	};
+	}
 
 	let (initiator_state, events) = if let Some((route_state, channel_state)) = selected {
 		let message_identifier = chain_state.pseudo_random_number_generator.next();
@@ -239,6 +252,8 @@ pub fn try_new_route(
 	Ok((initiator_state, chain_state, events))
 }
 
+/// Checks if the lock has expired, and if it has sends a remove expired
+/// lock and emits the failing events.
 fn handle_block(
 	mut initiator_state: InitiatorTransferState,
 	state_change: Block,
@@ -278,7 +293,6 @@ fn handle_block(
 		state_change.block_number,
 		lock_expiration_threshold,
 	);
-
 	let mut events: Vec<Event> = vec![];
 	let (initiator_state, channel_state) = if lock_has_expired.is_ok() &&
 		initiator_state.transfer_state != TransferState::Expired
@@ -337,10 +351,11 @@ fn handle_block(
 	Ok(InitiatorTransition {
 		new_state: initiator_state,
 		channel_state: Some(channel_state),
-		events: vec![],
+		events,
 	})
 }
 
+/// Validate secret request to the initiator and responds with the secret if valid.`
 fn handle_receive_secret_request(
 	mut initiator_state: InitiatorTransferState,
 	state_change: ReceiveSecretRequest,
@@ -414,13 +429,19 @@ fn handle_receive_secret_request(
 		events.push(invalid_request.into());
 	}
 
-	return Ok(InitiatorTransition {
+	Ok(InitiatorTransition {
 		new_state: Some(initiator_state),
 		channel_state: Some(channel_state),
 		events,
 	})
 }
 
+/// Once the next hop proves it knows the secret, the initiator can unlock
+/// the mediated transfer.
+///
+/// This will validate the secret, and if valid a new balance proof is sent to
+/// the next hop with the current lock removed from the pending locks and the
+/// transferred amount updated.
 fn handle_receive_offchain_secret_reveal(
 	initiator_state: InitiatorTransferState,
 	state_change: ReceiveSecretReveal,
@@ -442,7 +463,7 @@ fn handle_receive_offchain_secret_reveal(
 	.is_ok();
 
 	let mut events = vec![];
-	if valid_reveal && is_channel_open && sent_by_partner && !expired {
+	let new_state = if valid_reveal && is_channel_open && sent_by_partner && !expired {
 		events.extend(
 			events_for_unlock_lock(
 				&initiator_state,
@@ -454,15 +475,20 @@ fn handle_receive_offchain_secret_reveal(
 			)
 			.map_err(Into::into)?,
 		);
-	}
+		None
+	} else {
+		Some(initiator_state)
+	};
 
-	return Ok(InitiatorTransition {
-		new_state: Some(initiator_state),
-		channel_state: Some(channel_state),
-		events,
-	})
+	Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
 }
 
+/// When a secret is revealed on-chain all nodes learn the secret.
+///
+/// This check the on-chain secret corresponds to the one used by the
+/// initiator, and if valid a new balance proof is sent to the next hop with
+/// the current lock removed from the pending locks and the transferred amount
+/// updated.
 fn handle_receive_onchain_secret_reveal(
 	initiator_state: InitiatorTransferState,
 	state_change: ContractReceiveSecretReveal,
@@ -495,27 +521,27 @@ fn handle_receive_onchain_secret_reveal(
 	.is_ok();
 
 	let mut events = vec![];
-	if is_lock_unlocked && is_channel_open && !expired {
+	let new_state = if is_lock_unlocked && is_channel_open && !expired {
 		events.extend(
 			events_for_unlock_lock(
 				&initiator_state,
 				&mut channel_state,
-				state_change.secret.clone(),
+				state_change.secret,
 				secrethash,
 				pseudo_random_number_generator,
 				block_number,
 			)
 			.map_err(Into::into)?,
 		);
-	}
+		None
+	} else {
+		Some(initiator_state)
+	};
 
-	return Ok(InitiatorTransition {
-		new_state: Some(initiator_state),
-		channel_state: Some(channel_state),
-		events,
-	})
+	Ok(InitiatorTransition { new_state, channel_state: Some(channel_state), events })
 }
 
+/// Update initiator state based on the provided `state_change`.
 pub fn state_transition(
 	initiator_state: InitiatorTransferState,
 	state_change: StateChange,

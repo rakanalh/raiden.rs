@@ -8,6 +8,7 @@ use super::constants::{
 };
 use crate::types::EnvironmentType;
 
+/// Based on the environment type, retrieve the list of servers that can be used.
 pub async fn get_default_matrix_servers(
 	environment_type: EnvironmentType,
 ) -> reqwest::Result<Vec<String>> {
@@ -20,10 +21,11 @@ pub async fn get_default_matrix_servers(
 	let servers = resp.get("active_servers").cloned().unwrap_or(vec![]);
 	Ok(servers
 		.iter()
-		.map(|s| if s.starts_with("http") { return s.clone() } else { format!("https://{}", s) })
+		.map(|s| if s.starts_with("http") { s.clone() } else { format!("https://{}", s) })
 		.collect())
 }
 
+/// Returns which best server to use from the list provided.
 pub fn select_best_server(servers: Vec<String>) -> String {
 	servers.first().unwrap_or(&"".to_owned()).clone()
 }

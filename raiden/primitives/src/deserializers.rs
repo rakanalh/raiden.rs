@@ -1,3 +1,5 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::{
 	fmt,
 	str::FromStr,
@@ -22,6 +24,7 @@ use crate::types::{
 	U64,
 };
 
+/// Deserialize u64 into U256
 pub fn u256_from_u64<'de, D>(deserializer: D) -> Result<U256, D::Error>
 where
 	D: Deserializer<'de>,
@@ -30,26 +33,49 @@ where
 	Ok(U256::from(buf))
 }
 
+/// Deserialize string to U256.
 pub fn u256_from_str<'de, D>(deserializer: D) -> Result<U256, D::Error>
 where
 	D: Deserializer<'de>,
 {
 	let binding = serde_json::Value::deserialize(deserializer)?;
+	if let Some(value) = binding.as_u64() {
+		return Ok(U256::from(value))
+	}
 	let v = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse U256"))?;
-	Ok(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?)
+	U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))
 }
 
+/// Deserialize an optional string (none) into U256.
+pub fn u256_from_optional_str<'de, D>(deserializer: D) -> Result<Option<U256>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let binding = serde_json::Value::deserialize(deserializer)?;
+	if let Some(value) = binding.as_u64() {
+		return Ok(Some(U256::from(value)))
+	}
+	let v = binding.as_str().ok_or_else(|| D::Error::custom("Could not parse U256"))?;
+	Ok(Some(U256::from_dec_str(v).map_err(|_| D::Error::custom("Invalid U256"))?))
+}
+
+/// Deserialize string to u64.
 pub fn u64_from_str<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
 	D: Deserializer<'de>,
 {
-	let v: u64 = serde_json::Value::deserialize(deserializer)?
-		.as_str()
-		.and_then(|s| s.parse().ok())
-		.ok_or_else(|| D::Error::custom("non-integer"))?;
+	let value = serde_json::Value::deserialize(deserializer)?;
+	let v = match value.as_u64() {
+		Some(v) => v,
+		None => value
+			.as_str()
+			.and_then(|s| s.parse().ok())
+			.ok_or_else(|| D::Error::custom("non-integer"))?,
+	};
 	Ok(v)
 }
 
+/// Deserialize string into H256.
 pub fn h256_from_str<'de, D>(deserializer: D) -> Result<H256, D::Error>
 where
 	D: Deserializer<'de>,
@@ -61,6 +87,7 @@ where
 	Ok(H256::from_slice(&hex_value))
 }
 
+/// Deserialize string to signature.
 pub fn signature_from_str<'de, D>(deserializer: D) -> Result<Signature, D::Error>
 where
 	D: Deserializer<'de>,
@@ -78,6 +105,7 @@ impl<'de> Deserialize<'de> for ChainID {
 	where
 		D: Deserializer<'de>,
 	{
+		/// Visitor for Chain Identifier to try to parse from different types
 		struct IdVisitor;
 
 		impl<'de> Visitor<'de> for IdVisitor {
@@ -98,8 +126,8 @@ impl<'de> Deserialize<'de> for ChainID {
 			where
 				E: Error,
 			{
-				Ok(ChainID::from_str(id)
-					.map_err(|_| Error::custom("Could not parse ChainID from string"))?)
+				ChainID::from_str(id)
+					.map_err(|_| Error::custom("Could not parse ChainID from string"))
 			}
 		}
 
@@ -112,6 +140,7 @@ impl<'de> Deserialize<'de> for U64 {
 	where
 		D: Deserializer<'de>,
 	{
+		/// Visitor for U64 to try to parse from different types
 		struct NumVisitor;
 
 		impl<'de> Visitor<'de> for NumVisitor {
@@ -132,8 +161,7 @@ impl<'de> Deserialize<'de> for U64 {
 			where
 				E: Error,
 			{
-				Ok(U64::from_str(num)
-					.map_err(|_| Error::custom("Could not parse U64 from string"))?)
+				U64::from_str(num).map_err(|_| Error::custom("Could not parse U64 from string"))
 			}
 		}
 

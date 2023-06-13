@@ -16,12 +16,14 @@ use serde::{
 
 use crate::types::RoutingMode;
 
-#[derive(Clone, Serialize, Deserialize)]
+/// The PFS's confirmed block.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConfirmedBlockInfo {
 	pub number: BlockNumber,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+/// The network info as provided by the PFS.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkInfo {
 	pub chain_id: ChainID,
 	pub token_network_registry_address: TokenNetworkRegistryAddress,
@@ -30,7 +32,8 @@ pub struct NetworkInfo {
 	pub confirmed_block: ConfirmedBlockInfo,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+/// Pathfinding service information.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PFSInfo {
 	#[serde(deserialize_with = "u256_from_u64", rename(deserialize = "price_info"))]
 	pub price: TokenAmount,
@@ -43,7 +46,8 @@ pub struct PFSInfo {
 	pub matrix_server: String,
 }
 
-#[derive(Clone)]
+/// Pathfinding service configuration
+#[derive(Clone, Debug)]
 pub struct PFSConfig {
 	pub url: String,
 	pub info: PFSInfo,
@@ -52,6 +56,7 @@ pub struct PFSConfig {
 	pub max_paths: usize,
 }
 
+/// Service configs
 #[derive(Clone)]
 pub struct ServicesConfig {
 	pub routing_mode: RoutingMode,

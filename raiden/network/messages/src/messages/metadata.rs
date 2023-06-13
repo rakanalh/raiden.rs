@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
+use raiden_blockchain::secret::encrypt_secret;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	Secret,
 };
 use raiden_state_machine::{
-	types::{
-		AddressMetadata,
-		SendLockedTransfer,
-	},
+	types::SendLockedTransfer,
 	views::get_address_metadata,
 };
 use serde::{
@@ -17,13 +16,18 @@ use serde::{
 };
 use web3::signing::keccak256;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Contains the metadata of the transfer route.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RouteMetadata {
 	pub route: Vec<Address>,
 	pub address_metadata: HashMap<Address, AddressMetadata>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Metadata is used by nodes to provide following hops in a transfer with additional information,
+/// e.g. to make additonal optimizations possible.
+/// It can contain arbitrary data and should be considered a read-only datastructure
+/// for mediating nodes.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
 	pub routes: Vec<RouteMetadata>,
 	pub secret: Option<Secret>,
@@ -51,8 +55,20 @@ impl From<SendLockedTransfer> for Metadata {
 			.into_iter()
 			.map(|r| RouteMetadata { route: r.route, address_metadata: r.address_to_metadata })
 			.collect();
-		let _target_metadata =
-			get_address_metadata(transfer.target, event.transfer.route_states.clone());
-		Self { routes, secret: transfer.secret }
+
+		let target_metadata = get_address_metadata(transfer.target, event.transfer.route_states);
+		let secret = match target_metadata {
+			Some(target_metadata) => transfer.secret.map(|s| {
+				encrypt_secret(
+					s,
+					target_metadata,
+					transfer.lock.amount,
+					transfer.payment_identifier,
+				)
+				.unwrap()
+			}),
+			None => None,
+		};
+		Self { routes, secret }
 	}
 }

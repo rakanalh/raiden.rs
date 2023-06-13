@@ -1,11 +1,16 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
 use raiden_macros::IntoStateChange;
 use raiden_primitives::types::{
 	Address,
+	AddressMetadata,
 	BlockExpiration,
 	BlockHash,
 	BlockNumber,
+	CanonicalIdentifier,
 	ChainID,
 	GasLimit,
+	LockedAmount,
 	Locksroot,
 	MessageIdentifier,
 	Nonce,
@@ -18,6 +23,7 @@ use raiden_primitives::types::{
 	TokenAmount,
 	TokenNetworkRegistryAddress,
 	TransactionHash,
+	U256,
 };
 use serde::{
 	Deserialize,
@@ -34,15 +40,16 @@ use crate::types::{
 		TransactionChannelDeposit,
 		TransferDescriptionWithSecretState,
 	},
-	AddressMetadata,
-	CanonicalIdentifier,
 	ChannelState,
 	MediationFeeConfig,
 	TokenNetworkRegistryState,
 	TokenNetworkState,
 };
 
+/// An enum containing all possible state change variants.
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(tag = "type")]
+#[allow(clippy::large_enum_variant)]
 pub enum StateChange {
 	Block(Block),
 	ActionInitChain(ActionInitChain),
@@ -80,6 +87,52 @@ pub enum StateChange {
 	UpdateServicesAddresses(UpdateServicesAddresses),
 }
 
+impl StateChange {
+	/// Returns a string of the inner state change's type name.
+	pub fn type_name(&self) -> &'static str {
+		match self {
+			StateChange::Block(_) => "Block",
+			StateChange::ActionInitChain(_) => "ActionInitChain",
+			StateChange::ActionInitInitiator(_) => "ActionInitInitiator",
+			StateChange::ActionInitMediator(_) => "ActionInitMediator",
+			StateChange::ActionInitTarget(_) => "ActionInitTarget",
+			StateChange::ActionChannelClose(_) => "ActionChannelClose",
+			StateChange::ActionChannelCoopSettle(_) => "ActionChannelCoopSettle",
+			StateChange::ActionChannelSetRevealTimeout(_) => "ActionChannelSetRevealTimeout",
+			StateChange::ActionChannelWithdraw(_) => "ActionChannelWithdraw",
+			StateChange::ActionTransferReroute(_) => "ActionTransferReroute",
+			StateChange::ActionCancelPayment(_) => "ActionCancelPayment",
+			StateChange::ContractReceiveTokenNetworkRegistry(_) =>
+				"ContractReceiveTokenNetworkRegistry",
+			StateChange::ContractReceiveTokenNetworkCreated(_) =>
+				"ContractReceiveTokenNetworkCreated",
+			StateChange::ContractReceiveChannelOpened(_) => "ContractReceiveChannelOpened",
+			StateChange::ContractReceiveChannelClosed(_) => "ContractReceiveChannelClosed",
+			StateChange::ContractReceiveChannelSettled(_) => "ContractReceiveChannelSettled",
+			StateChange::ContractReceiveChannelDeposit(_) => "ContractReceiveChannelDeposit",
+			StateChange::ContractReceiveChannelWithdraw(_) => "ContractReceiveChannelWithdraw",
+			StateChange::ContractReceiveChannelBatchUnlock(_) =>
+				"ContractReceiveChannelBatchUnlock",
+			StateChange::ContractReceiveSecretReveal(_) => "ContractReceiveSecretReveal",
+			StateChange::ContractReceiveRouteNew(_) => "ContractReceiveRouteNew",
+			StateChange::ContractReceiveUpdateTransfer(_) => "ContractReceiveUpdateTransfer",
+			StateChange::ReceiveDelivered(_) => "ReceiveDelivered",
+			StateChange::ReceiveProcessed(_) => "ReceiveProcessed",
+			StateChange::ReceiveTransferCancelRoute(_) => "ReceiveTransferCancelRoute",
+			StateChange::ReceiveSecretReveal(_) => "ReceiveSecretReveal",
+			StateChange::ReceiveSecretRequest(_) => "ReceiveSecretRequest",
+			StateChange::ReceiveTransferRefund(_) => "ReceiveTransferRefund",
+			StateChange::ReceiveLockExpired(_) => "ReceiveLockExpired",
+			StateChange::ReceiveUnlock(_) => "ReceiveUnlock",
+			StateChange::ReceiveWithdrawRequest(_) => "ReceiveWithdrawRequest",
+			StateChange::ReceiveWithdrawConfirmation(_) => "ReceiveWithdrawConfirmation",
+			StateChange::ReceiveWithdrawExpired(_) => "ReceiveWithdrawExpired",
+			StateChange::UpdateServicesAddresses(_) => "UpdateServicesAddresses",
+		}
+	}
+}
+
+/// Transition used when a new block is mined.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct Block {
 	pub block_number: BlockNumber,
@@ -87,6 +140,7 @@ pub struct Block {
 	pub gas_limit: GasLimit,
 }
 
+/// Transition to initialize chain state
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitChain {
 	pub chain_id: ChainID,
@@ -95,12 +149,14 @@ pub struct ActionInitChain {
 	pub our_address: Address,
 }
 
+/// Change the reveal timeout value of a given channel.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelSetRevealTimeout {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub reveal_timeout: RevealTimeout,
 }
 
+/// Withdraw funds from channel.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelWithdraw {
 	pub canonical_identifier: CanonicalIdentifier,
@@ -108,17 +164,22 @@ pub struct ActionChannelWithdraw {
 	pub recipient_metadata: Option<AddressMetadata>,
 }
 
+/// Cooperatively withdraw funds from channel back to both parties and close the channel in a single
+/// operation.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelCoopSettle {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub recipient_metadata: Option<AddressMetadata>,
 }
 
+/// User is closing an existing channel.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionChannelClose {
 	pub canonical_identifier: CanonicalIdentifier,
 }
 
+/// Registers a new token network registry.
+/// A token network registry corresponds to a registry smart contract.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveTokenNetworkRegistry {
 	pub transaction_hash: Option<TransactionHash>,
@@ -127,6 +188,7 @@ pub struct ContractReceiveTokenNetworkRegistry {
 	pub block_hash: BlockHash,
 }
 
+/// A new token was registered with the token network registry.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveTokenNetworkCreated {
 	pub transaction_hash: Option<TransactionHash>,
@@ -136,6 +198,7 @@ pub struct ContractReceiveTokenNetworkCreated {
 	pub block_hash: BlockHash,
 }
 
+/// A new channel was created and this node IS a participant.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelOpened {
 	pub transaction_hash: Option<TransactionHash>,
@@ -144,6 +207,7 @@ pub struct ContractReceiveChannelOpened {
 	pub channel_state: ChannelState,
 }
 
+/// A channel to which this node IS a participant was closed.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelClosed {
 	pub transaction_hash: Option<TransactionHash>,
@@ -153,6 +217,7 @@ pub struct ContractReceiveChannelClosed {
 	pub canonical_identifier: CanonicalIdentifier,
 }
 
+/// A channel to which this node IS a participant was settled.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelSettled {
 	pub transaction_hash: Option<TransactionHash>,
@@ -161,8 +226,11 @@ pub struct ContractReceiveChannelSettled {
 	pub canonical_identifier: CanonicalIdentifier,
 	pub our_onchain_locksroot: Locksroot,
 	pub partner_onchain_locksroot: Locksroot,
+	pub our_transferred_amount: TokenAmount,
+	pub partner_transferred_amount: TokenAmount,
 }
 
+/// A channel to which this node IS a participant had a deposit.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelDeposit {
 	pub transaction_hash: Option<TransactionHash>,
@@ -173,6 +241,7 @@ pub struct ContractReceiveChannelDeposit {
 	pub fee_config: MediationFeeConfig,
 }
 
+/// A channel to which this node IS a participant had a withdraw.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelWithdraw {
 	pub transaction_hash: Option<TransactionHash>,
@@ -184,6 +253,14 @@ pub struct ContractReceiveChannelWithdraw {
 	pub fee_config: MediationFeeConfig,
 }
 
+/// All the locks were claimed via the blockchain.
+
+/// Used when all the hash time locks were unlocked and a log ChannelUnlocked is emitted
+/// by the token network contract.
+/// Note:
+///     For this state change the contract caller is not important but only the
+///     receiving address. `receiver` is the address to which the `unlocked_amount`
+///     was transferred. `returned_tokens` was transferred to the channel partner.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveChannelBatchUnlock {
 	pub transaction_hash: Option<TransactionHash>,
@@ -193,10 +270,11 @@ pub struct ContractReceiveChannelBatchUnlock {
 	pub receiver: Address,
 	pub sender: Address,
 	pub locksroot: Locksroot,
-	pub unlocked_amount: TokenAmount,
+	pub unlocked_amount: LockedAmount,
 	pub returned_tokens: TokenAmount,
 }
 
+/// A new secret was registered with the SecretRegistry contract.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveSecretReveal {
 	pub transaction_hash: Option<TransactionHash>,
@@ -207,6 +285,7 @@ pub struct ContractReceiveSecretReveal {
 	pub secret: Secret,
 }
 
+/// New channel was created and this node is NOT a participant.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveRouteNew {
 	pub transaction_hash: Option<TransactionHash>,
@@ -217,6 +296,7 @@ pub struct ContractReceiveRouteNew {
 	pub participant2: Address,
 }
 
+/// Participant updated the latest balance proof on-chain.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ContractReceiveUpdateTransfer {
 	pub transaction_hash: Option<TransactionHash>,
@@ -226,12 +306,14 @@ pub struct ContractReceiveUpdateTransfer {
 	pub nonce: Nonce,
 }
 
+/// Initial state of a new mediated transfer.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitInitiator {
 	pub transfer: TransferDescriptionWithSecretState,
 	pub routes: Vec<RouteState>,
 }
 
+/// Initial state for a new mediator.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitMediator {
 	pub sender: Address,
@@ -241,6 +323,7 @@ pub struct ActionInitMediator {
 	pub from_transfer: LockedTransferState,
 }
 
+/// Initial state for a new target.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionInitTarget {
 	pub sender: Address,
@@ -250,6 +333,7 @@ pub struct ActionInitTarget {
 	pub received_valid_secret: bool,
 }
 
+/// A transfer will be rerouted.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionTransferReroute {
 	pub transfer: LockedTransferState,
@@ -257,16 +341,21 @@ pub struct ActionTransferReroute {
 	pub secrethash: SecretHash,
 }
 
+/// The user requests the transfer to be cancelled.
+/// This state change can fail, it depends on the node's role and the current
+/// state of the transfer.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ActionCancelPayment {
 	pub payment_identifier: PaymentIdentifier,
 }
 
+/// A mediator sends us a refund due to a failed route.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveTransferCancelRoute {
 	pub transfer: LockedTransferState,
 }
 
+/// A SecretRequest message received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveSecretRequest {
 	pub sender: Address,
@@ -277,6 +366,7 @@ pub struct ReceiveSecretRequest {
 	pub revealsecret: Option<SendSecretReveal>,
 }
 
+/// A SecretReveal message received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveSecretReveal {
 	pub sender: Address,
@@ -284,6 +374,7 @@ pub struct ReceiveSecretReveal {
 	pub secrethash: SecretHash,
 }
 
+/// A LockExpired message received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveLockExpired {
 	pub sender: Address,
@@ -292,12 +383,14 @@ pub struct ReceiveLockExpired {
 	pub balance_proof: BalanceProofState,
 }
 
+/// A RefundTransfer message received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveTransferRefund {
 	pub transfer: LockedTransferState,
 	pub balance_proof: BalanceProofState,
 }
 
+/// An Unlock message received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveUnlock {
 	pub sender: Address,
@@ -307,6 +400,7 @@ pub struct ReceiveUnlock {
 	pub balance_proof: BalanceProofState,
 }
 
+/// A Withdraw message received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveWithdrawRequest {
 	pub sender: Address,
@@ -321,6 +415,7 @@ pub struct ReceiveWithdrawRequest {
 	pub sender_metadata: Option<AddressMetadata>,
 }
 
+/// A Withdraw message was received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveWithdrawConfirmation {
 	pub sender: Address,
@@ -333,6 +428,7 @@ pub struct ReceiveWithdrawConfirmation {
 	pub participant: Address,
 }
 
+/// A WithdrawExpired message was received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveWithdrawExpired {
 	pub sender: Address,
@@ -344,20 +440,23 @@ pub struct ReceiveWithdrawExpired {
 	pub participant: Address,
 }
 
+/// A Delivered message was received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveDelivered {
 	pub sender: Address,
 	pub message_identifier: MessageIdentifier,
 }
 
+/// A processed message was received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct ReceiveProcessed {
 	pub sender: Address,
 	pub message_identifier: MessageIdentifier,
 }
 
+/// A `RegisteredService` contract event was received.
 #[derive(Serialize, Deserialize, Clone, Debug, IntoStateChange)]
 pub struct UpdateServicesAddresses {
 	pub service: Address,
-	pub valid_til: u32,
+	pub valid_till: U256,
 }

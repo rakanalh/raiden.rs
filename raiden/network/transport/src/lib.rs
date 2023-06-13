@@ -1,12 +1,15 @@
 use matrix_sdk::HttpError;
 use raiden_network_messages::messages::OutgoingMessage;
-use raiden_state_machine::types::QueueIdentifier;
+use raiden_primitives::types::QueueIdentifier;
 use thiserror::Error;
 
 pub mod config;
 pub mod matrix;
+#[cfg(test)]
+mod tests;
 pub mod types;
 
+/// The transport error type.
 #[derive(Error, Debug)]
 pub enum TransportError {
 	#[error("Could not initialize transport: `{0}`")]

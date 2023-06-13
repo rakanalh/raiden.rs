@@ -1,6 +1,5 @@
 mod channel;
 mod common;
-mod contract;
 mod error;
 mod gas_reserve;
 mod manager;
@@ -9,7 +8,6 @@ mod services;
 mod token;
 mod token_network;
 mod token_network_registry;
-mod transaction;
 mod user_deposit;
 
 pub use common::*;

@@ -1,18 +1,20 @@
+#![warn(clippy::missing_docs_in_private_items)]
+
+/// Event types.
 mod event;
+/// State types
 mod state;
+/// State change types
 mod state_change;
 
 use raiden_primitives::{
 	deserializers::u256_from_str,
+	serializers::u256_to_str,
 	types::{
-		Address,
-		ChainID,
+		BlockNumber,
 		PaymentIdentifier,
 		Secret,
 		TokenAmount,
-		TokenNetworkAddress,
-		U256,
-		U64,
 	},
 };
 use rand_chacha::{
@@ -33,6 +35,7 @@ pub use self::{
 	state_change::*,
 };
 
+/// The channel's pseudo random number generator.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Random(ChaChaRng);
 
@@ -41,48 +44,38 @@ impl Random {
 		Self(ChaChaRng::seed_from_u64(0))
 	}
 
+	#[allow(clippy::should_implement_trait)]
 	pub fn next(&mut self) -> u64 {
 		self.0.next_u64()
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-pub struct AddressMetadata {
-	pub user_id: String,
-	pub displayname: String,
-	pub capabilities: String,
+impl Default for Random {
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct CanonicalIdentifier {
-	pub chain_identifier: ChainID,
-	pub token_network_address: TokenNetworkAddress,
-	pub channel_identifier: U256,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct QueueIdentifier {
-	pub recipient: Address,
-	pub canonical_identifier: CanonicalIdentifier,
-}
-
+/// Transaction result state.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum TransactionResult {
 	Success,
 	Failure,
 }
 
+/// The transaction execution status.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TransactionExecutionStatus {
-	pub started_block_number: Option<U64>,
-	pub finished_block_number: Option<U64>,
+	pub started_block_number: Option<BlockNumber>,
+	pub finished_block_number: Option<BlockNumber>,
 	pub result: Option<TransactionResult>,
 }
 
+/// Type to hold a decrypted secret with metadata.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct DecryptedSecret {
 	pub secret: Secret,
-	#[serde(deserialize_with = "u256_from_str")]
+	#[serde(deserialize_with = "u256_from_str", serialize_with = "u256_to_str")]
 	pub amount: TokenAmount,
 	pub payment_identifier: PaymentIdentifier,
 }

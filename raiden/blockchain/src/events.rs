@@ -3,6 +3,10 @@ use std::{
 	sync::Arc,
 };
 
+use ethabi::{
+	ParamType,
+	Token,
+};
 use raiden_primitives::types::{
 	Address,
 	H256,
@@ -12,6 +16,7 @@ use web3::types::Log;
 
 use super::contracts::ContractsManager;
 
+/// Contains information about the event triggered on the Ethereum chain.
 #[derive(Clone, Debug)]
 pub struct Event {
 	pub name: String,
@@ -23,6 +28,10 @@ pub struct Event {
 }
 
 impl Event {
+	/// Decodes a log into an event based on information about the contracts from the contracts
+	/// manager.
+	///
+	/// Returns None if the event is unknown.
 	pub fn decode(contracts_manager: Arc<ContractsManager>, log: &Log) -> Option<Event> {
 		let events = contracts_manager.events(None);
 		for event in events {
@@ -54,11 +63,16 @@ impl Event {
 				}
 
 				if !log.data.0.is_empty() {
-					for (name, input) in non_indexed_inputs {
-						if let Ok(decoded_value) =
-							ethabi::decode(&[input.kind.clone()], &log.data.0)
-						{
-							data.insert(name, decoded_value[0].clone());
+					let token_types: Vec<ParamType> =
+						non_indexed_inputs.iter().map(|(_, param)| param.kind.clone()).collect();
+					let input_names: Vec<String> =
+						non_indexed_inputs.iter().map(|(name, _)| name).cloned().collect();
+
+					if let Ok(tokens) = ethabi::decode(&token_types, &log.data.0) {
+						let names_and_tokens: Vec<(String, Token)> =
+							input_names.into_iter().zip(tokens).collect();
+						for (name, token) in names_and_tokens {
+							data.insert(name, token);
 						}
 					}
 				}

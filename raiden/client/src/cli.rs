@@ -9,8 +9,15 @@ use std::{
 };
 
 use ethsign::KeyFile;
+use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::Address;
+use web3::{
+	signing::Key,
+	transports::Http,
+	Web3,
+};
 
+/// Retrieve a list of usable keys from keystore path.
 pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {
 	let mut keys: HashMap<String, Address> = HashMap::new();
 	for entry in fs::read_dir(keystore)? {
@@ -22,4 +29,23 @@ pub fn list_keys(keystore: &Path) -> io::Result<HashMap<String, Address>> {
 		keys.insert(file_name, address);
 	}
 	Ok(keys)
+}
+
+/// Unlock a private key using a password
+pub async fn unlock_private_key(
+	web3: Web3<Http>,
+	key_filename: String,
+	password: String,
+) -> Result<PrivateKey, String> {
+	let private_key = PrivateKey::new(key_filename.clone(), password.clone())
+		.map_err(|e| format!("Could not unlock private key: {:?}", e))?;
+
+	if !password.is_empty() {
+		web3.personal()
+			.unlock_account(private_key.address(), &password, None)
+			.await
+			.map_err(|e| format!("Could not unlock account on ethereum node: {:?}", e))?;
+	}
+
+	Ok(private_key)
 }

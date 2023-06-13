@@ -1,12 +1,12 @@
 use raiden_blockchain::keys::PrivateKey;
 use raiden_primitives::types::{
 	Address,
-	MessageIdentifier,
-	H256,
-};
-use raiden_state_machine::types::{
 	AddressMetadata,
+	BlockNumber,
+	MessageIdentifier,
 	QueueIdentifier,
+	H256,
+	U256,
 };
 use serde::{
 	Deserialize,
@@ -19,59 +19,53 @@ use web3::signing::{
 };
 
 mod metadata;
+mod monitoring_service;
+mod pathfinding;
 mod synchronization;
 mod transfer;
 mod withdraw;
 
 pub use metadata::*;
+pub use monitoring_service::*;
+pub use pathfinding::*;
 pub use synchronization::*;
 pub use transfer::*;
 pub use withdraw::*;
 
+/// Identifier for off-chain messages.
+///
+/// These magic numbers are used to identify the type of a message.
 enum CmdId {
 	Processed = 0,
-	Ping = 1,
-	Pong = 2,
 	SecretRequest = 3,
 	Unlock = 4,
 	LockedTransfer = 7,
-	RefundTransfer = 8,
 	RevealSecret = 11,
 	Delivered = 12,
 	LockExpired = 13,
-	WithdrawRequest = 15,
-	WithdrawConfirmation = 16,
 	WithdrawExpired = 17,
 }
 
-impl Into<[u8; 1]> for CmdId {
-	fn into(self) -> [u8; 1] {
-		(self as u8).to_be_bytes()
+impl From<CmdId> for [u8; 1] {
+	fn from(val: CmdId) -> Self {
+		(val as u8).to_be_bytes()
 	}
 }
 
-enum MessageTypeId {
-	BalanceProof = 1,
-	BalanceProofUpdate = 2,
-	Withdraw = 3,
-	CooperativeSettle = 4,
-	IOU = 5,
-	MSReward = 6,
-}
-
-impl Into<[u8; 1]> for MessageTypeId {
-	fn into(self) -> [u8; 1] {
-		(self as u8).to_be_bytes()
-	}
-}
-
-#[derive(Debug)]
+/// An enum containing the commands to send to the transport layer.
+#[derive(Debug, Eq, PartialEq)]
 pub enum TransportServiceMessage {
 	Enqueue((QueueIdentifier, OutgoingMessage)),
-	Send(OutgoingMessage),
+	Dequeue((Option<QueueIdentifier>, MessageIdentifier)),
+	Send(MessageIdentifier),
+	Broadcast(OutgoingMessage),
+	UpdateServiceAddresses(Address, U256),
+	ExpireServiceAddresses(U256, BlockNumber),
+	Clear(QueueIdentifier),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// An enum containing all message types to be sent / received by the transport.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageInner {
 	LockedTransfer(LockedTransfer),
@@ -82,10 +76,15 @@ pub enum MessageInner {
 	WithdrawRequest(WithdrawRequest),
 	WithdrawConfirmation(WithdrawConfirmation),
 	WithdrawExpired(WithdrawExpired),
+	PFSCapacityUpdate(PFSCapacityUpdate),
+	PFSFeeUpdate(PFSFeeUpdate),
+	MSUpdate(RequestMonitoring),
 	Processed(Processed),
+	Delivered(Delivered),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Message to be sent out to the partner node.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutgoingMessage {
 	pub message_identifier: MessageIdentifier,
 	pub recipient: Address,
@@ -94,15 +93,58 @@ pub struct OutgoingMessage {
 	pub inner: MessageInner,
 }
 
+impl OutgoingMessage {
+	/// Returns the string type name of the message.
+	pub fn type_name(&self) -> &'static str {
+		match self.inner {
+			MessageInner::LockedTransfer(_) => "LockedTransfer",
+			MessageInner::LockExpired(_) => "LockExpired",
+			MessageInner::SecretRequest(_) => "SecretRequest",
+			MessageInner::SecretReveal(_) => "SecretReveal",
+			MessageInner::Unlock(_) => "Unlock",
+			MessageInner::WithdrawRequest(_) => "WithdrawRequest",
+			MessageInner::WithdrawConfirmation(_) => "WithdrawConfirmation",
+			MessageInner::WithdrawExpired(_) => "WithdrawExpired",
+			MessageInner::PFSCapacityUpdate(_) => "PFSCapacityUpdate",
+			MessageInner::PFSFeeUpdate(_) => "PFSFeeUpdate",
+			MessageInner::MSUpdate(_) => "MSUpdate",
+			MessageInner::Processed(_) => "Processed",
+			MessageInner::Delivered(_) => "Delivered",
+		}
+	}
+}
+
+/// Message received from the partner node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IncomingMessage {
 	pub message_identifier: MessageIdentifier,
 	pub inner: MessageInner,
 }
 
+impl IncomingMessage {
+	/// Returns the string type name of the message.
+	pub fn type_name(&self) -> &'static str {
+		match self.inner {
+			MessageInner::LockedTransfer(_) => "LockedTransfer",
+			MessageInner::LockExpired(_) => "LockExpired",
+			MessageInner::SecretRequest(_) => "SecretRequest",
+			MessageInner::SecretReveal(_) => "SecretReveal",
+			MessageInner::Unlock(_) => "Unlock",
+			MessageInner::WithdrawRequest(_) => "WithdrawRequest",
+			MessageInner::WithdrawConfirmation(_) => "WithdrawConfirmation",
+			MessageInner::WithdrawExpired(_) => "WithdrawExpired",
+			MessageInner::PFSCapacityUpdate(_) => "PFSCapacityUpdate",
+			MessageInner::PFSFeeUpdate(_) => "PFSFeeUpdate",
+			MessageInner::MSUpdate(_) => "MSUpdate",
+			MessageInner::Processed(_) => "Processed",
+			MessageInner::Delivered(_) => "Delivered",
+		}
+	}
+}
+
+/// Trait to be implemented by the messages that have to be signed before being sent.
 pub trait SignedMessage {
 	fn bytes_to_sign(&self) -> Vec<u8>;
-	fn bytes_to_pack(&self) -> Vec<u8>;
 	fn sign(&mut self, key: PrivateKey) -> Result<(), SigningError>;
 	fn sign_message(&self, key: PrivateKey) -> Result<Signature, SigningError> {
 		let bytes = self.bytes_to_sign();
@@ -110,10 +152,12 @@ pub trait SignedMessage {
 	}
 }
 
+/// A trait for the signed message that contains a balance proof.
 pub trait SignedEnvelopeMessage: SignedMessage {
 	fn message_hash(&self) -> H256;
 }
 
+/// Convert state machine event into a signed message.
 #[macro_export]
 macro_rules! to_message {
 	( $send_message_event:ident, $private_key:ident, $message_type:tt ) => {{

@@ -1,16 +1,14 @@
 use std::{
-	collections::HashMap,
 	error::Error,
-	io::{
-		stdin,
-		stdout,
-		Write,
-	},
 	path::PathBuf,
-	str::FromStr,
 };
 
+use raiden_bin_common::parse_address;
 use raiden_network_transport::{
+	config::{
+		MatrixTransportConfig,
+		TransportConfig,
+	},
 	matrix::constants::MATRIX_AUTO_SELECT_SERVER,
 	types::EnvironmentType,
 };
@@ -18,9 +16,17 @@ use raiden_pathfinding::{
 	config::ServicesConfig,
 	types::RoutingMode,
 };
-use raiden_primitives::types::{
-	Address,
-	TokenAmount,
+use raiden_primitives::{
+	constants::{
+		PFS_DEFAULT_IOU_TIMEOUT,
+		PFS_DEFAULT_MAX_FEE,
+		PFS_DEFAULT_MAX_PATHS,
+	},
+	types::{
+		Address,
+		TokenAmount,
+		U256,
+	},
 };
 use structopt::{
 	clap::arg_enum,
@@ -54,8 +60,22 @@ fn parse_chain_id(src: &str) -> Result<u64, Box<dyn Error + Send + Sync + 'stati
 	}
 }
 
-fn parse_address(address: &str) -> Result<Address, Box<dyn Error + Send + Sync + 'static>> {
-	Ok(Address::from_str(&address)?)
+fn parse_environment_type(
+	src: &str,
+) -> Result<ArgEnvironmentType, Box<dyn Error + Send + Sync + 'static>> {
+	match src {
+		"development" => Ok(ArgEnvironmentType::Development),
+		"production" => Ok(ArgEnvironmentType::Production),
+		_ => Err("Invalid environment type".to_owned().into()),
+	}
+}
+
+fn parse_routing_mode(src: &str) -> Result<ArgRoutingMode, Box<dyn Error + Send + Sync + 'static>> {
+	match src {
+		"pfs" => Ok(ArgRoutingMode::PFS),
+		"private" => Ok(ArgRoutingMode::Private),
+		_ => Err("Invalid routing mode".to_owned().into()),
+	}
 }
 
 arg_enum! {
@@ -110,8 +130,9 @@ pub struct CliMediationConfig {
 #[derive(StructOpt, Clone, Debug)]
 pub struct CliServicesConfig {
 	#[structopt(
-		possible_values = &ArgRoutingMode::variants(),
-		default_value = "PFS",
+        long,
+		parse(try_from_str = parse_routing_mode),
+		default_value = "pfs",
 		required = false,
 		takes_value = true
 	)]
@@ -127,19 +148,34 @@ pub struct CliServicesConfig {
 	#[structopt(long, required = false, default_value = "0")]
 	pub pathfinding_iou_timeout: u64,
 	#[structopt(long)]
-	pub monitoring_enabled: bool,
+	pub enable_monitoring: bool,
 }
 
 impl From<CliServicesConfig> for ServicesConfig {
 	fn from(s: CliServicesConfig) -> ServicesConfig {
+		let max_paths = if s.pathfinding_max_paths < 1 {
+			*PFS_DEFAULT_MAX_PATHS
+		} else {
+			s.pathfinding_max_paths
+		};
+		let max_fee = if s.pathfinding_max_fee == U256::zero() {
+			*PFS_DEFAULT_MAX_FEE
+		} else {
+			s.pathfinding_max_fee
+		};
+		let iou_timeout = if s.pathfinding_iou_timeout == 0 {
+			*PFS_DEFAULT_IOU_TIMEOUT
+		} else {
+			s.pathfinding_iou_timeout.into()
+		};
 		ServicesConfig {
 			routing_mode: s.routing_mode.into(),
 			pathfinding_service_random_address: s.pathfinding_service_random_address,
 			pathfinding_service_address: s.pathfinding_service_address,
-			pathfinding_max_paths: s.pathfinding_max_paths,
-			pathfinding_max_fee: s.pathfinding_max_fee,
-			pathfinding_iou_timeout: s.pathfinding_iou_timeout.into(),
-			monitoring_enabled: s.monitoring_enabled,
+			pathfinding_max_paths: max_paths,
+			pathfinding_max_fee: max_fee,
+			pathfinding_iou_timeout: iou_timeout,
+			monitoring_enabled: s.enable_monitoring,
 		}
 	}
 }
@@ -154,6 +190,18 @@ pub struct CliMatrixTransportConfig {
 	pub retry_timeout: u8,
 	#[structopt(long, default_value = "60")]
 	pub retry_timeout_max: u8,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<TransportConfig> for CliMatrixTransportConfig {
+	fn into(self) -> TransportConfig {
+		TransportConfig {
+			retry_timeout: self.retry_timeout,
+			retry_timeout_max: self.retry_timeout_max,
+			retry_count: self.retry_count,
+			matrix: MatrixTransportConfig { homeserver_url: self.matrix_server },
+		}
+	}
 }
 
 #[derive(StructOpt, Debug)]
@@ -171,14 +219,17 @@ pub struct Opt {
 	pub chain_id: u64,
 
 	#[structopt(
-		possible_values = &ArgEnvironmentType::variants(),
         short("e"),
         long,
-        default_value = "Production",
+        default_value = "production",
+		parse(try_from_str = parse_environment_type),
         required = true,
         takes_value = true
     )]
 	pub environment_type: ArgEnvironmentType,
+
+	#[structopt(long, required = false, takes_value = true, default_value = "demo")]
+	pub development_environment: String,
 
 	/// Specify the RPC endpoint to interact with.
 	#[structopt(long, required = true, takes_value = true)]
@@ -187,6 +238,10 @@ pub struct Opt {
 	/// Specify the RPC endpoint to interact with.
 	#[structopt(long, required = true, takes_value = true)]
 	pub eth_rpc_socket_endpoint: String,
+
+	/// Specify the http server host
+	#[structopt(long, required = true, takes_value = true, default_value = "127.0.0.1:3000")]
+	pub api_address: String,
 
 	#[structopt(short("k"), long, parse(from_os_str), required = true, takes_value = true)]
 	pub keystore_path: PathBuf,
@@ -220,28 +275,18 @@ pub struct Opt {
 
 	#[structopt(flatten)]
 	pub services_config: CliServicesConfig,
-}
 
-pub fn prompt_key(keys: &HashMap<String, Address>) -> String {
-	println!("Select key:");
-	loop {
-		let mut index = 0;
-		let mut s = String::new();
+	#[structopt(long, required = false, takes_value = true, default_value = "20")]
+	pub default_reveal_timeout: u64,
 
-		for address in keys.values() {
-			println!("[{}]: {}", index, address);
-			index += 1;
-		}
-		print!("Selected key: ");
-		let _ = stdout().flush();
-		stdin().read_line(&mut s).expect("Did not enter a correct string");
-		let selected_value: Result<u32, _> = s.trim().parse();
-		if let Ok(chosen_index) = selected_value {
-			if (chosen_index as usize) >= keys.len() {
-				continue
-			}
-			let selected_filename = keys.keys().nth(chosen_index as usize).unwrap();
-			return selected_filename.clone()
-		}
-	}
+	#[structopt(long, required = false, takes_value = true, default_value = "40")]
+	pub default_settle_timeout: u64,
+	#[structopt(long, required = false, takes_value = true, default_value = "info")]
+	pub log_config: String,
+
+	#[structopt(long)]
+	pub log_json: bool,
+
+	#[structopt(long, parse(from_os_str), takes_value = true)]
+	pub log_file: Option<PathBuf>,
 }
