@@ -1,3 +1,5 @@
+//! Implements Raiden protocol messages and matrix network integration to exchange messages between
+//! nodes over the wire.
 use matrix_sdk::HttpError;
 use raiden_network_messages::messages::OutgoingMessage;
 use raiden_primitives::types::QueueIdentifier;

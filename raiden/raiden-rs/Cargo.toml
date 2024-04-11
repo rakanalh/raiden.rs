@@ -1,0 +1,24 @@
+[package]
+name = "raiden-rs"
+version = "0.1.0"
+authors = ["Rakan Alhneiti <rakan.alhneiti@gmail.com>"]
+description = "Raiden Network implementation in Rust"
+repository = "https://github.com/rakanalh/raiden-rust"
+license = "MIT"
+edition = "2021"
+readme = "README.md"
+keywords = ["blockchain", "ethereum", "layer-2", "scaling"]
+rust-version = "1.59"
+
+[dependencies]
+# Raiden
+raiden-api = { version = "0.1.0", path = "../api" }
+raiden-blockchain = { version = "0.1.0", path = "../blockchain" }
+raiden-client = { version = "0.1.0", path = "../client" }
+raiden-macros = { version = "0.1.0", path = "../macros" }
+raiden-network-messages = { version = "0.1.0", path = "../network/messages" }
+raiden-network-transport = { version = "0.1.0", path = "../network/transport" }
+raiden-pathfinding = { version = "0.1.0", path = "../pathfinding" }
+raiden-primitives = { version = "0.1.0", path = "../primitives" }
+raiden-state-machine = { version = "0.1.0", path = "../state-machine" }
+raiden-transition = { version = "0.1.0", path = "../transition" }

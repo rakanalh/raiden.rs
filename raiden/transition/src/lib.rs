@@ -1,3 +1,4 @@
+//! Implements state change transitioner and state machine event handler.
 use std::sync::Arc;
 
 use futures::future::join_all;

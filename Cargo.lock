@@ -2763,6 +2763,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "raiden-rs"
+version = "0.1.0"
+dependencies = [
+ "raiden-api",
+ "raiden-blockchain",
+ "raiden-client",
+ "raiden-macros",
+ "raiden-network-messages",
+ "raiden-network-transport",
+ "raiden-pathfinding",
+ "raiden-primitives",
+ "raiden-state-machine",
+ "raiden-transition",
+]
+
+[[package]]
 name = "raiden-state-machine"
 version = "0.1.0"
 dependencies = [

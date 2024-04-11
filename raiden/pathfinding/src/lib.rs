@@ -1,3 +1,4 @@
+//! Implements ways to interact with the pathfinding service to retrieve routes for payments.
 use std::collections::HashMap;
 
 use chrono::Utc;

@@ -4,6 +4,18 @@ members = [
     "bin/raiden",
     "bin/state-replayer",
     "bin/token-ops",
+    "raiden/raiden-rs",
+    "raiden/api",
+    "raiden/blockchain",
+    "raiden/client",
+    "raiden/macros",
+    "raiden/state-machine",
+    "raiden/transition",
+    "raiden/network/messages",
+    "raiden/network/transport",
+]
+default-members = [
+    "raiden/raiden-rs",
     "raiden/api",
     "raiden/blockchain",
     "raiden/client",
@@ -30,3 +42,9 @@ opt-level = 3
 [profile.release]
 panic = "abort"
 lto = true
+
+# https://docs.rs/about/metadata
+[workspace.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+cargo-args = ["-Z", "build-std"]
