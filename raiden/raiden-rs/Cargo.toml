@@ -14,7 +14,6 @@ rust-version = "1.59"
 # Raiden
 raiden-api = { version = "0.1.0", path = "../api" }
 raiden-blockchain = { version = "0.1.0", path = "../blockchain" }
-raiden-client = { version = "0.1.0", path = "../client" }
 raiden-macros = { version = "0.1.0", path = "../macros" }
 raiden-network-messages = { version = "0.1.0", path = "../network/messages" }
 raiden-network-transport = { version = "0.1.0", path = "../network/transport" }

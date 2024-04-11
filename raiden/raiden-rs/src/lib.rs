@@ -19,44 +19,40 @@
 //! The following paragraphs are a quick explanation of each module in ascending order of
 //! abstraction.
 //!
-//! ### `raiden_api`
+//! ### `raiden-api`
 //!
 //! A high level API crate which lets you interact with the components of Raiden to trigger various
 //! Raiden specific functionality such as opening / closing channels, deposit & withdraw as well as
 //! initiating payments .. etc.
 //!
-//! ### `raiden_blockchain`
+//! ### `raiden-blockchain`
 //!
 //! Implements various ethereum specific functionality such as interacting with the contracts
 //! on-chain, signing & recovery and decoding Ethereum events into state changes.
 //!
-//! ### `raiden_client`
-//!
-//! Uses all above crates to create a fully functional Raiden client.
-//!
-//! ### `raiden_macros`
+//! ### `raiden-macros`
 //!
 //! Provides simple macros for type conversions.
 //!
-//! ### `raiden_network_messages`, `raiden_network_transport`
+//! ### `raiden-network_messages`, `raiden-network_transport`
 //!
 //! Implements Raiden protocol messages and matrix network integration to exchange messages between
 //! nodes over the wire.
 //!
-//! ### `raiden_pathfinding`
+//! ### `raiden-pathfinding`
 //!
 //! Implements ways to interact with the pathfinding service to retrieve routes for payments.
 //!
-//! ### `raiden_primitives`
+//! ### `raiden-primitives`
 //!
 //! Defines various primitive data types and utils.
 //!
-//! ### `raiden_state_machine`
+//! ### `raiden-state_machine`
 //!
 //! This is the most vital crate which handles a complete chain state and it's transitions using
 //! state changes.
 //!
-//! ### `raiden_transition`
+//! ### `raiden-transition`
 //!
 //! Plays a middleman role by handling all incoming messages and dispatching those as state changes
 //! into the state machine, while also handling resulting events from the state machine to be sent
@@ -71,8 +67,6 @@
 pub use raiden_api;
 #[doc(inline)]
 pub use raiden_blockchain;
-#[doc(inline)]
-pub use raiden_client;
 #[doc(inline)]
 pub use raiden_macros;
 #[doc(inline)]

@@ -2593,7 +2593,6 @@ dependencies = [
  "raiden-api",
  "raiden-bin-common",
  "raiden-blockchain",
- "raiden-client",
  "raiden-network-messages",
  "raiden-network-transport",
  "raiden-pathfinding",
@@ -2637,7 +2636,6 @@ name = "raiden-bin-common"
 version = "0.0.1"
 dependencies = [
  "raiden-blockchain",
- "raiden-client",
  "raiden-primitives",
  "rpassword",
  "web3",
@@ -2658,22 +2656,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
- "tracing",
- "web3",
-]
-
-[[package]]
-name = "raiden-client"
-version = "0.1.0"
-dependencies = [
- "ethsign",
- "futures",
- "raiden-api",
- "raiden-blockchain",
- "raiden-primitives",
- "raiden-state-machine",
- "raiden-transition",
- "serde_json",
  "tracing",
  "web3",
 ]
@@ -2768,7 +2750,6 @@ version = "0.1.0"
 dependencies = [
  "raiden-api",
  "raiden-blockchain",
- "raiden-client",
  "raiden-macros",
  "raiden-network-messages",
  "raiden-network-transport",

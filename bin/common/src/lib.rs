@@ -12,15 +12,18 @@ use std::{
 };
 
 use raiden_blockchain::keys::PrivateKey;
-use raiden_client::cli::{
-	list_keys,
-	unlock_private_key,
-};
 use raiden_primitives::types::Address;
 use web3::{
 	transports::Http,
 	Web3,
 };
+
+use crate::cli::{
+	list_keys,
+	unlock_private_key,
+};
+
+pub mod cli;
 
 pub fn parse_address(address: &str) -> Result<Address, Box<dyn Error + Send + Sync + 'static>> {
 	Ok(Address::from_str(address)?)

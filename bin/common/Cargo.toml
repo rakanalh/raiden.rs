@@ -17,5 +17,4 @@ web3 = { version = "0.18.0", default-features = false, features = [ "http", "sig
 
 # Raiden
 raiden-blockchain = { path = "../../raiden/blockchain" }
-raiden-client = { path = "../../raiden/client" }
 raiden-primitives = { path = "../../raiden/primitives" }

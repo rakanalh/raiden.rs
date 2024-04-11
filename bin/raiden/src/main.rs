@@ -23,10 +23,6 @@ use raiden_blockchain::{
 		ProxyManager,
 	},
 };
-use raiden_client::services::{
-	BlockMonitorService,
-	SyncService,
-};
 use raiden_pathfinding::{
 	self,
 	config::{
@@ -74,6 +70,10 @@ use web3::{
 
 use crate::{
 	cli::Opt,
+	services::{
+		BlockMonitorService,
+		SyncService,
+	},
 	traits::{
 		ToHTTPEndpoint,
 		ToSocketEndpoint,
@@ -83,8 +83,8 @@ use crate::{
 mod cli;
 mod http;
 mod init;
+mod services;
 mod traits;
-
 use init::*;
 
 #[tokio::main]
@@ -451,7 +451,6 @@ fn get_logging_filter(log_config: String) -> EnvFilter {
 		.add_directive(format!("raiden={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_api={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_blockchain={}", log_config).parse().unwrap())
-		.add_directive(format!("raiden_client={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_state_machine={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_storage={}", log_config).parse().unwrap())
 		.add_directive(format!("raiden_transition={}", log_config).parse().unwrap())
