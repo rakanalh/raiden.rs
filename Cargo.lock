@@ -2635,9 +2635,11 @@ dependencies = [
 name = "raiden-bin-common"
 version = "0.0.1"
 dependencies = [
+ "ethsign",
  "raiden-blockchain",
  "raiden-primitives",
  "rpassword",
+ "serde_json",
  "web3",
 ]
 

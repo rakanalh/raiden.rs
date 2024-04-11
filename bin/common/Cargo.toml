@@ -12,6 +12,8 @@ rust-version = "1.59"
 
 [dependencies]
 # 3rd Party
+ethsign = { version = "0.8.0" }
+serde_json = { version = "1.0.59", default-features = false }
 rpassword = { version = "5.0.1", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = [ "http", "signing", "ws-tls-tokio" ] }
 
