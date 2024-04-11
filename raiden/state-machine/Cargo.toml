@@ -27,8 +27,8 @@ ulid = { version = "0.4.1", default-features = false, optional = true }
 web3 = { version = "0.18.0", default-features = false, features = [ "signing" ] }
 
 # Raiden
-raiden-macros = { path = "../macros" }
-raiden-primitives = { path = "../primitives" }
+raiden-macros = { version = "0.1.0", path = "../macros" }
+raiden-primitives = { version = "0.1.0", path = "../primitives" }
 
 [dev-dependencies]
 rand = { version = "0.8.4" }

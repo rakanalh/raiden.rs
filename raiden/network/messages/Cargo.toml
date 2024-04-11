@@ -20,6 +20,6 @@ serde_json = { version = "1.0.59", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
 
 # Raiden
-raiden-blockchain = { path = "../../blockchain" }
-raiden-primitives = { path = "../../primitives" }
-raiden-state-machine = { path = "../../state-machine" }
+raiden-blockchain = { version = "0.1.0", path = "../../blockchain" }
+raiden-primitives = { version = "0.1.0", path = "../../primitives" }
+raiden-state-machine = { version = "0.1.0", path = "../../state-machine" }

@@ -30,10 +30,10 @@ ulid = { version = "0.4.1", default-features = false }
 web3 = { version = "0.18.0", default-features = false, features = ["signing"] }
 
 # Raiden
-raiden-blockchain = { path = "../../blockchain" }
-raiden-primitives = { path = "../../primitives" }
-raiden-network-messages = { path = "../../network/messages" }
-raiden-transition = { path = "../../transition" }
+raiden-blockchain = { version = "0.1.0", path = "../../blockchain" }
+raiden-primitives = { version = "0.1.0", path = "../../primitives" }
+raiden-network-messages = { version = "0.1.0", path = "../../network/messages" }
+raiden-transition = { version = "0.1.0", path = "../../transition" }
 
 [dev-dependencies]
 futures-util = { version = "0.3.28" }

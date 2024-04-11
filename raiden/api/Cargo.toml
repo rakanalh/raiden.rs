@@ -20,9 +20,9 @@ tokio = { version = "1.0", features = ["macros", "time"], default-features = fal
 web3 = { version = "0.18.0", default-features = false, features = ["http", "signing"] }
 
 # Raiden
-raiden-blockchain = { path = "../blockchain" }
-raiden-pathfinding = { path = "../pathfinding" }
-raiden-primitives = { path = "../primitives" }
-raiden-network-messages= { path = "../network/messages" }
-raiden-state-machine = { path = "../state-machine" }
-raiden-transition = { path = "../transition" }
+raiden-blockchain = { version = "0.1.0", path = "../blockchain" }
+raiden-pathfinding = { version = "0.1.0", path = "../pathfinding" }
+raiden-primitives = { version = "0.1.0", path = "../primitives" }
+raiden-network-messages= { version = "0.1.0", path = "../network/messages" }
+raiden-state-machine = { version = "0.1.0", path = "../state-machine" }
+raiden-transition = { version = "0.1.0", path = "../transition" }

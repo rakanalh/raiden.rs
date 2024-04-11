@@ -23,6 +23,6 @@ tokio = { version = "1.0", features = ["macros", "time"], default-features = fal
 web3 = { version = "0.18.0", default-features = false, features = [ "http" ] }
 
 # Raiden
-raiden-primitives = { path = "../primitives" }
-raiden-blockchain = { path = "../blockchain" }
-raiden-state-machine = { path = "../state-machine" }
+raiden-primitives = { version = "0.1.0", path = "../primitives" }
+raiden-blockchain = { version = "0.1.0", path = "../blockchain" }
+raiden-state-machine = { version = "0.1.0", path = "../state-machine" }

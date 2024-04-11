@@ -19,8 +19,8 @@ tracing = { version = "0.1.37", default-features = false }
 web3 = { version = "0.18.0", default-features = false }
 
 # Raiden
-raiden-blockchain = { path = "../blockchain" }
-raiden-primitives = { path = "../primitives" }
-raiden-network-messages = { path = "../network/messages" }
-raiden-pathfinding = { path = "../pathfinding" }
-raiden-state-machine = { path = "../state-machine" }
+raiden-blockchain = { version = "0.1.0", path = "../blockchain" }
+raiden-primitives = { version = "0.1.0", path = "../primitives" }
+raiden-network-messages = { version = "0.1.0", path = "../network/messages" }
+raiden-pathfinding = { version = "0.1.0", path = "../pathfinding" }
+raiden-state-machine = { version = "0.1.0", path = "../state-machine" }
