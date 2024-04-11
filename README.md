@@ -2,6 +2,8 @@
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/rakanalh/raiden.rs/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/rakanalh/raiden.rs/tree/main)
 [![codecov](https://codecov.io/gh/rakanalh/raiden.rs/branch/main/graph/badge.svg?token=Jyi76olOco)](https://codecov.io/gh/rakanalh/raiden.rs)
+[![Crates.io Version](https://img.shields.io/crates/v/raiden-rs)](https://crates.io/crates/raiden-rs)
+[![docs.rs](https://img.shields.io/docsrs/raiden-rs)](https://docs.rs/raiden-rs/)
 
 The **UNOFFICIAL** Raiden client implementation in Rust
 
